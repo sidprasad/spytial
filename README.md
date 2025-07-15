@@ -83,7 +83,7 @@ The serialized output will look like this:
 - Performance may degrade for very large or deeply nested objects.
 
 ## TODO:
-- Extend annotations to the entire set of directives.
+- Make sure that multiple graphs can be rendered at once??
 - Need to add tests for the annotations and provider systems E.g. how annotations become objects / yaml.
 
 ## License

@@ -54,7 +54,6 @@ def show(obj, method="inline", auto_open=True):
     data_instance = builder.build_instance(obj)
     
     # Generate the HTML content
-
     html_content = _generate_visualizer_html(data_instance, cnd_spec)
     
     if method == "inline":
@@ -66,12 +65,9 @@ def show(obj, method="inline", auto_open=True):
                 # Encode HTML as base64 for iframe
                 encoded_html = base64.b64encode(html_content.encode('utf-8')).decode('utf-8')
                 
-                # Create iframe HTML
-
-
+                # Create iframe HTML with retry mechanism
                 iframe_html = f'''
                 <div style="border: 2px solid #007acc; border-radius: 8px; overflow: hidden;">
-
                     <iframe 
                         src="data:text/html;base64,{encoded_html}" 
                         width="100%" 
@@ -80,6 +76,22 @@ def show(obj, method="inline", auto_open=True):
                         style="display: block;">
                     </iframe>
                 </div>
+                <script>
+                    // Retry mechanism for custom element readiness
+                    function retryRender(retries) {{
+                        if (retries <= 0) {{
+                            console.error('Failed to render graph after retries');
+                            return;
+                        }}
+                        if (!customElements.get('webcola-cnd-graph')) {{
+                            console.warn('webcola-cnd-graph not ready, retrying...');
+                            setTimeout(() => retryRender(retries - 1), 500);
+                        }} else {{
+                            console.log('webcola-cnd-graph is ready');
+                        }}
+                    }}
+                    retryRender(5);
+                </script>
                 '''
                 
                 display(HTML(iframe_html))
