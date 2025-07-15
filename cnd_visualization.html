@@ -19,7 +19,9 @@
             margin: 20px auto;
         }
     </style>
-</head>
+    <script src="https://d3js.org/d3.v4.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/cnd-core/dist/browser/cnd-core-complete.global.js"></script>
+
 <body>
     <!-- WebCola CND Graph Element -->
     <webcola-cnd-graph 
@@ -30,45 +32,70 @@
         aria-label="Interactive graph visualization">
     </webcola-cnd-graph>
 
-    <script src="https://cdn.jsdelivr.net/npm/cnd-core/dist/browser/cnd-core-complete.global.js"></script>
     <script>
         // Embedded data passed from the server
         const cndSpec = `constraints: []
 directives: []
 `;
-        const jsonData = `{'atoms': [{'id': 'n1', 'type': 'str', 'label': 'Alice'}, {'id': 'n2', 'type': 'int', 'label': '30'}, {'id': 'n4', 'type': 'str', 'label': 'reading'}, {'id': 'n5', 'type': 'str', 'label': 'cycling'}, {'id': 'n3', 'type': 'list', 'label': 'list[2]'}, {'id': 'n7', 'type': 'str', 'label': '123 Main St'}, {'id': 'n8', 'type': 'str', 'label': 'Anytown'}, {'id': 'n6', 'type': 'dict', 'label': 'dict{2}'}, {'id': 'n0', 'type': 'dict', 'label': 'dict{4}'}], 'relations': [{'id': '0', 'name': '0', 'types': ['object', 'object'], 'tuples': [{'atoms': ['n3', 'n4'], 'types': ['list', 'str']}]}, {'id': '1', 'name': '1', 'types': ['object', 'object'], 'tuples': [{'atoms': ['n3', 'n5'], 'types': ['list', 'str']}]}, {'id': 'street', 'name': 'street', 'types': ['object', 'object'], 'tuples': [{'atoms': ['n6', 'n7'], 'types': ['dict', 'str']}]}, {'id': 'city', 'name': 'city', 'types': ['object', 'object'], 'tuples': [{'atoms': ['n6', 'n8'], 'types': ['dict', 'str']}]}, {'id': 'name', 'name': 'name', 'types': ['object', 'object'], 'tuples': [{'atoms': ['n0', 'n1'], 'types': ['dict', 'str']}]}, {'id': 'age', 'name': 'age', 'types': ['object', 'object'], 'tuples': [{'atoms': ['n0', 'n2'], 'types': ['dict', 'int']}]}, {'id': 'hobbies', 'name': 'hobbies', 'types': ['object', 'object'], 'tuples': [{'atoms': ['n0', 'n3'], 'types': ['dict', 'list']}]}, {'id': 'address', 'name': 'address', 'types': ['object', 'object'], 'tuples': [{'atoms': ['n0', 'n6'], 'types': ['dict', 'dict']}]}]}`;
+        const jsonData = `{"atoms": [{"id": "n1", "type": "str", "label": "Alice"}, {"id": "n2", "type": "int", "label": "30"}, {"id": "n4", "type": "str", "label": "reading"}, {"id": "n5", "type": "str", "label": "cycling"}, {"id": "n3", "type": "list", "label": "list[2]"}, {"id": "n7", "type": "str", "label": "123 Main St"}, {"id": "n8", "type": "str", "label": "Anytown"}, {"id": "n6", "type": "dict", "label": "dict{2}"}, {"id": "n0", "type": "dict", "label": "dict{4}"}], "relations": [{"id": "0", "name": "0", "types": ["object", "object"], "tuples": [{"atoms": ["n3", "n4"], "types": ["list", "str"]}]}, {"id": "1", "name": "1", "types": ["object", "object"], "tuples": [{"atoms": ["n3", "n5"], "types": ["list", "str"]}]}, {"id": "street", "name": "street", "types": ["object", "object"], "tuples": [{"atoms": ["n6", "n7"], "types": ["dict", "str"]}]}, {"id": "city", "name": "city", "types": ["object", "object"], "tuples": [{"atoms": ["n6", "n8"], "types": ["dict", "str"]}]}, {"id": "name", "name": "name", "types": ["object", "object"], "tuples": [{"atoms": ["n0", "n1"], "types": ["dict", "str"]}]}, {"id": "age", "name": "age", "types": ["object", "object"], "tuples": [{"atoms": ["n0", "n2"], "types": ["dict", "int"]}]}, {"id": "hobbies", "name": "hobbies", "types": ["object", "object"], "tuples": [{"atoms": ["n0", "n3"], "types": ["dict", "list"]}]}, {"id": "address", "name": "address", "types": ["object", "object"], "tuples": [{"atoms": ["n0", "n6"], "types": ["dict", "dict"]}]}]}`;
 
         /**
          * Load and render the graph using the webcola-cnd-graph custom element
          */
         async function loadGraph() {
             const graphElement = document.getElementById('graph-container');
+            
+            // Check if CnD Core is available
+            if (typeof CndCore === 'undefined') {
+                console.error('CnD Core library is not available');
+                showError('CnD Core library failed to load. The visualization cannot be displayed.');
+                return;
+            }
+            
             try {
+                console.log('Starting graph rendering...');
+                console.log('CnD Spec:', cndSpec);
+                console.log('JSON Data:', jsonData.substring(0, 200) + '...');
+                
+                // Parse JSON data if it's a string
+                let parsedData;
+                try {
+                    parsedData = typeof jsonData === 'string' ? JSON.parse(jsonData) : jsonData;
+                } catch (parseError) {
+                    throw new Error(`Failed to parse JSON data: ${parseError.message}`);
+                }
+                
                 // Create a data instance from the JSON data
-                const dataInstance = new CndCore.JSONDataInstance(jsonData);
+                const dataInstance = new CndCore.JSONDataInstance(parsedData);
+                console.log('Data instance created successfully');
 
                 // Initialize the evaluation context
                 const evaluationContext = { sourceData: dataInstance };
                 const sgqEvaluator = new CndCore.SGraphQueryEvaluator();
                 sgqEvaluator.initialize(evaluationContext);
+                console.log('Evaluation context initialized');
 
                 // Parse the CND specification
                 const layoutSpec = CndCore.parseLayoutSpec(cndSpec);
+                console.log('Layout spec parsed');
 
                 // Generate the layout
                 const layoutInstance = new CndCore.LayoutInstance(layoutSpec, sgqEvaluator, 0, true);
                 const layoutResult = layoutInstance.generateLayout(dataInstance, {});
                 const instanceLayout = layoutResult.layout;
+                console.log('Layout generated');
 
                 // Render the graph
                 await graphElement.renderLayout(instanceLayout);
                 console.log('Graph rendered successfully!');
+                
             } catch (error) {
                 console.error('Error rendering graph:', error);
+                showError(`Error rendering graph: ${error.message}`);
             }
         }
 
-        // Auto-load the graph on page load
+        // Auto-load when page loads
         window.addEventListener('load', loadGraph);
     </script>
 </body>

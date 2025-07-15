@@ -19,7 +19,9 @@
             margin: 20px auto;
         }
     </style>
-</head>
+    <script src="https://d3js.org/d3.v4.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/cnd-core/dist/browser/cnd-core-complete.global.js"></script>
+
 <body>
     <!-- WebCola CND Graph Element -->
     <webcola-cnd-graph 
@@ -30,7 +32,6 @@
         aria-label="Interactive graph visualization">
     </webcola-cnd-graph>
 
-    <script src="https://cdn.jsdelivr.net/npm/cnd-core/dist/browser/cnd-core-complete.global.js"></script>
     <script>
         // Embedded data passed from the server
         const cndSpec = `{{ cnd_spec | safe }}`;
@@ -41,32 +42,58 @@
          */
         async function loadGraph() {
             const graphElement = document.getElementById('graph-container');
+            
+            // Check if CnD Core is available
+            if (typeof CndCore === 'undefined') {
+                console.error('CnD Core library is not available');
+                showError('CnD Core library failed to load. The visualization cannot be displayed.');
+                return;
+            }
+            
             try {
+                console.log('Starting graph rendering...');
+                console.log('CnD Spec:', cndSpec);
+                console.log('JSON Data:', jsonData.substring(0, 200) + '...');
+                
+                // Parse JSON data if it's a string
+                let parsedData;
+                try {
+                    parsedData = typeof jsonData === 'string' ? JSON.parse(jsonData) : jsonData;
+                } catch (parseError) {
+                    throw new Error(`Failed to parse JSON data: ${parseError.message}`);
+                }
+                
                 // Create a data instance from the JSON data
-                const dataInstance = new CndCore.JSONDataInstance(jsonData);
+                const dataInstance = new CndCore.JSONDataInstance(parsedData);
+                console.log('Data instance created successfully');
 
                 // Initialize the evaluation context
                 const evaluationContext = { sourceData: dataInstance };
                 const sgqEvaluator = new CndCore.SGraphQueryEvaluator();
                 sgqEvaluator.initialize(evaluationContext);
+                console.log('Evaluation context initialized');
 
                 // Parse the CND specification
                 const layoutSpec = CndCore.parseLayoutSpec(cndSpec);
+                console.log('Layout spec parsed');
 
                 // Generate the layout
                 const layoutInstance = new CndCore.LayoutInstance(layoutSpec, sgqEvaluator, 0, true);
                 const layoutResult = layoutInstance.generateLayout(dataInstance, {});
                 const instanceLayout = layoutResult.layout;
+                console.log('Layout generated');
 
                 // Render the graph
                 await graphElement.renderLayout(instanceLayout);
                 console.log('Graph rendered successfully!');
+                
             } catch (error) {
                 console.error('Error rendering graph:', error);
+                showError(`Error rendering graph: ${error.message}`);
             }
         }
 
-        // Auto-load the graph on page load
+        // Auto-load when page loads
         window.addEventListener('load', loadGraph);
     </script>
 </body>

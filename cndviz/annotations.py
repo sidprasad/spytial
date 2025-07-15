@@ -36,27 +36,58 @@ cnd_registry = {
     "directives": []
 }
 
+# Define valid types and their required fields
+CONSTRAINT_TYPES = {
+    "cyclic": ["selector", "direction"],
+    "orientation": ["selector", "directions"],
+    "group": ["field", "groupOn", "addToGroup"]
+}
+
+DIRECTIVE_TYPES = {
+    "atomColor": ["selector", "value"],
+    "size": ["selector", "height", "width"],
+    "icon": ["selector", "path", "showLabels"],
+    "edgeColor": ["field", "color"],
+    "projection": ["sig"],
+    "attribute": ["field"],
+    "hideField": ["field"],
+    "hideAtom": ["selector"],
+    "inferredEdge": ["name", "selector"]
+}
+
+def validate_fields(type_, kwargs, valid_fields):
+    """
+    Validate that the required fields for a given type are present in kwargs.
+    :param type_: The type of constraint or directive.
+    :param kwargs: The provided fields for the decorator.
+    :param valid_fields: The list of required fields for the type.
+    :raises ValueError: If a required field is missing.
+    """
+    missing_fields = [field for field in valid_fields if field not in kwargs]
+    if missing_fields:
+        raise ValueError(f"Missing required fields for '{type_}': {', '.join(missing_fields)}")
+
 def cnd(type_, **kwargs):
     """
     Decorator to annotate classes or methods with constraints and directives.
-    :param type_: The type of constraint or directive (e.g., 'cyclic', 'group').
+    :param type_: The type of constraint or directive (e.g., 'cyclic', 'group', 'atomColor').
     :param kwargs: Additional parameters for the constraint or directive.
     """
     def decorator(obj):
-        # Add the constraint/directive to the registry
-        entry = {"type": type_, **kwargs}
-        if callable(obj):
-            # If applied to a function or method
-            entry["target"] = f"{obj.__module__}.{obj.__qualname__}"
-        else:
-            # If applied to a class
-            entry["target"] = obj.__name__
-        
-        if type_ in ["cyclic", "orientation", "group"]:
+        # Determine if it's a constraint or directive
+        if type_ in CONSTRAINT_TYPES:
+            # Validate fields for constraints
+            validate_fields(type_, kwargs, CONSTRAINT_TYPES[type_])
+            entry = {type_: kwargs}
             cnd_registry["constraints"].append(entry)
-        else:
+        elif type_ in DIRECTIVE_TYPES:
+            # Validate fields for directives
+            validate_fields(type_, kwargs, DIRECTIVE_TYPES[type_])
+            entry = {type_: kwargs}
             cnd_registry["directives"].append(entry)
-        
+        else:
+            raise ValueError(f"Unknown type '{type_}' for @cnd decorator.")
+
         return obj
     return decorator
 

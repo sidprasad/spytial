@@ -82,8 +82,9 @@ The serialized output will look like this:
 - Limited support for custom serialization methods like `__reduce__` or `__getstate__`.
 - Performance may degrade for very large or deeply nested objects.
 
-## Contributing
-Contributions are welcome! Feel free to submit issues or pull requests to improve the library.
+## TODO:
+- Extend annotations to the entire set of directives.
+- Need to add tests for the annotations and provider systems E.g. how annotations become objects / yaml.
 
 ## License
 This project is licensed under the MIT License. See the LICENSE file for details.
