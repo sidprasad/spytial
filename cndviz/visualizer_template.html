@@ -30,7 +30,158 @@
         aria-label="Interactive graph visualization">
     </webcola-cnd-graph>
 
-    <script src="https://cdn.jsdelivr.net/npm/cnd-core/dist/browser/cnd-core-complete.global.js"></script>
+    <!-- Try multiple CDN sources for reliability -->
+    <script>
+        // List of potential CDN sources for cnd-core
+        const cdnSources = [
+            'https://cdn.jsdelivr.net/npm/cnd-core/dist/browser/cnd-core-complete.global.js',
+            'https://unpkg.com/cnd-core/dist/browser/cnd-core-complete.global.js',
+            'https://cdn.skypack.dev/cnd-core/dist/browser/cnd-core-complete.global.js'
+        ];
+        
+        let cdnLoaded = false;
+        let loadAttempts = 0;
+        
+        function loadCdnScript(url) {
+            return new Promise((resolve, reject) => {
+                const script = document.createElement('script');
+                script.src = url;
+                script.onload = () => resolve(url);
+                script.onerror = () => reject(new Error(`Failed to load ${url}`));
+                document.head.appendChild(script);
+            });
+        }
+        
+        async function tryLoadCdn() {
+            for (const url of cdnSources) {
+                try {
+                    console.log(`Attempting to load CnD Core from: ${url}`);
+                    await loadCdnScript(url);
+                    cdnLoaded = true;
+                    console.log(`Successfully loaded CnD Core from: ${url}`);
+                    break;
+                } catch (error) {
+                    console.warn(`Failed to load from ${url}:`, error.message);
+                    loadAttempts++;
+                }
+            }
+            
+            if (!cdnLoaded) {
+                console.error('Failed to load CnD Core from any CDN source');
+                showError('Failed to load CnD visualization library. Please check your internet connection.');
+                return;
+            }
+            
+            // Load the graph after CDN is loaded
+            loadGraph();
+        }
+        
+        function showError(message) {
+            const container = document.getElementById('graph-container');
+            container.innerHTML = `
+                <div style="display: flex; align-items: center; justify-content: center; height: 100%; 
+                           background-color: #f8f9fa; border: 2px dashed #dc3545; border-radius: 8px;">
+                    <div style="text-align: center; color: #dc3545; font-family: monospace;">
+                        <h3>Visualization Error</h3>
+                        <p>${message}</p>
+                        <button onclick="tryLoadCdn()" style="margin-top: 10px; padding: 8px 16px; 
+                               background-color: #007acc; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                            Retry
+                        </button>
+                        <button onclick="showFallbackVisualization()" style="margin-top: 10px; margin-left: 10px; padding: 8px 16px; 
+                               background-color: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                            Show Fallback View
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
+        
+        function showFallbackVisualization() {
+            console.log('Showing fallback visualization...');
+            try {
+                const parsedData = typeof jsonData === 'string' ? JSON.parse(jsonData) : jsonData;
+                renderFallbackGraph(parsedData);
+            } catch (error) {
+                console.error('Error in fallback visualization:', error);
+                const container = document.getElementById('graph-container');
+                container.innerHTML = `
+                    <div style="padding: 20px; background-color: #fff3cd; border: 1px solid #ffeaa7; border-radius: 8px;">
+                        <h3>Data Structure View</h3>
+                        <pre style="background-color: #f8f9fa; padding: 15px; border-radius: 4px; overflow: auto; max-height: 500px;">${JSON.stringify(parsedData, null, 2)}</pre>
+                    </div>
+                `;
+            }
+        }
+        
+        function renderFallbackGraph(data) {
+            const container = document.getElementById('graph-container');
+            
+            // Create a simple tree-like visualization of the data
+            let html = `
+                <div style="padding: 20px; background-color: white; border-radius: 8px; height: 100%; overflow: auto;">
+                    <h3 style="margin-top: 0; color: #007acc;">Data Structure Visualization (Fallback Mode)</h3>
+                    <div style="font-family: monospace; font-size: 14px;">
+            `;
+            
+            // Show atoms
+            html += '<h4 style="color: #28a745; margin-bottom: 10px;">Atoms:</h4>';
+            html += '<div style="display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 20px;">';
+            
+            if (data.atoms) {
+                data.atoms.forEach(atom => {
+                    const color = getTypeColor(atom.type);
+                    html += `
+                        <div style="background-color: ${color}; color: white; padding: 8px 12px; border-radius: 20px; font-size: 12px;">
+                            <strong>${atom.id}</strong><br>
+                            <span style="opacity: 0.9;">${atom.type}</span><br>
+                            <span style="opacity: 0.8;">"${atom.label}"</span>
+                        </div>
+                    `;
+                });
+            }
+            
+            html += '</div>';
+            
+            // Show relations
+            html += '<h4 style="color: #dc3545; margin-bottom: 10px;">Relations:</h4>';
+            html += '<div>';
+            
+            if (data.relations) {
+                data.relations.forEach(relation => {
+                    html += `<div style="margin-bottom: 10px; padding: 10px; background-color: #f8f9fa; border-left: 4px solid #007acc; border-radius: 4px;">`;
+                    html += `<strong>${relation.name}:</strong><br>`;
+                    
+                    if (relation.tuples) {
+                        relation.tuples.forEach(tuple => {
+                            html += `<span style="margin-left: 15px; color: #666;">${tuple.atoms[0]} → ${tuple.atoms[1]} (${tuple.types[0]} → ${tuple.types[1]})</span><br>`;
+                        });
+                    }
+                    
+                    html += '</div>';
+                });
+            }
+            
+            html += '</div>';
+            html += '</div></div>';
+            
+            container.innerHTML = html;
+        }
+        
+        function getTypeColor(type) {
+            const colors = {
+                'str': '#17a2b8',
+                'int': '#28a745',
+                'float': '#ffc107',
+                'bool': '#6f42c1',
+                'list': '#fd7e14',
+                'dict': '#dc3545',
+                'tuple': '#e83e8c',
+                'set': '#20c997'
+            };
+            return colors[type] || '#6c757d';
+        }
+    </script>
     <script>
         // Embedded data passed from the server
         const cndSpec = `{{ cnd_spec | safe }}`;
@@ -41,33 +192,59 @@
          */
         async function loadGraph() {
             const graphElement = document.getElementById('graph-container');
+            
+            // Check if CnD Core is available
+            if (typeof CndCore === 'undefined') {
+                console.error('CnD Core library is not available');
+                showError('CnD Core library failed to load. The visualization cannot be displayed.');
+                return;
+            }
+            
             try {
+                console.log('Starting graph rendering...');
+                console.log('CnD Spec:', cndSpec);
+                console.log('JSON Data:', jsonData.substring(0, 200) + '...');
+                
+                // Parse JSON data if it's a string
+                let parsedData;
+                try {
+                    parsedData = typeof jsonData === 'string' ? JSON.parse(jsonData) : jsonData;
+                } catch (parseError) {
+                    throw new Error(`Failed to parse JSON data: ${parseError.message}`);
+                }
+                
                 // Create a data instance from the JSON data
-                const dataInstance = new CndCore.JSONDataInstance(jsonData);
+                const dataInstance = new CndCore.JSONDataInstance(parsedData);
+                console.log('Data instance created successfully');
 
                 // Initialize the evaluation context
                 const evaluationContext = { sourceData: dataInstance };
                 const sgqEvaluator = new CndCore.SGraphQueryEvaluator();
                 sgqEvaluator.initialize(evaluationContext);
+                console.log('Evaluation context initialized');
 
                 // Parse the CND specification
                 const layoutSpec = CndCore.parseLayoutSpec(cndSpec);
+                console.log('Layout spec parsed');
 
                 // Generate the layout
                 const layoutInstance = new CndCore.LayoutInstance(layoutSpec, sgqEvaluator, 0, true);
                 const layoutResult = layoutInstance.generateLayout(dataInstance, {});
                 const instanceLayout = layoutResult.layout;
+                console.log('Layout generated');
 
                 // Render the graph
                 await graphElement.renderLayout(instanceLayout);
                 console.log('Graph rendered successfully!');
+                
             } catch (error) {
                 console.error('Error rendering graph:', error);
+                showError(`Error rendering graph: ${error.message}`);
             }
         }
 
-        // Auto-load the graph on page load
-        window.addEventListener('load', loadGraph);
+        // Auto-load when page loads
+        window.addEventListener('load', tryLoadCdn);
     </script>
 </body>
 </html>

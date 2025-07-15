@@ -23,6 +23,14 @@ except ImportError:
     HAS_JINJA2 = False
 
 
+def quick_show(obj):
+    """
+    Quick display function for Jupyter notebooks.
+    Alias for show(obj, method="inline").
+    """
+    return show(obj, method="inline")
+
+
 def show(obj, method="inline", auto_open=True):
     """
     Display a Python object in the CnD visualizer.
@@ -100,8 +108,8 @@ def _generate_visualizer_html(data_instance, cnd_spec):
     
     # Render the template with our data
     html_content = template.render(
-        python_data=data_instance,  # Embed the serialized Python data
-        cnd_spec=cnd_spec           # Embed the CnD specification
+        python_data=json.dumps(data_instance),  # Properly serialize to JSON
+        cnd_spec=cnd_spec                       # Embed the CnD specification
     )
     
     return html_content
