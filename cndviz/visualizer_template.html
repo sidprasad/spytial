@@ -1,417 +1,73 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-
-
-    <!-- We need to simplify this, eventually.
-     
-    TODO:
-       - This needs to be stripped down:P
-       - just load up everythign and show the constructred graph.
-       - If there is an erorr, mount the error component?
-       - MAYBE, we can do input -- this is easier for Python objects.
-       
-    
-    
-    -->
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ title | default("CnD Python Object Visualization") }}</title>
-    
-    <!-- Bootstrap CSS for component styling -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <!-- Custom CSS -->
+    <title>{{ title | default("CnD Visualization") }}</title>
     <style>
         body {
-            display: flex;
             font-family: Arial, sans-serif;
-            /* max-width: 1200px; */
-            max-width: 90vw;
-            margin: 0 auto;
+            margin: 0;
             padding: 20px;
             background-color: #f5f5f5;
-            gap: 20px;
-        }
-        .container {
-            background: white;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            margin-bottom: 20px;
-        }
-        #graph-container-wrapper {
-            position: relative;
-            width: 100%;
-            height: 600px;
-            margin: 20px 0;
         }
         #graph-container {
-            width: 100%;
+            width: 800px;
             height: 600px;
             border: 2px solid #007acc;
             border-radius: 8px;
-            display: block; /* Why? Because it's an inline SVG by default */
-        }
-        #graph-controls {
-            position: absolute;
-            top: 10px;
-            right: 10px;
-            z-index: 1000;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            background: rgba(255, 255, 255, 0.95);
-            padding: 8px 12px;
-            border-radius: 6px;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-            backdrop-filter: blur(4px);
-            border: 1px solid rgba(0, 0, 0, 0.1);
-        }
-        button {
-            background-color: #007acc;
-            color: white;
-            border: none;
-            padding: 10px 15px;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 14px;
-            margin: 5px;
-        }
-        button:hover {
-            background-color: #005a9e;
-        }
-        #clearGraphButton {
-            background-color: red;
-        }
-        #clearGraphButton:hover {
-            background-color: rgb(200, 34, 34);
-        }
-        #applyLayoutButton {
-            font-size: 16px;
-        }
-        #applyLayoutButton:disabled {
-            background-color: #ccc;
-            cursor: not-allowed;
-        }
-        textarea {
-            width: 100%;
-            height: 200px;
-            font-family: 'Courier New', monospace;
-            font-size: 12px;
-            padding: 10px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            resize: vertical;
-            box-sizing: border-box;
-        }
-        label {
-            font-weight: bold;
-            display: block;
-            margin-bottom: 5px;
-        }
-        .status {
-            margin: 10px 0;
-            padding: 10px;
-            border-radius: 4px;
-        }
-        .status.info { background: #e3f2fd; color: #1976d2; }
-        .status.success { background: #e8f5e8; color: #2e7d32; }
-        .status.error { background: #ffebee; color: #c62828; }
-
-        /** TODO: Add support for smaller screen sizes */
-        /**
-         * Responsive design for smaller screens
-         * Following modern browser compatibility guidelines
-         */
-        @media (max-width: 768px) {
-            #graph-controls {
-                top: 5px;
-                right: 5px;
-                padding: 6px 8px;
-                gap: 6px;
-            }
-            
-            #graph-controls #clearGraphButton {
-                padding: 4px 8px;
-                font-size: 12px;
-            }
-            
-            #graph-controls #layoutFormat {
-                padding: 4px 6px;
-                font-size: 12px;
-                min-width: 80px;
-            }
+            margin: 20px auto;
         }
     </style>
 </head>
 <body>
-    <div class="container border">
+    <!-- WebCola CND Graph Element -->
+    <webcola-cnd-graph 
+        id="graph-container"
+        width="800" 
+        height="600"
+        layoutFormat="default"
+        aria-label="Interactive graph visualization">
+    </webcola-cnd-graph>
 
-        {% if description %}
-        <p>{{ description }}</p>
-        {% endif %}
-        
-        <div>
-            {% if show_input_controls %}
-            <!-- Editable Input Fields -->
-            <div>
-                <label for="jsinstance">JSON Instance</label>
-                <textarea id="jsinstance" placeholder="Paste your JSON instance here...">{{ initial_data | default("") }}</textarea>
-            </div>
-            {% else %}
-            <!-- Auto-loaded Python object data -->
-            {% endif %}
-            <div id="status" class="status info">{{ initial_status | default("Loading Python object visualization...") }}</div>
-            <div id="graph-container-wrapper">
-                <div id="graph-controls">
-                    <select title="Choose the Layout Format" class="form-select form-select-sm" id="layoutFormat" name="layoutFormat" onchange="changeLayoutFormat()" aria-label="Layout format selection">
-                        <option value="default" selected>Standard</option>
-                        <option value="grid">Grid (Beta)</option>
-                    </select>
-                    <button id="clearGraphButton" onclick="clearGraph()" title="Clear the current graph visualization" aria-label="Clear graph">Clear</button>
-                </div>
-                <!-- Use the webcola-cnd-graph custom element -->
-                <webcola-cnd-graph 
-                    id="graph-container"
-                    width="800" 
-                    height="600"
-                    layoutFormat="default"
-                    aria-label="Interactive graph visualization">
-                </webcola-cnd-graph>
-            </div>
-        </div>
-    </div>
-    {% if show_cnd_panel %}
-    <div id="cnd-panel" class="container d-flex flex-column col-md-4 border p-3">
-        <h5 class="h5 mb-2 text-dark">CND Layout Specification:</h5>
-        <button id="applyLayoutButton" class="mb-3" onclick="loadGraph()">Apply Layout</button>
-        <div id="webcola-cnd-container">
-            <!-- React element attached here -->
-        </div>
-    </div>
-    {% endif %}
-
-    <!-- D3 v4 and WebCola -->
-    <script src="https://d3js.org/d3.v4.min.js"></script>
-    <!-- <script src="../vendor/cola.js"></script> -->
-    <script src="https://cdn.jsdelivr.net/npm/webcola@3.4.0/WebCola/cola.min.js"></script>
-    <!-- React for components -->
-    <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
-    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
-    
-    <!-- Complete CND-Core browser bundle -->
     <script src="https://cdn.jsdelivr.net/npm/cnd-core/dist/browser/cnd-core-complete.global.js"></script>
-    
-    <!-- Demo components bundle (includes InstanceBuilder integration) -->
-    <script src="https://cdn.jsdelivr.net/npm/cnd-core/dist/components/react-component-integration.global.js"></script>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/cnd-core/dist/components/react-component-integration.css">
-
-    <!-- TODO: Update refs. -->
     <script>
-        // Variables to store data
-        let currentInstanceLayout = null;
-
-        {% if python_data %}
-        // Embedded Python object data
-        const pythonData = {{ python_data | tojson }};
-        {% endif %}
+        // Embedded data passed from the server
+        const cndSpec = `{{ cnd_spec | safe }}`;
+        const jsonData = `{{ python_data | safe }}`;
 
         /**
-         * Get current structured data from input field or embedded data
-         * @returns {string} JSON data specification
-         */
-        function getStructuredData() {
-            {% if python_data %}
-            return JSON.stringify(pythonData);
-            {% else %}
-            return document.getElementById('jsinstance').value.trim();
-            {% endif %}
-        }
-
-        /**
-         * Get current CND specification from input field  
-         * @returns {string} CND layout specification
-         */
-        function getCurrentCNDSpec() {
-            // Try to get value from React component first
-            return window.getCurrentCNDSpecFromReact ? 
-                window.getCurrentCNDSpecFromReact() : 
-                document.getElementById('webcola-cnd')?.value?.trim();
-        }
-
-        /**
-         * Update status display with proper styling
-         * @param {string} message - Status message to display
-         * @param {string} type - Status type: 'info', 'success', 'error'
-         */
-        function updateStatus(message, type = 'info') {
-            const statusElement = document.getElementById('status');
-            statusElement.textContent = message;
-            statusElement.className = `status ${type}`;
-        }
-
-        /**
-         * @returns {boolean} Success status
-         */
-        async function initializePipeline() {
-            try {
-                console.log('Complete CND-Core browser bundle loaded successfully');
-                console.log('Available on global CndCore:', Object.keys(CndCore));
-                
-                updateStatus('Pipeline ready!', 'success');
-                
-                return true;
-            } catch (error) {
-                console.error('Failed to initialize pipeline:', error);
-                updateStatus(`Pipeline init failed: ${error.message}`, 'error');
-                return false;
-            }
-        }
-
-        async function loadDataSource() {
-            try {
-                const structuredData = getStructuredData();
-                if (!structuredData) {
-                    throw new Error('Please enter structured data.');
-                }
-                const cndSpec = getCurrentCNDSpec() || "";
-
-                const datainstance = new CndCore.JSONDataInstance(structuredData);
-                console.log("Data Instance", datainstance)
-
-                let evaluationContext = {
-                    sourceData: datainstance,
-                };
-                const sgqEvaluator = new CndCore.SGraphQueryEvaluator();
-                sgqEvaluator.initialize(evaluationContext);
-                const layoutSpec = CndCore.parseLayoutSpec(cndSpec);
-                const ENABLE_ALIGNMENT_EDGES = true;
-                const instanceNumber = 0;
-                
-                const layoutInstance = new CndCore.LayoutInstance(
-                    layoutSpec, 
-                    sgqEvaluator, 
-                    instanceNumber, 
-                    ENABLE_ALIGNMENT_EDGES
-                );
-
-                updateStatus('Generating layout...', 'info');
-                const projections = {};
-                const layoutResult = layoutInstance.generateLayout(datainstance, projections);
-                currentInstanceLayout = layoutResult.layout;
-                console.log('Generated Instance Layout using pipeline:', currentInstanceLayout);
-
-                updateStatus('Ready to render.', 'success');
-                
-            } catch (error) {
-                console.error('Failed to load data:', error);
-                updateStatus(`Data loading failed: ${error.message}`, 'error');
-            }
-        }
-
-        /**
-         * Render the graph using the webcola-cnd-graph custom element
-         */
-        async function renderGraph() {
-            const graphElement = document.getElementById('graph-container');
-            
-            try {
-                if (!currentInstanceLayout) {
-                    updateStatus('No layout data available. Processing data first...', 'info');
-                    await loadDataSource();
-                    if (!currentInstanceLayout) {
-                        throw new Error('Failed to generate layout data.');
-                    }
-                }
-
-                updateStatus('Rendering graph with WebCola...', 'info');
-                
-                // Use the real InstanceLayout data with WebCola custom element
-                await graphElement.renderLayout(currentInstanceLayout);
-                
-                updateStatus('Graph rendered successfully!', 'success');
-            } catch (error) {
-                console.error('Error rendering graph:', error);
-                updateStatus(`Render error: ${error.message}`, 'error');
-            }
-        }
-
-        /**
-         * Clear the graph and reset state
-         */
-        function clearGraph() {
-            const graphElement = document.getElementById('graph-container');
-            
-            // Clear the graph
-            if (graphElement.clear) {
-                // FIXME: The graphElement needs a clear() method
-                graphElement.clear();
-            } else {
-                // Fallback: remove all SVG content
-                const svg = graphElement.shadowRoot?.querySelector('svg');
-                if (svg) {
-                    const container = svg.querySelector('.zoomable');
-                    if (container) {
-                        container.innerHTML = '';
-                    }
-                }
-            }
-            
-            // Clear stored layout
-            currentInstanceLayout = null;
-            
-            updateStatus('Graph cleared.', 'info');
-        }
-
-        /**
-         * Load and render graph in one step
+         * Load and render the graph using the webcola-cnd-graph custom element
          */
         async function loadGraph() {
-            try {
-                await loadDataSource();
-                await renderGraph();
-            } catch (error) {
-                console.error('Failed to load and render graph:', error);
-                updateStatus(`Failed to load graph: ${error.message}`, 'error');
-            }
-        }
-
-        async function changeLayoutFormat() {
             const graphElement = document.getElementById('graph-container');
-            const layoutFormat = document.getElementById('layoutFormat').value;
-            graphElement.setAttribute('layoutFormat', layoutFormat);
-            console.log(`Layout format changed to: ${layoutFormat}`);
-
-            // Re-render the graph with the new layout format
             try {
-                await graphElement.renderLayout(currentInstanceLayout);
-                updateStatus('Graph rendered successfully!', 'success');
+                // Create a data instance from the JSON data
+                const dataInstance = new CndCore.JSONDataInstance(jsonData);
+
+                // Initialize the evaluation context
+                const evaluationContext = { sourceData: dataInstance };
+                const sgqEvaluator = new CndCore.SGraphQueryEvaluator();
+                sgqEvaluator.initialize(evaluationContext);
+
+                // Parse the CND specification
+                const layoutSpec = CndCore.parseLayoutSpec(cndSpec);
+
+                // Generate the layout
+                const layoutInstance = new CndCore.LayoutInstance(layoutSpec, sgqEvaluator, 0, true);
+                const layoutResult = layoutInstance.generateLayout(dataInstance, {});
+                const instanceLayout = layoutResult.layout;
+
+                // Render the graph
+                await graphElement.renderLayout(instanceLayout);
+                console.log('Graph rendered successfully!');
             } catch (error) {
                 console.error('Error rendering graph:', error);
-                updateStatus(`Render error: ${error.message}`, 'error');
             }
         }
 
-        // Auto-initialize when page loads
-        window.addEventListener('load', async () => {
-            await initializePipeline();
-            {% if auto_load %}
-            // Auto-load the data
-            await loadGraph();
-            {% endif %}
-            {% if show_cnd_panel %}
-            // Mount React component for layout editing interface
-            if (window.mountCndLayoutInterface) {
-                window.mountCndLayoutInterface();
-            }
-            {% endif %}
-        });
-
-        // Expose functions globally for buttons
-        window.loadGraph = loadGraph;
-        window.loadDataSource = loadDataSource;
-        window.renderGraph = renderGraph;
-        window.clearGraph = clearGraph;
+        // Auto-load the graph on page load
+        window.addEventListener('load', loadGraph);
     </script>
 </body>
 </html>

@@ -36,13 +36,17 @@ def show(obj, method="inline", auto_open=True):
         str: Path to the generated HTML file (if method="file" or "browser")
     """
     from .provider_system import CnDDataInstanceBuilder
+    from .annotations import serialize_to_yaml_string  # Import the function to generate cnd_spec
+    
+    # Dynamically generate the CnD specification
+    cnd_spec = serialize_to_yaml_string()
     
     # Serialize the object using the provider system
     builder = CnDDataInstanceBuilder()
     data_instance = builder.build_instance(obj)
     
     # Generate the HTML content
-    html_content = _generate_visualizer_html(data_instance)
+    html_content = _generate_visualizer_html(data_instance, cnd_spec)
     
     if method == "inline":
         # Display inline in Jupyter notebook
@@ -79,7 +83,7 @@ def show(obj, method="inline", auto_open=True):
         raise ValueError(f"Unknown display method: {method}")
 
 
-def _generate_visualizer_html(data_instance):
+def _generate_visualizer_html(data_instance, cnd_spec):
     """Generate HTML content using Jinja2 templating."""
     
     if not HAS_JINJA2:
@@ -96,18 +100,9 @@ def _generate_visualizer_html(data_instance):
     
     # Render the template with our data
     html_content = template.render(
-        title="CnD Python Object Visualization",
-        heading="🎯 CnD Python Object Visualization", 
-        description="Interactive visualization of Python objects as CnD atoms and relations",
-        show_input_controls=False,  # Hide manual input controls
-        show_cnd_panel=True,        # Show CnD layout editing panel
         python_data=data_instance,  # Embed the serialized Python data
-        auto_load=True,             # Auto-load the visualization
-        initial_status="Loading Python object visualization..."
+        cnd_spec=cnd_spec           # Embed the CnD specification
     )
     
     return html_content
 
-
-# Alias for backwards compatibility
-quick_show = show
