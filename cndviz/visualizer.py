@@ -54,16 +54,42 @@ def show(obj, method="inline", auto_open=True):
     data_instance = builder.build_instance(obj)
     
     # Generate the HTML content
+
     html_content = _generate_visualizer_html(data_instance, cnd_spec)
     
     if method == "inline":
-        # Display inline in Jupyter notebook
+        # Display inline in Jupyter notebook using iframe
         if HAS_IPYTHON:
             try:
-                display(HTML(html_content))
+                import base64
+                
+                # Encode HTML as base64 for iframe
+                encoded_html = base64.b64encode(html_content.encode('utf-8')).decode('utf-8')
+                
+                # Create iframe HTML
+
+
+                iframe_html = f'''
+                <div style="border: 2px solid #007acc; border-radius: 8px; overflow: hidden;">
+
+                    <iframe 
+                        src="data:text/html;base64,{encoded_html}" 
+                        width="100%" 
+                        height="650px" 
+                        frameborder="0"
+                        style="display: block;">
+                    </iframe>
+                </div>
+                '''
+                
+                display(HTML(iframe_html))
                 return
-            except:
-                pass
+                
+            except Exception as e:
+                print(f"Iframe display failed: {e}")
+                # Fall back to browser if iframe fails
+                return show(obj, method="browser", auto_open=auto_open)
+        
         # Fall back to browser if not in Jupyter
         return show(obj, method="browser", auto_open=auto_open)
     
@@ -100,6 +126,11 @@ def _generate_visualizer_html(data_instance, cnd_spec):
     # Set up Jinja2 environment
     current_dir = Path(__file__).parent
     env = Environment(loader=FileSystemLoader(current_dir))
+
+    # And error handling in react components COULD go here, depending on What we want to include?
+    # Like, mount stuff if needed?
+    ## Error viz, CnD Builder, etc.
+
     
     try:
         template = env.get_template('visualizer_template.html')

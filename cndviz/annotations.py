@@ -43,20 +43,21 @@ def cnd(type_, **kwargs):
     :param kwargs: Additional parameters for the constraint or directive.
     """
     def decorator(obj):
-        # Add the constraint/directive to the registry
-        entry = {"type": type_, **kwargs}
+        # Build the entry correctly
+        entry = {type_: kwargs}
         if callable(obj):
             # If applied to a function or method
-            entry["target"] = f"{obj.__module__}.{obj.__qualname__}"
+            entry[type_]["target"] = f"{obj.__module__}.{obj.__qualname__}"
         else:
             # If applied to a class
-            entry["target"] = obj.__name__
-        
+            entry[type_]["target"] = obj.__name__
+
+        # Add the entry to the appropriate registry
         if type_ in ["cyclic", "orientation", "group"]:
             cnd_registry["constraints"].append(entry)
         else:
             cnd_registry["directives"].append(entry)
-        
+
         return obj
     return decorator
 
