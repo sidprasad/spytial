@@ -1,0 +1,328 @@
+"""
+CnD Data Instance Provider Architecture
+
+This module provides a pluggable system for converting Python objects
+into CnD-compatible atom/relation representations.
+"""
+
+import abc
+import dataclasses
+import inspect
+from typing import Any, Dict, List, Tuple, Type, Optional, Protocol
+import collections.abc
+
+
+class DataInstanceProvider(abc.ABC):
+    """Abstract base class for data instance providers."""
+    
+    @abc.abstractmethod
+    def can_handle(self, obj: Any) -> bool:
+        """Return True if this provider can handle the given object."""
+        pass
+    
+    @abc.abstractmethod
+    def provide_atoms_and_relations(self, obj: Any, walker_func) -> Tuple[Dict, List[Tuple[str, str, str]]]:
+        """
+        Convert object to atoms and relations.
+        
+        Args:
+            obj: The object to convert
+            walker_func: Function to recursively walk nested objects
+            
+        Returns:
+            Tuple of (atom_dict, relations_list)
+            atom_dict: {"id": str, "type": str, "label": str}
+            relations_list: [(relation_name, source_id, target_id), ...]
+        """
+        pass
+
+
+def data_provider(cls: Type = None, *, priority: int = 0):
+    """
+    Decorator to register a class as a data provider.
+    
+    Args:
+        priority: Higher priority providers are tried first
+    """
+    def decorator(provider_cls):
+        if not issubclass(provider_cls, DataInstanceProvider):
+            raise TypeError("Data provider must inherit from DataInstanceProvider")
+        
+        # Register the provider
+        DataInstanceRegistry.register(provider_cls, priority)
+        return provider_cls
+    
+    if cls is None:
+        return decorator
+    else:
+        return decorator(cls)
+
+
+class DataInstanceRegistry:
+    """Registry for data instance providers."""
+    
+    _providers: List[Tuple[int, Type[DataInstanceProvider]]] = []
+    _instances: List[DataInstanceProvider] = []
+    
+    @classmethod
+    def register(cls, provider_cls: Type[DataInstanceProvider], priority: int = 0):
+        """Register a provider class with given priority."""
+        cls._providers.append((priority, provider_cls))
+        cls._providers.sort(key=lambda x: x[0], reverse=True)  # Higher priority first
+        cls._instances = [provider_cls() for _, provider_cls in cls._providers]
+    
+    @classmethod
+    def find_provider(cls, obj: Any) -> Optional[DataInstanceProvider]:
+        """Find the first provider that can handle the given object."""
+        for provider in cls._instances:
+            if provider.can_handle(obj):
+                return provider
+        return None
+    
+    @classmethod
+    def clear(cls):
+        """Clear all registered providers (for testing)."""
+        cls._providers.clear()
+        cls._instances.clear()
+
+
+# Built-in providers
+
+@data_provider(priority=10)
+class PrimitiveProvider(DataInstanceProvider):
+    """Handles primitive types: int, float, str, bool, None."""
+    
+    def can_handle(self, obj: Any) -> bool:
+        return isinstance(obj, (int, float, str, bool, type(None)))
+    
+    def provide_atoms_and_relations(self, obj: Any, walker_func) -> Tuple[Dict, List[Tuple[str, str, str]]]:
+        atom = {
+            "id": walker_func._get_id(obj),
+            "type": type(obj).__name__,
+            "label": str(obj)
+        }
+        return atom, []
+
+
+@data_provider(priority=9)
+class DictProvider(DataInstanceProvider):
+    """Handles dictionary objects."""
+    
+    def can_handle(self, obj: Any) -> bool:
+        return isinstance(obj, dict)
+    
+    def provide_atoms_and_relations(self, obj: Any, walker_func) -> Tuple[Dict, List[Tuple[str, str, str]]]:
+        obj_id = walker_func._get_id(obj)
+        atom = {
+            "id": obj_id,
+            "type": "dict",
+            "label": f"dict{{{len(obj)}}}"
+        }
+        
+        relations = []
+        for k, v in obj.items():
+            vid = walker_func(v)
+            key_str = str(k) if isinstance(k, (str, int, float, bool)) else f"key_{len(relations)}"
+            relations.append((key_str, obj_id, vid))
+        
+        return atom, relations
+
+
+@data_provider(priority=8)
+class ListProvider(DataInstanceProvider):
+    """Handles list and tuple objects."""
+    
+    def can_handle(self, obj: Any) -> bool:
+        return isinstance(obj, (list, tuple))
+    
+    def provide_atoms_and_relations(self, obj: Any, walker_func) -> Tuple[Dict, List[Tuple[str, str, str]]]:
+        obj_id = walker_func._get_id(obj)
+        typ = type(obj).__name__
+        atom = {
+            "id": obj_id,
+            "type": typ,
+            "label": f"{typ}[{len(obj)}]"
+        }
+        
+        relations = []
+        for i, elt in enumerate(obj):
+            eid = walker_func(elt)
+            relations.append((str(i), obj_id, eid))
+        
+        return atom, relations
+
+
+@data_provider(priority=7)
+class DataclassProvider(DataInstanceProvider):
+    """Handles dataclass objects."""
+    
+    def can_handle(self, obj: Any) -> bool:
+        return dataclasses.is_dataclass(obj)
+    
+    def provide_atoms_and_relations(self, obj: Any, walker_func) -> Tuple[Dict, List[Tuple[str, str, str]]]:
+        obj_id = walker_func._get_id(obj)
+        typ = type(obj).__name__
+        atom = {
+            "id": obj_id,
+            "type": typ,
+            "label": f"{typ}"
+        }
+        
+        relations = []
+        for field in dataclasses.fields(obj):
+            if not field.name.startswith('_'):
+                value = getattr(obj, field.name)
+                vid = walker_func(value)
+                relations.append((field.name, obj_id, vid))
+        
+        return atom, relations
+
+
+@data_provider(priority=5)
+class GenericObjectProvider(DataInstanceProvider):
+    """Handles generic objects with __dict__ or __slots__."""
+    
+    def can_handle(self, obj: Any) -> bool:
+        return hasattr(obj, "__dict__") or hasattr(obj, "__slots__")
+    
+    def provide_atoms_and_relations(self, obj: Any, walker_func) -> Tuple[Dict, List[Tuple[str, str, str]]]:
+        obj_id = walker_func._get_id(obj)
+        typ = type(obj).__name__
+        atom = {
+            "id": obj_id,
+            "type": typ,
+            "label": f"{typ}"
+        }
+        
+        relations = []
+        
+        # Handle __slots__
+        if hasattr(obj, "__slots__"):
+            for slot in obj.__slots__:
+                if hasattr(obj, slot):
+                    value = getattr(obj, slot)
+                    vid = walker_func(value)
+                    relations.append((slot, obj_id, vid))
+        
+        # Handle __dict__
+        elif hasattr(obj, "__dict__"):
+            for attr_name, attr_value in vars(obj).items():
+                if not attr_name.startswith('_') and not inspect.ismethod(attr_value):
+                    vid = walker_func(attr_value)
+                    relations.append((attr_name, obj_id, vid))
+        
+        return atom, relations
+
+
+@data_provider(priority=1)
+class FallbackProvider(DataInstanceProvider):
+    """Fallback provider for objects that can't be handled by other providers."""
+    
+    def can_handle(self, obj: Any) -> bool:
+        return True  # Always accepts
+    
+    def provide_atoms_and_relations(self, obj: Any, walker_func) -> Tuple[Dict, List[Tuple[str, str, str]]]:
+        obj_id = walker_func._get_id(obj)
+        typ = type(obj).__name__
+        atom = {
+            "id": obj_id,
+            "type": typ,
+            "label": f"{typ}"
+        }
+        return atom, []
+
+
+class CnDDataInstanceBuilder:
+    """Main builder that composes providers to build data instances."""
+    
+    def __init__(self):
+        self._seen = {}
+        self._atoms = []
+        self._rels = {}
+        self._id_counter = 0
+    
+    def build_instance(self, obj: Any) -> Dict:
+        """Build a complete data instance from an object."""
+        self._seen.clear()
+        self._atoms.clear()
+        self._rels.clear()
+        self._id_counter = 0
+        
+        try:
+            self._walk(obj)
+        except Exception as e:
+            print(f"Error during data instance building: {e}")
+        
+        # Convert relations to include types (matching IRelation interface)
+        relations = []
+        for rel_name, tuples in self._rels.items():
+            # For each tuple, get the types of the atoms involved
+            typed_tuples = []
+            for source_id, target_id in tuples:
+                source_type = self._get_atom_type(source_id)
+                target_type = self._get_atom_type(target_id)
+                typed_tuples.append({
+                    "atoms": [source_id, target_id],
+                    "types": [source_type, target_type]
+                })
+            
+            relations.append({
+                "id": rel_name,
+                "name": rel_name,
+                "types": ["object", "object"],  # Default to Python's top type
+                "tuples": typed_tuples
+            })
+        
+        return {
+            "atoms": self._atoms,
+            "relations": relations
+        }
+    
+    def _get_id(self, obj: Any) -> str:
+        """Get or create an ID for an object."""
+        oid = id(obj)
+        if oid not in self._seen:
+            self._seen[oid] = f"n{self._id_counter}"
+            self._id_counter += 1
+        return self._seen[oid]
+    
+    def _walk(self, obj: Any, depth: int = 0, max_depth: int = 100) -> str:
+        """Walk an object using the appropriate provider."""
+        if depth > max_depth:
+            raise RecursionError("Maximum recursion depth exceeded")
+        
+        oid = id(obj)
+        if oid in self._seen:
+            return self._seen[oid]
+        
+        # Find appropriate provider
+        provider = DataInstanceRegistry.find_provider(obj)
+        if provider is None:
+            raise ValueError(f"No provider found for object of type {type(obj)}")
+        
+        # Get atom and relations from provider
+        atom, relations = provider.provide_atoms_and_relations(obj, self)
+        
+        # Add atom to our collection
+        self._atoms.append(atom)
+        
+        # Process relations
+        for rel_name, source_id, target_id in relations:
+            self._rels.setdefault(rel_name, []).append([source_id, target_id])
+        
+        return atom["id"]
+    
+    def __call__(self, obj: Any) -> str:
+        """Allow the builder to be called as a function for recursive walking."""
+        return self._walk(obj)
+    
+    def _get_atom_type(self, atom_id: str) -> str:
+        """Get the type of an atom by its ID."""
+        for atom in self._atoms:
+            if atom["id"] == atom_id:
+                return atom["type"]
+        return "object"  # Default fallback
+
+
+# Backwards compatibility alias
+CnDSerializer = CnDDataInstanceBuilder
