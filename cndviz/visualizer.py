@@ -44,10 +44,13 @@ def show(obj, method="inline", auto_open=True):
         str: Path to the generated HTML file (if method="file" or "browser")
     """
     from .provider_system import CnDDataInstanceBuilder
-    from .annotations import serialize_to_yaml_string  # Import the function to generate cnd_spec
+    from .annotations import collect_decorators, serialize_to_yaml_string  # Updated to use collect_decorators
     
-    # Dynamically generate the CnD specification
-    cnd_spec = serialize_to_yaml_string()
+    # Collect decorators from the object's class
+    decorators = collect_decorators(obj)
+    
+    # Serialize the collected decorators into a YAML string
+    cnd_spec = serialize_to_yaml_string(decorators)
     
     # Serialize the object using the provider system
     builder = CnDDataInstanceBuilder()
@@ -57,49 +60,15 @@ def show(obj, method="inline", auto_open=True):
     html_content = _generate_visualizer_html(data_instance, cnd_spec)
     
     if method == "inline":
-        # Display inline in Jupyter notebook using iframe
+        # Display inline in Jupyter notebook without iframe
         if HAS_IPYTHON:
             try:
-                import base64
-                
-                # Encode HTML as base64 for iframe
-                encoded_html = base64.b64encode(html_content.encode('utf-8')).decode('utf-8')
-                
-                # Create iframe HTML with retry mechanism
-                iframe_html = f'''
-                <div style="border: 2px solid #007acc; border-radius: 8px; overflow: hidden;">
-                    <iframe 
-                        src="data:text/html;base64,{encoded_html}" 
-                        width="100%" 
-                        height="650px" 
-                        frameborder="0"
-                        style="display: block;">
-                    </iframe>
-                </div>
-                <script>
-                    // Retry mechanism for custom element readiness
-                    function retryRender(retries) {{
-                        if (retries <= 0) {{
-                            console.error('Failed to render graph after retries');
-                            return;
-                        }}
-                        if (!customElements.get('webcola-cnd-graph')) {{
-                            console.warn('webcola-cnd-graph not ready, retrying...');
-                            setTimeout(() => retryRender(retries - 1), 500);
-                        }} else {{
-                            console.log('webcola-cnd-graph is ready');
-                        }}
-                    }}
-                    retryRender(5);
-                </script>
-                '''
-                
-                display(HTML(iframe_html))
+                # Directly embed the HTML content
+                display(HTML(html_content))
                 return
-                
             except Exception as e:
-                print(f"Iframe display failed: {e}")
-                # Fall back to browser if iframe fails
+                print(f"Inline display failed: {e}")
+                # Fall back to browser if inline fails
                 return show(obj, method="browser", auto_open=auto_open)
         
         # Fall back to browser if not in Jupyter

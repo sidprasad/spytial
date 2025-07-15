@@ -1,0 +1,5 @@
+# Core dependencies
+jinja2>=3.0.0  # For HTML templating
+pyyaml>=6.0    # For YAML serialization
+ipython>=8.0.0 # For Jupyter notebook integration
+

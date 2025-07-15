@@ -28,15 +28,9 @@
 
 
 import yaml
-from functools import wraps
 
 # Registry to store constraints and directives
-cnd_registry = {
-    "constraints": [],
-    "directives": []
-}
-
-# Define valid types and their required fields
+# This is now class-level, not global
 CONSTRAINT_TYPES = {
     "cyclic": ["selector", "direction"],
     "orientation": ["selector", "directions"],
@@ -69,42 +63,38 @@ def validate_fields(type_, kwargs, valid_fields):
 
 def cnd(type_, **kwargs):
     """
-    Decorator to annotate classes or methods with constraints and directives.
+    Decorator to annotate classes with constraints and directives.
     :param type_: The type of constraint or directive (e.g., 'cyclic', 'group', 'atomColor').
     :param kwargs: Additional parameters for the constraint or directive.
     """
-    def decorator(obj):
+    def decorator(cls):
+        if not hasattr(cls, "__cnd_registry__"):
+            cls.__cnd_registry__ = {
+                "constraints": [],
+                "directives": []
+            }
+        
         # Determine if it's a constraint or directive
         if type_ in CONSTRAINT_TYPES:
             # Validate fields for constraints
             validate_fields(type_, kwargs, CONSTRAINT_TYPES[type_])
             entry = {type_: kwargs}
-            cnd_registry["constraints"].append(entry)
+            cls.__cnd_registry__["constraints"].append(entry)
         elif type_ in DIRECTIVE_TYPES:
             # Validate fields for directives
             validate_fields(type_, kwargs, DIRECTIVE_TYPES[type_])
             entry = {type_: kwargs}
-            cnd_registry["directives"].append(entry)
+            cls.__cnd_registry__["directives"].append(entry)
         else:
             raise ValueError(f"Unknown type '{type_}' for @cnd decorator.")
-
-        return obj
+        
+        return cls
     return decorator
 
-def serialize_to_yaml_string():
-    """
-    Serialize the collected constraints and directives to a YAML string.
-    :return: YAML string representation of the registry.
-    """
-    return yaml.dump(cnd_registry, default_flow_style=False)
-
-
-
-## Do we even need this I guess?
 def collect_decorators(obj):
     """
-    Collect all decorators applied to the given object, including its children and related objects.
-    :param obj: The root object (class or function) to start collecting decorators from.
+    Collect all decorators applied to the class of the given object.
+    :param obj: The object whose class decorators should be collected.
     :return: A combined dictionary of constraints and directives.
     """
     combined_registry = {
@@ -112,29 +102,19 @@ def collect_decorators(obj):
         "directives": []
     }
 
-    # Helper function to merge registries
-    def merge_registry(target_registry, source_registry):
-        target_registry["constraints"].extend(source_registry["constraints"])
-        target_registry["directives"].extend(source_registry["directives"])
-
-    # Collect decorators for the current object
-    if hasattr(obj, "__dict__"):
-        for attr_name, attr_value in obj.__dict__.items():
-            if callable(attr_value) or isinstance(attr_value, type):
-                # Check if the attribute has decorators
-                if hasattr(attr_value, "__module__") and hasattr(attr_value, "__qualname__"):
-                    # Simulate decorator collection for this attribute
-                    entry = {
-                        "type": "unknown",  # Replace with actual type if available
-                        "target": f"{attr_value.__module__}.{attr_value.__qualname__}"
-                    }
-                    combined_registry["constraints"].append(entry)
-
-    # Recursively collect decorators from base classes (if obj is a class)
-    if isinstance(obj, type):
-        for base_class in obj.__bases__:
-            base_registry = collect_decorators(base_class)
-            merge_registry(combined_registry, base_registry)
-
+    # Traverse the class hierarchy
+    for cls in obj.__class__.__mro__:
+        if hasattr(cls, "__cnd_registry__"):
+            combined_registry["constraints"].extend(cls.__cnd_registry__["constraints"])
+            combined_registry["directives"].extend(cls.__cnd_registry__["directives"])
+    
     return combined_registry
+
+def serialize_to_yaml_string(decorators):
+    """
+    Serialize the collected constraints and directives to a YAML string.
+    :param decorators: The collected decorators (constraints and directives).
+    :return: YAML string representation of the decorators.
+    """
+    return yaml.dump(decorators, default_flow_style=False)
 

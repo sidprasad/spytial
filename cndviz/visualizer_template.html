@@ -31,6 +31,7 @@
         layoutFormat="default"
         aria-label="Interactive graph visualization">
     </webcola-cnd-graph>
+    <div id="error-message" ></div>
 
     <script>
         // Embedded data passed from the server
@@ -90,6 +91,24 @@
             } catch (error) {
                 console.error('Error rendering graph:', error);
                 showError(`Error rendering graph: ${error.message}`);
+            }
+        }
+
+        /**
+         * Display an error message in the error-message div.
+         * @param {string} message - The error message to display.
+         */
+        function showError(message) {
+            const errorDiv = document.getElementById('error-message');
+            if (errorDiv) {
+                errorDiv.innerHTML = `
+                    <div style="color: red; padding: 10px; border: 1px solid red; background-color: #ffe6e6; margin-top: 10px;">
+                        <h3>Error</h3>
+                        <p>${message}</p>
+                    </div>
+                `;
+            } else {
+                console.error('Error div not found. Error message:', message);
             }
         }
 

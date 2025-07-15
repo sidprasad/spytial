@@ -20,7 +20,7 @@
         }
     </style>
     <script src="https://d3js.org/d3.v4.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/cnd-core/dist/browser/cnd-core-complete.global.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/cnd-core@1.1.6/dist/browser/cnd-core-complete.global.js"></script>
 
 <body>
     <!-- WebCola CND Graph Element -->
@@ -95,8 +95,23 @@ directives: []
             }
         }
 
-        // Auto-load when page loads
-        window.addEventListener('load', loadGraph);
+        // Retry logic for rendering the graph
+        function retryRenderGraph(retries = 5) {
+            if (retries <= 0) {
+                console.error('Failed to render graph after multiple retries.');
+                return;
+            }
+
+            if (!customElements.get('webcola-cnd-graph')) {
+                console.warn('Custom element <webcola-cnd-graph> not ready. Retrying...');
+                setTimeout(() => retryRenderGraph(retries - 1), 500);
+            } else {
+                console.log('Custom element <webcola-cnd-graph> is ready. Rendering graph...');
+                loadGraph();
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => retryRenderGraph());
     </script>
 </body>
 </html>
