@@ -1,6 +1,19 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+
+
+    <!-- We need to simplify this, eventually.
+     
+    TODO:
+       - This needs to be stripped down:P
+       - just load up everythign and show the constructred graph.
+       - If there is an erorr, mount the error component?
+       - MAYBE, we can do input -- this is easier for Python objects.
+       
+    
+    
+    -->
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ title | default("CnD Python Object Visualization") }}</title>
@@ -133,7 +146,7 @@
 </head>
 <body>
     <div class="container border">
-        <h1>{{ heading | default("🎯 CnD Python Object Visualization") }}</h1>
+
         {% if description %}
         <p>{{ description }}</p>
         {% endif %}

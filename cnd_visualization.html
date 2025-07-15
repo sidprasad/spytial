@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Alloy CND Demo</title>
+    <title>CnD Python Object Visualization</title>
     
     <!-- Bootstrap CSS for component styling -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -133,15 +133,16 @@
 </head>
 <body>
     <div class="container border">
-        <h1>CnD JSON Visualization Demo</h1>
+
+        
+        <p>Interactive visualization of Python objects as CnD atoms and relations</p>
+        
         
         <div>
-            <!-- Editable Input Fields -->
-            <div>
-                <label for="jsinstance">JSON Instance</label>
-                <textarea id="jsinstance" placeholder="Paste your Alloy XML instance here..."></textarea>
-            </div>
-            <div id="status" class="status info">Ready to load Alloy graph...</div>
+            
+            <!-- Auto-loaded Python object data -->
+            
+            <div id="status" class="status info">Loading Python object visualization...</div>
             <div id="graph-container-wrapper">
                 <div id="graph-controls">
                     <select title="Choose the Layout Format" class="form-select form-select-sm" id="layoutFormat" name="layoutFormat" onchange="changeLayoutFormat()" aria-label="Layout format selection">
@@ -161,6 +162,7 @@
             </div>
         </div>
     </div>
+    
     <div id="cnd-panel" class="container d-flex flex-column col-md-4 border p-3">
         <h5 class="h5 mb-2 text-dark">CND Layout Specification:</h5>
         <button id="applyLayoutButton" class="mb-3" onclick="loadGraph()">Apply Layout</button>
@@ -168,33 +170,41 @@
             <!-- React element attached here -->
         </div>
     </div>
+    
 
     <!-- D3 v4 and WebCola -->
-        <script src="https://d3js.org/d3.v4.min.js"></script>
-        <!-- <script src="../vendor/cola.js"></script> -->
-        <script src="https://cdn.jsdelivr.net/npm/webcola@3.4.0/WebCola/cola.min.js"></script>
-        <!-- React for components -->
-        <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
-        <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
-        
-        <!-- Complete CND-Core browser bundle -->
-        <script src="https://cdn.jsdelivr.net/npm/cnd-core/dist/browser/cnd-core-complete.global.js"></script>
-        
-        <!-- Demo components bundle (includes InstanceBuilder integration) -->
-  <script src="https://cdn.jsdelivr.net/npm/cnd-core/dist/components/react-component-integration.global.js"></script>
-            <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/cnd-core/dist/components/react-component-integration.css">
+    <script src="https://d3js.org/d3.v4.min.js"></script>
+    <!-- <script src="../vendor/cola.js"></script> -->
+    <script src="https://cdn.jsdelivr.net/npm/webcola@3.4.0/WebCola/cola.min.js"></script>
+    <!-- React for components -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    
+    <!-- Complete CND-Core browser bundle -->
+    <script src="https://cdn.jsdelivr.net/npm/cnd-core/dist/browser/cnd-core-complete.global.js"></script>
+    
+    <!-- Demo components bundle (includes InstanceBuilder integration) -->
+    <script src="https://cdn.jsdelivr.net/npm/cnd-core/dist/components/react-component-integration.global.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/cnd-core/dist/components/react-component-integration.css">
 
-        <!-- TODO: Update refs. -->
+    <!-- TODO: Update refs. -->
     <script>
         // Variables to store data
         let currentInstanceLayout = null;
 
+        
+        // Embedded Python object data
+        const pythonData = {"atoms": [{"id": "n1", "label": "Alice", "type": "str"}, {"id": "n2", "label": "30", "type": "int"}, {"id": "n4", "label": "reading", "type": "str"}, {"id": "n5", "label": "cycling", "type": "str"}, {"id": "n3", "label": "list[2]", "type": "list"}, {"id": "n7", "label": "123 Main St", "type": "str"}, {"id": "n8", "label": "Anytown", "type": "str"}, {"id": "n6", "label": "dict{2}", "type": "dict"}, {"id": "n0", "label": "dict{4}", "type": "dict"}], "relations": [{"id": "0", "name": "0", "tuples": [{"atoms": ["n3", "n4"], "types": ["list", "str"]}], "types": ["object", "object"]}, {"id": "1", "name": "1", "tuples": [{"atoms": ["n3", "n5"], "types": ["list", "str"]}], "types": ["object", "object"]}, {"id": "street", "name": "street", "tuples": [{"atoms": ["n6", "n7"], "types": ["dict", "str"]}], "types": ["object", "object"]}, {"id": "city", "name": "city", "tuples": [{"atoms": ["n6", "n8"], "types": ["dict", "str"]}], "types": ["object", "object"]}, {"id": "name", "name": "name", "tuples": [{"atoms": ["n0", "n1"], "types": ["dict", "str"]}], "types": ["object", "object"]}, {"id": "age", "name": "age", "tuples": [{"atoms": ["n0", "n2"], "types": ["dict", "int"]}], "types": ["object", "object"]}, {"id": "hobbies", "name": "hobbies", "tuples": [{"atoms": ["n0", "n3"], "types": ["dict", "list"]}], "types": ["object", "object"]}, {"id": "address", "name": "address", "tuples": [{"atoms": ["n0", "n6"], "types": ["dict", "dict"]}], "types": ["object", "object"]}]};
+        
+
         /**
-         * Get current Alloy XML from input field
-         * @returns {string} Alloy XML specification
+         * Get current structured data from input field or embedded data
+         * @returns {string} JSON data specification
          */
         function getStructuredData() {
-            return document.getElementById('jsinstance').value.trim();
+            
+            return JSON.stringify(pythonData);
+            
         }
 
         /**
@@ -227,8 +237,6 @@
                 console.log('Complete CND-Core browser bundle loaded successfully');
                 console.log('Available on global CndCore:', Object.keys(CndCore));
                 
-                // Check for Alloy-specific components
-                
                 updateStatus('Pipeline ready!', 'success');
                 
                 return true;
@@ -239,21 +247,16 @@
             }
         }
 
-
         async function loadDataSource() {
             try {
-
-
                 const structuredData = getStructuredData();
                 if (!structuredData) {
-                    throw new Error('Please enter an structured data.');
+                    throw new Error('Please enter structured data.');
                 }
                 const cndSpec = getCurrentCNDSpec() || "";
 
                 const datainstance = new CndCore.JSONDataInstance(structuredData);
                 console.log("Data Instance", datainstance)
-
-
 
                 let evaluationContext = {
                     sourceData: datainstance,
@@ -281,7 +284,7 @@
                 
             } catch (error) {
                 console.error('Failed to load data:', error);
-                updateStatus(`Alloy data loading failed: ${error.message}`, 'error');
+                updateStatus(`Data loading failed: ${error.message}`, 'error');
             }
         }
 
@@ -307,8 +310,8 @@
                 
                 updateStatus('Graph rendered successfully!', 'success');
             } catch (error) {
-                console.error('Error rendering Alloy graph:', error);
-                updateStatus(`Alloy render error: ${error.message}`, 'error');
+                console.error('Error rendering graph:', error);
+                updateStatus(`Render error: ${error.message}`, 'error');
             }
         }
 
@@ -340,15 +343,15 @@
         }
 
         /**
-         * Load and render Alloy graph in one step
+         * Load and render graph in one step
          */
         async function loadGraph() {
             try {
                 await loadDataSource();
                 await renderGraph();
             } catch (error) {
-                console.error('Failed to load and render Alloy graph:', error);
-                updateStatus(`Failed to load Alloy graph: ${error.message}`, 'error');
+                console.error('Failed to load and render graph:', error);
+                updateStatus(`Failed to load graph: ${error.message}`, 'error');
             }
         }
 
@@ -361,20 +364,26 @@
             // Re-render the graph with the new layout format
             try {
                 await graphElement.renderLayout(currentInstanceLayout);
-                statusElement.textContent = 'Real graph rendered successfully!';
+                updateStatus('Graph rendered successfully!', 'success');
             } catch (error) {
                 console.error('Error rendering graph:', error);
-                statusElement.textContent = `Render error: ${error.message}`;
+                updateStatus(`Render error: ${error.message}`, 'error');
             }
         }
 
         // Auto-initialize when page loads
-        window.addEventListener('load', () => {
-            initializePipeline();
-            // Mount React component if available
+        window.addEventListener('load', async () => {
+            await initializePipeline();
+            
+            // Auto-load the data
+            await loadGraph();
+            
+            
+            // Mount React component for layout editing interface
             if (window.mountCndLayoutInterface) {
                 window.mountCndLayoutInterface();
             }
+            
         });
 
         // Expose functions globally for buttons
