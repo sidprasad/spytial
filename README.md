@@ -83,8 +83,12 @@ The serialized output will look like this:
 - Performance may degrade for very large or deeply nested objects.
 
 ## TODO:
-- Make sure that multiple graphs can be rendered at once??
 - Need to add tests for the annotations and provider systems E.g. how annotations become objects / yaml.
+- Figure out the constraint conflict story here.
+- Figure out guarding of things w/ their nodes. Like the self type should be got from the cnd annotation somehow? Can we have some templating / allow default top type in squery lang.
+- Documentation and demos.
+- Hiding flags.
+- The size of the element shown should be configurable, and we should have some good defaults?
 
 ## License
 This project is licensed under the MIT License. See the LICENSE file for details.
