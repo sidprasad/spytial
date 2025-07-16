@@ -23,15 +23,20 @@ except ImportError:
     HAS_JINJA2 = False
 
 
-def quick_diagram(obj):
+def quick_diagram(obj, width=800, height=600):
     """
     Quick display function for Jupyter notebooks.
-    Alias for diagram(obj, method="inline").
+    Alias for diagram(obj, method="inline", width=width, height=height).
+    
+    Args:
+        obj: Any Python object to visualize
+        width: Width of the visualization container in pixels (default: 800)
+        height: Height of the visualization container in pixels (default: 600)
     """
-    return diagram(obj, method="inline")
+    return diagram(obj, method="inline", width=width, height=height)
 
 
-def diagram(obj, method="inline", auto_open=True):
+def diagram(obj, method="inline", auto_open=True, width=800, height=600):
     """
     Display a Python object in the sPyTial visualizer.
     
@@ -39,6 +44,8 @@ def diagram(obj, method="inline", auto_open=True):
         obj: Any Python object to visualize
         method: Display method - "inline" (Jupyter), "browser" (new tab), or "file" (save to file)
         auto_open: Whether to automatically open browser (for "browser" method)
+        width: Width of the visualization container in pixels (default: 800)
+        height: Height of the visualization container in pixels (default: 600)
     
     Returns:
         str: Path to the generated HTML file (if method="file" or "browser")
@@ -57,7 +64,7 @@ def diagram(obj, method="inline", auto_open=True):
     data_instance = builder.build_instance(obj)
     
     # Generate the HTML content
-    html_content = _generate_visualizer_html(data_instance, spytial_spec)
+    html_content = _generate_visualizer_html(data_instance, spytial_spec, width, height)
     
     if method == "inline":
         # Display inline in Jupyter notebook using iframe
@@ -74,7 +81,7 @@ def diagram(obj, method="inline", auto_open=True):
                     <iframe 
                         src="data:text/html;base64,{encoded_html}" 
                         width="100%" 
-                        height="650px" 
+                        height="{height + 50}px" 
                         frameborder="0"
                         style="display: block;">
                     </iframe>
@@ -87,10 +94,12 @@ def diagram(obj, method="inline", auto_open=True):
             except Exception as e:
                 print(f"Iframe display failed: {e}")
                 # Fall back to browser if iframe fails
-                return diagram(obj, method="browser", auto_open=auto_open)
+                return diagram(obj, method="browser", auto_open=auto_open, 
+                             width=width, height=height)
         
         # Fall back to browser if not in Jupyter
-        return diagram(obj, method="browser", auto_open=auto_open)
+        return diagram(obj, method="browser", auto_open=auto_open, 
+                      width=width, height=height)
     
     elif method == "browser":
         # Open in browser
@@ -116,7 +125,7 @@ def diagram(obj, method="inline", auto_open=True):
         raise ValueError(f"Unknown display method: {method}")
 
 
-def _generate_visualizer_html(data_instance, spytial_spec):
+def _generate_visualizer_html(data_instance, spytial_spec, width=800, height=600):
     """Generate HTML content using Jinja2 templating."""
     
     if not HAS_JINJA2:
@@ -139,7 +148,9 @@ def _generate_visualizer_html(data_instance, spytial_spec):
     # Render the template with our data
     html_content = template.render(
         python_data=json.dumps(data_instance),  # Properly serialize to JSON
-        cnd_spec=spytial_spec                   # Embed the sPyTial specification
+        cnd_spec=spytial_spec,                   # Embed the sPyTial specification
+        width=width,                             # Container width
+        height=height                            # Container height
     )
     
     return html_content
