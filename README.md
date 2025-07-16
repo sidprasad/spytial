@@ -1,81 +1,49 @@
-# CnD Python Integration
+# sPyTial: Lightweight Diagrams for Structured Python Data
 
-`CnDSerializer` is a Python library designed to serialize Python-like data structures into a format compatible with the CnD (Cope and Drag) diagramming language. 
+Sometimes you just want to see your data.
 
-## Features
-- Serialize primitive types (`int`, `float`, `str`, `bool`).
-- Handle collections like `list`, `tuple`, `set`, and `frozenset`.
-- Serialize dictionaries, including their keys and values.
-- Support for objects with `__dict__` and `__slots__`.
-- Prevent infinite recursion with cyclic references.
-- Graceful handling of unsupported types.
+You’re working with a tree, a graph, a recursive object -- maybe an AST, a neural network, or a symbolic term. You don’t need an interactive dashboard or a production-grade visualization system. You just need a diagram, something that lays it out clearly so you can understand what’s going on.
 
-## Installation
-Clone the repository and include the `cndviz` module in your project:
+That’s what `sPyTial` is for. It’s designed for developers, educators, and researchers who work with structured data and need to make that structure visible — to themselves or to others — with minimal effort. 
 
-```bash
-# Clone the repository
-git clone <repository-url>
+## Why Spatial Representation Matters
 
-# Navigate to the project directory
-cd cnd-py
-```
+There’s strong evidence — from cognitive science, human-computer interaction, and decades of programming tool design — that **spatial representations help people understand structure**. When elements are placed meaningfully in space — grouped, aligned, oriented — we can spot patterns, detect errors, and reason more effectively. This idea shows up in research from Barbara Tversky, Larkin & Simon, and in the design of tools like Alloy and Scratch. 
 
-## Usage
+`sPyTial` gives you that kind of spatial layout **by default**. When you visualize a Python object, the diagram reflects how the parts are connected, not just how they're stored. You get:
+- A **box-and-arrow diagram** that shows the shape of your data
+- A layout that follows cognitive and structural conventions
+- A tool that knows when something doesn't make sense
 
-### Example
+
+## Diagramming by Refinement
+
+The default diagrams are often enough. But when they’re not, you can refine them; not by writing rendering code, but by annotating your data with **layout constraints**. These annotations are deeply integrated into the language:
+
 ```python
-from cndviz.serializer import CnDSerializer
+from spytial import diagram, orientation
 
-# Create an instance of the serializer
-serializer = CnDSerializer()
+@orientation("left", selector="left")
+@orientation("right", selector="right")
+class Node:
+    def __init__(self, val, left=None, right=None):
+        self.val = val
+        self.left = left
+        self.right = right
 
-# Example data structure
-data = {
-    "name": "Alice",
-    "age": 30,
-    "hobbies": ["reading", "cycling"],
-    "attributes": {"height": 5.5, "weight": 60},
-}
-
-# Serialize the data
-result = serializer.serialize(data)
-
-# Print the serialized output
-import json
-print(json.dumps(result, indent=2))
+tree = Node(1, Node(2), Node(3))
+diagram(tree)
 ```
 
-### Output
-The serialized output will look like this:
-```json
-{
-  "atoms": [
-    {"id": "n0", "type": "dict", "label": "{'name': 'Alice', 'age': 30, 'hobbies': ['reading', 'cycling'], 'attributes': {'height': 5.5, 'weight': 60}}"},
-    {"id": "n1", "type": "str", "label": "name"},
-    {"id": "n2", "type": "str", "label": "Alice"},
-    {"id": "n3", "type": "str", "label": "age"},
-    {"id": "n4", "type": "int", "label": "30"},
-    {"id": "n5", "type": "str", "label": "hobbies"},
-    {"id": "n6", "type": "list", "label": "['reading', 'cycling']"},
-    {"id": "n7", "type": "str", "label": "reading"},
-    {"id": "n8", "type": "str", "label": "cycling"},
-    {"id": "n9", "type": "str", "label": "attributes"},
-    {"id": "n10", "type": "dict", "label": "{'height': 5.5, 'weight': 60}"},
-    {"id": "n11", "type": "str", "label": "height"},
-    {"id": "n12", "type": "float", "label": "5.5"},
-    {"id": "n13", "type": "str", "label": "weight"},
-    {"id": "n14", "type": "int", "label": "60"}
-  ],
-  "relations": [
-    {"name": "key", "tuples": [["n0", "n1"], ["n0", "n3"], ["n0", "n5"], ["n0", "n9"]]},
-    {"name": "val", "tuples": [["n0", "n2"], ["n0", "n4"], ["n0", "n6"], ["n0", "n10"]]},
-    {"name": "item", "tuples": [["n6", "n7"], ["n6", "n8"]]},
-    {"name": "key", "tuples": [["n10", "n11"], ["n10", "n13"]]},
-    {"name": "val", "tuples": [["n10", "n12"], ["n10", "n14"]]}
-  ]
-}
-```
+This adds meaning to the diagram: left children go to the left, right children to the right. You don’t have to describe the layout explicitly — the constraints are declared with the data. Other annotations include grouping, cyclic structure, and more. All are optional. You can start small, then add structure as needed.
+
+## Surfacing Errors Through Layout
+
+`sPyTial` works bycompiling to the [Cope and Drag](https:/www.siddharthaprasad.com/copeanddrag) formal methods diagramming language.
+This means, that you get the benefits of formal reasoning for free. One of the most useful effects of this is what happens when the constraints can’t be satisfied. If your data structure is malformed (e.g., your tree has a loop) sPyTial won’t quietly draw something misleading. It will tell you: this layout is unsatisfiable, and *here's why*.
+
+This acts like a type checker for spatial meaning. You don’t just see the structure. You see when the structure is wrong.
+
 
 ## Limitations
 - Does not handle functions, modules, or file handles.

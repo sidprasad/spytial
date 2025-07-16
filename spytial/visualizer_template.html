@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ title | default("CnD Visualization") }}</title>
+    <title>{{ title | default("sPyTial Visualization") }}</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -23,7 +23,7 @@
     <script src="https://cdn.jsdelivr.net/npm/cnd-core/dist/browser/cnd-core-complete.global.js"></script>
 
 <body>
-    <!-- WebCola CND Graph Element -->
+    <!-- WebCola sPyTial Graph Element -->
     <webcola-cnd-graph 
         id="graph-container"
         width="800" 
@@ -52,8 +52,8 @@
             }
             
             try {
-                console.log('Starting graph rendering...');
-                console.log('CnD Spec:', cndSpec);
+        console.log('Starting graph rendering...');
+        console.log('sPyTial Spec:', cndSpec);
                 console.log('JSON Data:', jsonData.substring(0, 200) + '...');
                 
                 // Parse JSON data if it's a string

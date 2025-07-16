@@ -1,7 +1,7 @@
 """
-CnD Visualization Display Module
+sPyTial Visualization Display Module
 
-This module provides functions to display Python objects using the CnD visualizer.
+This module provides functions to display Python objects using the sPyTial visualizer.
 """
 
 import json
@@ -23,17 +23,17 @@ except ImportError:
     HAS_JINJA2 = False
 
 
-def quick_show(obj):
+def quick_diagram(obj):
     """
     Quick display function for Jupyter notebooks.
-    Alias for show(obj, method="inline").
+    Alias for diagram(obj, method="inline").
     """
-    return show(obj, method="inline")
+    return diagram(obj, method="inline")
 
 
-def show(obj, method="inline", auto_open=True):
+def diagram(obj, method="inline", auto_open=True):
     """
-    Display a Python object in the CnD visualizer.
+    Display a Python object in the sPyTial visualizer.
     
     Args:
         obj: Any Python object to visualize
@@ -50,14 +50,14 @@ def show(obj, method="inline", auto_open=True):
     decorators = collect_decorators(obj)
     
     # Serialize the collected decorators into a YAML string
-    cnd_spec = serialize_to_yaml_string(decorators)
+    spytial_spec = serialize_to_yaml_string(decorators)
     
     # Serialize the object using the provider system
     builder = CnDDataInstanceBuilder()
     data_instance = builder.build_instance(obj)
     
     # Generate the HTML content
-    html_content = _generate_visualizer_html(data_instance, cnd_spec)
+    html_content = _generate_visualizer_html(data_instance, spytial_spec)
     
     if method == "inline":
         # Display inline in Jupyter notebook using iframe
@@ -87,10 +87,10 @@ def show(obj, method="inline", auto_open=True):
             except Exception as e:
                 print(f"Iframe display failed: {e}")
                 # Fall back to browser if iframe fails
-                return show(obj, method="browser", auto_open=auto_open)
+                return diagram(obj, method="browser", auto_open=auto_open)
         
         # Fall back to browser if not in Jupyter
-        return show(obj, method="browser", auto_open=auto_open)
+        return diagram(obj, method="browser", auto_open=auto_open)
     
     elif method == "browser":
         # Open in browser
@@ -116,7 +116,7 @@ def show(obj, method="inline", auto_open=True):
         raise ValueError(f"Unknown display method: {method}")
 
 
-def _generate_visualizer_html(data_instance, cnd_spec):
+def _generate_visualizer_html(data_instance, spytial_spec):
     """Generate HTML content using Jinja2 templating."""
     
     if not HAS_JINJA2:
@@ -139,7 +139,7 @@ def _generate_visualizer_html(data_instance, cnd_spec):
     # Render the template with our data
     html_content = template.render(
         python_data=json.dumps(data_instance),  # Properly serialize to JSON
-        cnd_spec=cnd_spec                       # Embed the CnD specification
+        cnd_spec=spytial_spec                   # Embed the sPyTial specification
     )
     
     return html_content
