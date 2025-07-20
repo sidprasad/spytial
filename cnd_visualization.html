@@ -38,7 +38,7 @@
         const cndSpec = `constraints: []
 directives: []
 `;
-        const jsonData = `{"atoms": [{"id": "n1", "type": "str", "label": "Fruit Collection"}, {"id": "n2", "type": "set", "label": "set"}, {"id": "n3", "type": "int", "label": "3"}, {"id": "n0", "type": "dict", "label": "dict{3}"}], "relations": [{"id": "title", "name": "title", "types": ["object", "object"], "tuples": [{"atoms": ["n0", "n1"], "types": ["dict", "str"]}]}, {"id": "fruits", "name": "fruits", "types": ["object", "object"], "tuples": [{"atoms": ["n0", "n2"], "types": ["dict", "set"]}]}, {"id": "count", "name": "count", "types": ["object", "object"], "tuples": [{"atoms": ["n0", "n3"], "types": ["dict", "int"]}]}]}`;
+        const jsonData = `{"atoms": [{"id": "n1", "type": "set", "label": "set"}, {"id": "n2", "type": "set", "label": "set"}, {"id": "n0", "type": "dict", "label": "dict{2}"}], "relations": [{"id": "annotated_set", "name": "annotated_set", "types": ["object", "object"], "tuples": [{"atoms": ["n0", "n1"], "types": ["dict", "set"]}]}, {"id": "normal_set", "name": "normal_set", "types": ["object", "object"], "tuples": [{"atoms": ["n0", "n2"], "types": ["dict", "set"]}]}]}`;
 
         /**
          * Load and render the graph using the webcola-cnd-graph custom element
