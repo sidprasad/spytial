@@ -72,33 +72,41 @@ def validate_fields(type_, kwargs, valid_fields):
 def _create_decorator(constraint_type):
     """
     Create a decorator function for a specific constraint or directive type.
+    This now works for both classes and objects in a more Pythonic way.
     :param constraint_type: The type of constraint or directive (e.g., 'cyclic', 'orientation').
-    :return: A decorator function.
+    :return: A decorator function that works on both classes and objects.
     """
     def decorator(**kwargs):
-        def class_decorator(cls):
-            if not hasattr(cls, "__spytial_registry__"):
-                cls.__spytial_registry__ = {
-                    "constraints": [],
-                    "directives": []
-                }
-            
-            # Determine if it's a constraint or directive
-            if constraint_type in CONSTRAINT_TYPES:
-                # Validate fields for constraints
-                validate_fields(constraint_type, kwargs, CONSTRAINT_TYPES[constraint_type])
-                entry = {constraint_type: kwargs}
-                cls.__spytial_registry__["constraints"].append(entry)
-            elif constraint_type in DIRECTIVE_TYPES:
-                # Validate fields for directives
-                validate_fields(constraint_type, kwargs, DIRECTIVE_TYPES[constraint_type])
-                entry = {constraint_type: kwargs}
-                cls.__spytial_registry__["directives"].append(entry)
+        def unified_decorator(target):
+            # Check if target is a class (type) or an object instance
+            if isinstance(target, type):
+                # Class decoration (original behavior)
+                if not hasattr(target, "__spytial_registry__"):
+                    target.__spytial_registry__ = {
+                        "constraints": [],
+                        "directives": []
+                    }
+                
+                # Determine if it's a constraint or directive
+                if constraint_type in CONSTRAINT_TYPES:
+                    # Validate fields for constraints
+                    validate_fields(constraint_type, kwargs, CONSTRAINT_TYPES[constraint_type])
+                    entry = {constraint_type: kwargs}
+                    target.__spytial_registry__["constraints"].append(entry)
+                elif constraint_type in DIRECTIVE_TYPES:
+                    # Validate fields for directives
+                    validate_fields(constraint_type, kwargs, DIRECTIVE_TYPES[constraint_type])
+                    entry = {constraint_type: kwargs}
+                    target.__spytial_registry__["directives"].append(entry)
+                else:
+                    raise ValueError(f"Unknown type '{constraint_type}' for sPyTial decorator.")
+                
+                return target
             else:
-                raise ValueError(f"Unknown type '{constraint_type}' for sPyTial decorator.")
-            
-            return cls
-        return class_decorator
+                # Object annotation (new ergonomic behavior)
+                return _annotate_object(target, constraint_type, **kwargs)
+        
+        return unified_decorator
     return decorator
 
 # Create individual decorator functions for each constraint and directive type

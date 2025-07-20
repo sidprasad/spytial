@@ -14,22 +14,44 @@ Object-level annotations are now supported alongside class-level annotations. Bo
 
 ## Usage Examples
 
-### Basic Object Annotations
+### Basic Object Annotations - Ergonomic API ✨
 
 ```python
-from spytial import annotate_group, annotate_orientation, annotate_atomColor, diagram
+from spytial import group, orientation, atomColor, diagram
 
-# Annotate a specific set without modifying the Set class
+# NEW ERGONOMIC APPROACH: Use decorators directly on objects!
 my_set = {1, 2, 3, 4, 5}
-annotate_group(my_set, field='elements', groupOn=0, addToGroup=1)
+my_set = group(field='elements', groupOn=0, addToGroup=1)(my_set)
 diagram(my_set)  # Shows the set as a group
 
-# Works with any object type
+# Works with any object type - same decorator syntax!
 my_list = [1, 2, 3]
-annotate_orientation(my_list, selector='items', directions=['horizontal'])
+my_list = orientation(selector='items', directions=['horizontal'])(my_list)
 
 my_dict = {'a': 1, 'b': 2}
-annotate_atomColor(my_dict, selector='keys', value='blue')
+my_dict = atomColor(selector='keys', value='blue')(my_dict)
+```
+
+### Chaining Decorators (Pythonic!)
+
+```python
+# Chain multiple decorators naturally
+my_data = atomColor(selector='items', value='red')(
+    orientation(selector='items', directions=['horizontal'])(
+        group(field='elements', groupOn=0, addToGroup=1)([1, 2, 3, 4])
+    )
+)
+```
+
+### Legacy API (Still Supported)
+
+```python
+from spytial import annotate_group, annotate_orientation, annotate_atomColor
+
+# Old approach - separate annotate_* functions  
+my_set = {1, 2, 3, 4, 5}
+annotate_group(my_set, field='elements', groupOn=0, addToGroup=1)
+# ... etc
 ```
 
 ### General Annotation Function
@@ -45,7 +67,7 @@ annotate(my_object, 'atomColor', selector='items', value='red')
 ### Combining Class and Object Annotations
 
 ```python
-from spytial import orientation, cyclic, annotate_group, annotate_atomColor
+from spytial import orientation, cyclic, group, atomColor
 
 @orientation(selector='left', directions=['left'])
 @cyclic(selector='children', direction='clockwise')
@@ -57,9 +79,10 @@ class TreeNode:
 tree1 = TreeNode("A")
 tree2 = TreeNode("B")
 
-# Add object-specific annotations to tree2 only
-annotate_group(tree2, field='subtree', groupOn=0, addToGroup=1)
-annotate_atomColor(tree2, selector='self', value='red')
+# Add object-specific annotations to tree2 only - using same decorator syntax!
+tree2 = atomColor(selector='self', value='red')(
+    group(field='subtree', groupOn=0, addToGroup=1)(tree2)
+)
 
 # tree1: only class annotations (orientation + cyclic)
 # tree2: class annotations + object annotations (orientation + cyclic + group + atomColor)
@@ -120,18 +143,34 @@ The `collect_decorators(obj)` function now:
 
 ## Integration with Visualizer
 
-Object annotations integrate seamlessly with the existing visualization system:
+Object annotations integrate seamlessly with the existing visualization system using the **new ergonomic API**:
 
 ```python
-from spytial import diagram, annotate_group
+from spytial import diagram, group
 
-# The issue example in action
+# The issue example in action - Now using the Pythonic decorator syntax!
 fruits = {"apple", "banana", "cherry"}
-annotate_group(fruits, field='items', groupOn=0, addToGroup=1)
+fruits = group(field='items', groupOn=0, addToGroup=1)(fruits)
 
 data = {"fruit_collection": fruits}
 diagram(data)  # The fruits set will be rendered as a group
 ```
+
+### Ergonomic API vs Legacy API
+
+The new API is much more Pythonic since decorators work the same way on both classes and objects:
+
+```python
+# NEW ERGONOMIC API (Recommended)
+my_set = group(field='items', groupOn=0, addToGroup=1)(my_set)
+my_obj = atomColor(selector='self', value='blue')(my_obj)
+
+# OLD LEGACY API (Still supported for backward compatibility)  
+annotate_group(my_set, field='items', groupOn=0, addToGroup=1)
+annotate_atomColor(my_obj, selector='self', value='blue')
+```
+
+**The ergonomic API addresses the Python developer expectation that decorators "just work" regardless of whether you're decorating a class or an object.**
 
 The annotations are automatically:
 1. Collected by `collect_decorators()`
