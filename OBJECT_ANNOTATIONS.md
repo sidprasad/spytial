@@ -43,7 +43,7 @@ my_data = atomColor(selector='items', value='red')(
 )
 ```
 
-### Legacy API (Still Supported)
+### Alternative API (Function-based)
 
 ```python
 from spytial import annotate_group, annotate_orientation, annotate_atomColor
@@ -63,6 +63,52 @@ from spytial import annotate
 annotate(my_object, 'orientation', selector='test', directions=['left'])
 annotate(my_object, 'atomColor', selector='items', value='red')
 ```
+
+### Object-Level Custom Providers ✨
+
+You can also set custom data providers for specific objects, overriding the default serialization behavior:
+
+```python
+from spytial import DataInstanceProvider, object_provider, set_object_provider
+
+# Define a custom provider
+class CustomSetProvider(DataInstanceProvider):
+    def can_handle(self, obj):
+        return isinstance(obj, set)
+    
+    def provide_atoms_and_relations(self, obj, walker_func):
+        obj_id = walker_func._get_id(obj)
+        atom = {
+            "id": obj_id,
+            "type": "custom_set",
+            "label": f"MySet[{len(obj)}]"
+        }
+        
+        relations = []
+        for i, item in enumerate(obj):
+            item_id = walker_func(item)
+            relations.append((f"element_{i}", obj_id, item_id))
+        
+        return atom, relations
+
+# Method 1: Using decorator syntax
+my_set = {1, 2, 3, 4, 5}
+my_set = object_provider(CustomSetProvider())(my_set)
+
+# Method 2: Using function call
+my_other_set = {6, 7, 8}
+set_object_provider(my_other_set, CustomSetProvider())
+
+# Method 3: Chain with annotations
+my_custom_set = object_provider(CustomSetProvider())(
+    group(field='elements', groupOn=0, addToGroup=1)({10, 11, 12})
+)
+```
+
+This allows you to:
+- **Override default serialization**: Replace how specific objects are converted to atoms/relations
+- **Object-specific behavior**: Different instances of the same class can use different providers
+- **Combine with annotations**: Custom providers work alongside spatial annotations
 
 ### Combining Class and Object Annotations
 

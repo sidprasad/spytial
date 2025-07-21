@@ -1,4 +1,7 @@
-from .provider_system import CnDDataInstanceBuilder, DataInstanceProvider, data_provider
+from .provider_system import (
+    CnDDataInstanceBuilder, DataInstanceProvider, data_provider,
+    set_object_provider, object_provider, get_object_provider
+)
 from .visualizer import diagram, quick_diagram
 from .annotations import (
     # Class decorators
@@ -26,6 +29,7 @@ __all__ = [
     # Provider system
     'CnDDataInstanceBuilder', 'SpyTialDataInstanceBuilder', 'DataInstanceProvider', 
     'data_provider', 'SpyTialSerializer', 'CnDSerializer',
+    'set_object_provider', 'object_provider', 'get_object_provider',
     # Class decorators
     'orientation', 'cyclic', 'group', 'atomColor', 'size', 'icon', 'edgeColor', 
     'projection', 'attribute', 'hideField', 'hideAtom', 'inferredEdge',

@@ -58,6 +58,11 @@ def data_provider(cls: Type = None, *, priority: int = 0):
         return decorator(cls)
 
 
+# Object-level provider storage
+OBJECT_PROVIDER_ATTR = "__spytial_object_provider__"
+_OBJECT_PROVIDER_REGISTRY: Dict[int, DataInstanceProvider] = {}
+
+
 class DataInstanceRegistry:
     """Registry for data instance providers."""
     
@@ -74,9 +79,29 @@ class DataInstanceRegistry:
     @classmethod
     def find_provider(cls, obj: Any) -> Optional[DataInstanceProvider]:
         """Find the first provider that can handle the given object."""
+        # First check for object-specific providers
+        object_provider = cls._get_object_provider(obj)
+        if object_provider is not None:
+            return object_provider
+        
+        # Then check registered class-level providers
         for provider in cls._instances:
             if provider.can_handle(obj):
                 return provider
+        return None
+    
+    @classmethod
+    def _get_object_provider(cls, obj: Any) -> Optional[DataInstanceProvider]:
+        """Get object-specific provider if one exists."""
+        # First check if stored on object directly
+        if hasattr(obj, OBJECT_PROVIDER_ATTR):
+            return getattr(obj, OBJECT_PROVIDER_ATTR)
+        
+        # Then check global registry for objects that can't store attributes
+        obj_id = id(obj)
+        if obj_id in _OBJECT_PROVIDER_REGISTRY:
+            return _OBJECT_PROVIDER_REGISTRY[obj_id]
+        
         return None
     
     @classmethod
@@ -84,6 +109,7 @@ class DataInstanceRegistry:
         """Clear all registered providers (for testing)."""
         cls._providers.clear()
         cls._instances.clear()
+        _OBJECT_PROVIDER_REGISTRY.clear()
 
 
 # Built-in providers
@@ -326,3 +352,56 @@ class CnDDataInstanceBuilder:
 
 # Backwards compatibility alias
 CnDSerializer = CnDDataInstanceBuilder
+
+
+def set_object_provider(obj: Any, provider: DataInstanceProvider) -> Any:
+    """
+    Set a custom provider for a specific object instance.
+    
+    Args:
+        obj: The object to set the provider for
+        provider: The provider instance to use for this object
+        
+    Returns:
+        The object (for chaining)
+    """
+    try:
+        # Try to store directly on the object
+        setattr(obj, OBJECT_PROVIDER_ATTR, provider)
+    except (AttributeError, TypeError):
+        # For immutable objects, store in global registry
+        _OBJECT_PROVIDER_REGISTRY[id(obj)] = provider
+    
+    return obj
+
+
+def object_provider(provider: DataInstanceProvider):
+    """
+    Decorator to set a custom provider for an object.
+    
+    Usage:
+        my_obj = object_provider(CustomProvider())(my_obj)
+    
+    Args:
+        provider: The provider instance to use
+        
+    Returns:
+        Decorator function
+    """
+    def decorator(obj: Any) -> Any:
+        return set_object_provider(obj, provider)
+    
+    return decorator
+
+
+def get_object_provider(obj: Any) -> Optional[DataInstanceProvider]:
+    """
+    Get the custom provider set for an object, if any.
+    
+    Args:
+        obj: The object to check
+        
+    Returns:
+        The custom provider or None if no custom provider is set
+    """
+    return DataInstanceRegistry._get_object_provider(obj)
