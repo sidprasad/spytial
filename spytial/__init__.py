@@ -1,15 +1,44 @@
-from .provider_system import CnDDataInstanceBuilder, DataInstanceProvider, data_provider
+from .provider_system import (
+    CnDDataInstanceBuilder, DataInstanceProvider, data_provider,
+    set_object_provider, object_provider, get_object_provider
+)
 from .visualizer import diagram, quick_diagram
-from .provider_system import CnDDataInstanceBuilder, DataInstanceProvider, data_provider
+from .annotations import (
+    # Class decorators
+    orientation, cyclic, group, atomColor, size, icon, edgeColor, 
+    projection, attribute, hideField, hideAtom, inferredEdge,
+    # Object annotation functions
+    annotate, annotate_orientation, annotate_cyclic, annotate_group,
+    annotate_atomColor, annotate_size, annotate_icon, annotate_edgeColor,
+    annotate_projection, annotate_attribute, annotate_hideField, 
+    annotate_hideAtom, annotate_inferredEdge,
+    # Utility functions
+    collect_decorators, serialize_to_yaml_string
+)
 
 # Aliases for the new branding
 SpyTialDataInstanceBuilder = CnDDataInstanceBuilder
 SpyTialSerializer = CnDDataInstanceBuilder
 
-__all__ = ['diagram', 'quick_diagram', 'CnDDataInstanceBuilder', 'SpyTialDataInstanceBuilder', 'DataInstanceProvider', 'data_provider', 'SpyTialSerializer']
-
 # Backwards compatibility aliases
 CnDSerializer = CnDDataInstanceBuilder
 
-__all__ = ['CnDDataInstanceBuilder', 'DataInstanceProvider', 'data_provider', 'show', 'quick_show', 'CnDSerializer']
+__all__ = [
+    # Core functions
+    'diagram', 'quick_diagram', 
+    # Provider system
+    'CnDDataInstanceBuilder', 'SpyTialDataInstanceBuilder', 'DataInstanceProvider', 
+    'data_provider', 'SpyTialSerializer', 'CnDSerializer',
+    'set_object_provider', 'object_provider', 'get_object_provider',
+    # Class decorators
+    'orientation', 'cyclic', 'group', 'atomColor', 'size', 'icon', 'edgeColor', 
+    'projection', 'attribute', 'hideField', 'hideAtom', 'inferredEdge',
+    # Object annotation functions
+    'annotate', 'annotate_orientation', 'annotate_cyclic', 'annotate_group',
+    'annotate_atomColor', 'annotate_size', 'annotate_icon', 'annotate_edgeColor',
+    'annotate_projection', 'annotate_attribute', 'annotate_hideField', 
+    'annotate_hideAtom', 'annotate_inferredEdge',
+    # Utility functions
+    'collect_decorators', 'serialize_to_yaml_string'
+]
 

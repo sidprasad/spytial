@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CnD Visualization</title>
+    <title>sPyTial Visualization</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -20,10 +20,10 @@
         }
     </style>
     <script src="https://d3js.org/d3.v4.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/cnd-core@1.1.6/dist/browser/cnd-core-complete.global.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/cnd-core/dist/browser/cnd-core-complete.global.js"></script>
 
 <body>
-    <!-- WebCola CND Graph Element -->
+    <!-- WebCola sPyTial Graph Element -->
     <webcola-cnd-graph 
         id="graph-container"
         width="800" 
@@ -31,13 +31,14 @@
         layoutFormat="default"
         aria-label="Interactive graph visualization">
     </webcola-cnd-graph>
+    <div id="error-message" ></div>
 
     <script>
         // Embedded data passed from the server
         const cndSpec = `constraints: []
 directives: []
 `;
-        const jsonData = `{"atoms": [{"id": "n1", "type": "str", "label": "Alice"}, {"id": "n2", "type": "int", "label": "30"}, {"id": "n4", "type": "str", "label": "reading"}, {"id": "n5", "type": "str", "label": "cycling"}, {"id": "n3", "type": "list", "label": "list[2]"}, {"id": "n7", "type": "str", "label": "123 Main St"}, {"id": "n8", "type": "str", "label": "Anytown"}, {"id": "n6", "type": "dict", "label": "dict{2}"}, {"id": "n0", "type": "dict", "label": "dict{4}"}], "relations": [{"id": "0", "name": "0", "types": ["object", "object"], "tuples": [{"atoms": ["n3", "n4"], "types": ["list", "str"]}]}, {"id": "1", "name": "1", "types": ["object", "object"], "tuples": [{"atoms": ["n3", "n5"], "types": ["list", "str"]}]}, {"id": "street", "name": "street", "types": ["object", "object"], "tuples": [{"atoms": ["n6", "n7"], "types": ["dict", "str"]}]}, {"id": "city", "name": "city", "types": ["object", "object"], "tuples": [{"atoms": ["n6", "n8"], "types": ["dict", "str"]}]}, {"id": "name", "name": "name", "types": ["object", "object"], "tuples": [{"atoms": ["n0", "n1"], "types": ["dict", "str"]}]}, {"id": "age", "name": "age", "types": ["object", "object"], "tuples": [{"atoms": ["n0", "n2"], "types": ["dict", "int"]}]}, {"id": "hobbies", "name": "hobbies", "types": ["object", "object"], "tuples": [{"atoms": ["n0", "n3"], "types": ["dict", "list"]}]}, {"id": "address", "name": "address", "types": ["object", "object"], "tuples": [{"atoms": ["n0", "n6"], "types": ["dict", "dict"]}]}]}`;
+        const jsonData = `{"atoms": [{"id": "n1", "type": "set", "label": "set"}, {"id": "n2", "type": "set", "label": "set"}, {"id": "n0", "type": "dict", "label": "dict{2}"}], "relations": [{"id": "annotated_set", "name": "annotated_set", "types": ["object", "object"], "tuples": [{"atoms": ["n0", "n1"], "types": ["dict", "set"]}]}, {"id": "normal_set", "name": "normal_set", "types": ["object", "object"], "tuples": [{"atoms": ["n0", "n2"], "types": ["dict", "set"]}]}]}`;
 
         /**
          * Load and render the graph using the webcola-cnd-graph custom element
@@ -53,8 +54,8 @@ directives: []
             }
             
             try {
-                console.log('Starting graph rendering...');
-                console.log('CnD Spec:', cndSpec);
+        console.log('Starting graph rendering...');
+        console.log('sPyTial Spec:', cndSpec);
                 console.log('JSON Data:', jsonData.substring(0, 200) + '...');
                 
                 // Parse JSON data if it's a string
@@ -95,23 +96,26 @@ directives: []
             }
         }
 
-        // Retry logic for rendering the graph
-        function retryRenderGraph(retries = 5) {
-            if (retries <= 0) {
-                console.error('Failed to render graph after multiple retries.');
-                return;
-            }
-
-            if (!customElements.get('webcola-cnd-graph')) {
-                console.warn('Custom element <webcola-cnd-graph> not ready. Retrying...');
-                setTimeout(() => retryRenderGraph(retries - 1), 500);
+        /**
+         * Display an error message in the error-message div.
+         * @param {string} message - The error message to display.
+         */
+        function showError(message) {
+            const errorDiv = document.getElementById('error-message');
+            if (errorDiv) {
+                errorDiv.innerHTML = `
+                    <div style="color: red; padding: 10px; border: 1px solid red; background-color: #ffe6e6; margin-top: 10px;">
+                        <h3>Error</h3>
+                        <p>${message}</p>
+                    </div>
+                `;
             } else {
-                console.log('Custom element <webcola-cnd-graph> is ready. Rendering graph...');
-                loadGraph();
+                console.error('Error div not found. Error message:', message);
             }
         }
 
-        document.addEventListener('DOMContentLoaded', () => retryRenderGraph());
+        // Auto-load when page loads
+        window.addEventListener('load', loadGraph);
     </script>
 </body>
 </html>
