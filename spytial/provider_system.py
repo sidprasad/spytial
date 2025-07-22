@@ -183,6 +183,7 @@ class SetProvider(DataInstanceProvider):
     """Handles set objects."""
     
     def can_handle(self, obj: Any) -> bool:
+        print(f"SetProvider checking: {obj}")
         return isinstance(obj, set)
     
     def provide_atoms_and_relations(self, obj: Any, walker_func) -> Tuple[Dict, List[Tuple[str, str, str]]]:
