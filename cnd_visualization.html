@@ -12,8 +12,8 @@
             background-color: #f5f5f5;
         }
         #graph-container {
-            width: 600px;
-            height: 400px;
+            width: 400px;
+            height: 300px;
             border: 2px solid #007acc;
             border-radius: 8px;
             margin: 20px auto;
@@ -26,8 +26,8 @@
     <!-- WebCola sPyTial Graph Element -->
     <webcola-cnd-graph 
         id="graph-container"
-        width="600" 
-        height="400"
+        width="400" 
+        height="300"
         layoutFormat="default"
         aria-label="Interactive graph visualization">
     </webcola-cnd-graph>
@@ -38,7 +38,7 @@
         const cndSpec = `constraints: []
 directives: []
 `;
-        const jsonData = `{"atoms": [{"id": "n1", "type": "str", "label": "test"}, {"id": "n2", "type": "int", "label": "42"}, {"id": "n0", "type": "TestObject", "label": "TestObject"}], "relations": [{"id": "name", "name": "name", "types": ["object", "object"], "tuples": [{"atoms": ["n0", "n1"], "types": ["TestObject", "str"]}]}, {"id": "value", "name": "value", "types": ["object", "object"], "tuples": [{"atoms": ["n0", "n2"], "types": ["TestObject", "int"]}]}]}`;
+        const jsonData = `{"atoms": [{"id": "n1", "type": "str", "label": "simple"}, {"id": "n0", "type": "SimpleObj", "label": "SimpleObj"}], "relations": [{"id": "name", "name": "name", "types": ["object", "object"], "tuples": [{"atoms": ["n0", "n1"], "types": ["SimpleObj", "str"]}]}]}`;
 
         /**
          * Load and render the graph using the webcola-cnd-graph custom element

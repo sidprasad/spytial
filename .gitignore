@@ -48,3 +48,6 @@ htmlcov/
 # Other
 *.swp
 *.swo
+
+# Generated visualization files
+cnd_visualization.html
