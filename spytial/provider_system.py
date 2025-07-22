@@ -178,6 +178,29 @@ class ListProvider(DataInstanceProvider):
         return atom, relations
 
 
+@data_provider(priority=8)
+class SetProvider(DataInstanceProvider):
+    """Handles set objects."""
+    
+    def can_handle(self, obj: Any) -> bool:
+        return isinstance(obj, set)
+    
+    def provide_atoms_and_relations(self, obj: Any, walker_func) -> Tuple[Dict, List[Tuple[str, str, str]]]:
+        obj_id = walker_func._get_id(obj)
+        atom = {
+            "id": obj_id,
+            "type": "set",
+            "label": f"set[{len(obj)}]"
+        }
+        
+        relations = []
+        for element in obj:
+            element_id = walker_func(element)
+            relations.append(("contains", obj_id, element_id))
+        
+        return atom, relations
+
+
 @data_provider(priority=7)
 class DataclassProvider(DataInstanceProvider):
     """Handles dataclass objects."""
