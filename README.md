@@ -47,24 +47,25 @@ This acts like a type checker for spatial meaning. You don’t just see the stru
 
 ## Configurable Visualization Size
 
-The visualization container size is configurable with sensible defaults. You can customize the display size according to your needs:
+The visualization container size is automatically optimized based on object complexity and display context, with sensible defaults. You can also customize the display size according to your needs:
 
 ```python
 from spytial import diagram
 
-# Use default size (800x600 pixels)
+# Use automatic sizing (recommended)
 diagram(my_object)
 
-# Customize the size
+# Customize the size if needed
 diagram(my_object, width=1200, height=900)
 
 # For compact displays
 diagram(my_object, width=400, height=300)
-
-# The quick_diagram function also supports sizing
-from spytial import quick_diagram
-quick_diagram(my_object, width=600, height=500)
 ```
+
+The automatic sizing considers:
+- Object complexity (number of attributes, nested structures)
+- Display method (Jupyter notebooks use more conservative sizing)
+- Reasonable bounds (400-1600px width, 300-1200px height)
 
 ## Limitations
 - Does not handle functions, modules, or file handles.
