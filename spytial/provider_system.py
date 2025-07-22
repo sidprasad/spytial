@@ -183,7 +183,6 @@ class SetProvider(DataInstanceProvider):
     """Handles set objects."""
     
     def can_handle(self, obj: Any) -> bool:
-        print(f"SetProvider checking: {obj}")
         return isinstance(obj, set)
     
     def provide_atoms_and_relations(self, obj: Any, walker_func) -> Tuple[Dict, List[Tuple[str, str, str]]]:
@@ -352,6 +351,9 @@ class CnDDataInstanceBuilder:
         
         # Get atom and relations from provider
         atom, relations = provider.provide_atoms_and_relations(obj, self)
+        
+        # Add full type hierarchy to the atom
+        atom["type"] = [cls.__name__ for cls in inspect.getmro(type(obj))]
         
         # Add atom to our collection
         self._atoms.append(atom)
