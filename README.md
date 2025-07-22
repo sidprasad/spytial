@@ -60,3 +60,9 @@ This acts like a type checker for spatial meaning. You don’t just see the stru
 
 ## License
 This project is licensed under the MIT License. See the LICENSE file for details.
+
+
+### Issues
+
+- Selectors are really hard to write with no evaluator, and we get sort of minimal feedback here :(
+- Composition on inherited classes doesn't seem to be working yet -- need to fix this somehow.
