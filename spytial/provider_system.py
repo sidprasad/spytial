@@ -304,6 +304,7 @@ class CnDDataInstanceBuilder:
             self._walk(obj)
         except Exception as e:
             print(f"Error during data instance building: {e}")
+            print("Object:", obj)
         
         # Convert relations to include types (matching IRelation interface)
         relations = []

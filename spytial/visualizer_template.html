@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -11,6 +12,7 @@
             padding: 20px;
             background-color: #f5f5f5;
         }
+
         #graph-container {
             width: 800px;
             height: 600px;
@@ -24,14 +26,10 @@
 
 <body>
     <!-- WebCola sPyTial Graph Element -->
-    <webcola-cnd-graph 
-        id="graph-container"
-        width="800" 
-        height="600"
-        layoutFormat="default"
+    <webcola-cnd-graph id="graph-container" width="800" height="600" layoutFormat="default"
         aria-label="Interactive graph visualization">
     </webcola-cnd-graph>
-    <div id="error-message" ></div>
+    <div id="error-message"></div>
 
     <script>
         // Embedded data passed from the server
@@ -43,19 +41,19 @@
          */
         async function loadGraph() {
             const graphElement = document.getElementById('graph-container');
-            
+
             // Check if CnD Core is available
             if (typeof CndCore === 'undefined') {
                 console.error('CnD Core library is not available');
                 showError('CnD Core library failed to load. The visualization cannot be displayed.');
                 return;
             }
-            
+
             try {
-        console.log('Starting graph rendering...');
-        console.log('sPyTial Spec:', cndSpec);
+                console.log('Starting graph rendering...');
+                console.log('sPyTial Spec:', cndSpec);
                 console.log('JSON Data:', jsonData.substring(0, 200) + '...');
-                
+
                 // Parse JSON data if it's a string
                 let parsedData;
                 try {
@@ -63,7 +61,7 @@
                 } catch (parseError) {
                     throw new Error(`Failed to parse JSON data: ${parseError.message}`);
                 }
-                
+
                 // Create a data instance from the JSON data
                 const dataInstance = new CndCore.JSONDataInstance(parsedData);
                 console.log('Data instance created successfully');
@@ -73,6 +71,8 @@
                 const sgqEvaluator = new CndCore.SGraphQueryEvaluator();
                 sgqEvaluator.initialize(evaluationContext);
                 console.log('Evaluation context initialized');
+
+                window.evaluator = sgqEvaluator; // Expose evaluator for debugging
 
                 // Parse the CND specification
                 const layoutSpec = CndCore.parseLayoutSpec(cndSpec);
@@ -87,7 +87,7 @@
                 // Render the graph
                 await graphElement.renderLayout(instanceLayout);
                 console.log('Graph rendered successfully!');
-                
+
             } catch (error) {
                 console.error('Error rendering graph:', error);
                 showError(`Error rendering graph: ${error.message}`);
@@ -116,4 +116,5 @@
         window.addEventListener('load', loadGraph);
     </script>
 </body>
+
 </html>
