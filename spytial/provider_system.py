@@ -299,13 +299,13 @@ class CnDDataInstanceBuilder:
         self._atoms.clear()
         self._rels.clear()
         self._id_counter = 0
-        
+
         try:
             self._walk(obj)
         except Exception as e:
             print(f"Error during data instance building: {e}")
             print("Object:", obj)
-        
+
         # Convert relations to include types (matching IRelation interface)
         relations = []
         for rel_name, tuples in self._rels.items():
@@ -318,16 +318,15 @@ class CnDDataInstanceBuilder:
                     "atoms": [source_id, target_id],
                     "types": [source_type, target_type]
                 })
-            
+
             relations.append({
                 "id": rel_name,
                 "name": rel_name,
                 "types": ["object", "object"],  # Default to Python's top type
                 "tuples": typed_tuples
             })
-        
 
-        # Now types
+        # Use the updated `build_types` function
         typs = self.build_types(self._atoms)
 
         return {
@@ -392,9 +391,7 @@ class CnDDataInstanceBuilder:
                 return atom["type"]
         return "object"  # Default fallback
     
-    def build_types(self, atoms: List[Dict]) -> List[Dict]:
-
-
+    def build_types(self, atoms: List[Dict]) -> Dict:
         """
         Build the `types` field for the data instance.
 
@@ -402,7 +399,7 @@ class CnDDataInstanceBuilder:
             atoms: List of atoms, each containing a "type" field with the most specific type.
 
         Returns:
-            List of type definitions, each matching the IType interface.
+            Dictionary of type definitions, each matching the desired format.
         """
         type_map = {}
 
@@ -412,23 +409,24 @@ class CnDDataInstanceBuilder:
         for atom in atoms:
             most_specific_type = atom["type"]  # The most specific type as a string
             if most_specific_type not in type_map:
-                # Compute the type hierarchy for the class
-                try:
-                    cls = eval(most_specific_type)  # Convert type name to class
-                    type_hierarchy = [cls.__name__ for cls in inspect.getmro(cls)]
-                except NameError:
-                    # Handle cases where the type is not a valid class (e.g., built-in types)
-                    type_hierarchy = [most_specific_type]
-
+                # Initialize the type entry
                 type_map[most_specific_type] = {
+                    "_": "type",
                     "id": most_specific_type,
-                    "types": type_hierarchy,
-                    "atoms": [],
-                    "isBuiltin": most_specific_type in BUILTINTYPES
+                    "types": [most_specific_type],  # Full type hierarchy (only the most specific type here)
+                    "atoms": [],  # List of atoms of this type
+                    "meta": {
+                        "builtin": most_specific_type in BUILTINTYPES
+                    }
                 }
-            type_map[most_specific_type]["atoms"].append(atom["id"])
+            # Add the full atom details to the "atoms" list
+            type_map[most_specific_type]["atoms"].append({
+                "_": "atom",
+                "id": atom["id"],
+                "type": atom["type"]
+            })
 
-        return list(type_map.values())
+        return type_map
 
 
 # Backwards compatibility alias

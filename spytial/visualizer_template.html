@@ -36,6 +36,7 @@
         const cndSpec = `{{ cnd_spec | safe }}`;
         const jsonData = `{{ python_data | safe }}`;
 
+
         /**
          * Load and render the graph using the webcola-cnd-graph custom element
          */
@@ -64,7 +65,7 @@
 
                 // Create a data instance from the JSON data
                 const dataInstance = new CndCore.JSONDataInstance(parsedData);
-                console.log('Data instance created successfully');
+                window.dataInstance = dataInstance; // Expose for debugging
 
                 // Initialize the evaluation context
                 const evaluationContext = { sourceData: dataInstance };
