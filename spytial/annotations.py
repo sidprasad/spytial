@@ -31,6 +31,10 @@
 
 import yaml
 
+class NoAliasDumper(yaml.Dumper):
+    def ignore_aliases(self, data):
+        return True
+
 # Registry to store constraints and directives
 # This is now class-level, not global
 CONSTRAINT_TYPES = {
@@ -274,5 +278,5 @@ def serialize_to_yaml_string(decorators):
     :param decorators: The collected decorators (constraints and directives).
     :return: YAML string representation of the decorators.
     """
-    return yaml.dump(decorators, default_flow_style=False)
+    return yaml.dump(decorators, default_flow_style=False, Dumper=NoAliasDumper)
 

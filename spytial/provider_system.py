@@ -341,6 +341,8 @@ class CnDDataInstanceBuilder:
     def _get_id(self, obj: Any) -> str:
         """Get or create an ID for an object."""
         oid = id(obj)
+       
+
         if oid not in self._seen:
             self._seen[oid] = f"n{self._id_counter}"
             self._id_counter += 1
