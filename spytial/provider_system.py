@@ -368,7 +368,7 @@ class CnDDataInstanceBuilder:
         # Add full type hierarchy to the atom
         type_hierarchy = [cls.__name__ for cls in inspect.getmro(type(obj))]
         atom["type"] = type_hierarchy[0] # Most specific type (first in the hierarchy)
-        #atom["type_hierarchy"] = type_hierarchy  # Store the full type hierarchy if needed
+        atom["type_hierarchy"] = type_hierarchy  # Store the full type hierarchy if needed
     
         
         # Add atom to our collection
@@ -391,7 +391,7 @@ class CnDDataInstanceBuilder:
                 return atom["type"]
         return "object"  # Default fallback
     
-    def build_types(self, atoms: List[Dict]) -> Dict:
+    def build_types(self, atoms: List[Dict]) -> List[Dict]:
         """
         Build the `types` field for the data instance.
 
@@ -399,7 +399,7 @@ class CnDDataInstanceBuilder:
             atoms: List of atoms, each containing a "type" field with the most specific type.
 
         Returns:
-            Dictionary of type definitions, each matching the desired format.
+            List of type definitions, each matching the desired format.
         """
         type_map = {}
 
@@ -409,11 +409,13 @@ class CnDDataInstanceBuilder:
         for atom in atoms:
             most_specific_type = atom["type"]  # The most specific type as a string
             if most_specific_type not in type_map:
+                type_hierarchy = atom.get("type_hierarchy", [most_specific_type])
+
                 # Initialize the type entry
                 type_map[most_specific_type] = {
                     "_": "type",
                     "id": most_specific_type,
-                    "types": [most_specific_type],  # Full type hierarchy (only the most specific type here)
+                    "types": type_hierarchy,  # Full type hierarchy
                     "atoms": [],  # List of atoms of this type
                     "meta": {
                         "builtin": most_specific_type in BUILTINTYPES
@@ -426,7 +428,8 @@ class CnDDataInstanceBuilder:
                 "type": atom["type"]
             })
 
-        return type_map
+        # Convert the type_map dictionary to a list of its values
+        return list(type_map.values())
 
 
 # Backwards compatibility alias
