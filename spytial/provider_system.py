@@ -123,6 +123,13 @@ class PrimitiveProvider(DataInstanceProvider):
     
     def provide_atoms_and_relations(self, obj: Any, walker_func) -> Tuple[Dict, List[Tuple[str, str, str]]]:
         atom = {
+
+            ## TODO: I wonder if IDs and Labels should match for primitives?
+            ##       This would allow primitives to be referenced by ID in relations.
+
+            ## At least for numbers and bools, this would be useful.
+            ## For strings, it might be less useful since they can be long.
+
             "id": walker_func._get_id(obj),
             "type": type(obj).__name__,
             "label": str(obj)
