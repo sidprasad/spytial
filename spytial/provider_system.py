@@ -58,6 +58,11 @@ def data_provider(cls: Type = None, *, priority: int = 0):
         return decorator(cls)
 
 
+# Object-level provider storage
+OBJECT_PROVIDER_ATTR = "__spytial_object_provider__"
+_OBJECT_PROVIDER_REGISTRY: Dict[int, DataInstanceProvider] = {}
+
+
 class DataInstanceRegistry:
     """Registry for data instance providers."""
     
@@ -74,9 +79,29 @@ class DataInstanceRegistry:
     @classmethod
     def find_provider(cls, obj: Any) -> Optional[DataInstanceProvider]:
         """Find the first provider that can handle the given object."""
+        # First check for object-specific providers
+        object_provider = cls._get_object_provider(obj)
+        if object_provider is not None:
+            return object_provider
+        
+        # Then check registered class-level providers
         for provider in cls._instances:
             if provider.can_handle(obj):
                 return provider
+        return None
+    
+    @classmethod
+    def _get_object_provider(cls, obj: Any) -> Optional[DataInstanceProvider]:
+        """Get object-specific provider if one exists."""
+        # First check if stored on object directly
+        if hasattr(obj, OBJECT_PROVIDER_ATTR):
+            return getattr(obj, OBJECT_PROVIDER_ATTR)
+        
+        # Then check global registry for objects that can't store attributes
+        obj_id = id(obj)
+        if obj_id in _OBJECT_PROVIDER_REGISTRY:
+            return _OBJECT_PROVIDER_REGISTRY[obj_id]
+        
         return None
     
     @classmethod
@@ -84,6 +109,7 @@ class DataInstanceRegistry:
         """Clear all registered providers (for testing)."""
         cls._providers.clear()
         cls._instances.clear()
+        _OBJECT_PROVIDER_REGISTRY.clear()
 
 
 # Built-in providers
@@ -148,6 +174,29 @@ class ListProvider(DataInstanceProvider):
         for i, elt in enumerate(obj):
             eid = walker_func(elt)
             relations.append((str(i), obj_id, eid))
+        
+        return atom, relations
+
+
+@data_provider(priority=8)
+class SetProvider(DataInstanceProvider):
+    """Handles set objects."""
+    
+    def can_handle(self, obj: Any) -> bool:
+        return isinstance(obj, set)
+    
+    def provide_atoms_and_relations(self, obj: Any, walker_func) -> Tuple[Dict, List[Tuple[str, str, str]]]:
+        obj_id = walker_func._get_id(obj)
+        atom = {
+            "id": obj_id,
+            "type": "set",
+            "label": f"set[{len(obj)}]"
+        }
+        
+        relations = []
+        for element in obj:
+            element_id = walker_func(element)
+            relations.append(("contains", obj_id, element_id))
         
         return atom, relations
 
@@ -229,6 +278,9 @@ class FallbackProvider(DataInstanceProvider):
             "type": typ,
             "label": f"{typ}"
         }
+
+        ## TODO: What about other things referenced here?
+
         return atom, []
 
 
@@ -247,12 +299,13 @@ class CnDDataInstanceBuilder:
         self._atoms.clear()
         self._rels.clear()
         self._id_counter = 0
-        
+
         try:
             self._walk(obj)
         except Exception as e:
             print(f"Error during data instance building: {e}")
-        
+            print("Object:", obj)
+
         # Convert relations to include types (matching IRelation interface)
         relations = []
         for rel_name, tuples in self._rels.items():
@@ -265,22 +318,30 @@ class CnDDataInstanceBuilder:
                     "atoms": [source_id, target_id],
                     "types": [source_type, target_type]
                 })
-            
+
             relations.append({
                 "id": rel_name,
                 "name": rel_name,
                 "types": ["object", "object"],  # Default to Python's top type
                 "tuples": typed_tuples
             })
-        
+
+        # Use the updated `build_types` function
+        typs = self.build_types(self._atoms)
+
         return {
             "atoms": self._atoms,
-            "relations": relations
+            "relations": relations,
+            "types": typs
         }
+    
+    
     
     def _get_id(self, obj: Any) -> str:
         """Get or create an ID for an object."""
         oid = id(obj)
+       
+
         if oid not in self._seen:
             self._seen[oid] = f"n{self._id_counter}"
             self._id_counter += 1
@@ -303,6 +364,13 @@ class CnDDataInstanceBuilder:
         # Get atom and relations from provider
         atom, relations = provider.provide_atoms_and_relations(obj, self)
         
+        
+        # Add full type hierarchy to the atom
+        type_hierarchy = [cls.__name__ for cls in inspect.getmro(type(obj))]
+        atom["type"] = type_hierarchy[0] # Most specific type (first in the hierarchy)
+        atom["type_hierarchy"] = type_hierarchy  # Store the full type hierarchy if needed
+    
+        
         # Add atom to our collection
         self._atoms.append(atom)
         
@@ -322,7 +390,100 @@ class CnDDataInstanceBuilder:
             if atom["id"] == atom_id:
                 return atom["type"]
         return "object"  # Default fallback
+    
+    def build_types(self, atoms: List[Dict]) -> List[Dict]:
+        """
+        Build the `types` field for the data instance.
+
+        Args:
+            atoms: List of atoms, each containing a "type" field with the most specific type.
+
+        Returns:
+            List of type definitions, each matching the desired format.
+        """
+        type_map = {}
+
+        BUILTINTYPES = {"int", "float", "str", "bool", "NoneType", "object"}
+
+        # Iterate over all atoms to populate the type map
+        for atom in atoms:
+            most_specific_type = atom["type"]  # The most specific type as a string
+            if most_specific_type not in type_map:
+                type_hierarchy = atom.get("type_hierarchy", [most_specific_type])
+
+                # Initialize the type entry
+                type_map[most_specific_type] = {
+                    "_": "type",
+                    "id": most_specific_type,
+                    "types": type_hierarchy,  # Full type hierarchy
+                    "atoms": [],  # List of atoms of this type
+                    "meta": {
+                        "builtin": most_specific_type in BUILTINTYPES
+                    }
+                }
+            # Add the full atom details to the "atoms" list
+            type_map[most_specific_type]["atoms"].append({
+                "_": "atom",
+                "id": atom["id"],
+                "type": atom["type"]
+            })
+
+        # Convert the type_map dictionary to a list of its values
+        return list(type_map.values())
 
 
 # Backwards compatibility alias
 CnDSerializer = CnDDataInstanceBuilder
+
+
+def set_object_provider(obj: Any, provider: DataInstanceProvider) -> Any:
+    """
+    Set a custom provider for a specific object instance.
+    
+    Args:
+        obj: The object to set the provider for
+        provider: The provider instance to use for this object
+        
+    Returns:
+        The object (for chaining)
+    """
+    try:
+        # Try to store directly on the object
+        setattr(obj, OBJECT_PROVIDER_ATTR, provider)
+    except (AttributeError, TypeError):
+        # For immutable objects, store in global registry
+        _OBJECT_PROVIDER_REGISTRY[id(obj)] = provider
+    
+    return obj
+
+
+def object_provider(provider: DataInstanceProvider):
+    """
+    Decorator to set a custom provider for an object.
+    
+    Usage:
+        my_obj = object_provider(CustomProvider())(my_obj)
+    
+    Args:
+        provider: The provider instance to use
+        
+    Returns:
+        Decorator function
+    """
+    def decorator(obj: Any) -> Any:
+        return set_object_provider(obj, provider)
+    
+    return decorator
+
+
+def get_object_provider(obj: Any) -> Optional[DataInstanceProvider]:
+    """
+    Get the custom provider set for an object, if any.
+    
+    Args:
+        obj: The object to check
+        
+    Returns:
+        The custom provider or None if no custom provider is set
+    """
+    return DataInstanceRegistry._get_object_provider(obj)

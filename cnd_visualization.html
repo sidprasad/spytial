@@ -38,7 +38,11 @@
         const cndSpec = `constraints: []
 directives: []
 `;
+<<<<<<< HEAD
         const jsonData = `{"atoms": [{"id": "n1", "type": "str", "label": "simple"}, {"id": "n0", "type": "SimpleObj", "label": "SimpleObj"}], "relations": [{"id": "name", "name": "name", "types": ["object", "object"], "tuples": [{"atoms": ["n0", "n1"], "types": ["SimpleObj", "str"]}]}]}`;
+=======
+        const jsonData = `{"atoms": [{"id": "n1", "type": "set", "label": "set"}, {"id": "n2", "type": "set", "label": "set"}, {"id": "n0", "type": "dict", "label": "dict{2}"}], "relations": [{"id": "annotated_set", "name": "annotated_set", "types": ["object", "object"], "tuples": [{"atoms": ["n0", "n1"], "types": ["dict", "set"]}]}, {"id": "normal_set", "name": "normal_set", "types": ["object", "object"], "tuples": [{"atoms": ["n0", "n2"], "types": ["dict", "set"]}]}]}`;
+>>>>>>> main
 
         /**
          * Load and render the graph using the webcola-cnd-graph custom element
