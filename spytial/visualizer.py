@@ -31,7 +31,7 @@ def quick_diagram(obj):
     return diagram(obj, method="inline")
 
 
-def diagram(obj, method="inline", auto_open=True, width=None, height=None):
+def diagram(obj, method="inline", auto_open=True, width=None, height=None, cnd_version="1.1.9"):
     """
     Display a Python object in the sPyTial visualizer.
     
@@ -64,7 +64,7 @@ def diagram(obj, method="inline", auto_open=True, width=None, height=None):
     data_instance = builder.build_instance(obj)
     
     # Generate the HTML content
-    html_content = _generate_visualizer_html(data_instance, spytial_spec, width, height)
+    html_content = _generate_visualizer_html(data_instance, spytial_spec, width, height, cnd_version=cnd_version)
     
     if method == "inline":
         # Display inline in Jupyter notebook using iframe
