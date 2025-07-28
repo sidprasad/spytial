@@ -31,7 +31,7 @@ def quick_diagram(obj):
     return diagram(obj, method="inline")
 
 
-def diagram(obj, method="inline", auto_open=True, width=None, height=None, cnd_version="1.1.9"):
+def diagram(obj, method="inline", auto_open=True, width=None, height=None, cnd_version=None):
     """
     Display a Python object in the sPyTial visualizer.
     
@@ -64,7 +64,7 @@ def diagram(obj, method="inline", auto_open=True, width=None, height=None, cnd_v
     data_instance = builder.build_instance(obj)
     
     # Generate the HTML content
-    html_content = _generate_visualizer_html(data_instance, spytial_spec, width, height, cnd_version=cnd_version)
+    html_content = _generate_visualizer_html(data_instance, spytial_spec, width, height, cnd_version)
     
     if method == "inline":
         # Display inline in Jupyter notebook using iframe
@@ -226,7 +226,7 @@ def _estimate_object_complexity(obj):
         return 10  # Default medium complexity
 
 
-def _generate_visualizer_html(data_instance, spytial_spec, width=800, height=600):
+def _generate_visualizer_html(data_instance, spytial_spec, width=800, height=600, cnd_version="1.1.9"):
     """Generate HTML content using Jinja2 templating."""
     
     if not HAS_JINJA2:
@@ -251,7 +251,8 @@ def _generate_visualizer_html(data_instance, spytial_spec, width=800, height=600
         python_data=json.dumps(data_instance),  # Properly serialize to JSON
         cnd_spec=spytial_spec,                   # Embed the sPyTial specification
         width=width,                             # Container width
-        height=height                            # Container height
+        height=height,                            # Container height
+        cnd_version=cnd_version                # Cope and Drag version
     )
     
     return html_content
