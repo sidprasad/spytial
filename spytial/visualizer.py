@@ -31,7 +31,7 @@ def quick_diagram(obj):
     return diagram(obj, method="inline")
 
 
-def diagram(obj, method="inline", auto_open=True):
+def diagram(obj, method="inline", auto_open=True, width=None, height=None):
     """
     Display a Python object in the sPyTial visualizer.
     
@@ -39,10 +39,17 @@ def diagram(obj, method="inline", auto_open=True):
         obj: Any Python object to visualize
         method: Display method - "inline" (Jupyter), "browser" (new tab), or "file" (save to file)
         auto_open: Whether to automatically open browser (for "browser" method)
+        width: Width of the visualization container in pixels (default: auto-detected)
+        height: Height of the visualization container in pixels (default: auto-detected)
     
     Returns:
         str: Path to the generated HTML file (if method="file" or "browser")
     """
+    # Auto-detect sizing if not provided
+    if width is None or height is None:
+        detected_width, detected_height = _detect_optimal_size(obj, method)
+        width = width or detected_width
+        height = height or detected_height
     from .provider_system import CnDDataInstanceBuilder
     from .annotations import collect_decorators, serialize_to_yaml_string  # Updated to use collect_decorators
     
@@ -57,7 +64,7 @@ def diagram(obj, method="inline", auto_open=True):
     data_instance = builder.build_instance(obj)
     
     # Generate the HTML content
-    html_content = _generate_visualizer_html(data_instance, spytial_spec)
+    html_content = _generate_visualizer_html(data_instance, spytial_spec, width, height)
     
     if method == "inline":
         # Display inline in Jupyter notebook using iframe
@@ -74,7 +81,7 @@ def diagram(obj, method="inline", auto_open=True):
                     <iframe 
                         src="data:text/html;base64,{encoded_html}" 
                         width="100%" 
-                        height="650px" 
+                        height="{height}px" 
                         frameborder="0"
                         style="display: block;">
                     </iframe>
@@ -87,10 +94,12 @@ def diagram(obj, method="inline", auto_open=True):
             except Exception as e:
                 print(f"Iframe display failed: {e}")
                 # Fall back to browser if iframe fails
-                return diagram(obj, method="browser", auto_open=auto_open)
+                return diagram(obj, method="browser", auto_open=auto_open, 
+                             width=width, height=height)
         
         # Fall back to browser if not in Jupyter
-        return diagram(obj, method="browser", auto_open=auto_open)
+        return diagram(obj, method="browser", auto_open=auto_open, 
+                      width=width, height=height)
     
     elif method == "browser":
         # Open in browser
@@ -116,7 +125,108 @@ def diagram(obj, method="inline", auto_open=True):
         raise ValueError(f"Unknown display method: {method}")
 
 
-def _generate_visualizer_html(data_instance, spytial_spec):
+def _detect_optimal_size(obj, method):
+    """
+    Detect optimal sizing based on object complexity and display method.
+    
+    Args:
+        obj: The object being visualized
+        method: The display method ("inline", "browser", "file")
+    
+    Returns:
+        tuple: (width, height) in pixels
+    """
+    # Default base sizes
+    base_width = 800
+    base_height = 600
+    
+    # For inline (Jupyter) method, use more conservative sizing
+    if method == "inline":
+        # Try to detect if we're in a Jupyter environment for better sizing
+        try:
+            if HAS_IPYTHON:
+                from IPython import get_ipython
+                ipython = get_ipython()
+                if ipython is not None:
+                    # We're in Jupyter - use a size that fits well in notebook cells
+                    # Most Jupyter cells work well with slightly smaller default sizes
+                    base_width = 750
+                    base_height = 500
+        except:
+            # Fall back to conservative sizing for inline display
+            base_width = 750
+            base_height = 500
+    
+    # Analyze object complexity to adjust sizing
+    try:
+        # Simple heuristic: count attributes and nested objects
+        complexity_score = _estimate_object_complexity(obj)
+        
+        # Adjust size based on complexity
+        if complexity_score > 50:  # High complexity
+            width_multiplier = 1.3
+            height_multiplier = 1.2
+        elif complexity_score > 20:  # Medium complexity
+            width_multiplier = 1.1
+            height_multiplier = 1.1
+        else:  # Low complexity
+            width_multiplier = 0.9
+            height_multiplier = 0.9
+            
+        width = int(base_width * width_multiplier)
+        height = int(base_height * height_multiplier)
+        
+        # Ensure minimum and maximum bounds
+        width = max(400, min(width, 1600))
+        height = max(300, min(height, 1200))
+        
+    except:
+        # Fall back to base sizes if complexity analysis fails
+        width = base_width
+        height = base_height
+    
+    return width, height
+
+
+def _estimate_object_complexity(obj):
+    """
+    Estimate the complexity of an object for sizing purposes.
+    
+    Args:
+        obj: The object to analyze
+        
+    Returns:
+        int: Complexity score (higher = more complex)
+    """
+    try:
+        complexity = 0
+        
+        # Count attributes
+        if hasattr(obj, '__dict__'):
+            complexity += len(obj.__dict__)
+        
+        # Count list/tuple elements
+        if isinstance(obj, (list, tuple)):
+            complexity += len(obj)
+            # Add nested complexity for first few items
+            for i, item in enumerate(obj[:5]):
+                if hasattr(item, '__dict__'):
+                    complexity += len(item.__dict__) * 0.5
+        
+        # Count dict keys
+        if isinstance(obj, dict):
+            complexity += len(obj)
+            # Add nested complexity for values
+            for value in list(obj.values())[:5]:
+                if hasattr(value, '__dict__'):
+                    complexity += len(value.__dict__) * 0.5
+        
+        return int(complexity)
+    except:
+        return 10  # Default medium complexity
+
+
+def _generate_visualizer_html(data_instance, spytial_spec, width=800, height=600):
     """Generate HTML content using Jinja2 templating."""
     
     if not HAS_JINJA2:
@@ -139,7 +249,9 @@ def _generate_visualizer_html(data_instance, spytial_spec):
     # Render the template with our data
     html_content = template.render(
         python_data=json.dumps(data_instance),  # Properly serialize to JSON
-        cnd_spec=spytial_spec                   # Embed the sPyTial specification
+        cnd_spec=spytial_spec,                   # Embed the sPyTial specification
+        width=width,                             # Container width
+        height=height                            # Container height
     )
     
     return html_content

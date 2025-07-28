@@ -14,8 +14,8 @@
         }
 
         #graph-container {
-            width: 800px;
-            height: 600px;
+            width: {{ width }}px;
+            height: {{ height }}px;
             border: 2px solid #007acc;
             border-radius: 8px;
             margin: 20px auto;
@@ -26,7 +26,11 @@
 
 <body>
     <!-- WebCola sPyTial Graph Element -->
-    <webcola-cnd-graph id="graph-container" width="800" height="600" layoutFormat="default"
+    <webcola-cnd-graph 
+        id="graph-container"
+        width="{{ width }}" 
+        height="{{ height }}"
+        layoutFormat="default"
         aria-label="Interactive graph visualization">
     </webcola-cnd-graph>
     <div id="error-message"></div>

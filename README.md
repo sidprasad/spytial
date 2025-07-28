@@ -45,6 +45,28 @@ This means, that you get the benefits of formal reasoning for free. One of the m
 This acts like a type checker for spatial meaning. You don’t just see the structure. You see when the structure is wrong.
 
 
+## Configurable Visualization Size
+
+The visualization container size is automatically optimized based on object complexity and display context, with sensible defaults. You can also customize the display size according to your needs:
+
+```python
+from spytial import diagram
+
+# Use automatic sizing (recommended)
+diagram(my_object)
+
+# Customize the size if needed
+diagram(my_object, width=1200, height=900)
+
+# For compact displays
+diagram(my_object, width=400, height=300)
+```
+
+The automatic sizing considers:
+- Object complexity (number of attributes, nested structures)
+- Display method (Jupyter notebooks use more conservative sizing)
+- Reasonable bounds (400-1600px width, 300-1200px height)
+
 ## Limitations
 - Does not handle functions, modules, or file handles.
 - Limited support for custom serialization methods like `__reduce__` or `__getstate__`.
@@ -56,7 +78,6 @@ This acts like a type checker for spatial meaning. You don’t just see the stru
 - Figure out guarding of things w/ their nodes. Like the self type should be got from the cnd annotation somehow? Can we have some templating / allow default top type in squery lang.
 - Documentation and demos.
 - Hiding flags.
-- The size of the element shown should be configurable, and we should have some good defaults?
 
 ## License
 This project is licensed under the MIT License. See the LICENSE file for details.
