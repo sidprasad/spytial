@@ -15,6 +15,7 @@ from .annotations import (
     # Utility functions
     collect_decorators, serialize_to_yaml_string
 )
+from .query_preprocessor import preprocess_selector, validate_selector
 
 # Aliases for the new branding
 SpyTialDataInstanceBuilder = CnDDataInstanceBuilder
@@ -39,6 +40,8 @@ __all__ = [
     'annotate_projection', 'annotate_attribute', 'annotate_hideField', 
     'annotate_hideAtom', 'annotate_inferredEdge',
     # Utility functions
-    'collect_decorators', 'serialize_to_yaml_string'
+    'collect_decorators', 'serialize_to_yaml_string',
+    # Query preprocessing
+    'preprocess_selector', 'validate_selector'
 ]
 

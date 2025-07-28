@@ -30,6 +30,7 @@
 
 
 import yaml
+from .query_preprocessor import preprocess_selector, validate_selector
 
 class NoAliasDumper(yaml.Dumper):
     def ignore_aliases(self, data):
@@ -64,14 +65,28 @@ _OBJECT_ANNOTATION_REGISTRY = {}
 def validate_fields(type_, kwargs, valid_fields):
     """
     Validate that the required fields for a given type are present in kwargs.
+    Also preprocess selector fields to support new @: operator syntax.
     :param type_: The type of constraint or directive.
     :param kwargs: The provided fields for the decorator.
     :param valid_fields: The list of required fields for the type.
-    :raises ValueError: If a required field is missing.
+    :raises ValueError: If a required field is missing or selector is invalid.
     """
     missing_fields = [field for field in valid_fields if field not in kwargs]
     if missing_fields:
         raise ValueError(f"Missing required fields for '{type_}': {', '.join(missing_fields)}")
+    
+    # Preprocess selector fields if present
+    if 'selector' in kwargs and kwargs['selector']:
+        try:
+            # Validate the selector syntax
+            if not validate_selector(kwargs['selector']):
+                raise ValueError(f"Invalid selector syntax: {kwargs['selector']}")
+            
+            # Preprocess the selector to handle @: operator
+            kwargs['selector'] = preprocess_selector(kwargs['selector'])
+            
+        except Exception as e:
+            raise ValueError(f"Error processing selector '{kwargs['selector']}': {str(e)}")
 
 def _create_decorator(constraint_type):
     """
