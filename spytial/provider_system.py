@@ -340,7 +340,8 @@ class CnDDataInstanceBuilder:
     def _get_id(self, obj: Any) -> str:
         """Get or create an ID for an object."""
         oid = id(obj)
-       
+
+        ## I wonder if primitives should have matching IDs and Labels?       
 
         if oid not in self._seen:
             self._seen[oid] = f"n{self._id_counter}"
