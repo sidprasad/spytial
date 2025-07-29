@@ -86,5 +86,4 @@ This project is licensed under the MIT License. See the LICENSE file for details
 ### Issues
 
 - Selectors are really hard to write with no evaluator, and we get sort of minimal feedback here :(
-- There are issues between LABELS and Selectors for IDs for IAtoms, which present an issue.
 - I don't like the demos of use (which I asked CoPilot to generate)
