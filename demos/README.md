@@ -29,10 +29,10 @@ See how to annotate specific objects (like sets) without modifying their classes
 
 **Key Insight**: You can customize how ANY object appears spatially without touching its class definition.
 
-### ⚡ [Demo 3: Z3 Providers](03-z3-case-study.ipynb)
-**From Default Chaos to Structured Insight**
+### ⚡ [Demo 3: Sets Visualization](03-z3-case-study.ipynb)
+**From Abstract Collections to Spatial Relationships**
 
-Transform Z3's internal visualization into domain-specific spatial layouts through custom providers. See the "notational relational view" you actually want.
+Transform set operations from abstract mathematical concepts into spatial relationships. See unions, intersections, and hierarchies as visual structures.
 
 **Key Insight**: Libraries give you power but terrible default visualizations. Providers bridge the semantic gap.
 
