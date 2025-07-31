@@ -58,8 +58,75 @@ DIRECTIVE_TYPES = {
 # Object-level annotation storage attribute name
 OBJECT_ANNOTATIONS_ATTR = "__spytial_object_annotations__"
 
+# Object ID storage attribute name (for self-reference)
+OBJECT_ID_ATTR = "__spytial_object_id__"
+
 # Global registry for objects that can't store annotations directly
 _OBJECT_ANNOTATION_REGISTRY = {}
+
+# Global registry for object IDs (for objects that can't store attributes)
+_OBJECT_ID_REGISTRY = {}
+
+# Counter for generating unique object IDs
+_OBJECT_ID_COUNTER = 0
+
+def _get_or_create_object_id(obj):
+    """
+    Get or create a unique ID for an object to enable self-reference in selectors.
+    :param obj: The object to get/create an ID for.
+    :return: A unique string ID for the object.
+    """
+    global _OBJECT_ID_COUNTER
+    
+    # Try to get existing ID from the object directly
+    try:
+        if hasattr(obj, OBJECT_ID_ATTR):
+            return getattr(obj, OBJECT_ID_ATTR)
+    except (AttributeError, TypeError):
+        pass
+    
+    # Check global registry for objects that can't store attributes
+    obj_python_id = id(obj)
+    if obj_python_id in _OBJECT_ID_REGISTRY:
+        return _OBJECT_ID_REGISTRY[obj_python_id]
+    
+    # Create new unique ID
+    _OBJECT_ID_COUNTER += 1
+    unique_id = f"obj_{_OBJECT_ID_COUNTER}"
+    
+    # Store the ID
+    try:
+        setattr(obj, OBJECT_ID_ATTR, unique_id)
+    except (AttributeError, TypeError):
+        # Object doesn't support attribute assignment, use global registry
+        _OBJECT_ID_REGISTRY[obj_python_id] = unique_id
+    
+    return unique_id
+
+def _process_selector_for_self_reference(selector, obj_id):
+    """
+    Process a selector string to replace 'self' references with the object's unique ID.
+    :param selector: The original selector string.
+    :param obj_id: The unique ID of the object being annotated.
+    :return: The processed selector string.
+    """
+    if selector is None:
+        return selector
+    
+    # Replace 'self' with the object's unique ID in various contexts
+    # Handle simple cases like 'self' or 'self.field'
+    if selector == 'self':
+        return obj_id
+    elif selector.startswith('self.'):
+        # Replace 'self.field' with '{obj_id}.field' format
+        field = selector[5:]  # Remove 'self.'
+        return f"{{{obj_id} : * | {obj_id}.{field}}}"
+    elif 'self' in selector:
+        # For more complex selectors, replace self with the object ID
+        # This handles cases like '{self : Type | self.field > 5}'
+        return selector.replace('self', obj_id)
+    
+    return selector
 
 def validate_fields(type_, kwargs, valid_fields):
     """
@@ -164,14 +231,24 @@ def _annotate_object(obj, annotation_type, **kwargs):
     """
     registry = _ensure_object_registry(obj)
     
+    # Get or create unique ID for this object to enable self-reference
+    obj_id = _get_or_create_object_id(obj)
+    
+    # Process any selectors in kwargs to handle self-reference
+    processed_kwargs = kwargs.copy()
+    if 'selector' in processed_kwargs:
+        processed_kwargs['selector'] = _process_selector_for_self_reference(
+            processed_kwargs['selector'], obj_id
+        )
+    
     # Determine if it's a constraint or directive and validate
     if annotation_type in CONSTRAINT_TYPES:
-        validate_fields(annotation_type, kwargs, CONSTRAINT_TYPES[annotation_type])
-        entry = {annotation_type: kwargs}
+        validate_fields(annotation_type, processed_kwargs, CONSTRAINT_TYPES[annotation_type])
+        entry = {annotation_type: processed_kwargs}
         registry["constraints"].append(entry)
     elif annotation_type in DIRECTIVE_TYPES:
-        validate_fields(annotation_type, kwargs, DIRECTIVE_TYPES[annotation_type])
-        entry = {annotation_type: kwargs}
+        validate_fields(annotation_type, processed_kwargs, DIRECTIVE_TYPES[annotation_type])
+        entry = {annotation_type: processed_kwargs}
         registry["directives"].append(entry)
     else:
         raise ValueError(f"Unknown annotation type '{annotation_type}' for object annotation.")
