@@ -72,6 +72,7 @@ The automatic sizing considers:
 - Limited support for custom serialization methods like `__reduce__` or `__getstate__`.
 - Performance may degrade for very large or deeply nested objects.
 
+
 ## TODO:
 - Need to add tests for the annotations and provider systems E.g. how annotations become objects / yaml.
 - Figure out the constraint conflict story here.
