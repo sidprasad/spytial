@@ -9,7 +9,7 @@
 # We want to build this into an object, that is then serialized into YAML, and passed to the visualizer.
 #
 # e.g.
-#constraints:
+# constraints:
 #   - cyclic:
 #       selector: left
 #       direction: clockwise
@@ -26,21 +26,26 @@
 #       selector: '{b : Basket, a : Fruit | (a in b.fruit) and a.status = Rotten }'
 #       name: rottenFruit
 
-### AND directives (which are also similar)
+# AND directives (which are also similar)
 
 
 import yaml
 
+
 class NoAliasDumper(yaml.Dumper):
     def ignore_aliases(self, data):
         return True
+
 
 # Registry to store constraints and directives
 # This is now class-level, not global
 CONSTRAINT_TYPES = {
     "cyclic": ["selector", "direction"],
     "orientation": ["selector", "directions"],
-    "group": ["field", "groupOn", "addToGroup"]
+    "group": [
+        ["field", "groupOn", "addToGroup"],  # Field-based group constraint
+        ["selector", "name"],  # Selector-based group constraint
+    ],
 }
 
 DIRECTIVE_TYPES = {
@@ -52,7 +57,7 @@ DIRECTIVE_TYPES = {
     "attribute": ["field"],
     "hideField": ["field"],
     "hideAtom": ["selector"],
-    "inferredEdge": ["name", "selector"]
+    "inferredEdge": ["name", "selector"],
 }
 
 # Object-level annotation storage attribute name
@@ -61,17 +66,41 @@ OBJECT_ANNOTATIONS_ATTR = "__spytial_object_annotations__"
 # Global registry for objects that can't store annotations directly
 _OBJECT_ANNOTATION_REGISTRY = {}
 
+
 def validate_fields(type_, kwargs, valid_fields):
     """
     Validate that the required fields for a given type are present in kwargs.
+    For constraints that support multiple parameter sets (like group), try each set.
     :param type_: The type of constraint or directive.
     :param kwargs: The provided fields for the decorator.
-    :param valid_fields: The list of required fields for the type.
-    :raises ValueError: If a required field is missing.
+    :param valid_fields: The list of required fields for the type, or a list of alternative field sets.
+    :raises ValueError: If no valid field set matches the provided kwargs.
     """
-    missing_fields = [field for field in valid_fields if field not in kwargs]
-    if missing_fields:
-        raise ValueError(f"Missing required fields for '{type_}': {', '.join(missing_fields)}")
+    # Check if valid_fields is a list of alternative field sets (for group constraint)
+    if isinstance(valid_fields[0], list):
+        # Try each alternative field set
+        for field_set in valid_fields:
+            missing_fields = [field for field in field_set if field not in kwargs]
+            if not missing_fields:
+                # Found a valid field set with all required fields present
+                return
+
+        # None of the field sets were valid, create error message
+        field_set_descriptions = []
+        for i, field_set in enumerate(valid_fields):
+            field_set_descriptions.append(f"Set {i+1}: {', '.join(field_set)}")
+
+        raise ValueError(
+            f"No valid field set found for '{type_}'. "
+            f"Expected one of: {' OR '.join(field_set_descriptions)}. "
+            f"Provided: {', '.join(kwargs.keys())}"
+        )
+    else:
+        # Original single field set validation
+        missing_fields = [field for field in valid_fields if field not in kwargs]
+        if missing_fields:
+            raise ValueError(f"Missing required fields for '{type_}': {', '.join(missing_fields)}")
+
 
 def _create_decorator(constraint_type):
     """
@@ -80,17 +109,15 @@ def _create_decorator(constraint_type):
     :param constraint_type: The type of constraint or directive (e.g., 'cyclic', 'orientation').
     :return: A decorator function that works on both classes and objects.
     """
+
     def decorator(**kwargs):
         def unified_decorator(target):
             # Check if target is a class (type) or an object instance
             if isinstance(target, type):
                 # Class decoration (original behavior)
                 if not hasattr(target, "__spytial_registry__"):
-                    target.__spytial_registry__ = {
-                        "constraints": [],
-                        "directives": []
-                    }
-                
+                    target.__spytial_registry__ = {"constraints": [], "directives": []}
+
                 # Determine if it's a constraint or directive
                 if constraint_type in CONSTRAINT_TYPES:
                     # Validate fields for constraints
@@ -104,28 +131,31 @@ def _create_decorator(constraint_type):
                     target.__spytial_registry__["directives"].append(entry)
                 else:
                     raise ValueError(f"Unknown type '{constraint_type}' for sPyTial decorator.")
-                
+
                 return target
             else:
                 # Object annotation (new ergonomic behavior)
                 return _annotate_object(target, constraint_type, **kwargs)
-        
+
         return unified_decorator
+
     return decorator
 
+
 # Create individual decorator functions for each constraint and directive type
-orientation = _create_decorator('orientation')
-cyclic = _create_decorator('cyclic')
-group = _create_decorator('group')
-atomColor = _create_decorator('atomColor')
-size = _create_decorator('size')
-icon = _create_decorator('icon')
-edgeColor = _create_decorator('edgeColor')
-projection = _create_decorator('projection')
-attribute = _create_decorator('attribute')
-hideField = _create_decorator('hideField')
-hideAtom = _create_decorator('hideAtom')
-inferredEdge = _create_decorator('inferredEdge')
+orientation = _create_decorator("orientation")
+cyclic = _create_decorator("cyclic")
+group = _create_decorator("group")
+atomColor = _create_decorator("atomColor")
+size = _create_decorator("size")
+icon = _create_decorator("icon")
+edgeColor = _create_decorator("edgeColor")
+projection = _create_decorator("projection")
+attribute = _create_decorator("attribute")
+hideField = _create_decorator("hideField")
+hideAtom = _create_decorator("hideAtom")
+inferredEdge = _create_decorator("inferredEdge")
+
 
 def _ensure_object_registry(obj):
     """
@@ -138,21 +168,16 @@ def _ensure_object_registry(obj):
     # Try to store on the object directly first
     try:
         if not hasattr(obj, OBJECT_ANNOTATIONS_ATTR):
-            setattr(obj, OBJECT_ANNOTATIONS_ATTR, {
-                "constraints": [],
-                "directives": []
-            })
+            setattr(obj, OBJECT_ANNOTATIONS_ATTR, {"constraints": [], "directives": []})
         return getattr(obj, OBJECT_ANNOTATIONS_ATTR)
     except (AttributeError, TypeError):
         # Object doesn't support attribute assignment (e.g., built-in types)
         # Use global registry instead
         obj_id = id(obj)
         if obj_id not in _OBJECT_ANNOTATION_REGISTRY:
-            _OBJECT_ANNOTATION_REGISTRY[obj_id] = {
-                "constraints": [],
-                "directives": []
-            }
+            _OBJECT_ANNOTATION_REGISTRY[obj_id] = {"constraints": [], "directives": []}
         return _OBJECT_ANNOTATION_REGISTRY[obj_id]
+
 
 def _annotate_object(obj, annotation_type, **kwargs):
     """
@@ -163,7 +188,7 @@ def _annotate_object(obj, annotation_type, **kwargs):
     :return: The annotated object (for chaining).
     """
     registry = _ensure_object_registry(obj)
-    
+
     # Determine if it's a constraint or directive and validate
     if annotation_type in CONSTRAINT_TYPES:
         validate_fields(annotation_type, kwargs, CONSTRAINT_TYPES[annotation_type])
@@ -175,57 +200,70 @@ def _annotate_object(obj, annotation_type, **kwargs):
         registry["directives"].append(entry)
     else:
         raise ValueError(f"Unknown annotation type '{annotation_type}' for object annotation.")
-    
+
     return obj
+
 
 # Object-level annotation functions
 def annotate_orientation(obj, **kwargs):
     """Apply orientation annotation to a specific object."""
-    return _annotate_object(obj, 'orientation', **kwargs)
+    return _annotate_object(obj, "orientation", **kwargs)
+
 
 def annotate_cyclic(obj, **kwargs):
     """Apply cyclic annotation to a specific object."""
-    return _annotate_object(obj, 'cyclic', **kwargs)
+    return _annotate_object(obj, "cyclic", **kwargs)
+
 
 def annotate_group(obj, **kwargs):
     """Apply group annotation to a specific object."""
-    return _annotate_object(obj, 'group', **kwargs)
+    return _annotate_object(obj, "group", **kwargs)
+
 
 def annotate_atomColor(obj, **kwargs):
     """Apply atomColor annotation to a specific object."""
-    return _annotate_object(obj, 'atomColor', **kwargs)
+    return _annotate_object(obj, "atomColor", **kwargs)
+
 
 def annotate_size(obj, **kwargs):
     """Apply size annotation to a specific object."""
-    return _annotate_object(obj, 'size', **kwargs)
+    return _annotate_object(obj, "size", **kwargs)
+
 
 def annotate_icon(obj, **kwargs):
     """Apply icon annotation to a specific object."""
-    return _annotate_object(obj, 'icon', **kwargs)
+    return _annotate_object(obj, "icon", **kwargs)
+
 
 def annotate_edgeColor(obj, **kwargs):
     """Apply edgeColor annotation to a specific object."""
-    return _annotate_object(obj, 'edgeColor', **kwargs)
+    return _annotate_object(obj, "edgeColor", **kwargs)
+
 
 def annotate_projection(obj, **kwargs):
     """Apply projection annotation to a specific object."""
-    return _annotate_object(obj, 'projection', **kwargs)
+    return _annotate_object(obj, "projection", **kwargs)
+
 
 def annotate_attribute(obj, **kwargs):
     """Apply attribute annotation to a specific object."""
-    return _annotate_object(obj, 'attribute', **kwargs)
+    return _annotate_object(obj, "attribute", **kwargs)
+
 
 def annotate_hideField(obj, **kwargs):
     """Apply hideField annotation to a specific object."""
-    return _annotate_object(obj, 'hideField', **kwargs)
+    return _annotate_object(obj, "hideField", **kwargs)
+
 
 def annotate_hideAtom(obj, **kwargs):
     """Apply hideAtom annotation to a specific object."""
-    return _annotate_object(obj, 'hideAtom', **kwargs)
+    return _annotate_object(obj, "hideAtom", **kwargs)
+
 
 def annotate_inferredEdge(obj, **kwargs):
     """Apply inferredEdge annotation to a specific object."""
-    return _annotate_object(obj, 'inferredEdge', **kwargs)
+    return _annotate_object(obj, "inferredEdge", **kwargs)
+
 
 # General purpose function for applying any annotation type
 def annotate(obj, annotation_type, **kwargs):
@@ -238,6 +276,7 @@ def annotate(obj, annotation_type, **kwargs):
     """
     return _annotate_object(obj, annotation_type, **kwargs)
 
+
 def collect_decorators(obj):
     """
     Collect all decorators applied to the class of the given object,
@@ -245,32 +284,30 @@ def collect_decorators(obj):
     :param obj: The object whose class decorators and object annotations should be collected.
     :return: A combined dictionary of constraints and directives.
     """
-    combined_registry = {
-        "constraints": [],
-        "directives": []
-    }
+    combined_registry = {"constraints": [], "directives": []}
 
     # Traverse the class hierarchy for class-level annotations
     for cls in obj.__class__.__mro__:
         if hasattr(cls, "__spytial_registry__"):
             combined_registry["constraints"].extend(cls.__spytial_registry__["constraints"])
             combined_registry["directives"].extend(cls.__spytial_registry__["directives"])
-    
+
     # Add object-level annotations if they exist
     # First check if stored on object directly
     if hasattr(obj, OBJECT_ANNOTATIONS_ATTR):
         object_registry = getattr(obj, OBJECT_ANNOTATIONS_ATTR)
         combined_registry["constraints"].extend(object_registry["constraints"])
         combined_registry["directives"].extend(object_registry["directives"])
-    
+
     # Then check global registry for objects that can't store attributes
     obj_id = id(obj)
     if obj_id in _OBJECT_ANNOTATION_REGISTRY:
         object_registry = _OBJECT_ANNOTATION_REGISTRY[obj_id]
         combined_registry["constraints"].extend(object_registry["constraints"])
         combined_registry["directives"].extend(object_registry["directives"])
-    
+
     return combined_registry
+
 
 def serialize_to_yaml_string(decorators):
     """
@@ -279,4 +316,3 @@ def serialize_to_yaml_string(decorators):
     :return: YAML string representation of the decorators.
     """
     return yaml.dump(decorators, default_flow_style=False, Dumper=NoAliasDumper)
-
