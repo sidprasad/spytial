@@ -150,6 +150,40 @@ def test_sub_object_annotations_persist_on_composition():
     
     print("✓ Issue #14 fixed: Sub-object annotations persist on composition")
 
+def test_reset_object_ids():
+    """Test that reset_object_ids function prevents conflicts across multiple runs."""
+    print("=== Testing reset_object_ids Function ===")
+    
+    from spytial.annotations import reset_object_ids
+    
+    # Start with a clean state
+    reset_object_ids()
+    
+    class TestClass:
+        def __init__(self, value):
+            self.value = value
+    
+    # First annotation
+    obj1 = TestClass(10)
+    obj1 = orientation(selector='self.value', directions=['below'])(obj1)
+    obj1_decorators = collect_decorators(obj1)
+    first_selector = obj1_decorators['constraints'][0]['orientation']['selector']
+    
+    # Reset state
+    reset_object_ids()
+    
+    # Second annotation after reset should get same ID (obj_1)
+    obj2 = TestClass(20)
+    obj2 = orientation(selector='self.value', directions=['below'])(obj2)
+    obj2_decorators = collect_decorators(obj2)
+    second_selector = obj2_decorators['constraints'][0]['orientation']['selector']
+    
+    # Both should use obj_1 since we reset between them
+    expected_selector = '{obj_1 : * | obj_1.value}'
+    assert first_selector == expected_selector, f"Expected {expected_selector}, got {first_selector}"
+    assert second_selector == expected_selector, f"Expected {expected_selector}, got {second_selector}"
+    print("✓ reset_object_ids provides deterministic behavior")
+
 def test_self_reference_in_selectors():
     """Test self-reference functionality for Issue #16."""
     print("=== Testing Self-Reference in Selectors (Issue #16) ===")
@@ -193,6 +227,7 @@ if __name__ == "__main__":
     test_class_and_object_annotations_combined() 
     test_general_annotate_function()
     test_yaml_serialization()
+    test_reset_object_ids()  # Add the new test
     test_self_reference_in_selectors()  # Add the new test
     test_sub_object_annotations_persist_on_composition()
     

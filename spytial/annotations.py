@@ -70,6 +70,22 @@ _OBJECT_ID_REGISTRY = {}
 # Counter for generating unique object IDs
 _OBJECT_ID_COUNTER = 0
 
+def reset_object_ids():
+    """
+    Reset the global object ID state. Useful for testing or when you need 
+    deterministic object ID generation across multiple runs.
+    
+    Warning: This will clear all existing object ID mappings, so existing
+    selectors that depend on previous object IDs may no longer work.
+    """
+    global _OBJECT_ID_COUNTER, _OBJECT_ID_REGISTRY
+    _OBJECT_ID_COUNTER = 0
+    _OBJECT_ID_REGISTRY.clear()
+    
+    # Also clear object ID attributes from any objects that have them
+    # Note: We can't easily find all objects that have the attribute,
+    # so this is a best-effort cleanup of the global registry only.
+
 def _get_or_create_object_id(obj):
     """
     Get or create a unique ID for an object to enable self-reference in selectors.

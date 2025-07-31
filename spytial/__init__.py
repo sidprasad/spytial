@@ -14,7 +14,7 @@ from .annotations import (
     annotate_projection, annotate_attribute, annotate_hideField, 
     annotate_hideAtom, annotate_inferredEdge,
     # Utility functions
-    collect_decorators, serialize_to_yaml_string
+    collect_decorators, serialize_to_yaml_string, reset_object_ids
 )
 
 # Aliases for the new branding
@@ -38,6 +38,6 @@ __all__ = [
     'annotate_projection', 'annotate_attribute', 'annotate_hideField', 
     'annotate_hideAtom', 'annotate_inferredEdge',
     # Utility functions
-    'collect_decorators', 'serialize_to_yaml_string'
+    'collect_decorators', 'serialize_to_yaml_string', 'reset_object_ids'
 ]
 
