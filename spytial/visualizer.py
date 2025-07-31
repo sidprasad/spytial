@@ -51,17 +51,17 @@ def diagram(obj, method="inline", auto_open=True, width=None, height=None, cnd_v
         width = width or detected_width
         height = height or detected_height
     from .provider_system import CnDDataInstanceBuilder
-    from .annotations import collect_decorators, serialize_to_yaml_string  # Updated to use collect_decorators
+    from .annotations import serialize_to_yaml_string  # No longer need collect_decorators here
     
-    # Collect decorators from the object's class
-    decorators = collect_decorators(obj)
+    # Serialize the object using the provider system (which now also collects decorators)
+    builder = CnDDataInstanceBuilder()
+    data_instance = builder.build_instance(obj)
+    
+    # Get all decorators collected during the build process (from all sub-objects)
+    decorators = builder.get_collected_decorators()
     
     # Serialize the collected decorators into a YAML string
     spytial_spec = serialize_to_yaml_string(decorators)
-    
-    # Serialize the object using the provider system
-    builder = CnDDataInstanceBuilder()
-    data_instance = builder.build_instance(obj)
     
     # Generate the HTML content
     html_content = _generate_visualizer_html(data_instance, spytial_spec, width, height, cnd_version)

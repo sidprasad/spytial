@@ -299,6 +299,7 @@ class CnDDataInstanceBuilder:
         self._atoms = []
         self._rels = {}
         self._id_counter = 0
+        self._collected_decorators = {"constraints": [], "directives": []}
     
     def build_instance(self, obj: Any) -> Dict:
         """Build a complete data instance from an object."""
@@ -306,6 +307,7 @@ class CnDDataInstanceBuilder:
         self._atoms.clear()
         self._rels.clear()
         self._id_counter = 0
+        self._collected_decorators = {"constraints": [], "directives": []}
 
         try:
             self._walk(obj)
@@ -342,6 +344,10 @@ class CnDDataInstanceBuilder:
             "types": typs
         }
     
+    def get_collected_decorators(self) -> Dict:
+        """Get all decorators collected during the build process."""
+        return self._collected_decorators
+    
     
     
     def _get_id(self, obj: Any) -> str:
@@ -363,6 +369,18 @@ class CnDDataInstanceBuilder:
         oid = id(obj)
         if oid in self._seen:
             return self._seen[oid]
+        
+        # Collect decorators from this object
+        try:
+            from .annotations import collect_decorators
+            obj_decorators = collect_decorators(obj)
+            # Merge decorators into our collected set
+            self._collected_decorators["constraints"].extend(obj_decorators["constraints"])
+            self._collected_decorators["directives"].extend(obj_decorators["directives"])
+        except Exception as e:
+            # If decorator collection fails, continue without them
+            # This prevents the entire visualization from failing due to annotation issues
+            pass
         
         # Find appropriate provider
         provider = DataInstanceRegistry.find_provider(obj)
