@@ -1,0 +1,13 @@
+include README.md
+include LICENSE
+include requirements.txt
+include OBJECT_ANNOTATIONS.md
+include agents.md
+recursive-include spytial *.html
+recursive-include spytial *.txt
+recursive-include demos *.ipynb
+recursive-include demos *.md
+recursive-exclude test *
+recursive-exclude .git *
+global-exclude *.pyc
+global-exclude __pycache__
