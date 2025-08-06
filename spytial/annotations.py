@@ -43,7 +43,7 @@ CONSTRAINT_TYPES = {
     "cyclic": ["selector", "direction"],
     "orientation": ["selector", "directions"],
     "group": [
-        ["field", "groupOn", "addToGroup"],  # Field-based group constraint
+        ["field", "selector" "groupOn", "addToGroup"],  # Field-based group constraint
         ["selector", "name"],  # Selector-based group constraint
     ],
 }
