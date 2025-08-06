@@ -357,6 +357,23 @@ class CnDDataInstanceBuilder:
         ## I wonder if primitives should have matching IDs and Labels?       
 
         if oid not in self._seen:
+            # Check if object has a spytial ID for self-reference
+            try:
+                from .annotations import OBJECT_ID_ATTR, _OBJECT_ID_REGISTRY
+                # First try to get ID from object directly
+                if hasattr(obj, OBJECT_ID_ATTR):
+                    spytial_id = getattr(obj, OBJECT_ID_ATTR)
+                    self._seen[oid] = spytial_id
+                    return spytial_id
+                # Then check global registry
+                elif oid in _OBJECT_ID_REGISTRY:
+                    spytial_id = _OBJECT_ID_REGISTRY[oid]
+                    self._seen[oid] = spytial_id
+                    return spytial_id
+            except ImportError:
+                pass
+            
+            # Default behavior: generate new ID
             self._seen[oid] = f"n{self._id_counter}"
             self._id_counter += 1
         return self._seen[oid]
