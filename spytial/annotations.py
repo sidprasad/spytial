@@ -30,6 +30,7 @@
 
 
 import yaml
+import re
 
 
 class NoAliasDumper(yaml.Dumper):
@@ -134,21 +135,9 @@ def _process_selector_for_self_reference(selector, obj_id):
     """
     if selector is None:
         return selector
-    
-    # Replace 'self' with the object's unique ID in various contexts
-    # Handle simple cases like 'self' or 'self.field'
-    if selector == 'self':
-        return obj_id
-    elif selector.startswith('self.'):
-        # Replace 'self.field' with '{obj_id}.field' format
-        field = selector[5:]  # Remove 'self.'
-        return f"{{{obj_id} : * | {obj_id}.{field}}}"
-    elif 'self' in selector:
-        # For more complex selectors, replace self with the object ID
-        # This handles cases like '{self : Type | self.field > 5}'
-        return selector.replace('self', obj_id)
-    
-    return selector
+
+    # Replace all instances of the entire word 'self' with the object's unique ID
+    return re.sub(r'\bself\b', obj_id, selector)
 
 
 def validate_fields(type_, kwargs, valid_fields):
