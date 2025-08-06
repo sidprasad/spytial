@@ -76,7 +76,6 @@ The automatic sizing considers:
 ## TODO:
 - Need to add tests for the annotations and provider systems E.g. how annotations become objects / yaml.
 - Figure out the constraint conflict story here.
-- Figure out guarding of things w/ their nodes. Like the self type should be got from the cnd annotation somehow? Can we have some templating / allow default top type in squery lang.
 - Documentation and demos.
 - Hiding flags.
 
