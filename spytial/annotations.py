@@ -1,33 +1,11 @@
 #
 # sPyTial Annotation System
 #
-# Users should be able to annotate their classes with spatial constraints and directives.
-# @orientation(selector='left', directions=['left', 'below'])
-# @cyclic(selector='left', direction='clockwise')
-# @group(field='fruit', groupOn=0, addToGroup=1)
-# @cnd('group', selector='{b : Basket, a : Fruit | (a in b.fruit) and a.status = Rotten }', name='rottenFruit')
-# We want to build this into an object, that is then serialized into YAML, and passed to the visualizer.
-#
-# e.g.
-# constraints:
-#   - cyclic:
-#       selector: left
-#       direction: clockwise
-#   - orientation:
-#       selector: left
-#       directions:
-#         - left
-#         - below
-#  - group:
-#       field: fruit
-#       groupOn: 0
-#       addToGroup: 1
-#   - group:
-#       selector: '{b : Basket, a : Fruit | (a in b.fruit) and a.status = Rotten }'
-#       name: rottenFruit
 
-# AND directives (which are also similar)
 
+### TODO:
+# - Add support for Flags
+# Add support for 'selector' in some directives.
 
 import yaml
 import re
@@ -44,9 +22,8 @@ CONSTRAINT_TYPES = {
     "cyclic": ["selector", "direction"],
     "orientation": ["selector", "directions"],
     "group": [
-        ["field", "groupOn", "addToGroup"], # Legacy, more ergonomic.
-        ["field", "selector", "groupOn", "addToGroup"],  # Field-based group constraint
-        ["selector", "name"],  # Selector-based group constraint
+        {"required": ["field", "groupOn", "addToGroup"], "optional": ["selector"]},  # Legacy, more ergonomic
+        {"required": ["selector", "name"], "optional": []},  # Selector-based group constraint
     ],
 }
 
@@ -54,10 +31,10 @@ DIRECTIVE_TYPES = {
     "atomColor": ["selector", "value"],
     "size": ["selector", "height", "width"],
     "icon": ["selector", "path", "showLabels"],
-    "edgeColor": ["field", "color"],
+    "edgeColor": {"required": ["field", "color"], "optional": ["selector"]},
     "projection": ["sig"],
-    "attribute": ["field"],
-    "hideField": ["field"],
+    "attribute": {"required": ["field"], "optional": ["selector"]},
+    "hideField": {"required": ["field"], "optional": ["selector"]},
     "hideAtom": ["selector"],
     "inferredEdge": ["name", "selector"],
 }
@@ -149,30 +126,60 @@ def validate_fields(type_, kwargs, valid_fields):
     :param valid_fields: The list of required fields for the type, or a list of alternative field sets.
     :raises ValueError: If no valid field set matches the provided kwargs.
     """
-    # Check if valid_fields is a list of alternative field sets (for group constraint)
-    if isinstance(valid_fields[0], list):
-        # Try each alternative field set
+    # Handle multiple alternatives (for group)
+    if isinstance(valid_fields, list) and len(valid_fields) > 0 and isinstance(valid_fields[0], (list, dict)):
         for field_set in valid_fields:
-            missing_fields = [field for field in field_set if field not in kwargs]
+            if isinstance(field_set, dict):
+                required = field_set.get("required", [])
+                optional = field_set.get("optional", [])
+            else:
+                required = field_set
+                optional = []
+            
+            missing_fields = [field for field in required if field not in kwargs]
+            # Accept if all required fields are present
             if not missing_fields:
-                # Found a valid field set with all required fields present
+                # Optionally: check for unknown fields
+                all_valid_fields = required + optional
+                unknown_fields = [field for field in kwargs if field not in all_valid_fields]
+                if unknown_fields:
+                    print(f"Warning: Unknown fields for '{type_}': {', '.join(unknown_fields)}")
                 return
-
-        # None of the field sets were valid, create error message
+        
+        # None matched - create error message
         field_set_descriptions = []
         for i, field_set in enumerate(valid_fields):
-            field_set_descriptions.append(f"Set {i+1}: {', '.join(field_set)}")
-
+            if isinstance(field_set, dict):
+                req = field_set.get("required", [])
+                opt = field_set.get("optional", [])
+                desc = f"Set {i+1}: required: {', '.join(req)}; optional: {', '.join(opt)}"
+            else:
+                desc = f"Set {i+1}: {', '.join(field_set)}"
+            field_set_descriptions.append(desc)
+        
         raise ValueError(
             f"No valid field set found for '{type_}'. "
             f"Expected one of: {' OR '.join(field_set_descriptions)}. "
             f"Provided: {', '.join(kwargs.keys())}"
         )
     else:
-        # Original single field set validation
-        missing_fields = [field for field in valid_fields if field not in kwargs]
+        # Single set (list or dict)
+        if isinstance(valid_fields, dict):
+            required = valid_fields.get("required", [])
+            optional = valid_fields.get("optional", [])
+        else:
+            required = valid_fields
+            optional = []
+        
+        missing_fields = [field for field in required if field not in kwargs]
         if missing_fields:
             raise ValueError(f"Missing required fields for '{type_}': {', '.join(missing_fields)}")
+        
+        # Optionally: check for unknown fields
+        all_valid_fields = required + optional
+        unknown_fields = [field for field in kwargs if field not in all_valid_fields]
+        if unknown_fields:
+            print(f"Warning: Unknown fields for '{type_}': {', '.join(unknown_fields)}")
 
 
 def _create_decorator(constraint_type):
