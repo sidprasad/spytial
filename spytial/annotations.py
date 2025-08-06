@@ -37,6 +37,7 @@ DIRECTIVE_TYPES = {
     "hideField": {"required": ["field"], "optional": ["selector"]},
     "hideAtom": ["selector"],
     "inferredEdge": ["name", "selector"],
+    "flag": ["name"], 
 }
 
 # Object-level annotation storage attribute name
@@ -207,7 +208,13 @@ def _create_decorator(constraint_type):
                 elif constraint_type in DIRECTIVE_TYPES:
                     # Validate fields for directives
                     validate_fields(constraint_type, kwargs, DIRECTIVE_TYPES[constraint_type])
-                    entry = {constraint_type: kwargs}
+                    
+                    # Special handling for flag directives - store as scalar
+                    if constraint_type == "flag" and "name" in kwargs:
+                        entry = {constraint_type: kwargs["name"]}
+                    else:
+                        entry = {constraint_type: kwargs}
+                    
                     target.__spytial_registry__["directives"].append(entry)
                 else:
                     raise ValueError(f"Unknown type '{constraint_type}' for sPyTial decorator.")
@@ -235,6 +242,7 @@ attribute = _create_decorator("attribute")
 hideField = _create_decorator("hideField")
 hideAtom = _create_decorator("hideAtom")
 inferredEdge = _create_decorator("inferredEdge")
+flag = _create_decorator("flag")
 
 
 def _ensure_object_registry(obj):
@@ -288,7 +296,13 @@ def _annotate_object(obj, annotation_type, **kwargs):
         registry["constraints"].append(entry)
     elif annotation_type in DIRECTIVE_TYPES:
         validate_fields(annotation_type, processed_kwargs, DIRECTIVE_TYPES[annotation_type])
-        entry = {annotation_type: processed_kwargs}
+        
+        # Special handling for flag directives - store as scalar
+        if annotation_type == "flag" and "name" in processed_kwargs:
+            entry = {annotation_type: processed_kwargs["name"]}
+        else:
+            entry = {annotation_type: processed_kwargs}
+        
         registry["directives"].append(entry)
     else:
         raise ValueError(f"Unknown annotation type '{annotation_type}' for object annotation.")
@@ -355,6 +369,11 @@ def annotate_hideAtom(obj, **kwargs):
 def annotate_inferredEdge(obj, **kwargs):
     """Apply inferredEdge annotation to a specific object."""
     return _annotate_object(obj, "inferredEdge", **kwargs)
+
+
+def annotate_flag(obj, **kwargs):
+    """Apply flag annotation to a specific object."""
+    return _annotate_object(obj, "flag", **kwargs)
 
 
 # General purpose function for applying any annotation type
