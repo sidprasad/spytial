@@ -73,17 +73,14 @@ The automatic sizing considers:
 - Performance may degrade for very large or deeply nested objects.
 
 
-## TODO:
-- Need to add tests for the annotations and provider systems E.g. how annotations become objects / yaml.
-- Figure out the constraint conflict story here.
-- Documentation and demos.
-- Hiding flags.
 
 ## License
 This project is licensed under the MIT License. See the LICENSE file for details.
 
 
-### Issues
-
+## TODO:
+- Need to add tests for the annotations and provider systems E.g. how annotations become objects / yaml.
+- Figure out the constraint conflict story here.
+- Documentation and demos.
+  - I don't like the demos of use (which I asked CoPilot to generate)
 - Selectors are really hard to write with no evaluator, and we get sort of minimal feedback here :(
-- I don't like the demos of use (which I asked CoPilot to generate)
