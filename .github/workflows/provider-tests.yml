@@ -1,0 +1,76 @@
+name: Provider System Tests
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+    paths:
+      - 'spytial/provider_system.py'
+      - 'spytial/annotations.py'
+      - 'test/test_provider_system.py'
+      - '.github/workflows/provider-tests.yml'
+
+jobs:
+  provider-system-tests:
+    runs-on: ubuntu-latest
+    name: Provider System & Annotation Integration Tests
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python 3.11
+      uses: actions/setup-python@v4
+      with:
+        python-version: "3.11"
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -e .
+        pip install pytest
+    
+    - name: Run provider system integration tests
+      run: |
+        python -m pytest test/test_provider_system.py -v --tb=short
+    
+    - name: Test provider system manually
+      run: |
+        python test/test_provider_system.py
+    
+    - name: Validate annotation to YAML conversion
+      run: |
+        python -c "
+        # Test the core functionality mentioned in the issue
+        from spytial.annotations import *
+        from spytial.provider_system import CnDDataInstanceBuilder
+        import yaml
+        
+        print('Testing how annotations become objects/YAML...')
+        
+        # Create annotated objects
+        data = {'users': [1, 2, 3], 'groups': {'admin', 'user'}}
+        annotate_group(data, field='users', groupOn=0, addToGroup=1)
+        annotate_orientation(data, selector='layout', directions=['vertical'])
+        
+        # Run through provider system (annotations → objects)
+        builder = CnDDataInstanceBuilder()
+        data_instance = builder.build_instance(data)
+        collected_decorators = builder.get_collected_decorators()
+        
+        # Convert to YAML (objects → YAML)
+        yaml_output = serialize_to_yaml_string(collected_decorators)
+        
+        print('✓ Annotations successfully converted to data structure')
+        print('✓ Data structure atoms:', len(data_instance['atoms']))
+        print('✓ Data structure relations:', len(data_instance['relations']))
+        print('✓ Collected annotations:', len(collected_decorators['constraints']), 'constraints,', len(collected_decorators['directives']), 'directives')
+        print('✓ YAML conversion successful')
+        
+        # Verify YAML is parseable
+        parsed = yaml.safe_load(yaml_output)
+        assert isinstance(parsed, dict)
+        print('✓ Generated YAML is valid')
+        
+        print('All annotation → object → YAML pipeline tests passed!')
+        "

@@ -1,0 +1,123 @@
+name: Tests
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: [3.8, 3.9, "3.10", "3.11", "3.12"]
+
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ matrix.python-version }}
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -e .
+        pip install pytest pytest-cov
+    
+    - name: Run provider system tests
+      run: |
+        python -m pytest test/test_provider_system.py -v
+    
+    - name: Run annotation tests
+      run: |
+        python -m pytest test/test_group_selector.py -v
+    
+    - name: Run all tests with coverage
+      run: |
+        python -m pytest test/ --cov=spytial --cov-report=xml --cov-report=term-missing
+    
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v3
+      with:
+        file: ./coverage.xml
+        flags: unittests
+        name: codecov-umbrella
+        fail_ci_if_error: false
+
+  test-provider-system-integration:
+    runs-on: ubuntu-latest
+    name: Provider System Integration Tests
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python 3.11
+      uses: actions/setup-python@v4
+      with:
+        python-version: "3.11"
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -e .
+        pip install pytest pyyaml
+    
+    - name: Test annotation to YAML pipeline
+      run: |
+        python -c "
+        from spytial.annotations import annotate_group, annotate_orientation, serialize_to_yaml_string, collect_decorators
+        from spytial.provider_system import CnDDataInstanceBuilder
+        import yaml
+        
+        # Test the complete pipeline
+        test_data = {'items': [1, 2, 3]}
+        annotate_group(test_data, field='items', groupOn=0, addToGroup=1)
+        annotate_orientation(test_data, selector='layout', directions=['horizontal'])
+        
+        # Run through provider system
+        builder = CnDDataInstanceBuilder()
+        data_instance = builder.build_instance(test_data)
+        collected_decorators = builder.get_collected_decorators()
+        
+        # Convert to YAML
+        yaml_output = serialize_to_yaml_string(collected_decorators)
+        
+        print('=== Annotation to YAML Pipeline Test ===')
+        print('Data instance keys:', list(data_instance.keys()))
+        print('Collected decorators:', collected_decorators)
+        print('YAML output:')
+        print(yaml_output)
+        
+        # Verify YAML is valid
+        parsed = yaml.safe_load(yaml_output)
+        assert 'constraints' in parsed
+        assert 'directives' in parsed
+        print('✓ Pipeline test passed!')
+        "
+    
+    - name: Test provider system extensibility
+      run: |
+        python -c "
+        from spytial.provider_system import DataInstanceProvider, data_provider, CnDDataInstanceBuilder, DataInstanceRegistry
+        from typing import Any, Dict, List, Tuple
+        
+        # Test custom provider registration
+        @data_provider(priority=20)
+        class TestProvider(DataInstanceProvider):
+            def can_handle(self, obj: Any) -> bool:
+                return isinstance(obj, str) and obj.startswith('test:')
+            
+            def provide_atoms_and_relations(self, obj: Any, walker_func) -> Tuple[Dict, List[Tuple[str, str, str]]]:
+                atom = {'id': walker_func._get_id(obj), 'type': 'TestType', 'label': obj[5:]}
+                return atom, []
+        
+        builder = CnDDataInstanceBuilder()
+        data_instance = builder.build_instance('test:example')
+        
+        print('=== Provider System Extensibility Test ===')
+        print('Atoms:', data_instance['atoms'])
+        print('✓ Extensibility test passed!')
+        "
