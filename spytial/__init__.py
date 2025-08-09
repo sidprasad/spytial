@@ -2,18 +2,13 @@ from .provider_system import (
     # New relationalizer system
     CnDDataInstanceBuilder,
     RelationalizerBase,
+    RelationalizerRegistry,
     relationalizer,
     Atom,
     Relation,
     set_object_relationalizer,
     object_relationalizer,
     get_object_relationalizer,
-    # Backward compatibility aliases
-    DataInstanceProvider,
-    data_provider,
-    set_object_provider,
-    object_provider,
-    get_object_provider,
 )
 from .visualizer import diagram
 from .evaluator import evaluate
@@ -64,6 +59,7 @@ __all__ = [
     "CnDDataInstanceBuilder",
     "SpyTialDataInstanceBuilder",
     "RelationalizerBase",
+    "RelationalizerRegistry",
     "relationalizer",
     "SpyTialSerializer",
     "Atom",
@@ -71,12 +67,6 @@ __all__ = [
     "set_object_relationalizer",
     "object_relationalizer",
     "get_object_relationalizer",
-    # Backward compatibility aliases
-    "DataInstanceProvider",
-    "data_provider",
-    "set_object_provider",
-    "object_provider",
-    "get_object_provider",
     # Class decorators
     "orientation",
     "cyclic",

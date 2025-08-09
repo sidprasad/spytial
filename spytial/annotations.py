@@ -22,14 +22,8 @@ CONSTRAINT_TYPES = {
     "cyclic": ["selector", "direction"],
     "orientation": ["selector", "directions"],
     "group": [
-        {
-            "required": ["field", "groupOn", "addToGroup"],
-            "optional": ["selector"],
-        },  # Legacy, more ergonomic
-        {
-            "required": ["selector", "name"],
-            "optional": [],
-        },  # Selector-based group constraint
+        {"required": ["field", "groupOn", "addToGroup"], "optional": ["selector"]},  # Legacy, more ergonomic
+        {"required": ["selector", "name"], "optional": []},  # Selector-based group constraint
     ],
 }
 
@@ -43,7 +37,7 @@ DIRECTIVE_TYPES = {
     "hideField": {"required": ["field"], "optional": ["selector"]},
     "hideAtom": ["selector"],
     "inferredEdge": ["name", "selector"],
-    "flag": ["name"],
+    "flag": ["name"], 
 }
 
 # Object-level annotation storage attribute name
@@ -61,23 +55,21 @@ _OBJECT_ID_REGISTRY = {}
 # Counter for generating unique object IDs
 _OBJECT_ID_COUNTER = 0
 
-
 def reset_object_ids():
     """
-    Reset the global object ID state. Useful for testing or when you need
+    Reset the global object ID state. Useful for testing or when you need 
     deterministic object ID generation across multiple runs.
-
+    
     Warning: This will clear all existing object ID mappings, so existing
     selectors that depend on previous object IDs may no longer work.
     """
     global _OBJECT_ID_COUNTER, _OBJECT_ID_REGISTRY
     _OBJECT_ID_COUNTER = 0
     _OBJECT_ID_REGISTRY.clear()
-
+    
     # Also clear object ID attributes from any objects that have them
     # Note: We can't easily find all objects that have the attribute,
     # so this is a best-effort cleanup of the global registry only.
-
 
 def _get_or_create_object_id(obj):
     """
@@ -86,32 +78,31 @@ def _get_or_create_object_id(obj):
     :return: A unique string ID for the object.
     """
     global _OBJECT_ID_COUNTER
-
+    
     # Try to get existing ID from the object directly
     try:
         if hasattr(obj, OBJECT_ID_ATTR):
             return getattr(obj, OBJECT_ID_ATTR)
     except (AttributeError, TypeError):
         pass
-
+    
     # Check global registry for objects that can't store attributes
     obj_python_id = id(obj)
     if obj_python_id in _OBJECT_ID_REGISTRY:
         return _OBJECT_ID_REGISTRY[obj_python_id]
-
+    
     # Create new unique ID
     _OBJECT_ID_COUNTER += 1
     unique_id = f"obj_{_OBJECT_ID_COUNTER}"
-
+    
     # Store the ID
     try:
         setattr(obj, OBJECT_ID_ATTR, unique_id)
     except (AttributeError, TypeError):
         # Object doesn't support attribute assignment, use global registry
         _OBJECT_ID_REGISTRY[obj_python_id] = unique_id
-
+    
     return unique_id
-
 
 def _process_selector_for_self_reference(selector, obj_id):
     """
@@ -124,7 +115,7 @@ def _process_selector_for_self_reference(selector, obj_id):
         return selector
 
     # Replace all instances of the entire word 'self' with the object's unique ID
-    return re.sub(r"\bself\b", obj_id, selector)
+    return re.sub(r'\bself\b', obj_id, selector)
 
 
 def validate_fields(type_, kwargs, valid_fields):
@@ -137,11 +128,7 @@ def validate_fields(type_, kwargs, valid_fields):
     :raises ValueError: If no valid field set matches the provided kwargs.
     """
     # Handle multiple alternatives (for group)
-    if (
-        isinstance(valid_fields, list)
-        and len(valid_fields) > 0
-        and isinstance(valid_fields[0], (list, dict))
-    ):
+    if isinstance(valid_fields, list) and len(valid_fields) > 0 and isinstance(valid_fields[0], (list, dict)):
         for field_set in valid_fields:
             if isinstance(field_set, dict):
                 required = field_set.get("required", [])
@@ -149,34 +136,28 @@ def validate_fields(type_, kwargs, valid_fields):
             else:
                 required = field_set
                 optional = []
-
+            
             missing_fields = [field for field in required if field not in kwargs]
             # Accept if all required fields are present
             if not missing_fields:
                 # Optionally: check for unknown fields
                 all_valid_fields = required + optional
-                unknown_fields = [
-                    field for field in kwargs if field not in all_valid_fields
-                ]
+                unknown_fields = [field for field in kwargs if field not in all_valid_fields]
                 if unknown_fields:
-                    print(
-                        f"Warning: Unknown fields for '{type_}': {', '.join(unknown_fields)}"
-                    )
+                    print(f"Warning: Unknown fields for '{type_}': {', '.join(unknown_fields)}")
                 return
-
+        
         # None matched - create error message
         field_set_descriptions = []
         for i, field_set in enumerate(valid_fields):
             if isinstance(field_set, dict):
                 req = field_set.get("required", [])
                 opt = field_set.get("optional", [])
-                desc = (
-                    f"Set {i+1}: required: {', '.join(req)}; optional: {', '.join(opt)}"
-                )
+                desc = f"Set {i+1}: required: {', '.join(req)}; optional: {', '.join(opt)}"
             else:
                 desc = f"Set {i+1}: {', '.join(field_set)}"
             field_set_descriptions.append(desc)
-
+        
         raise ValueError(
             f"No valid field set found for '{type_}'. "
             f"Expected one of: {' OR '.join(field_set_descriptions)}. "
@@ -190,13 +171,11 @@ def validate_fields(type_, kwargs, valid_fields):
         else:
             required = valid_fields
             optional = []
-
+        
         missing_fields = [field for field in required if field not in kwargs]
         if missing_fields:
-            raise ValueError(
-                f"Missing required fields for '{type_}': {', '.join(missing_fields)}"
-            )
-
+            raise ValueError(f"Missing required fields for '{type_}': {', '.join(missing_fields)}")
+        
         # Optionally: check for unknown fields
         all_valid_fields = required + optional
         unknown_fields = [field for field in kwargs if field not in all_valid_fields]
@@ -223,28 +202,22 @@ def _create_decorator(constraint_type):
                 # Determine if it's a constraint or directive
                 if constraint_type in CONSTRAINT_TYPES:
                     # Validate fields for constraints
-                    validate_fields(
-                        constraint_type, kwargs, CONSTRAINT_TYPES[constraint_type]
-                    )
+                    validate_fields(constraint_type, kwargs, CONSTRAINT_TYPES[constraint_type])
                     entry = {constraint_type: kwargs}
                     target.__spytial_registry__["constraints"].append(entry)
                 elif constraint_type in DIRECTIVE_TYPES:
                     # Validate fields for directives
-                    validate_fields(
-                        constraint_type, kwargs, DIRECTIVE_TYPES[constraint_type]
-                    )
-
+                    validate_fields(constraint_type, kwargs, DIRECTIVE_TYPES[constraint_type])
+                    
                     # Special handling for flag directives - store as scalar
                     if constraint_type == "flag" and "name" in kwargs:
                         entry = {constraint_type: kwargs["name"]}
                     else:
                         entry = {constraint_type: kwargs}
-
+                    
                     target.__spytial_registry__["directives"].append(entry)
                 else:
-                    raise ValueError(
-                        f"Unknown type '{constraint_type}' for sPyTial decorator."
-                    )
+                    raise ValueError(f"Unknown type '{constraint_type}' for sPyTial decorator.")
 
                 return target
             else:
@@ -304,39 +277,35 @@ def _annotate_object(obj, annotation_type, **kwargs):
     """
     registry = _ensure_object_registry(obj)
 
+    
     # Get or create unique ID for this object to enable self-reference
     obj_id = _get_or_create_object_id(obj)
-
+    
     # Process any selectors in kwargs to handle self-reference
     processed_kwargs = kwargs.copy()
-    if "selector" in processed_kwargs:
-        processed_kwargs["selector"] = _process_selector_for_self_reference(
-            processed_kwargs["selector"], obj_id
+    if 'selector' in processed_kwargs:
+        processed_kwargs['selector'] = _process_selector_for_self_reference(
+            processed_kwargs['selector'], obj_id
         )
+    
 
     # Determine if it's a constraint or directive and validate
     if annotation_type in CONSTRAINT_TYPES:
-        validate_fields(
-            annotation_type, processed_kwargs, CONSTRAINT_TYPES[annotation_type]
-        )
+        validate_fields(annotation_type, processed_kwargs, CONSTRAINT_TYPES[annotation_type])
         entry = {annotation_type: processed_kwargs}
         registry["constraints"].append(entry)
     elif annotation_type in DIRECTIVE_TYPES:
-        validate_fields(
-            annotation_type, processed_kwargs, DIRECTIVE_TYPES[annotation_type]
-        )
-
+        validate_fields(annotation_type, processed_kwargs, DIRECTIVE_TYPES[annotation_type])
+        
         # Special handling for flag directives - store as scalar
         if annotation_type == "flag" and "name" in processed_kwargs:
             entry = {annotation_type: processed_kwargs["name"]}
         else:
             entry = {annotation_type: processed_kwargs}
-
+        
         registry["directives"].append(entry)
     else:
-        raise ValueError(
-            f"Unknown annotation type '{annotation_type}' for object annotation."
-        )
+        raise ValueError(f"Unknown annotation type '{annotation_type}' for object annotation.")
 
     return obj
 
@@ -431,12 +400,8 @@ def collect_decorators(obj):
     # Traverse the class hierarchy for class-level annotations
     for cls in obj.__class__.__mro__:
         if hasattr(cls, "__spytial_registry__"):
-            combined_registry["constraints"].extend(
-                cls.__spytial_registry__["constraints"]
-            )
-            combined_registry["directives"].extend(
-                cls.__spytial_registry__["directives"]
-            )
+            combined_registry["constraints"].extend(cls.__spytial_registry__["constraints"])
+            combined_registry["directives"].extend(cls.__spytial_registry__["directives"])
 
     # Add object-level annotations if they exist
     # First check if stored on object directly

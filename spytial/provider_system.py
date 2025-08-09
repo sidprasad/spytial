@@ -85,50 +85,10 @@ class RelationalizerBase(abc.ABC):
         """
         pass
 
-    def provide_atoms_and_relations(
-        self, obj: Any, walker_func
-    ) -> Tuple[Dict, List[Tuple[str, str, str]]]:
-        """
-        Convert object to atoms and relations (legacy format for backward compatibility).
-
-        This method provides backward compatibility with the old provider system.
-        New relationalizers should implement relationalize() instead.
-
-        Args:
-            obj: The object to convert
-            walker_func: Function to recursively walk nested objects
-
-        Returns:
-            Tuple of (atom_dict, relations_list)
-            atom_dict: {"id": str, "type": str, "label": str}
-            relations_list: [(relation_name, source_id, target_id), ...]
-        """
-        atom, relations = self.relationalize(obj, walker_func)
-        return atom.to_dict(), [rel.to_tuple() for rel in relations]
 
 
-# Keep DataInstanceProvider as a deprecated alias for backward compatibility
-class DataInstanceProvider(RelationalizerBase):
-    """
-    Deprecated: Use RelationalizerBase instead.
 
-    Abstract base class for data instance providers.
-    This class provides backward compatibility for the old provider system.
-    """
 
-    def relationalize(self, obj: Any, walker_func) -> Tuple[Atom, List[Relation]]:
-        """
-        Default implementation that calls the old provide_atoms_and_relations method.
-        """
-        atom_dict, relations_tuples = self.provide_atoms_and_relations(obj, walker_func)
-        atom = Atom(
-            id=atom_dict["id"], type=atom_dict["type"], label=atom_dict["label"]
-        )
-        relations = [
-            Relation(name=name, source_id=src, target_id=tgt)
-            for name, src, tgt in relations_tuples
-        ]
-        return atom, relations
 
 
 def relationalizer(cls: Type = None, *, priority: int = 0):
@@ -154,17 +114,7 @@ def relationalizer(cls: Type = None, *, priority: int = 0):
         return decorator(cls)
 
 
-# Keep data_provider as a deprecated alias for backward compatibility
-def data_provider(cls: Type = None, *, priority: int = 0):
-    """
-    Deprecated: Use @relationalizer decorator instead.
 
-    Decorator to register a class as a data provider.
-
-    Args:
-        priority: Higher priority providers are tried first
-    """
-    return relationalizer(cls, priority=priority)
 
 
 # Object-level relationalizer storage
@@ -222,6 +172,15 @@ class RelationalizerRegistry:
         return None
 
     @classmethod
+    def list_relationalizers(cls) -> List[Tuple[int, str]]:
+        """List all registered relationalizers with their priorities.
+        
+        Returns:
+            List of (priority, relationalizer_class_name) tuples, sorted by priority (highest first)
+        """
+        return [(priority, relationalizer_cls.__name__) for priority, relationalizer_cls in cls._relationalizers]
+
+    @classmethod
     def clear(cls):
         """Clear all registered relationalizers (for testing)."""
         cls._relationalizers.clear()
@@ -229,32 +188,7 @@ class RelationalizerRegistry:
         _OBJECT_RELATIONALIZER_REGISTRY.clear()
 
 
-# Keep DataInstanceRegistry as a deprecated alias for backward compatibility
-class DataInstanceRegistry:
-    """Deprecated: Use RelationalizerRegistry instead."""
 
-    _providers: List[Tuple[int, Type[RelationalizerBase]]] = []
-    _instances: List[RelationalizerBase] = []
-
-    @classmethod
-    def register(cls, provider_cls: Type[RelationalizerBase], priority: int = 0):
-        """Register a provider class with given priority."""
-        return RelationalizerRegistry.register(provider_cls, priority)
-
-    @classmethod
-    def find_provider(cls, obj: Any) -> Optional[RelationalizerBase]:
-        """Find the first provider that can handle the given object."""
-        return RelationalizerRegistry.find_relationalizer(obj)
-
-    @classmethod
-    def _get_object_provider(cls, obj: Any) -> Optional[RelationalizerBase]:
-        """Get object-specific provider if one exists."""
-        return RelationalizerRegistry._get_object_relationalizer(obj)
-
-    @classmethod
-    def clear(cls):
-        """Clear all registered providers (for testing)."""
-        return RelationalizerRegistry.clear()
 
 
 # Built-in relationalizers
@@ -416,14 +350,7 @@ class FallbackRelationalizer(RelationalizerBase):
         return atom, []
 
 
-# Keep old provider classes as aliases for backward compatibility
-PrimitiveProvider = PrimitiveRelationalizer
-DictProvider = DictRelationalizer
-ListProvider = ListRelationalizer
-SetProvider = SetRelationalizer
-DataclassProvider = DataclassRelationalizer
-GenericObjectProvider = GenericObjectRelationalizer
-FallbackProvider = FallbackRelationalizer
+
 
 
 class CnDDataInstanceBuilder:
@@ -544,11 +471,17 @@ class CnDDataInstanceBuilder:
             raise ValueError(f"No relationalizer found for object of type {type(obj)}")
 
         # Get atom and relations from relationalizer
-        atom, relations = relationalizer.provide_atoms_and_relations(obj, self)
+        atom_obj, relations_list = relationalizer.relationalize(obj, self)
+        
+        # Convert to old format for compatibility with existing code
+        atom = atom_obj.to_dict()
+        relations = [rel.to_tuple() for rel in relations_list]
 
         # Add full type hierarchy to the atom
         type_hierarchy = [cls.__name__ for cls in inspect.getmro(type(obj))]
-        atom["type"] = type_hierarchy[0]  # Most specific type (first in the hierarchy)
+        # Only override type if the relationalizer didn't provide a custom one
+        if atom.get("type") == type(obj).__name__ or not atom.get("type"):
+            atom["type"] = type_hierarchy[0]  # Most specific type (first in the hierarchy)
         atom["type_hierarchy"] = (
             type_hierarchy  # Store the full type hierarchy if needed
         )

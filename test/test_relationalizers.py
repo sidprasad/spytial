@@ -14,10 +14,24 @@ import pytest
 from spytial import (
     RelationalizerBase, relationalizer, Atom, Relation,
     CnDDataInstanceBuilder, diagram,
-    # Backward compatibility
-    DataInstanceProvider, data_provider
 )
 from spytial.provider_system import RelationalizerRegistry
+
+
+def _register_built_in_relationalizers():
+    """Helper to re-register built-in relationalizers after clearing registry."""
+    from spytial.provider_system import (
+        PrimitiveRelationalizer, DictRelationalizer, ListRelationalizer, 
+        SetRelationalizer, DataclassRelationalizer, GenericObjectRelationalizer, 
+        FallbackRelationalizer
+    )
+    RelationalizerRegistry.register(PrimitiveRelationalizer, 10)
+    RelationalizerRegistry.register(DictRelationalizer, 9) 
+    RelationalizerRegistry.register(ListRelationalizer, 8)
+    RelationalizerRegistry.register(SetRelationalizer, 8)
+    RelationalizerRegistry.register(DataclassRelationalizer, 7)
+    RelationalizerRegistry.register(GenericObjectRelationalizer, 5)
+    RelationalizerRegistry.register(FallbackRelationalizer, 1)
 from typing import Any, List, Tuple
 
 
@@ -84,41 +98,52 @@ def test_atom_and_relation_structures():
 def test_basic_relationalizer_implementation():
     """Test implementing a basic custom relationalizer."""
     
-    @relationalizer(priority=100)  # Custom relationalizers should use priority >= 100
-    class StringLengthRelationalizer(RelationalizerBase):
-        """Custom relationalizer that shows string lengths."""
+    # Save current state
+    original_relationalizers = RelationalizerRegistry._relationalizers.copy()
+    original_instances = RelationalizerRegistry._instances.copy()
+    
+    try:
+        @relationalizer(priority=100)  # Custom relationalizers should use priority >= 100
+        class StringLengthRelationalizer(RelationalizerBase):
+            """Custom relationalizer that shows string lengths."""
+            
+            def can_handle(self, obj: Any) -> bool:
+                return isinstance(obj, str) and len(obj) > 5
+            
+            def relationalize(self, obj: Any, walker_func) -> Tuple[Atom, List[Relation]]:
+                atom = Atom(
+                    id=walker_func._get_id(obj),
+                    type="long_string",
+                    label=f'"{obj[:10]}..." (len={len(obj)})'
+                )
+                return atom, []
         
-        def can_handle(self, obj: Any) -> bool:
-            return isinstance(obj, str) and len(obj) > 5
+        # Test the relationalizer
+        builder = CnDDataInstanceBuilder()
+        test_string = "This is a long string for testing"
         
-        def relationalize(self, obj: Any, walker_func) -> Tuple[Atom, List[Relation]]:
-            atom = Atom(
-                id=walker_func._get_id(obj),
-                type="long_string",
-                label=f'"{obj[:10]}..." (len={len(obj)})'
-            )
-            return atom, []
+        # Clear registry and re-register to ensure our relationalizer is used
+        RelationalizerRegistry.clear()
+        _register_built_in_relationalizers()
+        # Re-register our custom relationalizer since clearing removed it
+        RelationalizerRegistry.register(StringLengthRelationalizer, 100)
+        
+        data_instance = builder.build_instance(test_string)
+        
+        # Find the atom for our string
+        string_atom = None
+        for atom in data_instance['atoms']:
+            if 'long_string' in atom.get('type', ''):
+                string_atom = atom
+                break
+        
+        assert string_atom is not None
+        assert 'len=33' in string_atom['label']
     
-    # Test the relationalizer
-    builder = CnDDataInstanceBuilder()
-    test_string = "This is a long string for testing"
-    
-    # Clear registry and re-register to ensure our relationalizer is used
-    RelationalizerRegistry.clear()
-    # Re-register built-in relationalizers by importing the module
-    import spytial.provider_system
-    
-    data_instance = builder.build_instance(test_string)
-    
-    # Find the atom for our string
-    string_atom = None
-    for atom in data_instance['atoms']:
-        if 'long_string' in atom.get('type', ''):
-            string_atom = atom
-            break
-    
-    assert string_atom is not None
-    assert 'len=33' in string_atom['label']
+    finally:
+        # Restore original state
+        RelationalizerRegistry._relationalizers = original_relationalizers
+        RelationalizerRegistry._instances = original_instances
 
 
 def test_built_in_relationalizers_work():
@@ -150,73 +175,53 @@ def test_built_in_relationalizers_work():
     assert result.endswith('.html')
 
 
-def test_backward_compatibility_with_provider_system():
-    """Test that the old provider system still works for backward compatibility."""
-    
-    # Test using the old DataInstanceProvider alias
-    @data_provider(priority=101)  # Use high priority to ensure it's used
-    class OldStyleProvider(DataInstanceProvider):
-        """Test provider using old-style API."""
-        
-        def can_handle(self, obj: Any) -> bool:
-            return isinstance(obj, dict) and 'special_marker' in obj
-        
-        def provide_atoms_and_relations(self, obj: Any, walker_func) -> Tuple[dict, List[Tuple[str, str, str]]]:
-            obj_id = walker_func._get_id(obj)
-            atom = {
-                "id": obj_id,
-                "type": "special_dict",
-                "label": "Special Dictionary"
-            }
-            
-            relations = []
-            for k, v in obj.items():
-                if k != 'special_marker':
-                    vid = walker_func(v)
-                    relations.append((k, obj_id, vid))
-            
-            return atom, relations
-    
-    # Test with special dict
-    special_dict = {'special_marker': True, 'data': 'test'}
-    builder = CnDDataInstanceBuilder()
-    data_instance = builder.build_instance(special_dict)
-    
-    # Verify it works
-    assert len(data_instance['atoms']) >= 2
+
 
 
 def test_relationalizer_with_new_api():
     """Test implementing a relationalizer using the new relationalize() method."""
     
-    @relationalizer(priority=102)
-    class NewAPIRelationalizer(RelationalizerBase):
-        """Relationalizer using the new relationalize API."""
-        
-        def can_handle(self, obj: Any) -> bool:
-            return isinstance(obj, list) and len(obj) == 2 and obj[0] == 'pair'
-        
-        def relationalize(self, obj: Any, walker_func) -> Tuple[Atom, List[Relation]]:
-            obj_id = walker_func._get_id(obj)
-            atom = Atom(
-                id=obj_id,
-                type="pair",
-                label=f"Pair({obj[1]})"
-            )
-            
-            # Create relation to the value
-            value_id = walker_func(obj[1])
-            relations = [Relation(name="value", source_id=obj_id, target_id=value_id)]
-            
-            return atom, relations
+    # Save current state
+    original_relationalizers = RelationalizerRegistry._relationalizers.copy()
+    original_instances = RelationalizerRegistry._instances.copy()
     
-    # Test the relationalizer
-    test_pair = ['pair', 'test_value']
-    builder = CnDDataInstanceBuilder()
-    data_instance = builder.build_instance(test_pair)
+    try:
+        @relationalizer(priority=102)
+        class NewAPIRelationalizer(RelationalizerBase):
+            """Relationalizer using the new relationalize API."""
+            
+            def can_handle(self, obj: Any) -> bool:
+                return isinstance(obj, list) and len(obj) == 2 and obj[0] == 'pair'
+            
+            def relationalize(self, obj: Any, walker_func) -> Tuple[Atom, List[Relation]]:
+                obj_id = walker_func._get_id(obj)
+                atom = Atom(
+                    id=obj_id,
+                    type="pair",
+                    label=f"Pair({obj[1]})"
+                )
+                
+                # Create relation to the value
+                value_id = walker_func(obj[1])
+                relations = [Relation(name="value", source_id=obj_id, target_id=value_id)]
+                
+                return atom, relations
+        
+        # Ensure built-in relationalizers are available
+        _register_built_in_relationalizers()
+        
+        # Test the relationalizer
+        test_pair = ['pair', 'test_value']
+        builder = CnDDataInstanceBuilder()
+        data_instance = builder.build_instance(test_pair)
+        
+        # Verify it works
+        assert len(data_instance['atoms']) >= 2
     
-    # Verify it works
-    assert len(data_instance['atoms']) >= 2
+    finally:
+        # Restore original state
+        RelationalizerRegistry._relationalizers = original_relationalizers
+        RelationalizerRegistry._instances = original_instances
 
 
 def test_registry_management():

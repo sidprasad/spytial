@@ -12,22 +12,18 @@ import os
 
 try:
     from IPython.display import display, HTML
-
     HAS_IPYTHON = True
 except ImportError:
     HAS_IPYTHON = False
 
 try:
     from jinja2 import Environment, FileSystemLoader
-
     HAS_JINJA2 = True
 except ImportError:
     HAS_JINJA2 = False
 
 
-def evaluate(
-    obj, method="inline", auto_open=True, width=None, height=None, cnd_version=None
-):
+def evaluate(obj, method="inline", auto_open=True, width=None, height=None, cnd_version=None):
     """
     Evaluate a Python object using the sPyTial evaluator.
 
@@ -48,7 +44,6 @@ def evaluate(
 
     # Serialize the object using the provider system
     from .provider_system import CnDDataInstanceBuilder
-
     builder = CnDDataInstanceBuilder()
     data_instance = builder.build_instance(obj)
 
@@ -62,12 +57,10 @@ def evaluate(
                 import base64
 
                 # Encode HTML as base64 for iframe
-                encoded_html = base64.b64encode(html_content.encode("utf-8")).decode(
-                    "utf-8"
-                )
+                encoded_html = base64.b64encode(html_content.encode('utf-8')).decode('utf-8')
 
                 # Create iframe HTML
-                iframe_html = f"""
+                iframe_html = f'''
                 <div style="border: 2px solid #007acc; border-radius: 8px; overflow: hidden;">
                     <iframe 
                         src="data:text/html;base64,{encoded_html}" 
@@ -77,7 +70,7 @@ def evaluate(
                         style="display: block;">
                     </iframe>
                 </div>
-                """
+                '''
 
                 display(HTML(iframe_html))
                 return
@@ -85,34 +78,26 @@ def evaluate(
             except Exception as e:
                 print(f"Iframe display failed: {e}")
                 # Fall back to browser if iframe fails
-                return evaluate(
-                    obj,
-                    method="browser",
-                    auto_open=auto_open,
-                    width=width,
-                    height=height,
-                )
+                return evaluate(obj, method="browser", auto_open=auto_open, width=width, height=height)
 
         # Fall back to browser if not in Jupyter
-        return evaluate(
-            obj, method="browser", auto_open=auto_open, width=width, height=height
-        )
+        return evaluate(obj, method="browser", auto_open=auto_open, width=width, height=height)
 
     elif method == "browser":
         # Open in browser
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".html", delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.html', delete=False) as f:
             f.write(html_content)
             temp_path = f.name
 
         if auto_open:
-            webbrowser.open(f"file://{temp_path}")
+            webbrowser.open(f'file://{temp_path}')
 
         return temp_path
 
     elif method == "file":
         # Save to file
         output_path = Path("cnd_evaluator.html")
-        with open(output_path, "w") as f:
+        with open(output_path, 'w') as f:
             f.write(html_content)
 
         print(f"Evaluator saved to: {output_path.absolute()}")
@@ -136,27 +121,23 @@ def _generate_evaluator_html(data_instance, width=800, height=600, cnd_version="
         str: The generated HTML content.
     """
     if not HAS_JINJA2:
-        raise ImportError(
-            "Jinja2 is required for HTML generation. Install with: pip install jinja2"
-        )
+        raise ImportError("Jinja2 is required for HTML generation. Install with: pip install jinja2")
 
     # Set up Jinja2 environment
     current_dir = Path(__file__).parent
     env = Environment(loader=FileSystemLoader(current_dir))
 
     try:
-        template = env.get_template("evaluator_template.html")
+        template = env.get_template('evaluator_template.html')
     except Exception as e:
-        raise FileNotFoundError(
-            f"evaluator_template.html not found in {current_dir}: {e}"
-        )
+        raise FileNotFoundError(f"evaluator_template.html not found in {current_dir}: {e}")
 
     # Render the template with our data
     html_content = template.render(
         python_data=json.dumps(data_instance),  # Properly serialize to JSON
-        width=width,  # Container width
-        height=height,  # Container height
-        cnd_version=cnd_version,  # Cope and Drag version
+        width=width,                            # Container width
+        height=height,                          # Container height
+        cnd_version=cnd_version                 # Cope and Drag version
     )
 
     return html_content
