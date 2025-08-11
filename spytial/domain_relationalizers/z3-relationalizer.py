@@ -10,8 +10,10 @@
 
 import z3
 from typing import Tuple, List, Optional
+
 # Adjust these imports to your project layout
 from spytial import relationalizer, RelationalizerBase, Atom, Relation
+
 
 def _is_string_sort(s: z3.SortRef) -> bool:
     # Portable: compare to the canonical StringSort(); also allow Seq[Char] fallback
@@ -20,8 +22,10 @@ def _is_string_sort(s: z3.SortRef) -> bool:
     except Exception:
         return s.kind() == z3.Z3_SEQ_SORT
 
+
 def _is_builtin_num_sort(s: z3.SortRef) -> bool:
     return s == z3.IntSort() or s == z3.RealSort()
+
 
 def _sort_id(s: z3.SortRef) -> str:
     if s.kind() == z3.Z3_ARRAY_SORT:
@@ -29,6 +33,7 @@ def _sort_id(s: z3.SortRef) -> str:
     if s.kind() == z3.Z3_BV_SORT:
         return f"sort:BitVec{s.size()}"
     return f"sort:{s}"
+
 
 @relationalizer(priority=50)
 class DeepZ3Relationalizer(RelationalizerBase):
@@ -167,7 +172,9 @@ class DeepZ3Relationalizer(RelationalizerBase):
                 rels.append(Relation("hasSort", sym_id, ensure_sort_atom(d.range())))
             else:
                 for i in range(d.arity()):
-                    rels.append(Relation("argSort", sym_id, ensure_sort_atom(d.domain(i))))
+                    rels.append(
+                        Relation("argSort", sym_id, ensure_sort_atom(d.domain(i)))
+                    )
                 rels.append(Relation("resSort", sym_id, ensure_sort_atom(d.range())))
 
             interp = model.get_interp(d)
