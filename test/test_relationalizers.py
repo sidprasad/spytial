@@ -295,7 +295,6 @@ if __name__ == "__main__":
     test_functions = [
         test_atom_and_relation_structures,
         test_built_in_relationalizers_work,
-        test_backward_compatibility_with_provider_system,
         test_relationalizer_with_new_api,
         test_registry_management,
         test_integration_with_existing_functionality
