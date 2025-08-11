@@ -212,7 +212,7 @@ spytial.annotate_atomColor(obj, selector, value)
 
 When `diagram()` is called with `method='file'`, it generates:
 - `cnd_visualization.html` - Interactive HTML visualization
-- Uses Cope and Drag 1.1.9-beta.5 JavaScript libraries
+- Uses Cope and Drag 1.1.9-beta.6 JavaScript libraries
 - Contains embedded CnD specification in YAML format
 - Typically 2-10KB in size for moderate data structures
 

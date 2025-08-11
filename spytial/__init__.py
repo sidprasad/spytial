@@ -6,9 +6,7 @@ from .provider_system import (
     relationalizer,
     Atom,
     Relation,
-    set_object_relationalizer,
-    object_relationalizer,
-    get_object_relationalizer,
+
 )
 from .visualizer import diagram
 from .evaluator import evaluate
@@ -46,9 +44,8 @@ from .annotations import (
     reset_object_ids,
 )
 
-# Aliases for the new branding
-SpyTialDataInstanceBuilder = CnDDataInstanceBuilder
-SpyTialSerializer = CnDDataInstanceBuilder
+# Main data instance builder
+CnDDataInstanceBuilder = CnDDataInstanceBuilder
 
 
 __all__ = [
@@ -57,16 +54,10 @@ __all__ = [
     "evaluate",
     # New relationalizer system
     "CnDDataInstanceBuilder",
-    "SpyTialDataInstanceBuilder",
     "RelationalizerBase",
     "RelationalizerRegistry",
     "relationalizer",
-    "SpyTialSerializer",
-    "Atom",
-    "Relation",
-    "set_object_relationalizer",
-    "object_relationalizer",
-    "get_object_relationalizer",
+
     # Class decorators
     "orientation",
     "cyclic",
