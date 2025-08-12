@@ -10,8 +10,8 @@ class PrimitiveRelationalizer(RelationalizerBase):
     def can_handle(self, obj: Any) -> bool:
         return isinstance(obj, (int, float, str, bool, type(None)))
 
-    def relationalize(self, obj: Any, walker_func) -> Tuple[Atom, List[Relation]]:
+    def relationalize(self, obj: Any, walker_func) -> Tuple[List[Atom], List[Relation]]:
         atom = Atom(
             id=walker_func._get_id(obj), type=type(obj).__name__, label=str(obj)
         )
-        return atom, []
+        return [atom], []

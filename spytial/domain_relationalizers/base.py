@@ -68,7 +68,7 @@ class RelationalizerBase(abc.ABC):
         pass
 
     @abc.abstractmethod
-    def relationalize(self, obj: Any, walker_func) -> Tuple[Atom, List[Relation]]:
+    def relationalize(self, obj: Any, walker_func) -> Tuple[List[Atom], List[Relation]]:
         """
         Convert object to atoms and relations using structured types.
 
@@ -77,8 +77,8 @@ class RelationalizerBase(abc.ABC):
             walker_func: Function to recursively walk nested objects
 
         Returns:
-            Tuple of (atom, relations_list)
-            atom: Atom instance representing the object
+            Tuple of (atoms_list, relations_list)
+            atoms_list: List of Atom instances representing the object
             relations_list: List of Relation instances connecting this object to others
         """
         pass

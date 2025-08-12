@@ -10,7 +10,7 @@ class SetRelationalizer(RelationalizerBase):
     def can_handle(self, obj: Any) -> bool:
         return isinstance(obj, set)
 
-    def relationalize(self, obj: Any, walker_func) -> Tuple[Atom, List[Relation]]:
+    def relationalize(self, obj: Any, walker_func) -> Tuple[List[Atom], List[Relation]]:
         obj_id = walker_func._get_id(obj)
         atom = Atom(id=obj_id, type="set", label=f"set[{len(obj)}]")
 
@@ -21,4 +21,4 @@ class SetRelationalizer(RelationalizerBase):
                 Relation(name="contains", source_id=obj_id, target_id=element_id)
             )
 
-        return atom, relations
+        return [atom], relations
