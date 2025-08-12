@@ -193,30 +193,39 @@ class CnDDataInstanceBuilder:
         if relationalizer is None:
             raise ValueError(f"No relationalizer found for object of type {type(obj)}")
 
-        # Get atom and relations from relationalizer
-        atom_obj, relations_list = relationalizer.relationalize(obj, self)
+        # Get atoms and relations from relationalizer
+        atoms_list, relations_list = relationalizer.relationalize(obj, self)
         
         # Convert to old format for compatibility with existing code
-        atom = atom_obj.to_dict()
+        atoms = [atom_obj.to_dict() for atom_obj in atoms_list]
         relations = [rel.to_tuple() for rel in relations_list]
 
-        # Add full type hierarchy to the atom
+        # Add full type hierarchy to each atom
         type_hierarchy = [cls.__name__ for cls in inspect.getmro(type(obj))]
-        # Only override type if the relationalizer didn't provide a custom one
-        if atom.get("type") == type(obj).__name__ or not atom.get("type"):
-            atom["type"] = type_hierarchy[0]  # Most specific type (first in the hierarchy)
-        atom["type_hierarchy"] = (
-            type_hierarchy  # Store the full type hierarchy if needed
-        )
+        
+        # Process each atom
+        primary_atom_id = None
+        for i, atom in enumerate(atoms):
+            # Only override type if the relationalizer didn't provide a custom one
+            if atom.get("type") == type(obj).__name__ or not atom.get("type"):
+                atom["type"] = type_hierarchy[0]  # Most specific type (first in the hierarchy)
+            atom["type_hierarchy"] = (
+                type_hierarchy  # Store the full type hierarchy if needed
+            )
 
-        # Add atom to our collection
-        self._atoms.append(atom)
+            # Add atom to our collection
+            self._atoms.append(atom)
+            
+            # The first atom is considered the primary representative of the object
+            if i == 0:
+                primary_atom_id = atom["id"]
 
         # Process relations
         for rel_name, source_id, target_id in relations:
             self._rels.setdefault(rel_name, []).append([source_id, target_id])
 
-        return atom["id"]
+        # Return the ID of the primary atom (first one) for compatibility
+        return primary_atom_id
 
     def __call__(self, obj: Any) -> str:
         """Allow the builder to be called as a function for recursive walking."""

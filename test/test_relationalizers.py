@@ -20,7 +20,7 @@ from spytial.provider_system import RelationalizerRegistry
 
 def _register_built_in_relationalizers():
     """Helper to re-register built-in relationalizers after clearing registry."""
-    from spytial.provider_system import (
+    from spytial.domain_relationalizers import (
         PrimitiveRelationalizer, DictRelationalizer, ListRelationalizer, 
         SetRelationalizer, DataclassRelationalizer, GenericObjectRelationalizer, 
         FallbackRelationalizer
@@ -110,13 +110,13 @@ def test_basic_relationalizer_implementation():
             def can_handle(self, obj: Any) -> bool:
                 return isinstance(obj, str) and len(obj) > 5
             
-            def relationalize(self, obj: Any, walker_func) -> Tuple[Atom, List[Relation]]:
+            def relationalize(self, obj: Any, walker_func) -> Tuple[List[Atom], List[Relation]]:
                 atom = Atom(
                     id=walker_func._get_id(obj),
                     type="long_string",
                     label=f'"{obj[:10]}..." (len={len(obj)})'
                 )
-                return atom, []
+                return [atom], []
         
         # Test the relationalizer
         builder = CnDDataInstanceBuilder()
@@ -193,7 +193,7 @@ def test_relationalizer_with_new_api():
             def can_handle(self, obj: Any) -> bool:
                 return isinstance(obj, list) and len(obj) == 2 and obj[0] == 'pair'
             
-            def relationalize(self, obj: Any, walker_func) -> Tuple[Atom, List[Relation]]:
+            def relationalize(self, obj: Any, walker_func) -> Tuple[List[Atom], List[Relation]]:
                 obj_id = walker_func._get_id(obj)
                 atom = Atom(
                     id=obj_id,
@@ -205,7 +205,7 @@ def test_relationalizer_with_new_api():
                 value_id = walker_func(obj[1])
                 relations = [Relation(name="value", source_id=obj_id, target_id=value_id)]
                 
-                return atom, relations
+                return [atom], relations
         
         # Ensure built-in relationalizers are available
         _register_built_in_relationalizers()
@@ -243,9 +243,9 @@ def test_registry_management():
             def can_handle(self, obj: Any) -> bool:
                 return isinstance(obj, str) and obj == 'test'
             
-            def relationalize(self, obj: Any, walker_func) -> Tuple[Atom, List[Relation]]:
+            def relationalize(self, obj: Any, walker_func) -> Tuple[List[Atom], List[Relation]]:
                 atom = Atom(id=walker_func._get_id(obj), type="test", label="Test")
-                return atom, []
+                return [atom], []
         
         # Verify registration
         assert len(RelationalizerRegistry._relationalizers) == 1
@@ -295,7 +295,6 @@ if __name__ == "__main__":
     test_functions = [
         test_atom_and_relation_structures,
         test_built_in_relationalizers_work,
-        test_backward_compatibility_with_provider_system,
         test_relationalizer_with_new_api,
         test_registry_management,
         test_integration_with_existing_functionality

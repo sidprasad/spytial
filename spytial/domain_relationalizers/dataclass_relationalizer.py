@@ -11,7 +11,7 @@ class DataclassRelationalizer(RelationalizerBase):
     def can_handle(self, obj: Any) -> bool:
         return dataclasses.is_dataclass(obj)
 
-    def relationalize(self, obj: Any, walker_func) -> Tuple[Atom, List[Relation]]:
+    def relationalize(self, obj: Any, walker_func) -> Tuple[List[Atom], List[Relation]]:
         obj_id = walker_func._get_id(obj)
         typ = type(obj).__name__
         atom = Atom(id=obj_id, type=typ, label=f"{typ}")
@@ -25,4 +25,4 @@ class DataclassRelationalizer(RelationalizerBase):
                     Relation(name=field.name, source_id=obj_id, target_id=vid)
                 )
 
-        return atom, relations
+        return [atom], relations
