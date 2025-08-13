@@ -48,10 +48,19 @@
                 return;
             }
 
+            // Step 1: Mount error message modal if available
+            if (window.mountErrorMessageModal) {
+                console.log('Mounting error message modal');
+                window.mountErrorMessageModal('error-core');
+            }
+
+
+
+
             try {
-                console.log('Starting graph rendering...');
-                console.log('sPyTial Spec:', cndSpec);
-                console.log('JSON Data:', jsonData.substring(0, 200) + '...');
+                //console.log('Starting graph rendering...');
+                //console.log('sPyTial Spec:', cndSpec);
+                //console.log('JSON Data:', jsonData.substring(0, 200) + '...');
 
                 // Parse JSON data if it's a string
                 let parsedData;
@@ -80,25 +89,57 @@
                 // Generate the layout
                 const layoutInstance = new CndCore.LayoutInstance(layoutSpec, sgqEvaluator, 0, true);
                 const layoutResult = layoutInstance.generateLayout(dataInstance, {});
-                const instanceLayout = layoutResult.layout;
                 console.log('Layout generated');
 
-                // Render the graph
-                await graphElement.renderLayout(instanceLayout).then(() => {
-                    console.log('Graph rendered successfully');
-                     // Step 1: Mount error message modal if available
-                    if (window.mountErrorMessageModal) {
+                // Check for layout errors
+                if (layoutResult.error) {
+                    console.error('Layout generation error:', layoutResult.error);
 
-                        window.mountErrorMessageModal('error-core');
+                    // Check if this is a constraint conflict error
+                    if (layoutResult.error.errorMessages) {
+                        if (window.showPositionalError) {
+                            window.showPositionalError(layoutResult.error.errorMessages);
+                        } else {
+                            showError(`Positional constraint conflict: ${layoutResult.error.message}`);
+                        }
+                    } else if (layoutResult.error.overlappingNodes) {
+                        if (window.showGroupOverlapError) {
+                            window.showGroupOverlapError(layoutResult.error.message);
+                        } else {
+                            showError(`Group overlap error: ${layoutResult.error.message}`);
+                        }
+                    } else {
+                        if (window.showGeneralError) {
+                            window.showGeneralError(`Layout generation error: ${layoutResult.error.message}`);
+                        } else {
+                            showError(`Layout generation error: ${layoutResult.error.message}`);
+                        }
                     }
-            
-                }).catch((renderError) => {
-                    throw new Error(`Failed to render graph: ${renderError.message}`);
-                });
 
+                    // Set the webcola-cnd-graph element to indicate unsat state
+                    const webcolaGraphElement = document.getElementById('graph-container');
+                    webcolaGraphElement.setAttribute('unsat', "");
+                    return;
+                }
+
+                const instanceLayout = layoutResult.layout;
+                const webcolaGraphElement = document.getElementById('graph-container');
+                webcolaGraphElement.removeAttribute('unsat'); // Clear unsat state
+
+                // Clear errors on successful layout generation
+                if (window.clearAllErrors) {
+                    window.clearAllErrors();
+                }
+
+                // Render the graph
+                await graphElement.renderLayout(instanceLayout);
             } catch (error) {
                 console.error('Error rendering graph:', error);
-                showError(`Error rendering graph: ${error.message}`);
+                if (window.showGeneralError) {
+                    window.showGeneralError(`Layout generation failed: ${error.message}`);
+                } else {
+                    showError(`Error rendering graph: ${error.message}`);
+                }
             }
         }
 

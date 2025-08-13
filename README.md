@@ -39,7 +39,7 @@ This adds meaning to the diagram: left children go to the left, right children t
 
 ## Surfacing Errors Through Layout
 
-`sPyTial` works bycompiling to the [Cope and Drag](https:/www.siddharthaprasad.com/copeanddrag) formal methods diagramming language.
+`sPyTial` works by compiling to the [Cope and Drag](https:/www.siddharthaprasad.com/copeanddrag) formal methods diagramming language.
 This means, that you get the benefits of formal reasoning for free. One of the most useful effects of this is what happens when the constraints can’t be satisfied. If your data structure is malformed (e.g., your tree has a loop) sPyTial won’t quietly draw something misleading. It will tell you: this layout is unsatisfiable, and *here's why*.
 
 This acts like a type checker for spatial meaning. You don’t just see the structure. You see when the structure is wrong.
