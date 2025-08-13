@@ -107,21 +107,41 @@ class CnDDataInstanceBuilder:
         for rel_name, tuples in self._rels.items():
             # For each tuple, get the types of the atoms involved
             typed_tuples = []
-            for source_id, target_id in tuples:
-                source_type = self._get_atom_type(source_id)
-                target_type = self._get_atom_type(target_id)
-                typed_tuples.append(
-                    {
-                        "atoms": [source_id, target_id],
-                        "types": [source_type, target_type],
-                    }
-                )
+            for atom_tuple in tuples:
+                if len(atom_tuple) == 2:
+                    # Binary relation
+                    source_id, target_id = atom_tuple
+                    source_type = self._get_atom_type(source_id)
+                    target_type = self._get_atom_type(target_id)
+                    typed_tuples.append(
+                        {
+                            "atoms": [source_id, target_id],
+                            "types": [source_type, target_type],
+                        }
+                    )
+                else:
+                    # N-ary relation
+                    atom_ids = atom_tuple
+                    atom_types = [self._get_atom_type(atom_id) for atom_id in atom_ids]
+                    typed_tuples.append(
+                        {
+                            "atoms": atom_ids,
+                            "types": atom_types,
+                        }
+                    )
+
+            # Determine relation types based on first tuple (for now, use object as default)
+            # In the future, this could be made more sophisticated
+            if typed_tuples:
+                relation_types = ["object"] * len(typed_tuples[0]["types"])
+            else:
+                relation_types = ["object", "object"]  # Default binary
 
             relations.append(
                 {
                     "id": rel_name,
                     "name": rel_name,
-                    "types": ["object", "object"],  # Default to Python's top type
+                    "types": relation_types,
                     "tuples": typed_tuples,
                 }
             )
@@ -198,7 +218,16 @@ class CnDDataInstanceBuilder:
         
         # Convert to old format for compatibility with existing code
         atoms = [atom_obj.to_dict() for atom_obj in atoms_list]
-        relations = [rel.to_tuple() for rel in relations_list]
+        
+        # Process relations - handle both binary and n-ary
+        relations = []
+        for rel in relations_list:
+            if rel.is_binary():
+                # For binary relations, use the old tuple format for backward compatibility
+                relations.append(rel.to_tuple())
+            else:
+                # For n-ary relations, use the new atoms tuple format
+                relations.append(rel.to_atoms_tuple())
 
         # Add full type hierarchy to each atom
         type_hierarchy = [cls.__name__ for cls in inspect.getmro(type(obj))]
@@ -220,9 +249,16 @@ class CnDDataInstanceBuilder:
             if i == 0:
                 primary_atom_id = atom["id"]
 
-        # Process relations
-        for rel_name, source_id, target_id in relations:
-            self._rels.setdefault(rel_name, []).append([source_id, target_id])
+        # Process relations - handle both binary and n-ary formats
+        for rel_data in relations:
+            if len(rel_data) == 3:
+                # Binary relation: (rel_name, source_id, target_id)
+                rel_name, source_id, target_id = rel_data
+                self._rels.setdefault(rel_name, []).append([source_id, target_id])
+            elif len(rel_data) == 2:
+                # N-ary relation: (rel_name, [atom_id1, atom_id2, ...])
+                rel_name, atom_ids = rel_data
+                self._rels.setdefault(rel_name, []).append(atom_ids)
 
         # Return the ID of the primary atom (first one) for compatibility
         return primary_atom_id
