@@ -5,24 +5,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ title | default("sPyTial Visualization") }}</title>
-    <style>
-        /* body {
-            font-family: Arial, sans-serif;
-            margin: 0;
-            padding: 20px;
-            background-color: #f5f5f5;
-        } */
-/* 
-        #graph-container {
-            width: {{ width }}px;
-            height: {{ height }}px;
-            border: 2px solid #007acc;
-            border-radius: 8px;
-            margin: 20px auto;
-        } */
-    </style>
+    
     <script src="https://d3js.org/d3.v4.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/cnd-core@1.1.9-beta.6/dist/browser/cnd-core-complete.global.js"></script>
+
+    <script src="https://cdn.jsdelivr.net/npm/cnd-core@1.1.9-beta.6/dist/browser/cnd-core-complete.global.js"></script>  
+    <script src="https://cdn.jsdelivr.net/npm/cnd-core@1.1.9-beta.6/dist/components/react-component-integration.global.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/cnd-core@1.1.9-beta.6/dist/components/react-component-integration.css" /> 
+
 
 
 <body>
@@ -123,6 +112,13 @@
 
         // Auto-load when page loads
         window.addEventListener('load', loadGraph);
+
+        // Mount error message modal component if available
+        document.addEventListener('DOMContentLoaded', () => {
+            if (window.mountErrorMessageModal) {
+                window.mountErrorMessageModal('error-message');
+            }
+        });
     </script>
 </body>
 
