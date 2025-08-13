@@ -119,17 +119,17 @@
                     // Set the webcola-cnd-graph element to indicate unsat state
                     const webcolaGraphElement = document.getElementById('graph-container');
                     webcolaGraphElement.setAttribute('unsat', "");
-                    return;
-                }
+
+                }  
 
                 const instanceLayout = layoutResult.layout;
                 const webcolaGraphElement = document.getElementById('graph-container');
-                webcolaGraphElement.removeAttribute('unsat'); // Clear unsat state
+                //webcolaGraphElement.removeAttribute('unsat'); // Clear unsat state
 
-                // Clear errors on successful layout generation
-                if (window.clearAllErrors) {
-                    window.clearAllErrors();
-                }
+                // // Clear errors on successful layout generation
+                // if (window.clearAllErrors) {
+                //     window.clearAllErrors();
+                // }
 
                 // Render the graph
                 await graphElement.renderLayout(instanceLayout);
