@@ -110,15 +110,21 @@
             }
         }
 
-        // Auto-load when page loads
-        window.addEventListener('load', loadGraph);
-
-        // Mount error message modal component if available
-        document.addEventListener('DOMContentLoaded', () => {
+        /**
+         * Initialize the application in sequence
+         */
+        async function initializeApp() {
+            // Step 1: Mount error message modal if available
             if (window.mountErrorMessageModal) {
                 window.mountErrorMessageModal('error-message');
             }
-        });
+            
+            // Step 2: Load the graph
+            await loadGraph();
+        }
+
+        // Auto-load when page loads
+        window.addEventListener('load', initializeApp);
     </script>
 </body>
 
