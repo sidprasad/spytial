@@ -16,6 +16,7 @@
 
 <body>
     <div id="error-message"></div>
+    <div id="error-core"></div>
     
     <!-- WebCola sPyTial Graph Element -->
     <webcola-cnd-graph 
@@ -83,8 +84,17 @@
                 console.log('Layout generated');
 
                 // Render the graph
-                await graphElement.renderLayout(instanceLayout);
-                console.log('Graph rendered successfully!');
+                await graphElement.renderLayout(instanceLayout).then(() => {
+                    console.log('Graph rendered successfully');
+                     // Step 1: Mount error message modal if available
+                    if (window.mountErrorMessageModal) {
+
+                        window.mountErrorMessageModal('error-core');
+                    }
+            
+                }).catch((renderError) => {
+                    throw new Error(`Failed to render graph: ${renderError.message}`);
+                });
 
             } catch (error) {
                 console.error('Error rendering graph:', error);
@@ -110,27 +120,10 @@
             }
         }
 
-        /**
-         * Initialize the application in sequence
-         */
-        async function initializeApp() {
 
-            console.log('E1');
-            // Step 2: Load the graph
-            await loadGraph();
-
-
-            // Step 1: Mount error message modal if available
-            if (window.mountErrorMessageModal) {
-                console.log('E2');
-                window.mountErrorMessageModal('error-message');
-            }
-            
-
-        }
 
         // Auto-load when page loads
-        window.addEventListener('load', initializeApp);
+        window.addEventListener('load', loadGraph);
     </script>
 </body>
 
