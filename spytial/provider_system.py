@@ -65,11 +65,14 @@ class RelationalizerRegistry:
     @classmethod
     def list_relationalizers(cls) -> List[Tuple[int, str]]:
         """List all registered relationalizers with their priorities.
-        
+
         Returns:
             List of (priority, relationalizer_class_name) tuples, sorted by priority (highest first)
         """
-        return [(priority, relationalizer_cls.__name__) for priority, relationalizer_cls in cls._relationalizers]
+        return [
+            (priority, relationalizer_cls.__name__)
+            for priority, relationalizer_cls in cls._relationalizers
+        ]
 
     @classmethod
     def clear(cls):
@@ -215,10 +218,10 @@ class CnDDataInstanceBuilder:
 
         # Get atoms and relations from relationalizer
         atoms_list, relations_list = relationalizer.relationalize(obj, self)
-        
+
         # Convert to old format for compatibility with existing code
         atoms = [atom_obj.to_dict() for atom_obj in atoms_list]
-        
+
         # Process relations - handle both binary and n-ary
         relations = []
         for rel in relations_list:
@@ -231,20 +234,22 @@ class CnDDataInstanceBuilder:
 
         # Add full type hierarchy to each atom
         type_hierarchy = [cls.__name__ for cls in inspect.getmro(type(obj))]
-        
+
         # Process each atom
         primary_atom_id = None
         for i, atom in enumerate(atoms):
             # Only override type if the relationalizer didn't provide a custom one
             if atom.get("type") == type(obj).__name__ or not atom.get("type"):
-                atom["type"] = type_hierarchy[0]  # Most specific type (first in the hierarchy)
+                atom["type"] = type_hierarchy[
+                    0
+                ]  # Most specific type (first in the hierarchy)
             atom["type_hierarchy"] = (
                 type_hierarchy  # Store the full type hierarchy if needed
             )
 
             # Add atom to our collection
             self._atoms.append(atom)
-            
+
             # The first atom is considered the primary representative of the object
             if i == 0:
                 primary_atom_id = atom["id"]
