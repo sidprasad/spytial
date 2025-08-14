@@ -51,8 +51,8 @@ def test_relationalizer_returns_multiple_atoms():
                 
                 # Create relations connecting the main atom to its components
                 relations = [
-                    Relation(name="real_part", source_id=base_id, target_id=f"{base_id}_real"),
-                    Relation(name="imag_part", source_id=base_id, target_id=f"{base_id}_imag")
+                    Relation.binary("real_part", base_id, f"{base_id}_real"),
+                    Relation.binary("imag_part", base_id, f"{base_id}_imag")
                 ]
                 
                 return [complex_atom, real_atom, imag_atom], relations
@@ -136,8 +136,8 @@ def test_relationalizer_returns_composite_object_as_multiple_atoms():
                 
                 # Relations connecting range to its boundaries
                 relations = [
-                    Relation(name="start_boundary", source_id=base_id, target_id=f"{base_id}_start"),
-                    Relation(name="end_boundary", source_id=base_id, target_id=f"{base_id}_end")
+                    Relation.binary("start_boundary", base_id, f"{base_id}_start"),
+                    Relation.binary("end_boundary", base_id, f"{base_id}_end")
                 ]
                 
                 return [range_atom, start_atom, end_atom], relations

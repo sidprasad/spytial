@@ -6,7 +6,6 @@ from .provider_system import (
     relationalizer,
     Atom,
     Relation,
-
 )
 from .visualizer import diagram
 from .evaluator import evaluate
@@ -57,7 +56,6 @@ __all__ = [
     "RelationalizerBase",
     "RelationalizerRegistry",
     "relationalizer",
-
     # Class decorators
     "orientation",
     "cyclic",

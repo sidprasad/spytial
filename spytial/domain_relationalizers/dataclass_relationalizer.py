@@ -21,8 +21,6 @@ class DataclassRelationalizer(RelationalizerBase):
             if not field.name.startswith("_"):
                 value = getattr(obj, field.name)
                 vid = walker_func(value)
-                relations.append(
-                    Relation(name=field.name, source_id=obj_id, target_id=vid)
-                )
+                relations.append(Relation(field.name, [obj_id, vid]))
 
         return [atom], relations

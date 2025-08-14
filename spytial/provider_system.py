@@ -65,11 +65,14 @@ class RelationalizerRegistry:
     @classmethod
     def list_relationalizers(cls) -> List[Tuple[int, str]]:
         """List all registered relationalizers with their priorities.
-        
+
         Returns:
             List of (priority, relationalizer_class_name) tuples, sorted by priority (highest first)
         """
-        return [(priority, relationalizer_cls.__name__) for priority, relationalizer_cls in cls._relationalizers]
+        return [
+            (priority, relationalizer_cls.__name__)
+            for priority, relationalizer_cls in cls._relationalizers
+        ]
 
     @classmethod
     def clear(cls):
@@ -107,21 +110,29 @@ class CnDDataInstanceBuilder:
         for rel_name, tuples in self._rels.items():
             # For each tuple, get the types of the atoms involved
             typed_tuples = []
-            for source_id, target_id in tuples:
-                source_type = self._get_atom_type(source_id)
-                target_type = self._get_atom_type(target_id)
+            for atom_tuple in tuples:
+                # Handle all relations the same way (n-ary approach)
+                atom_ids = atom_tuple
+                atom_types = [self._get_atom_type(atom_id) for atom_id in atom_ids]
                 typed_tuples.append(
                     {
-                        "atoms": [source_id, target_id],
-                        "types": [source_type, target_type],
+                        "atoms": atom_ids,
+                        "types": atom_types,
                     }
                 )
+
+            # Set the types to the types of the first relation in the tuple
+            # Assume arity is constant across all tuples in a relation
+            if typed_tuples:
+                relation_types = ["object"] * len(typed_tuples[0]["types"])
+            else:
+                relation_types = ["object", "object"]  # Default binary
 
             relations.append(
                 {
                     "id": rel_name,
                     "name": rel_name,
-                    "types": ["object", "object"],  # Default to Python's top type
+                    "types": relation_types,
                     "tuples": typed_tuples,
                 }
             )
@@ -195,34 +206,44 @@ class CnDDataInstanceBuilder:
 
         # Get atoms and relations from relationalizer
         atoms_list, relations_list = relationalizer.relationalize(obj, self)
-        
+
         # Convert to old format for compatibility with existing code
         atoms = [atom_obj.to_dict() for atom_obj in atoms_list]
-        relations = [rel.to_tuple() for rel in relations_list]
+
+        # Process relations - use to_tuple() method for consistent format
+        relations = []
+        for rel in relations_list:
+            # Use the to_tuple method: (name, atom1, atom2, ...)
+            relations.append(rel.to_tuple())
 
         # Add full type hierarchy to each atom
         type_hierarchy = [cls.__name__ for cls in inspect.getmro(type(obj))]
-        
+
         # Process each atom
         primary_atom_id = None
         for i, atom in enumerate(atoms):
             # Only override type if the relationalizer didn't provide a custom one
             if atom.get("type") == type(obj).__name__ or not atom.get("type"):
-                atom["type"] = type_hierarchy[0]  # Most specific type (first in the hierarchy)
+                atom["type"] = type_hierarchy[
+                    0
+                ]  # Most specific type (first in the hierarchy)
             atom["type_hierarchy"] = (
                 type_hierarchy  # Store the full type hierarchy if needed
             )
 
             # Add atom to our collection
             self._atoms.append(atom)
-            
+
             # The first atom is considered the primary representative of the object
             if i == 0:
                 primary_atom_id = atom["id"]
 
-        # Process relations
-        for rel_name, source_id, target_id in relations:
-            self._rels.setdefault(rel_name, []).append([source_id, target_id])
+        # Process relations - handle tuples of arbitrary length
+        for rel_data in relations:
+            # Relations now come as (name, atom1, atom2, ...) tuples
+            rel_name = rel_data[0]
+            atom_ids = list(rel_data[1:])  # All atoms after the name
+            self._rels.setdefault(rel_name, []).append(atom_ids)
 
         # Return the ID of the primary atom (first one) for compatibility
         return primary_atom_id

@@ -233,3 +233,8 @@ When `diagram()` is called with `method='file'`, it generates:
 ---
 
 **Always validate your changes work correctly by running the complete validation scenarios above before considering any task complete.**
+
+
+### Demos
+
+- Demos should take the form of literate python or ipynb notebooks in the `demos/` folder.

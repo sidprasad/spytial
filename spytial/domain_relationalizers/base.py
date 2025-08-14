@@ -33,16 +33,26 @@ class Relation:
     """
     Represents a relation between atoms in the spatial visualization.
 
-    A relation connects two atoms through a named relationship.
+    A relation can connect two or more atoms through a named relationship.
+    Binary relations are just n-ary relations where n=2.
     """
 
     name: str
-    source_id: str
-    target_id: str
+    atoms: List[str]
 
-    def to_tuple(self) -> Tuple[str, str, str]:
-        """Convert relation to tuple format expected by CnD."""
-        return (self.name, self.source_id, self.target_id)
+    def __post_init__(self):
+        """Validate that relation connects at least 2 atoms."""
+        if len(self.atoms) < 2:
+            raise ValueError("Relations must connect at least 2 atoms")
+
+    def to_tuple(self) -> Tuple[str, ...]:
+        """Convert relation to tuple format.
+
+        Returns:
+            Tuple where first element is the relation name,
+            followed by all atom IDs: (name, atom1, atom2, ...)
+        """
+        return (self.name, *self.atoms)
 
 
 class RelationalizerBase(abc.ABC):
