@@ -25,7 +25,7 @@ class GenericObjectRelationalizer(RelationalizerBase):
                     value = getattr(obj, slot)
                     vid = walker_func(value)
                     relations.append(
-                        Relation(name=slot, source_id=obj_id, target_id=vid)
+                        Relation.binary(slot, obj_id, vid)
                     )
 
         # Handle __dict__
@@ -34,7 +34,7 @@ class GenericObjectRelationalizer(RelationalizerBase):
                 if not attr_name.startswith("_") and not inspect.ismethod(attr_value):
                     vid = walker_func(attr_value)
                     relations.append(
-                        Relation(name=attr_name, source_id=obj_id, target_id=vid)
+                        Relation.binary(attr_name, obj_id, vid)
                     )
 
         return [atom], relations

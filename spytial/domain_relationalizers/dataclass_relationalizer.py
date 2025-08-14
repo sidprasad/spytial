@@ -22,7 +22,7 @@ class DataclassRelationalizer(RelationalizerBase):
                 value = getattr(obj, field.name)
                 vid = walker_func(value)
                 relations.append(
-                    Relation(name=field.name, source_id=obj_id, target_id=vid)
+                    Relation.binary(field.name, obj_id, vid)
                 )
 
         return [atom], relations

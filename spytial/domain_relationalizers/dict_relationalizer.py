@@ -22,6 +22,6 @@ class DictRelationalizer(RelationalizerBase):
                 if isinstance(k, (str, int, float, bool))
                 else f"key_{len(relations)}"
             )
-            relations.append(Relation(name=key_str, source_id=obj_id, target_id=vid))
+            relations.append(Relation.binary(key_str, obj_id, vid))
 
         return [atom], relations

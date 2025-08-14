@@ -18,6 +18,6 @@ class ListRelationalizer(RelationalizerBase):
         relations = []
         for i, elt in enumerate(obj):
             eid = walker_func(elt)
-            relations.append(Relation(name=str(i), source_id=obj_id, target_id=eid))
+            relations.append(Relation.binary(str(i), obj_id, eid))
 
         return [atom], relations

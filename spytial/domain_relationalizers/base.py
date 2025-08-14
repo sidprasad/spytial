@@ -34,37 +34,16 @@ class Relation:
     Represents a relation between atoms in the spatial visualization.
 
     A relation can connect two or more atoms through a named relationship.
-    For backward compatibility, binary relations can be created using source_id and target_id.
-    For n-ary relations, use the atoms parameter or from_atoms class method.
+    Binary relations are just n-ary relations where n=2.
     """
 
     name: str
-    source_id: str = None
-    target_id: str = None
-    atoms: List[str] = None
+    atoms: List[str]
 
     def __post_init__(self):
-        """Ensure atoms list is populated based on source_id/target_id or atoms parameter."""
-        if self.atoms is None:
-            if self.source_id is not None and self.target_id is not None:
-                # Binary relation specified via source_id/target_id
-                self.atoms = [self.source_id, self.target_id]
-            else:
-                raise ValueError(
-                    "Either (source_id, target_id) or atoms must be provided"
-                )
-        else:
-            # N-ary relation specified via atoms
-            if len(self.atoms) < 2:
-                raise ValueError("Relations must connect at least 2 atoms")
-            # For backward compatibility, set source_id/target_id for binary relations
-            if (
-                len(self.atoms) == 2
-                and self.source_id is None
-                and self.target_id is None
-            ):
-                self.source_id = self.atoms[0]
-                self.target_id = self.atoms[1]
+        """Validate that relation connects at least 2 atoms."""
+        if len(self.atoms) < 2:
+            raise ValueError("Relations must connect at least 2 atoms")
 
     @classmethod
     def from_atoms(cls, name: str, atoms: List[str]) -> "Relation":
@@ -91,23 +70,7 @@ class Relation:
         Returns:
             Binary relation instance
         """
-        return cls(name=name, source_id=source_id, target_id=target_id)
-
-    def to_tuple(self) -> Tuple[str, str, str]:
-        """Convert relation to tuple format expected by CnD (for binary relations only).
-
-        For backward compatibility with existing code that expects binary tuples.
-        Raises ValueError for n-ary relations with more than 2 atoms.
-        """
-        if len(self.atoms) != 2:
-            raise ValueError(
-                f"to_tuple() only supports binary relations, but this relation has {len(self.atoms)} atoms"
-            )
-        return (self.name, self.atoms[0], self.atoms[1])
-
-    def to_atoms_tuple(self) -> Tuple[str, List[str]]:
-        """Convert relation to (name, atoms_list) format for n-ary relations."""
-        return (self.name, self.atoms)
+        return cls(name=name, atoms=[source_id, target_id])
 
     def is_binary(self) -> bool:
         """Check if this is a binary relation (exactly 2 atoms)."""

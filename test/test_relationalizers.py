@@ -85,14 +85,9 @@ def test_atom_and_relation_structures():
     assert atom_dict == expected_dict
     
     # Test Relation
-    relation = Relation(name="test_rel", source_id="src_1", target_id="tgt_1")
+    relation = Relation.binary("test_rel", "src_1", "tgt_1")
     assert relation.name == "test_rel"
-    assert relation.source_id == "src_1"
-    assert relation.target_id == "tgt_1"
-    
-    relation_tuple = relation.to_tuple()
-    expected_tuple = ("test_rel", "src_1", "tgt_1")
-    assert relation_tuple == expected_tuple
+    assert relation.atoms == ["src_1", "tgt_1"]
 
 
 def test_basic_relationalizer_implementation():
@@ -203,7 +198,7 @@ def test_relationalizer_with_new_api():
                 
                 # Create relation to the value
                 value_id = walker_func(obj[1])
-                relations = [Relation(name="value", source_id=obj_id, target_id=value_id)]
+                relations = [Relation.binary("value", obj_id, value_id)]
                 
                 return [atom], relations
         

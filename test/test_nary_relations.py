@@ -23,20 +23,14 @@ from spytial.provider_system import RelationalizerRegistry
 
 
 def test_relation_class_backward_compatibility():
-    """Test that the Relation class maintains backward compatibility."""
+    """Test that the Relation class works with binary relations as n-ary with n=2."""
 
-    # Test original binary relation creation
-    rel = Relation(name="follows", source_id="user1", target_id="user2")
+    # Test binary relation creation using binary() convenience method
+    rel = Relation.binary("follows", "user1", "user2")
     assert rel.name == "follows"
-    assert rel.source_id == "user1"
-    assert rel.target_id == "user2"
     assert rel.atoms == ["user1", "user2"]
     assert rel.is_binary()
     assert rel.arity() == 2
-
-    # Test to_tuple method
-    tuple_result = rel.to_tuple()
-    assert tuple_result == ("follows", "user1", "user2")
 
 
 def test_relation_class_nary_functionality():
@@ -48,18 +42,6 @@ def test_relation_class_nary_functionality():
     assert rel.atoms == ["person1", "person2", "location"]
     assert not rel.is_binary()
     assert rel.arity() == 3
-    assert rel.source_id is None
-    assert rel.target_id is None
-
-    # Test to_atoms_tuple method
-    atoms_tuple = rel.to_atoms_tuple()
-    assert atoms_tuple == ("meeting", ["person1", "person2", "location"])
-
-    # Test that to_tuple() raises error for n-ary relations
-    with pytest.raises(
-        ValueError, match="to_tuple\\(\\) only supports binary relations"
-    ):
-        rel.to_tuple()
 
 
 def test_relation_class_binary_via_atoms():
@@ -70,14 +52,6 @@ def test_relation_class_binary_via_atoms():
     assert rel.atoms == ["node1", "node2"]
     assert rel.is_binary()
     assert rel.arity() == 2
-
-    # For binary relations created via atoms, source_id and target_id should be set
-    assert rel.source_id == "node1"
-    assert rel.target_id == "node2"
-
-    # Should work with both methods
-    assert rel.to_tuple() == ("connected", "node1", "node2")
-    assert rel.to_atoms_tuple() == ("connected", ["node1", "node2"])
 
 
 def test_relation_class_validation():
@@ -90,10 +64,8 @@ def test_relation_class_validation():
     with pytest.raises(ValueError, match="Relations must connect at least 2 atoms"):
         Relation.from_atoms("invalid", [])
 
-    # Test that either source_id/target_id or atoms must be provided
-    with pytest.raises(
-        ValueError, match="Either \\(source_id, target_id\\) or atoms must be provided"
-    ):
+    # Test that atoms must be provided
+    with pytest.raises(TypeError):
         Relation(name="invalid")
 
 
@@ -103,8 +75,6 @@ def test_relation_convenience_methods():
     # Test binary() class method
     rel = Relation.binary("likes", "user1", "user2")
     assert rel.name == "likes"
-    assert rel.source_id == "user1"
-    assert rel.target_id == "user2"
     assert rel.atoms == ["user1", "user2"]
     assert rel.is_binary()
 
