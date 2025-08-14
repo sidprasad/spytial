@@ -27,21 +27,23 @@ _BUILTIN_RELATIONALIZERS = [
     (FallbackRelationalizer, 1),
 ]
 
+
 def register_builtin_relationalizers(registry):
     """Register all built-in relationalizers with the given registry."""
     for relationalizer_cls, priority in _BUILTIN_RELATIONALIZERS:
         registry.register(relationalizer_cls, priority=priority)
 
+
 __all__ = [
-    'RelationalizerBase',
-    'Atom', 
-    'Relation',
-    'PrimitiveRelationalizer',
-    'DictRelationalizer', 
-    'ListRelationalizer',
-    'SetRelationalizer',
-    'DataclassRelationalizer',
-    'GenericObjectRelationalizer',
-    'FallbackRelationalizer',
-    'register_builtin_relationalizers'
+    "RelationalizerBase",
+    "Atom",
+    "Relation",
+    "PrimitiveRelationalizer",
+    "DictRelationalizer",
+    "ListRelationalizer",
+    "SetRelationalizer",
+    "DataclassRelationalizer",
+    "GenericObjectRelationalizer",
+    "FallbackRelationalizer",
+    "register_builtin_relationalizers",
 ]

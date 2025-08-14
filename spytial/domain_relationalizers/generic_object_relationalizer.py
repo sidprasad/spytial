@@ -24,17 +24,13 @@ class GenericObjectRelationalizer(RelationalizerBase):
                 if hasattr(obj, slot):
                     value = getattr(obj, slot)
                     vid = walker_func(value)
-                    relations.append(
-                        Relation.binary(slot, obj_id, vid)
-                    )
+                    relations.append(Relation(slot, [obj_id, vid]))
 
         # Handle __dict__
         elif hasattr(obj, "__dict__"):
             for attr_name, attr_value in vars(obj).items():
                 if not attr_name.startswith("_") and not inspect.ismethod(attr_value):
                     vid = walker_func(attr_value)
-                    relations.append(
-                        Relation.binary(attr_name, obj_id, vid)
-                    )
+                    relations.append(Relation(attr_name, [obj_id, vid]))
 
         return [atom], relations

@@ -1,0 +1,21 @@
+Defaulting to user installation because normal site-packages is not writeable
+Collecting black
+  Downloading black-25.1.0-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.manylinux_2_28_x86_64.whl.metadata
+     - 81.3 kB 239.4 MB/s 0:00:00
+Requirement already satisfied: click>=8.0.0 in /usr/lib/python3/dist-packages (from black) (8.1.6)
+Collecting mypy-extensions>=0.4.3 (from black)
+  Downloading mypy_extensions-1.1.0-py3-none-any.whl.metadata
+     - 1.1 kB ? 0:00:00
+Requirement already satisfied: packaging>=22.0 in /usr/lib/python3/dist-packages (from black) (24.0)
+Collecting pathspec>=0.9.0 (from black)
+  Downloading pathspec-0.12.1-py3-none-any.whl.metadata
+     - 21.2 kB 203.8 MB/s 0:00:00
+Requirement already satisfied: platformdirs>=2 in /usr/local/lib/python3.12/dist-packages (from black) (4.3.8)
+Downloading black-25.1.0-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.manylinux_2_28_x86_64.whl
+   - 1.8 MB 197.5 MB/s 0:00:00
+Downloading mypy_extensions-1.1.0-py3-none-any.whl
+   - 5.0 kB ? 0:00:00
+Downloading pathspec-0.12.1-py3-none-any.whl
+   - 31.2 kB 212.0 MB/s 0:00:00
+Installing collected packages: pathspec, mypy-extensions, black
+Successfully installed black-25.1.0 mypy-extensions-1.1.0 pathspec-0.12.1

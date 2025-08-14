@@ -17,8 +17,6 @@ class SetRelationalizer(RelationalizerBase):
         relations = []
         for element in obj:
             element_id = walker_func(element)
-            relations.append(
-                Relation.binary("contains", obj_id, element_id)
-            )
+            relations.append(Relation("contains", [obj_id, element_id]))
 
         return [atom], relations

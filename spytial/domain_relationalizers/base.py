@@ -45,40 +45,14 @@ class Relation:
         if len(self.atoms) < 2:
             raise ValueError("Relations must connect at least 2 atoms")
 
-    @classmethod
-    def from_atoms(cls, name: str, atoms: List[str]) -> "Relation":
-        """Create an n-ary relation from a list of atom IDs.
-
-        Args:
-            name: The relation name
-            atoms: List of atom IDs to connect (must have at least 2)
+    def to_tuple(self) -> Tuple[str, ...]:
+        """Convert relation to tuple format.
 
         Returns:
-            Relation instance connecting the specified atoms
+            Tuple where first element is the relation name,
+            followed by all atom IDs: (name, atom1, atom2, ...)
         """
-        return cls(name=name, atoms=atoms)
-
-    @classmethod
-    def binary(cls, name: str, source_id: str, target_id: str) -> "Relation":
-        """Create a binary relation (convenience method for clarity).
-
-        Args:
-            name: The relation name
-            source_id: Source atom ID
-            target_id: Target atom ID
-
-        Returns:
-            Binary relation instance
-        """
-        return cls(name=name, atoms=[source_id, target_id])
-
-    def is_binary(self) -> bool:
-        """Check if this is a binary relation (exactly 2 atoms)."""
-        return len(self.atoms) == 2
-
-    def arity(self) -> int:
-        """Return the arity (number of atoms) of this relation."""
-        return len(self.atoms)
+        return (self.name, *self.atoms)
 
 
 class RelationalizerBase(abc.ABC):

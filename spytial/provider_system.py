@@ -210,11 +210,11 @@ class CnDDataInstanceBuilder:
         # Convert to old format for compatibility with existing code
         atoms = [atom_obj.to_dict() for atom_obj in atoms_list]
 
-        # Process relations - use n-ary approach for all relations
+        # Process relations - use to_tuple() method for consistent format
         relations = []
         for rel in relations_list:
-            # All relations use the same format: (name, [atom_ids])
-            relations.append((rel.name, rel.atoms))
+            # Use the to_tuple method: (name, atom1, atom2, ...)
+            relations.append(rel.to_tuple())
 
         # Add full type hierarchy to each atom
         type_hierarchy = [cls.__name__ for cls in inspect.getmro(type(obj))]
@@ -238,16 +238,12 @@ class CnDDataInstanceBuilder:
             if i == 0:
                 primary_atom_id = atom["id"]
 
-        # Process relations - handle both binary and n-ary formats
+        # Process relations - handle tuples of arbitrary length
         for rel_data in relations:
-            if len(rel_data) == 3:
-                # Binary relation: (rel_name, source_id, target_id)
-                rel_name, source_id, target_id = rel_data
-                self._rels.setdefault(rel_name, []).append([source_id, target_id])
-            elif len(rel_data) == 2:
-                # N-ary relation: (rel_name, [atom_id1, atom_id2, ...])
-                rel_name, atom_ids = rel_data
-                self._rels.setdefault(rel_name, []).append(atom_ids)
+            # Relations now come as (name, atom1, atom2, ...) tuples
+            rel_name = rel_data[0]
+            atom_ids = list(rel_data[1:])  # All atoms after the name
+            self._rels.setdefault(rel_name, []).append(atom_ids)
 
         # Return the ID of the primary atom (first one) for compatibility
         return primary_atom_id
