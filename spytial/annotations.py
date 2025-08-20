@@ -37,7 +37,7 @@ DIRECTIVE_TYPES = {
     "atomColor": ["selector", "value"],
     "size": ["selector", "height", "width"],
     "icon": ["selector", "path", "showLabels"],
-    "edgeColor": {"required": ["field", "color"], "optional": ["selector"]},
+    "edgeColor": {"required": ["field", "value"], "optional": ["selector"]},
     "projection": ["sig"],
     "attribute": {"required": ["field"], "optional": ["selector"]},
     "hideField": {"required": ["field"], "optional": ["selector"]},
