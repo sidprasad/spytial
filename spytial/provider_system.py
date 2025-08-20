@@ -222,6 +222,10 @@ class CnDDataInstanceBuilder:
         type_hierarchy = [cls.__name__ for cls in inspect.getmro(type(obj))]
 
         # Process each atom
+
+
+        ## TODO: There's a bug here. Why do we provide ATOM types
+        ## in a relationalizer if we are going to override them here?
         primary_atom_id = None
         for i, atom in enumerate(atoms):
             # Only override type if the relationalizer didn't provide a custom one
@@ -229,9 +233,16 @@ class CnDDataInstanceBuilder:
                 atom["type"] = type_hierarchy[
                     0
                 ]  # Most specific type (first in the hierarchy)
-            atom["type_hierarchy"] = (
-                type_hierarchy  # Store the full type hierarchy if needed
-            )
+            
+                
+
+                atom["type_hierarchy"] = (
+                    type_hierarchy  # Store the full type hierarchy if needed
+                )
+            else:
+                 atom["type_hierarchy"] = ( [atom["type"]] +
+                    type_hierarchy  # Store the full type hierarchy if needed
+                )
 
             # Add atom to our collection
             self._atoms.append(atom)
