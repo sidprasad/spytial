@@ -1,0 +1,689 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>sPyTial Structured Input REPL</title>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            margin: 0; 
+            background-color: #1e1e1e; 
+            color: #d4d4d4; 
+            display: flex;
+            height: 100vh;
+        }
+        .container { 
+            display: flex;
+            width: 100%;
+            height: 100%;
+        }
+        .left-panel {
+            width: 40%;
+            padding: 20px;
+            border-right: 1px solid #333;
+            overflow-y: auto;
+        }
+        .right-panel {
+            width: 60%;
+            display: flex;
+            flex-direction: column;
+        }
+        .visualization-area {
+            flex: 1;
+            background: #252526;
+            border-bottom: 1px solid #333;
+            overflow: hidden;
+        }
+        .repl { 
+            background: #1e1e1e; 
+            border-top: 1px solid #333; 
+            padding: 10px; 
+            height: 200px;
+            display: flex;
+            flex-direction: column;
+        }
+        .repl-output { 
+            font-family: monospace; 
+            white-space: pre-wrap; 
+            margin-bottom: 10px; 
+            max-height: 150px; 
+            overflow-y: auto; 
+            flex: 1;
+        }
+        .repl-input { 
+            font-family: monospace; 
+            width: 100%; 
+            padding: 10px; 
+            border: 1px solid #333; 
+            border-radius: 5px; 
+            background: #252526; 
+            color: #d4d4d4; 
+        }
+        .repl-input:focus { 
+            outline: none; 
+            border-color: #007acc; 
+        }
+        .success { color: #b5cea8; }
+        .error { color: #f48771; }
+        .info { color: #9cdcfe; }
+        .warning { color: #dcdcaa; }
+        
+        .template-list {
+            margin-bottom: 20px;
+        }
+        .template-item {
+            background: #252526;
+            padding: 10px;
+            margin: 5px 0;
+            border-radius: 5px;
+            cursor: pointer;
+            border: 1px solid #333;
+        }
+        .template-item:hover {
+            border-color: #007acc;
+        }
+        .template-item.active {
+            border-color: #007acc;
+            background: #264f78;
+        }
+        
+        .current-state {
+            background: #252526;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            border: 1px solid #333;
+        }
+        
+        .holes-list {
+            margin-top: 15px;
+        }
+        .hole-item {
+            background: #333;
+            padding: 8px;
+            margin: 5px 0;
+            border-radius: 3px;
+            font-family: monospace;
+            font-size: 0.9em;
+        }
+        
+        .commands-help {
+            background: #252526;
+            padding: 15px;
+            border-radius: 5px;
+            border: 1px solid #333;
+            font-family: monospace;
+            font-size: 0.85em;
+        }
+        
+        h3 {
+            margin-top: 0;
+            color: #9cdcfe;
+        }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/cnd-core@1.1.9-beta.6/dist/browser/cnd-core-complete.global.js"></script>
+</head>
+<body>
+    <div class="container">
+        <div class="left-panel">
+            <h3>Available Templates</h3>
+            <div class="template-list" id="template-list">
+                <!-- Templates will be populated here -->
+            </div>
+            
+            <h3>Current State</h3>
+            <div class="current-state" id="current-state">
+                <em>No template selected</em>
+            </div>
+            
+            <h3>Available Commands</h3>
+            <div class="commands-help">
+                start &lt;template&gt; - Start from template<br>
+                list - List available templates<br>
+                fill &lt;desc&gt; &lt;value&gt; - Fill hole by description<br>
+                holes - Show unfilled holes<br>
+                state - Show current state<br>
+                result - Get final result<br>
+                reset - Reset current template<br>
+                visualize - Update visualization<br>
+                help - Show this help
+            </div>
+        </div>
+        
+        <div class="right-panel">
+            <div class="visualization-area" id="visualization-area">
+                <webcola-cnd-graph 
+                    id="graph-container" 
+                    width="100%" 
+                    height="100%"
+                    layoutFormat="default"
+                    aria-label="Interactive structured input visualization">
+                </webcola-cnd-graph>
+            </div>
+            
+            <div class="repl">
+                <div id="repl-output" class="repl-output"></div>
+                <input id="repl-input" class="repl-input" placeholder="Enter command (e.g., 'start simple_dict' or 'help')..." />
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Embedded data passed from the server
+        const initialData = `{{ python_data | safe }}`;
+        
+        // Parse the initial JSON data
+        let currentData = null;
+        try {
+            currentData = typeof initialData === 'string' ? JSON.parse(initialData) : initialData;
+        } catch (error) {
+            console.error('Failed to parse initial data:', error);
+        }
+
+        // Available templates (these would come from the server in a real implementation)
+        const availableTemplates = {
+            'simple_dict': {
+                name: 'simple_dict',
+                description: 'Simple dictionary with one hole',
+                template: {'key1': {'__hole__': true, 'id': 'hole1', 'description': 'value'}, 'key2': 'preset_value'},
+                holes: [{'id': 'hole1', 'type_hint': 'any', 'description': 'value'}]
+            },
+            'simple_list': {
+                name: 'simple_list', 
+                description: 'Simple list with holes',
+                template: [{'__hole__': true, 'id': 'hole1', 'description': 'first_item'}, 'preset_item', {'__hole__': true, 'id': 'hole2', 'description': 'second_item'}],
+                holes: [{'id': 'hole1', 'type_hint': 'any', 'description': 'first_item'}, {'id': 'hole2', 'type_hint': 'any', 'description': 'second_item'}]
+            },
+            'tree_node': {
+                name: 'tree_node',
+                description: 'Binary tree node template',
+                template: {
+                    'value': {'__hole__': true, 'id': 'hole1', 'description': 'node_value'},
+                    'left': {'__hole__': true, 'id': 'hole2', 'description': 'left_child'},
+                    'right': {'__hole__': true, 'id': 'hole3', 'description': 'right_child'}
+                },
+                holes: [
+                    {'id': 'hole1', 'type_hint': 'any', 'description': 'node_value'},
+                    {'id': 'hole2', 'type_hint': 'TreeNode|None', 'description': 'left_child'},
+                    {'id': 'hole3', 'type_hint': 'TreeNode|None', 'description': 'right_child'}
+                ]
+            }
+        };
+
+        // Current template state
+        let currentTemplate = null;
+        let currentTemplateState = null;
+
+        // Evaluator for visualization
+        let evaluator = null;
+        let dataInstance = null;
+
+        // Initialize
+        function initialize() {
+            populateTemplateList();
+            initializeEvaluator();
+            setupREPL();
+            appendToReplOutput('<span class="info">Welcome to sPyTial Structured Input REPL!</span>');
+            appendToReplOutput('<span class="info">Type "help" for available commands or click a template to start.</span>');
+        }
+
+        function populateTemplateList() {
+            const templateList = document.getElementById('template-list');
+            templateList.innerHTML = '';
+            
+            for (const [name, template] of Object.entries(availableTemplates)) {
+                const item = document.createElement('div');
+                item.className = 'template-item';
+                item.innerHTML = `
+                    <strong>${name}</strong><br>
+                    <small>${template.description}</small>
+                `;
+                item.onclick = () => startTemplate(name);
+                templateList.appendChild(item);
+            }
+        }
+
+        function initializeEvaluator() {
+            try {
+                if (currentData) {
+                    dataInstance = new CndCore.JSONDataInstance(currentData);
+                    const evaluationContext = { sourceData: dataInstance };
+                    evaluator = new CndCore.SGraphQueryEvaluator();
+                    evaluator.initialize(evaluationContext);
+                }
+            } catch (error) {
+                console.error('Failed to initialize evaluator:', error);
+            }
+        }
+
+        function setupREPL() {
+            const replInput = document.getElementById('repl-input');
+            const commandHistory = [];
+            let historyIndex = -1;
+
+            replInput.addEventListener('keydown', (event) => {
+                if (event.key === 'Enter') {
+                    const command = replInput.value.trim();
+                    if (command) {
+                        commandHistory.push(command);
+                        historyIndex = commandHistory.length;
+                        executeCommand(command);
+                        replInput.value = '';
+                    }
+                } else if (event.key === 'ArrowUp') {
+                    if (historyIndex > 0) {
+                        historyIndex--;
+                        replInput.value = commandHistory[historyIndex];
+                    }
+                } else if (event.key === 'ArrowDown') {
+                    if (historyIndex < commandHistory.length - 1) {
+                        historyIndex++;
+                        replInput.value = commandHistory[historyIndex];
+                    } else {
+                        replInput.value = '';
+                    }
+                }
+            });
+        }
+
+        function executeCommand(command) {
+            appendToReplOutput(`<span class="success">> ${command}</span>`);
+            
+            const parts = command.split(' ');
+            const cmd = parts[0].toLowerCase();
+            const args = parts.slice(1);
+
+            try {
+                switch (cmd) {
+                    case 'help':
+                        showHelp();
+                        break;
+                    case 'list':
+                        listTemplates();
+                        break;
+                    case 'start':
+                        if (args.length === 0) {
+                            appendToReplOutput('<span class="error">Usage: start &lt;template_name&gt;</span>');
+                        } else {
+                            startTemplate(args[0]);
+                        }
+                        break;
+                    case 'fill':
+                        if (args.length < 2) {
+                            appendToReplOutput('<span class="error">Usage: fill &lt;hole_description&gt; &lt;value&gt;</span>');
+                        } else {
+                            const description = args[0];
+                            const value = args.slice(1).join(' ');
+                            fillHole(description, value);
+                        }
+                        break;
+                    case 'holes':
+                        showHoles();
+                        break;
+                    case 'state':
+                        showState();
+                        break;
+                    case 'result':
+                        showResult();
+                        break;
+                    case 'reset':
+                        resetTemplate();
+                        break;
+                    case 'visualize':
+                        updateVisualization();
+                        break;
+                    default:
+                        appendToReplOutput(`<span class="error">Unknown command: ${cmd}. Type "help" for available commands.</span>`);
+                }
+            } catch (error) {
+                appendToReplOutput(`<span class="error">Error: ${error.message}</span>`);
+            }
+        }
+
+        function showHelp() {
+            const help = `
+Available commands:
+  start &lt;template&gt;     - Start from a template
+  list                 - List available templates  
+  fill &lt;desc&gt; &lt;value&gt;   - Fill hole by description
+  holes                - Show unfilled holes
+  state                - Show current template state
+  result               - Get final result (if complete)
+  reset                - Reset current template
+  visualize            - Update visualization
+  help                 - Show this help
+
+Examples:
+  start simple_dict
+  fill value "hello world"
+  holes
+  result`;
+            appendToReplOutput(`<span class="info">${help}</span>`);
+        }
+
+        function listTemplates() {
+            appendToReplOutput('<span class="info">Available templates:</span>');
+            for (const [name, template] of Object.entries(availableTemplates)) {
+                appendToReplOutput(`  <span class="warning">${name}</span> - ${template.description}`);
+            }
+        }
+
+        function startTemplate(templateName) {
+            if (!availableTemplates[templateName]) {
+                appendToReplOutput(`<span class="error">Template "${templateName}" not found</span>`);
+                return;
+            }
+
+            currentTemplate = templateName;
+            currentTemplateState = JSON.parse(JSON.stringify(availableTemplates[templateName]));
+            
+            // Update UI
+            document.querySelectorAll('.template-item').forEach(item => {
+                item.classList.remove('active');
+            });
+            document.querySelectorAll('.template-item')[Object.keys(availableTemplates).indexOf(templateName)]?.classList.add('active');
+            
+            appendToReplOutput(`<span class="success">Started template: ${templateName}</span>`);
+            updateCurrentStateDisplay();
+            updateVisualization();
+        }
+
+        function fillHole(description, valueStr) {
+            if (!currentTemplateState) {
+                appendToReplOutput('<span class="error">No template selected. Use "start &lt;template&gt;" first.</span>');
+                return;
+            }
+
+            // Find hole by description
+            const hole = currentTemplateState.holes.find(h => h.description === description);
+            if (!hole) {
+                appendToReplOutput(`<span class="error">No hole found with description "${description}"</span>`);
+                return;
+            }
+
+            // Parse value (simple parsing for demo)
+            let value;
+            try {
+                if (valueStr === 'null' || valueStr === 'None') {
+                    value = null;
+                } else if (valueStr === 'true') {
+                    value = true;
+                } else if (valueStr === 'false') {
+                    value = false;
+                } else if (/^\d+$/.test(valueStr)) {
+                    value = parseInt(valueStr);
+                } else if (/^\d*\.\d+$/.test(valueStr)) {
+                    value = parseFloat(valueStr);
+                } else if (valueStr.startsWith('"') && valueStr.endsWith('"')) {
+                    value = valueStr.slice(1, -1);
+                } else {
+                    value = valueStr; // Treat as string
+                }
+            } catch (error) {
+                value = valueStr;
+            }
+
+            // Fill the hole
+            fillHoleInTemplate(currentTemplateState.template, hole.id, value);
+            
+            // Remove the hole from the list
+            currentTemplateState.holes = currentTemplateState.holes.filter(h => h.id !== hole.id);
+            
+            appendToReplOutput(`<span class="success">Filled hole "${description}" with: ${JSON.stringify(value)}</span>`);
+            updateCurrentStateDisplay();
+            updateVisualization();
+        }
+
+        function fillHoleInTemplate(obj, holeId, value) {
+            if (typeof obj === 'object' && obj !== null) {
+                if (obj.__hole__ && obj.id === holeId) {
+                    // Replace this object entirely
+                    return value;
+                } else if (Array.isArray(obj)) {
+                    for (let i = 0; i < obj.length; i++) {
+                        if (typeof obj[i] === 'object' && obj[i]?.__hole__ && obj[i].id === holeId) {
+                            obj[i] = value;
+                            return obj;
+                        } else {
+                            const result = fillHoleInTemplate(obj[i], holeId, value);
+                            if (result !== obj[i]) {
+                                obj[i] = result;
+                            }
+                        }
+                    }
+                } else {
+                    for (const [key, val] of Object.entries(obj)) {
+                        if (typeof val === 'object' && val?.__hole__ && val.id === holeId) {
+                            obj[key] = value;
+                            return obj;
+                        } else {
+                            const result = fillHoleInTemplate(val, holeId, value);
+                            if (result !== val) {
+                                obj[key] = result;
+                            }
+                        }
+                    }
+                }
+            }
+            return obj;
+        }
+
+        function showHoles() {
+            if (!currentTemplateState) {
+                appendToReplOutput('<span class="error">No template selected</span>');
+                return;
+            }
+
+            if (currentTemplateState.holes.length === 0) {
+                appendToReplOutput('<span class="success">No unfilled holes remaining!</span>');
+                return;
+            }
+
+            appendToReplOutput('<span class="info">Unfilled holes:</span>');
+            currentTemplateState.holes.forEach(hole => {
+                const typeInfo = hole.type_hint ? ` (${hole.type_hint})` : '';
+                appendToReplOutput(`  <span class="warning">${hole.description}</span>${typeInfo}`);
+            });
+        }
+
+        function showState() {
+            if (!currentTemplateState) {
+                appendToReplOutput('<span class="error">No template selected</span>');
+                return;
+            }
+
+            const cleanTemplate = JSON.stringify(removeHoles(currentTemplateState.template), null, 2);
+            appendToReplOutput(`<span class="info">Current state:</span>`);
+            appendToReplOutput(`<span class="success">${cleanTemplate}</span>`);
+        }
+
+        function showResult() {
+            if (!currentTemplateState) {
+                appendToReplOutput('<span class="error">No template selected</span>');
+                return;
+            }
+
+            if (currentTemplateState.holes.length > 0) {
+                appendToReplOutput('<span class="error">Template incomplete. Fill all holes first.</span>');
+                showHoles();
+                return;
+            }
+
+            const result = removeHoles(currentTemplateState.template);
+            appendToReplOutput('<span class="success">Final result:</span>');
+            appendToReplOutput(`<span class="success">${JSON.stringify(result, null, 2)}</span>`);
+        }
+
+        function resetTemplate() {
+            currentTemplate = null;
+            currentTemplateState = null;
+            
+            document.querySelectorAll('.template-item').forEach(item => {
+                item.classList.remove('active');
+            });
+            
+            appendToReplOutput('<span class="info">Template reset</span>');
+            updateCurrentStateDisplay();
+        }
+
+        function updateCurrentStateDisplay() {
+            const stateDiv = document.getElementById('current-state');
+            
+            if (!currentTemplateState) {
+                stateDiv.innerHTML = '<em>No template selected</em>';
+                return;
+            }
+
+            const holesHtml = currentTemplateState.holes.length > 0 
+                ? `<div class="holes-list"><strong>Holes to fill:</strong>${currentTemplateState.holes.map(h => 
+                    `<div class="hole-item">${h.description} (${h.type_hint || 'any'})</div>`
+                  ).join('')}</div>`
+                : '<div class="holes-list"><strong>✓ All holes filled!</strong></div>';
+
+            stateDiv.innerHTML = `
+                <strong>${currentTemplateState.name}</strong><br>
+                <small>${currentTemplateState.description}</small>
+                ${holesHtml}
+            `;
+        }
+
+        function updateVisualization() {
+            if (!currentTemplateState) {
+                return;
+            }
+
+            try {
+                // Convert current template to visualization data
+                const cleanData = removeHoles(currentTemplateState.template);
+                
+                // Create a simple data instance for visualization
+                const vizData = {
+                    atoms: [],
+                    relations: []
+                };
+
+                // Simple conversion for demo - in a real implementation, 
+                // this would use the full sPyTial serialization
+                addAtomsForValue(vizData, 'root', cleanData);
+
+                if (typeof CndCore !== 'undefined') {
+                    const dataInstance = new CndCore.JSONDataInstance(vizData);
+                    const layoutSpec = CndCore.parseLayoutSpec('');
+                    const sgqEvaluator = new CndCore.SGraphQueryEvaluator();
+                    sgqEvaluator.initialize({ sourceData: dataInstance });
+                    
+                    const layoutInstance = new CndCore.LayoutInstance(layoutSpec, sgqEvaluator, 0, true);
+                    const layoutResult = layoutInstance.generateLayout(dataInstance, {});
+                    
+                    if (!layoutResult.error) {
+                        const graphElement = document.getElementById('graph-container');
+                        graphElement.renderLayout(layoutResult.layout);
+                    }
+                }
+            } catch (error) {
+                console.error('Visualization update failed:', error);
+            }
+        }
+
+        function addAtomsForValue(vizData, atomId, value, type = null) {
+            if (value === null || value === undefined) {
+                vizData.atoms.push({
+                    id: atomId,
+                    label: String(value),
+                    type: 'null',
+                    type_hierarchy: ['null', 'object']
+                });
+            } else if (typeof value === 'string') {
+                vizData.atoms.push({
+                    id: atomId,
+                    label: value,
+                    type: 'str',
+                    type_hierarchy: ['str', 'object']
+                });
+            } else if (typeof value === 'number') {
+                vizData.atoms.push({
+                    id: atomId,
+                    label: String(value),
+                    type: typeof value === 'number' && value % 1 === 0 ? 'int' : 'float',
+                    type_hierarchy: [typeof value === 'number' && value % 1 === 0 ? 'int' : 'float', 'object']
+                });
+            } else if (typeof value === 'boolean') {
+                vizData.atoms.push({
+                    id: atomId,
+                    label: String(value),
+                    type: 'bool',
+                    type_hierarchy: ['bool', 'object']
+                });
+            } else if (Array.isArray(value)) {
+                vizData.atoms.push({
+                    id: atomId,
+                    label: `list(${value.length})`,
+                    type: 'list',
+                    type_hierarchy: ['list', 'object']
+                });
+                
+                value.forEach((item, index) => {
+                    const childId = `${atomId}_${index}`;
+                    addAtomsForValue(vizData, childId, item);
+                    vizData.relations.push({
+                        name: String(index),
+                        tuples: [{
+                            atoms: [atomId, childId],
+                            types: ['list', vizData.atoms.find(a => a.id === childId)?.type || 'object']
+                        }]
+                    });
+                });
+            } else if (typeof value === 'object') {
+                vizData.atoms.push({
+                    id: atomId,
+                    label: `dict(${Object.keys(value).length})`,
+                    type: 'dict',
+                    type_hierarchy: ['dict', 'object']
+                });
+                
+                Object.entries(value).forEach(([key, val]) => {
+                    const childId = `${atomId}_${key}`;
+                    addAtomsForValue(vizData, childId, val);
+                    vizData.relations.push({
+                        name: key,
+                        tuples: [{
+                            atoms: [atomId, childId],
+                            types: ['dict', vizData.atoms.find(a => a.id === childId)?.type || 'object']
+                        }]
+                    });
+                });
+            }
+        }
+
+        function removeHoles(obj) {
+            if (typeof obj === 'object' && obj !== null) {
+                if (obj.__hole__) {
+                    return undefined; // Remove holes
+                } else if (Array.isArray(obj)) {
+                    return obj.map(removeHoles).filter(item => item !== undefined);
+                } else {
+                    const result = {};
+                    for (const [key, value] of Object.entries(obj)) {
+                        const cleaned = removeHoles(value);
+                        if (cleaned !== undefined) {
+                            result[key] = cleaned;
+                        }
+                    }
+                    return result;
+                }
+            }
+            return obj;
+        }
+
+        function appendToReplOutput(content) {
+            const replOutput = document.getElementById('repl-output');
+            replOutput.innerHTML += `${content}<br>`;
+            replOutput.scrollTop = replOutput.scrollHeight;
+        }
+
+        // Initialize when page loads
+        window.addEventListener('load', initialize);
+    </script>
+</body>
+</html>
