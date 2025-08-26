@@ -42,6 +42,27 @@ from .annotations import (
     serialize_to_yaml_string,
     reset_object_ids,
 )
+from .structured_input import (
+    # Structured input classes
+    Hole,
+    StructuredTemplate,
+    StructuredInputBuilder,
+    # Convenience functions
+    create_hole,
+    create_template,
+    start_from_template,
+    fill_hole,
+    fill_hole_by_description,
+    get_current_state,
+    get_result,
+    list_templates,
+    reset,
+    # Global builder instance
+    default_builder,
+)
+
+# Import the structured_input function with a different name to avoid collision
+from .structured_evaluator import structured_input
 
 # Main data instance builder
 CnDDataInstanceBuilder = CnDDataInstanceBuilder
@@ -51,6 +72,7 @@ __all__ = [
     # Core functions
     "diagram",
     "evaluate",
+    "structured_input",
     # New relationalizer system
     "CnDDataInstanceBuilder",
     "RelationalizerBase",
@@ -87,4 +109,18 @@ __all__ = [
     "collect_decorators",
     "serialize_to_yaml_string",
     "reset_object_ids",
+    # Structured input functionality
+    "Hole",
+    "StructuredTemplate",
+    "StructuredInputBuilder",
+    "create_hole",
+    "create_template",
+    "start_from_template",
+    "fill_hole",
+    "fill_hole_by_description",
+    "get_current_state",
+    "get_result",
+    "list_templates",
+    "reset",
+    "default_builder",
 ]
