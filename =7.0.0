@@ -1,0 +1,20 @@
+Defaulting to user installation because normal site-packages is not writeable
+Collecting pytest
+  Downloading pytest-8.4.1-py3-none-any.whl.metadata
+     - 7.7 kB ? 0:00:00
+Collecting iniconfig>=1 (from pytest)
+  Downloading iniconfig-2.1.0-py3-none-any.whl.metadata
+     - 2.7 kB ? 0:00:00
+Requirement already satisfied: packaging>=20 in /usr/lib/python3/dist-packages (from pytest) (24.0)
+Collecting pluggy<2,>=1.5 (from pytest)
+  Downloading pluggy-1.6.0-py3-none-any.whl.metadata
+     - 4.8 kB ? 0:00:00
+Requirement already satisfied: pygments>=2.7.2 in /usr/lib/python3/dist-packages (from pytest) (2.17.2)
+Downloading pytest-8.4.1-py3-none-any.whl
+   - 365.5 kB 197.7 MB/s 0:00:00
+Downloading iniconfig-2.1.0-py3-none-any.whl
+   - 6.0 kB ? 0:00:00
+Downloading pluggy-1.6.0-py3-none-any.whl
+   - 20.5 kB 120.2 MB/s 0:00:00
+Installing collected packages: pluggy, iniconfig, pytest
+Successfully installed iniconfig-2.1.0 pluggy-1.6.0 pytest-8.4.1
