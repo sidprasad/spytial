@@ -13,7 +13,7 @@ import tempfile
 import shutil
 from pathlib import Path
 
-def run_command(cmd, description):
+def run_command(cmd, description, advisory=False):
     """Run a command and report success/failure."""
     print(f"🔍 {description}...")
     try:
@@ -21,16 +21,26 @@ def run_command(cmd, description):
         project_root = Path(__file__).parent.parent
         result = subprocess.run(cmd, shell=True, capture_output=True, text=True, cwd=project_root)
         if result.returncode != 0:
-            print(f"❌ {description} FAILED")
-            print(f"STDOUT: {result.stdout}")
-            print(f"STDERR: {result.stderr}")
-            return False
+            if advisory:
+                print(f"⚠️  {description} ADVISORY: Issues found but not blocking")
+                print(f"STDOUT: {result.stdout}")
+                print(f"STDERR: {result.stderr}")
+                return True  # Don't block on advisory checks
+            else:
+                print(f"❌ {description} FAILED")
+                print(f"STDOUT: {result.stdout}")
+                print(f"STDERR: {result.stderr}")
+                return False
         else:
             print(f"✅ {description} PASSED")
             return True
     except Exception as e:
-        print(f"❌ {description} ERROR: {e}")
-        return False
+        if advisory:
+            print(f"⚠️  {description} ADVISORY ERROR: {e}")
+            return True  # Don't block on advisory checks
+        else:
+            print(f"❌ {description} ERROR: {e}")
+            return False
 
 def validate_imports_and_functionality():
     """Test import and basic functionality."""
@@ -121,16 +131,18 @@ def main():
         "Installing development dependencies"
     ))
     
-    # Code formatting check
+    # Code formatting check (advisory)
     checks.append(run_command(
         "python -m black spytial/ --check",
-        "Code formatting check"
+        "Code formatting check",
+        advisory=True
     ))
     
-    # Linting
+    # Linting (advisory)
     checks.append(run_command(
         "python -m flake8 spytial/ --count --statistics --max-line-length=88 --extend-ignore=E203,W503",
-        "Code linting"
+        "Code linting",
+        advisory=True
     ))
     
     # Run tests

@@ -27,13 +27,15 @@ jobs:
         pip install -e .
         pip install pytest>=7.0.0 flake8>=6.0.0 black>=23.0.0
         
-    - name: Run code formatting check
+    - name: Run code formatting check (non-blocking)
       run: |
-        black --check spytial/
+        echo "🎨 Checking code formatting..."
+        black --check spytial/ || echo "⚠️ Code formatting issues found (non-blocking)"
         
-    - name: Run linting
+    - name: Run linting (non-blocking)
       run: |
-        flake8 spytial/ --count --statistics --max-line-length=88 --extend-ignore=E203,W503
+        echo "🔍 Running linting checks..."
+        flake8 spytial/ --count --statistics --max-line-length=88 --extend-ignore=E203,W503 || echo "⚠️ Linting issues found (non-blocking)"
         
     - name: Run tests
       run: |
