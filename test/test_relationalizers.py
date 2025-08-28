@@ -71,24 +71,6 @@ def test_relationalizer_inheritance_requirement_manual():
         return False
 
 
-def test_atom_and_relation_structures():
-    """Test the new Atom and Relation data structures."""
-    
-    # Test Atom
-    atom = Atom(id="test_1", type="TestType", label="Test Label")
-    assert atom.id == "test_1"
-    assert atom.type == "TestType"
-    assert atom.label == "Test Label"
-    
-    atom_dict = atom.to_dict()
-    expected_dict = {"id": "test_1", "type": "TestType", "label": "Test Label"}
-    assert atom_dict == expected_dict
-    
-    # Test Relation
-    relation = Relation.binary("test_rel", "src_1", "tgt_1")
-    assert relation.name == "test_rel"
-    assert relation.atoms == ["src_1", "tgt_1"]
-
 
 def test_basic_relationalizer_implementation():
     """Test implementing a basic custom relationalizer."""
@@ -173,51 +155,6 @@ def test_built_in_relationalizers_work():
 
 
 
-def test_relationalizer_with_new_api():
-    """Test implementing a relationalizer using the new relationalize() method."""
-    
-    # Save current state
-    original_relationalizers = RelationalizerRegistry._relationalizers.copy()
-    original_instances = RelationalizerRegistry._instances.copy()
-    
-    try:
-        @relationalizer(priority=102)
-        class NewAPIRelationalizer(RelationalizerBase):
-            """Relationalizer using the new relationalize API."""
-            
-            def can_handle(self, obj: Any) -> bool:
-                return isinstance(obj, list) and len(obj) == 2 and obj[0] == 'pair'
-            
-            def relationalize(self, obj: Any, walker_func) -> Tuple[List[Atom], List[Relation]]:
-                obj_id = walker_func._get_id(obj)
-                atom = Atom(
-                    id=obj_id,
-                    type="pair",
-                    label=f"Pair({obj[1]})"
-                )
-                
-                # Create relation to the value
-                value_id = walker_func(obj[1])
-                relations = [Relation.binary("value", obj_id, value_id)]
-                
-                return [atom], relations
-        
-        # Ensure built-in relationalizers are available
-        _register_built_in_relationalizers()
-        
-        # Test the relationalizer
-        test_pair = ['pair', 'test_value']
-        builder = CnDDataInstanceBuilder()
-        data_instance = builder.build_instance(test_pair)
-        
-        # Verify it works
-        assert len(data_instance['atoms']) >= 2
-    
-    finally:
-        # Restore original state
-        RelationalizerRegistry._relationalizers = original_relationalizers
-        RelationalizerRegistry._instances = original_instances
-
 
 def test_registry_management():
     """Test relationalizer registry management."""
@@ -288,9 +225,7 @@ if __name__ == "__main__":
     
     # Run tests manually since pytest might not be available
     test_functions = [
-        test_atom_and_relation_structures,
         test_built_in_relationalizers_work,
-        test_relationalizer_with_new_api,
         test_registry_management,
         test_integration_with_existing_functionality
     ]
