@@ -8,25 +8,101 @@
     
     <script src="https://d3js.org/d3.v4.min.js"></script>
 
-    <script src="https://cdn.jsdelivr.net/npm/cnd-core@1.1.10-beta.2/dist/browser/cnd-core-complete.global.js"></script>  
-    <script src="https://cdn.jsdelivr.net/npm/cnd-core@1.1.10-beta.2/dist/components/react-component-integration.global.js"></script>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/cnd-core@1.1.10-beta.2/dist/components/react-component-integration.css" /> 
+    <script src="https://cdn.jsdelivr.net/npm/cnd-core@1.1.11/dist/browser/cnd-core-complete.global.js"></script>  
+    <script src="https://cdn.jsdelivr.net/npm/cnd-core@1.1.11/dist/components/react-component-integration.global.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/cnd-core@1.1.11/dist/components/react-component-integration.css" /> 
+    
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 0;
+            padding: 0;
+            background: transparent;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .container {
+            position: relative;
+            border: 1px solid #e1e5e9;
+            border-radius: 6px;
+            overflow: hidden;
+            background: white;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .graph-wrapper {
+            position: relative;
+            min-height: 400px; /* Ensure minimum height */
+            flex: 1;
+            display: flex;
+        }
+        
+        #graph-container {
+            width: 100%;
+            height: 100%;
+            min-height: 400px;
+            display: block;
+            flex: 1;
+        }
+        
+        .footer {
+            text-align: center;
+            padding: 6px;
+            background: #f8f9fa;
+            border-top: 1px solid #e1e5e9;
+            font-size: 11px;
+            color: #6a737d;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .footer-text {
+            flex: 1;
+        }
+        
+        .reset-btn {
+            background: #0366d6;
+            color: white;
+            border: none;
+            padding: 3px 8px;
+            border-radius: 3px;
+            font-size: 11px;
+            cursor: pointer;
+            transition: background-color 0.15s ease;
+            line-height: 1.2;
+        }
+    </style>
 
 
 
 <body>
+    <div class="container">
+        <div class="graph-wrapper">
+            <!-- WebCola sPyTial Graph Element -->
+            <webcola-cnd-graph 
+                id="graph-container"
+                width="{{ width }}" 
+                height="{{ height }}"
+                layoutFormat="default"
+                aria-label="Interactive graph visualization">
+            </webcola-cnd-graph>
+        </div>
+        
+        <div class="footer">
+            <span class="footer-text">Powered by Cope and Drag 1.1.11</span>
+            <button class="reset-btn" onclick="resetLayout()" title="Reset layout">
+                ↻ Reset
+            </button>
+        </div>
+    </div>
+    
     <div id="error-message"></div>
     <div id="error-core"></div>
-    
-    <!-- WebCola sPyTial Graph Element -->
-    <webcola-cnd-graph 
-        id="graph-container"
-        width="{{ width }}" 
-        height="{{ height }}"
-        layoutFormat="default"
-        aria-label="Interactive graph visualization">
-    </webcola-cnd-graph>
-    <p>Powered by Cope and Drag 1.1.10-beta.2</p>
 
 
     <script>
@@ -34,12 +110,25 @@
         const cndSpec = `{{ cnd_spec | safe }}`;
         const jsonData = `{{ python_data | safe }}`;
 
+        // Global variables for reset functionality
+        let instanceLayout = null;
+        let graphElement = null;
+
+        /**
+         * Reset the graph layout
+         */
+        async function resetLayout() {
+            if (graphElement && instanceLayout) {
+                await graphElement.renderLayout(instanceLayout);
+            }
+        }
+
 
         /**
          * Load and render the graph using the webcola-cnd-graph custom element
          */
         async function loadGraph() {
-            const graphElement = document.getElementById('graph-container');
+            graphElement = document.getElementById('graph-container');
 
             // Check if CnD Core is available
             if (typeof CndCore === 'undefined') {
@@ -122,7 +211,7 @@
 
                 }  
 
-                const instanceLayout = layoutResult.layout;
+                instanceLayout = layoutResult.layout;
                 const webcolaGraphElement = document.getElementById('graph-container');
                 //webcolaGraphElement.removeAttribute('unsat'); // Clear unsat state
 
