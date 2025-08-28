@@ -8,9 +8,9 @@
     
     <script src="https://d3js.org/d3.v4.min.js"></script>
 
-    <script src="https://cdn.jsdelivr.net/npm/cnd-core@1.1.11/dist/browser/cnd-core-complete.global.js"></script>  
-    <script src="https://cdn.jsdelivr.net/npm/cnd-core@1.1.11/dist/components/react-component-integration.global.js"></script>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/cnd-core@1.1.11/dist/components/react-component-integration.css" /> 
+    <script src="https://cdn.jsdelivr.net/npm/cnd-core@1.1.12/dist/browser/cnd-core-complete.global.js"></script>  
+    <script src="https://cdn.jsdelivr.net/npm/cnd-core@1.1.12/dist/components/react-component-integration.global.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/cnd-core@1.1.12/dist/components/react-component-integration.css" /> 
     
     <style>
         body {
@@ -56,25 +56,23 @@
             border-top: 1px solid #e1e5e9;
             font-size: 11px;
             color: #6a737d;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        
-        .footer-text {
-            flex: 1;
         }
         
         .reset-btn {
             background: #0366d6;
             color: white;
             border: none;
-            padding: 3px 8px;
+            padding: 4px 8px;
             border-radius: 3px;
-            font-size: 11px;
+            font-size: 12px;
             cursor: pointer;
             transition: background-color 0.15s ease;
             line-height: 1.2;
+            margin-left: 8px;
+        }
+        
+        .reset-btn:hover {
+            background: #0256cc;
         }
     </style>
 
@@ -94,10 +92,7 @@
         </div>
         
         <div class="footer">
-            <span class="footer-text">Powered by Cope and Drag 1.1.11</span>
-            <button class="reset-btn" onclick="resetLayout()" title="Reset layout">
-                ↻ Reset
-            </button>
+            <span>Powered by Cope and Drag 1.1.11</span>
         </div>
     </div>
     
@@ -123,6 +118,21 @@
             }
         }
 
+
+        /**
+         * Create and add reset button to the graph toolbar
+         */
+        function addResetButton() {
+            if (graphElement && graphElement.addToolbarControl) {
+                const resetButton = document.createElement('button');
+                resetButton.className = 'reset-btn';
+                resetButton.innerHTML = '↻ Reset';
+                resetButton.title = 'Reset layout';
+                resetButton.onclick = resetLayout;
+                
+                graphElement.addToolbarControl(resetButton);
+            }
+        }
 
         /**
          * Load and render the graph using the webcola-cnd-graph custom element
@@ -222,6 +232,9 @@
 
                 // Render the graph
                 await graphElement.renderLayout(instanceLayout);
+                
+                // Add reset button to toolbar after successful rendering
+                addResetButton();
             } catch (error) {
                 console.error('Error rendering graph:', error);
                 if (window.showGeneralError) {
