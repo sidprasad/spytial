@@ -51,3 +51,6 @@ htmlcov/
 
 # Generated visualization files
 cnd_visualization.html
+
+# Erroneous version files from broken pip install commands
+=*.*.*
