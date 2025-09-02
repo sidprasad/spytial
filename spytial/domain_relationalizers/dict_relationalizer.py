@@ -31,6 +31,6 @@ class DictRelationalizer(RelationalizerBase):
             vid = walker_func(v)
             
             # Create a ternary relation: keyval(dict, key, value)
-            relations.append(Relation("keyval", [obj_id, key_id, vid]))
+            relations.append(Relation("kv", [obj_id, key_id, vid]))
 
         return atoms, relations
