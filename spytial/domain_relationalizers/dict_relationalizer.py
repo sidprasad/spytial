@@ -14,14 +14,23 @@ class DictRelationalizer(RelationalizerBase):
         obj_id = walker_func._get_id(obj)
         atom = Atom(id=obj_id, type="dict", label=f"dict{{{len(obj)}}}")
 
+        atoms = [atom]
         relations = []
         for k, v in obj.items():
-            vid = walker_func(v)
+            # Create an atom for the key
+            key_id = f"{obj_id}_key_{len(relations)}"
             key_str = (
                 str(k)
                 if isinstance(k, (str, int, float, bool))
                 else f"key_{len(relations)}"
             )
-            relations.append(Relation(key_str, [obj_id, vid]))
+            key_atom = Atom(id=key_id, type=type(k).__name__, label=key_str)
+            atoms.append(key_atom)
+            
+            # Get the value ID
+            vid = walker_func(v)
+            
+            # Create a ternary relation: keyval(dict, key, value)
+            relations.append(Relation("keyval", [obj_id, key_id, vid]))
 
-        return [atom], relations
+        return atoms, relations
