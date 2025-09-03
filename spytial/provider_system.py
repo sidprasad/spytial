@@ -90,6 +90,7 @@ class CnDDataInstanceBuilder:
         self._rels = {}
         self._id_counter = 0
         self._collected_decorators = {"constraints": [], "directives": []}
+        self._current_depth = 0  # Track current recursion depth
         # Extensibility mechanism: custom reifiers for specific types
         self._custom_reifiers = {}
 
@@ -100,6 +101,7 @@ class CnDDataInstanceBuilder:
         self._rels.clear()
         self._id_counter = 0
         self._collected_decorators = {"constraints": [], "directives": []}
+        self._current_depth = 0  # Reset depth
 
         try:
             self._walk(obj)
@@ -175,13 +177,15 @@ class CnDDataInstanceBuilder:
             self._id_counter += 1
         return self._seen[oid]
 
-    def _walk(self, obj: Any, depth: int = 0, max_depth: int = 100) -> str:
+    def _walk(self, obj: Any, max_depth: int = 100) -> str:
         """Walk an object using the appropriate provider."""
-        if depth > max_depth:
+        self._current_depth += 1
+        if self._current_depth > max_depth:
             raise RecursionError("Maximum recursion depth exceeded")
 
         oid = id(obj)
         if oid in self._seen:
+            self._current_depth -= 1
             return self._seen[oid]
 
         # Collect decorators from this object
@@ -196,7 +200,7 @@ class CnDDataInstanceBuilder:
             self._collected_decorators["directives"].extend(
                 obj_decorators["directives"]
             )
-        except Exception:
+        except Exception as e:
             # If decorator collection fails, continue without them
             # This prevents the entire visualization from failing due to annotation issues
             pass
@@ -255,7 +259,10 @@ class CnDDataInstanceBuilder:
             atom_ids = list(rel_data[1:])  # All atoms after the name
             self._rels.setdefault(rel_name, []).append(atom_ids)
 
-        # Return the ID of the primary atom (first one) for compatibility
+        # Decrement depth after processing
+        self._current_depth -= 1
+
+        # Return the ID of the primary atom
         return primary_atom_id
 
     def __call__(self, obj: Any) -> str:

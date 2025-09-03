@@ -36,12 +36,14 @@ class GenericObjectRelationalizer(RelationalizerBase):
 
         # Use inspect to get all members, filtering for relevant attributes
         for name, value in inspect.getmembers(obj):
-            # Skip private attributes, methods, functions, and modules
+            # Skip private attributes, methods, functions, modules, and built-ins
             if (
                 name.startswith("_") 
                 or inspect.ismethod(value) 
                 or inspect.isfunction(value) 
                 or inspect.ismodule(value)
+                or inspect.isbuiltin(value)  # Catch built-in methods
+                or isinstance(value, (int, float, str, bool, bytes, bytearray, type(None)))  # Skip primitives
             ):
                 continue
             
@@ -49,15 +51,17 @@ class GenericObjectRelationalizer(RelationalizerBase):
             if isinstance(value, property) or hasattr(value, '__get__'):
                 try:
                     actual_value = getattr(obj, name)
-                    # Skip if it's still a descriptor
-                    if actual_value is value:
+                    # Skip if it's still a descriptor or primitive
+                    if actual_value is value or isinstance(actual_value, (int, float, str, bool, bytes, bytearray, type(None))):
                         continue
                     vid = walker_func(actual_value)
                     relations.append(Relation(name, [obj_id, vid]))
                 except (AttributeError, TypeError, ValueError):
                     continue
             else:
-                # Regular attribute
+                # Regular attribute - skip primitives
+                if isinstance(value, (int, float, str, bool, bytes, bytearray, type(None))):
+                    continue
                 vid = walker_func(value)
                 relations.append(Relation(name, [obj_id, vid]))
 
