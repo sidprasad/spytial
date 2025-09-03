@@ -81,18 +81,17 @@
 <body>
     <div class="container">
         <div class="graph-wrapper">
-            <!-- WebCola sPyTial Graph Element -->
-            <webcola-cnd-graph 
-                id="graph-container"
-                width="{{ width }}" 
-                height="{{ height }}"
-                layoutFormat="default"
-                aria-label="Interactive graph visualization">
-            </webcola-cnd-graph>
+            <!-- Structured Input Graph Element -->
+            <structured-input-graph 
+                id="structured-graph"
+                cnd-spec=""
+                show-export="true"
+                style="width: 100%; height: 100%;">
+            </structured-input-graph>
         </div>
         
         <div class="footer">
-            <span>Cope and Drag 1.1.14</span>
+            <span>Cope and Drag 1.2.0</span>
         </div>
     </div>
     
@@ -106,18 +105,17 @@
         const jsonData = `{{ python_data | safe }}`;
 
         // Global variables for reset functionality
-        let instanceLayout = null;
         let graphElement = null;
 
         /**
          * Reset the graph layout
          */
         async function resetLayout() {
-            if (graphElement && instanceLayout) {
-                await graphElement.renderLayout(instanceLayout);
+            if (graphElement) {
+                // Re-render with initial data
+                await loadGraph();
             }
         }
-
 
         /**
          * Create and add reset button to the graph toolbar
@@ -135,10 +133,10 @@
         }
 
         /**
-         * Load and render the graph using the webcola-cnd-graph custom element
+         * Load and render the graph using the structured-input-graph custom element
          */
         async function loadGraph() {
-            graphElement = document.getElementById('graph-container');
+            graphElement = document.getElementById('structured-graph');
 
             // Check if CnD Core is available
             if (typeof CndCore === 'undefined') {
@@ -153,14 +151,7 @@
                 window.mountErrorMessageModal('error-core');
             }
 
-
-
-
             try {
-                //console.log('Starting graph rendering...');
-                //console.log('sPyTial Spec:', cndSpec);
-                //console.log('JSON Data:', jsonData.substring(0, 200) + '...');
-
                 // Parse JSON data if it's a string
                 let parsedData;
                 try {
@@ -171,77 +162,32 @@
 
                 // Create a data instance from the JSON data
                 const dataInstance = new CndCore.JSONDataInstance(parsedData);
-                window.dataInstance = dataInstance; // Expose for debugging
 
-                // Initialize the evaluation context
-                const evaluationContext = { sourceData: dataInstance };
-                const sgqEvaluator = new CndCore.SGraphQueryEvaluator();
-                sgqEvaluator.initialize(evaluationContext);
-                console.log('Evaluation context initialized');
+                // Set the CnD spec on the component
+                graphElement.setCnDSpec(cndSpec);
 
-                window.evaluator = sgqEvaluator; // Expose evaluator for debugging
+                // Set the data instance on the component
+                graphElement.setDataInstance(dataInstance);
 
-                // Parse the CND specification
-                const layoutSpec = CndCore.parseLayoutSpec(cndSpec);
-                console.log('Layout spec parsed');
+                // Add event listeners for interactive features
+                graphElement.addEventListener('atom-added', (event) => {
+                    console.log('Atom added:', event.detail);
+                });
 
-                // Generate the layout
-                const layoutInstance = new CndCore.LayoutInstance(layoutSpec, sgqEvaluator, 0, true);
-                const layoutResult = layoutInstance.generateLayout(dataInstance, {});
-                console.log('Layout generated');
+                graphElement.addEventListener('data-exported', (event) => {
+                    console.log('Data exported:', event.detail);
+                });
 
-                // Check for layout errors
-                if (layoutResult.error) {
-                    console.error('Layout generation error:', layoutResult.error);
+                graphElement.addEventListener('edge-creation-requested', (event) => {
+                    console.log('Edge created:', event.detail);
+                });
 
-                    // Check if this is a constraint conflict error
-                    if (layoutResult.error.errorMessages) {
-                        if (window.showPositionalError) {
-                            window.showPositionalError(layoutResult.error.errorMessages);
-                        } else {
-                            showError(`Positional constraint conflict: ${layoutResult.error.message}`);
-                        }
-                    } else if (layoutResult.error.overlappingNodes) {
-                        if (window.showGroupOverlapError) {
-                            window.showGroupOverlapError(layoutResult.error.message);
-                        } else {
-                            showError(`Group overlap error: ${layoutResult.error.message}`);
-                        }
-                    } else {
-                        if (window.showGeneralError) {
-                            window.showGeneralError(`Layout generation error: ${layoutResult.error.message}`);
-                        } else {
-                            showError(`Layout generation error: ${layoutResult.error.message}`);
-                        }
-                    }
-
-                    // Set the webcola-cnd-graph element to indicate unsat state
-                    const webcolaGraphElement = document.getElementById('graph-container');
-                    webcolaGraphElement.setAttribute('unsat', "");
-
-                }  
-
-                instanceLayout = layoutResult.layout;
-                const webcolaGraphElement = document.getElementById('graph-container');
-                //webcolaGraphElement.removeAttribute('unsat'); // Clear unsat state
-
-                // // Clear errors on successful layout generation
-                // if (window.clearAllErrors) {
-                //     window.clearAllErrors();
-                // }
-
-                // Render the graph
-                await graphElement.renderLayout(instanceLayout);
-                
-                // Add reset button to toolbar after successful rendering
+                // Add reset button after setup
                 addResetButton();
+
             } catch (error) {
-                console.error('Error rendering graph:', error);
-                if (window.showGeneralError) {
-                    window.showGeneralError(`Layout generation failed: ${error.message}`);
-                } else {
-                    showError(`Error rendering graph: ${error.message}`);
-                }
+                console.error('Error setting up graph:', error);
+                showError(`Error setting up graph: ${error.message}`);
             }
         }
 
@@ -262,8 +208,6 @@
                 console.error('Error div not found. Error message:', message);
             }
         }
-
-
 
         // Auto-load when page loads
         window.addEventListener('load', loadGraph);
