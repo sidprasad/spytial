@@ -103,10 +103,93 @@
         // Embedded data passed from the server
         const cndSpec = `{{ cnd_spec | safe }}`;
         const jsonData = `{{ python_data | safe }}`;
+        const exportDir = `{{ export_dir | safe }}`;
+        const dataclassName = `{{ dataclass_name | safe }}`;
 
         // Global variables for reset functionality
         let graphElement = null;
+        let lastExportedData = null;
 
+        /**
+         * Export current data to JSON file
+         */
+        function exportDataToFile() {
+            if (graphElement && graphElement.getDataInstance) {
+                try {
+                    const currentData = graphElement.getDataInstance();
+                    const jsonString = JSON.stringify(currentData, null, 2);
+                    
+                    // Create download link
+                    const blob = new Blob([jsonString], { type: 'application/json' });
+                    const url = URL.createObjectURL(blob);
+                    
+                    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+                    const filename = `${dataclassName}_export_${timestamp}.json`;
+                    
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = filename;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                    
+                    // Also try to save to the watched directory if possible
+                    // (This requires a local server or file system access)
+                    tryAutoSaveToWatchedDir(currentData, filename);
+                    
+                    // Show success message
+                    showInfo(`Data exported as ${filename}`);
+                    lastExportedData = currentData;
+                    
+                } catch (error) {
+                    console.error('Export failed:', error);
+                    showError(`Export failed: ${error.message}`);
+                }
+            }
+        }
+
+        /**
+         * Try to automatically save to the watched directory (for interactive mode)
+         */
+        function tryAutoSaveToWatchedDir(data, filename) {
+            // This would require either:
+            // 1. A local web server that can write files
+            // 2. File System Access API (limited browser support)
+            // 3. A WebSocket connection to Python
+            
+            // For now, we'll just trigger a custom event that could be intercepted
+            const autoSaveEvent = new CustomEvent('auto-save-requested', {
+                detail: { data: data, filename: filename, exportDir: exportDir }
+            });
+            window.dispatchEvent(autoSaveEvent);
+            
+            // Log for debugging
+            console.log('Auto-save requested:', { filename, exportDir });
+        }
+
+        /**
+         * Copy current data to clipboard as JSON
+         */
+        function copyDataToClipboard() {
+            if (graphElement && graphElement.getDataInstance) {
+                try {
+                    const currentData = graphElement.getDataInstance();
+                    const jsonString = JSON.stringify(currentData, null, 2);
+                    
+                    navigator.clipboard.writeText(jsonString).then(() => {
+                        showInfo('Data copied to clipboard!');
+                        lastExportedData = currentData;
+                    }).catch(err => {
+                        console.error('Failed to copy to clipboard:', err);
+                        showError('Failed to copy to clipboard');
+                    });
+                } catch (error) {
+                    console.error('Copy failed:', error);
+                    showError(`Copy failed: ${error.message}`);
+                }
+            }
+        }
         /**
          * Reset the graph layout
          */
@@ -118,16 +201,33 @@
         }
 
         /**
-         * Create and add reset button to the graph toolbar
+         * Create and add export buttons to the graph toolbar
          */
-        function addResetButton() {
+        function addExportControls() {
             if (graphElement && graphElement.addToolbarControl) {
+                // Export to file button
+                const exportButton = document.createElement('button');
+                exportButton.className = 'reset-btn';
+                exportButton.innerHTML = '💾 Export JSON';
+                exportButton.title = 'Export data to JSON file';
+                exportButton.onclick = exportDataToFile;
+                
+                // Copy to clipboard button
+                const copyButton = document.createElement('button');
+                copyButton.className = 'reset-btn';
+                copyButton.innerHTML = '📋 Copy JSON';
+                copyButton.title = 'Copy data to clipboard';
+                copyButton.onclick = copyDataToClipboard;
+                
+                // Reset button
                 const resetButton = document.createElement('button');
                 resetButton.className = 'reset-btn';
                 resetButton.innerHTML = '↻ Reset';
                 resetButton.title = 'Reset layout';
                 resetButton.onclick = resetLayout;
                 
+                graphElement.addToolbarControl(exportButton);
+                graphElement.addToolbarControl(copyButton);
                 graphElement.addToolbarControl(resetButton);
             }
         }
@@ -182,8 +282,8 @@
                     console.log('Edge created:', event.detail);
                 });
 
-                // Add reset button after setup
-                addResetButton();
+                // Add export controls after setup
+                addExportControls();
 
             } catch (error) {
                 console.error('Error setting up graph:', error);
@@ -206,6 +306,29 @@
                 `;
             } else {
                 console.error('Error div not found. Error message:', message);
+            }
+        }
+
+        /**
+         * Display a success/info message in the error-message div.
+         * @param {string} message - The info message to display.
+         */
+        function showInfo(message) {
+            const errorDiv = document.getElementById('error-message');
+            if (errorDiv) {
+                errorDiv.innerHTML = `
+                    <div style="color: green; padding: 10px; border: 1px solid green; background-color: #e6ffe6; margin-top: 10px;">
+                        <h3>Success</h3>
+                        <p>${message}</p>
+                        <p><small>💡 Use <code>spytial.load_from_json_file('filename.json', ${dataclassName})</code> to load this data back into Python</small></p>
+                    </div>
+                `;
+                // Auto-hide after 5 seconds
+                setTimeout(() => {
+                    errorDiv.innerHTML = '';
+                }, 5000);
+            } else {
+                console.log('Info message:', message);
             }
         }
 
