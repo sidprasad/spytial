@@ -23,7 +23,7 @@ from .dataclassbuilder import (
 try:
     from .dataclass_widget import (
         DataclassInputWidget,
-        SimpleDataclassWidget, 
+         
         create_dataclass_widget,
         dataclass_widget
     )

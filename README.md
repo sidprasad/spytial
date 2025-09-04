@@ -80,7 +80,11 @@ This project is licensed under the MIT License. See the LICENSE file for details
 
 ## TODO:
 
-- Figure out the constraint conflict story here.
-- Documentation and demos.
-  - I don't like the demos of use (which I asked CoPilot to generate)
+No we're still really struggling with the widget.
+Restructure dataclassbuilder AND dataclass_widget so this works.
 
+Important things:
+
+Right now the graph (as defined in the input_template never shows!! Is this because widgets may not have access to external things in CDNs? If so, use iframes + other well known patterns.
+
+Second : We shouldnt have timeouts. The idea is that the input builder always has an idea of the JSON / which can then be derelationalized. SO there is like a continuous observer pattern (observe?) on widget.value

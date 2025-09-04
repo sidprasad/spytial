@@ -454,8 +454,11 @@ def build_input(
     html_content = html_content.replace("{{ dataclass_name | safe }}", cls.__name__)
 
     if method == "file":
-        # Generate output filename
-        output_path = f"input_builder_{cls.__name__.lower()}.html"
+        # Generate output filename in the specified export directory if provided
+        if export_dir and os.path.exists(export_dir):
+            output_path = os.path.join(export_dir, f"input_builder_{cls.__name__.lower()}.html")
+        else:
+            output_path = f"input_builder_{cls.__name__.lower()}.html"
 
         # Write HTML file
         with open(output_path, "w") as f:
