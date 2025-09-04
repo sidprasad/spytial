@@ -54,33 +54,34 @@ if IPYWIDGETS_AVAILABLE:
         def _setup_widget(self):
             """Setup the widget with iframe and file watching."""
             
-            # Create temporary directory for HTML file and data export
+            # Create temporary directory for data export
             self._export_dir = tempfile.mkdtemp(prefix='spytial_widget_')
             
-            # Generate HTML file using build_input
+            # Generate HTML content using build_input
             try:
                 from .dataclassbuilder import build_input
                 
-                # Create HTML file instead of inline content
-                html_path = build_input(
+                # Get HTML content directly (not file)
+                html_content = build_input(
                     self.dataclass_type,
-                    method='file',
+                    method='inline',
                     auto_open=False,
                     export_dir=self._export_dir
                 )
                 
-                self._html_file = os.path.abspath(html_path)
+                # Create iframe with embedded HTML content
+                # Use data URL to embed HTML directly
+                import base64
+                html_b64 = base64.b64encode(html_content.encode('utf-8')).decode('utf-8')
                 
-                # Create iframe to display the HTML file
                 iframe_html = f"""
                 <iframe 
-                    src="file://{self._html_file}" 
+                    src="data:text/html;base64,{html_b64}" 
                     width="100%" 
                     height="600px" 
                     frameborder="0"
                     style="border: 1px solid #ddd; border-radius: 4px;">
-                    <p>Your browser does not support iframes. 
-                    <a href="file://{self._html_file}" target="_blank">Open in new window</a></p>
+                    <p>Your browser does not support iframes.</p>
                 </iframe>
                 """
                 
@@ -91,9 +92,7 @@ if IPYWIDGETS_AVAILABLE:
                 # Create layout
                 self.widget = VBox([
                     HTML(f"<h3>{self.dataclass_type.__name__} Builder</h3>"),
-                    HTML("<p>Build your data in the interface below. The value will update automatically.</p>"),
                     self.iframe_widget,
-                    HTML("<hr><b>Current Status:</b>"),
                     self.status_output
                 ])
                 
@@ -101,8 +100,7 @@ if IPYWIDGETS_AVAILABLE:
                 self._start_file_observer()
                 
                 with self.status_output:
-                    print(f"✅ Widget ready! Export directory: {self._export_dir}")
-                    print("💡 Data will be captured automatically when you export from the interface.")
+                    print("Widget ready - export data to see it here")
                 
             except Exception as e:
                 # Fallback to error message
@@ -160,13 +158,11 @@ if IPYWIDGETS_AVAILABLE:
                 # Update status display
                 with self.status_output:
                     self.status_output.clear_output()
-                    print(f"🔄 Value updated from: {os.path.basename(file_path)}")
-                    print(f"📊 Current value: {new_value}")
-                    print(f"🕒 Updated at: {time.strftime('%H:%M:%S')}")
+                    print(f"Updated: {new_value}")
                     
             except Exception as e:
                 with self.status_output:
-                    print(f"❌ Error updating value: {e}")
+                    print(f"Error: {e}")
         
         @property 
         def value(self):
