@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Employee Input Builder - Complex Example</title>
+    
+    <script src="https://d3js.org/d3.v4.min.js"></script>
+
+    <script src="https://cdn.jsdelivr.net/npm/cnd-core@1.2.0/dist/browser/cnd-core-complete.global.js"></script>  
+    <script src="https://cdn.jsdelivr.net/npm/cnd-core@1.2.0/dist/components/react-component-integration.global.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/cnd-core@1.2.0/dist/components/react-component-integration.css" /> 
+    
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 0;
+            padding: 0;
+            background: transparent;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .container {
+            position: relative;
+            border: 1px solid #e1e5e9;
+            border-radius: 6px;
+            overflow: hidden;
+            background: white;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .graph-wrapper {
+            position: relative;
+            min-height: 400px; /* Ensure minimum height */
+            flex: 1;
+            display: flex;
+        }
+        
+        #graph-container {
+            width: 100%;
+            height: 100%;
+            min-height: 400px;
+            display: block;
+            flex: 1;
+        }
+        
+        .footer {
+            text-align: center;
+            padding: 6px;
+            background: #f8f9fa;
+            border-top: 1px solid #e1e5e9;
+            font-size: 11px;
+            color: #6a737d;
+        }
+        
+        .reset-btn {
+            background: #0366d6;
+            color: white;
+            border: none;
+            padding: 8px 8px;
+            border-radius: 3px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: background-color 0.15s ease;
+            line-height: 1.2;
+            margin-left: 8px;
+        }
+        
+        .reset-btn:hover {
+            background: #0256cc;
+        }
+    </style>
+
+
+
+<body>
+    <div class="container">
+        <div class="graph-wrapper">
+            <!-- Structured Input Graph Element -->
+            <structured-input-graph 
+                id="structured-graph"
+                cnd-spec=""
+                show-export="true"
+                style="width: 100%; height: 100%;">
+            </structured-input-graph>
+        </div>
+        
+        <div class="footer">
+            <span>Cope and Drag 1.2.0</span>
+        </div>
+    </div>
+    
+    <div id="error-message"></div>
+    <div id="error-core"></div>
+
+
+    <script>
+        // Embedded data passed from the server
+        const cndSpec = `constraints:
+- group:
+    addToGroup: 1
+    field: skills
+    groupOn: 0
+- orientation:
+    directions:
+    - above
+    selector: title
+dataclass_name: Employee
+directives: []
+fields:
+  address:
+    is_dataclass: false
+    name: address
+    required: false
+    type: typing.Optional[__main__.Address]
+  department:
+    is_dataclass: false
+    name: department
+    required: false
+    type: <class 'str'>
+  name:
+    is_dataclass: false
+    name: name
+    required: false
+    type: <class 'str'>
+  salary:
+    is_dataclass: false
+    name: salary
+    required: false
+    type: <class 'float'>
+  skills:
+    is_dataclass: false
+    name: skills
+    required: false
+    type: typing.List[str]
+  title:
+    is_dataclass: false
+    name: title
+    required: false
+    type: <class 'str'>
+nested_classes: {}
+`;
+        const jsonData = `{"atoms": [{"id": "n1", "type": "str", "label": "", "type_hierarchy": ["str", "object"]}, {"id": "n2", "type": "list", "label": "list[0]", "type_hierarchy": ["list", "object"]}, {"id": "n3", "type": "NoneType", "label": "None", "type_hierarchy": ["NoneType", "object"]}, {"id": "n4", "type": "float", "label": "0.0", "type_hierarchy": ["float", "object"]}, {"id": "n0", "type": "Employee", "label": "Employee", "type_hierarchy": ["Employee", "object"]}], "relations": [{"id": "name", "name": "name", "types": ["object", "object"], "tuples": [{"atoms": ["n0", "n1"], "types": ["Employee", "str"]}]}, {"id": "title", "name": "title", "types": ["object", "object"], "tuples": [{"atoms": ["n0", "n1"], "types": ["Employee", "str"]}]}, {"id": "department", "name": "department", "types": ["object", "object"], "tuples": [{"atoms": ["n0", "n1"], "types": ["Employee", "str"]}]}, {"id": "skills", "name": "skills", "types": ["object", "object"], "tuples": [{"atoms": ["n0", "n2"], "types": ["Employee", "list"]}]}, {"id": "address", "name": "address", "types": ["object", "object"], "tuples": [{"atoms": ["n0", "n3"], "types": ["Employee", "NoneType"]}]}, {"id": "salary", "name": "salary", "types": ["object", "object"], "tuples": [{"atoms": ["n0", "n4"], "types": ["Employee", "float"]}]}], "types": [{"_": "type", "id": "str", "types": ["str", "object"], "atoms": [{"_": "atom", "id": "n1", "type": "str"}], "meta": {"builtin": true}}, {"_": "type", "id": "list", "types": ["list", "object"], "atoms": [{"_": "atom", "id": "n2", "type": "list"}], "meta": {"builtin": false}}, {"_": "type", "id": "NoneType", "types": ["NoneType", "object"], "atoms": [{"_": "atom", "id": "n3", "type": "NoneType"}], "meta": {"builtin": true}}, {"_": "type", "id": "float", "types": ["float", "object"], "atoms": [{"_": "atom", "id": "n4", "type": "float"}], "meta": {"builtin": true}}, {"_": "type", "id": "Employee", "types": ["Employee", "object"], "atoms": [{"_": "atom", "id": "n0", "type": "Employee"}], "meta": {"builtin": false}}]}`;
+
+        // Global variables for reset functionality
+        let graphElement = null;
+
+        /**
+         * Reset the graph layout
+         */
+        async function resetLayout() {
+            if (graphElement) {
+                // Re-render with initial data
+                await loadGraph();
+            }
+        }
+
+        /**
+         * Create and add reset button to the graph toolbar
+         */
+        function addResetButton() {
+            if (graphElement && graphElement.addToolbarControl) {
+                const resetButton = document.createElement('button');
+                resetButton.className = 'reset-btn';
+                resetButton.innerHTML = '↻ Reset';
+                resetButton.title = 'Reset layout';
+                resetButton.onclick = resetLayout;
+                
+                graphElement.addToolbarControl(resetButton);
+            }
+        }
+
+        /**
+         * Load and render the graph using the structured-input-graph custom element
+         */
+        async function loadGraph() {
+            graphElement = document.getElementById('structured-graph');
+
+            // Check if CnD Core is available
+            if (typeof CndCore === 'undefined') {
+                console.error('CnD Core library is not available');
+                showError('CnD Core library failed to load. The visualization cannot be displayed.');
+                return;
+            }
+
+            // Step 1: Mount error message modal if available
+            if (window.mountErrorMessageModal) {
+                console.log('Mounting error message modal');
+                window.mountErrorMessageModal('error-core');
+            }
+
+            try {
+                // Parse JSON data if it's a string
+                let parsedData;
+                try {
+                    parsedData = typeof jsonData === 'string' ? JSON.parse(jsonData) : jsonData;
+                } catch (parseError) {
+                    throw new Error(`Failed to parse JSON data: ${parseError.message}`);
+                }
+
+                // Create a data instance from the JSON data
+                const dataInstance = new CndCore.JSONDataInstance(parsedData);
+
+                // Set the CnD spec on the component
+                graphElement.setCnDSpec(cndSpec);
+
+                // Set the data instance on the component
+                graphElement.setDataInstance(dataInstance);
+
+                // Add event listeners for interactive features
+                graphElement.addEventListener('atom-added', (event) => {
+                    console.log('Atom added:', event.detail);
+                });
+
+                graphElement.addEventListener('data-exported', (event) => {
+                    console.log('Data exported:', event.detail);
+                });
+
+                graphElement.addEventListener('edge-creation-requested', (event) => {
+                    console.log('Edge created:', event.detail);
+                });
+
+                // Add reset button after setup
+                addResetButton();
+
+            } catch (error) {
+                console.error('Error setting up graph:', error);
+                showError(`Error setting up graph: ${error.message}`);
+            }
+        }
+
+        /**
+         * Display an error message in the error-message div.
+         * @param {string} message - The error message to display.
+         */
+        function showError(message) {
+            const errorDiv = document.getElementById('error-message');
+            if (errorDiv) {
+                errorDiv.innerHTML = `
+                    <div style="color: red; padding: 10px; border: 1px solid red; background-color: #ffe6e6; margin-top: 10px;">
+                        <h3>Error</h3>
+                        <p>${message}</p>
+                    </div>
+                `;
+            } else {
+                console.error('Error div not found. Error message:', message);
+            }
+        }
+
+        // Auto-load when page loads
+        window.addEventListener('load', loadGraph);
+    </script>
+</body>
+
+</html>

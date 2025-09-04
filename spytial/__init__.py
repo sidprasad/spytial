@@ -9,6 +9,7 @@ from .provider_system import (
 )
 from .visualizer import diagram
 from .evaluator import evaluate
+from .dataclassbuilder import build_input, input_builder
 from .annotations import (
     # Class decorators
     orientation,
@@ -51,6 +52,9 @@ __all__ = [
     # Core functions
     "diagram",
     "evaluate",
+    # Dataclass input builder
+    "build_input",
+    "input_builder",
     # New relationalizer system
     "CnDDataInstanceBuilder",
     "RelationalizerBase",
