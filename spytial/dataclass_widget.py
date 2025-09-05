@@ -69,7 +69,7 @@ if IPYWIDGETS_AVAILABLE:
                     export_dir=self._export_dir
                 )
                 
-                # Create iframe with embedded HTML content
+                # Create iframe with embedded HTML content and message handler
                 # Use data URL to embed HTML directly
                 import base64
                 html_b64 = base64.b64encode(html_content.encode('utf-8')).decode('utf-8')
@@ -80,9 +80,56 @@ if IPYWIDGETS_AVAILABLE:
                     width="100%" 
                     height="600px" 
                     frameborder="0"
+                    id="spytial-iframe"
                     style="border: 1px solid #ddd; border-radius: 4px;">
                     <p>Your browser does not support iframes.</p>
                 </iframe>
+                <script>
+                // Global variable to store widget reference
+                window.spytialWidget_{id(self)} = null;
+                
+                window.addEventListener('message', function(event) {{
+                    if (event.data && event.data.type === 'spytial-export') {{
+                        // Save data to export directory
+                        const data = event.data.data;
+                        const filename = event.data.filename;
+                        const exportDir = event.data.exportDir;
+                        
+                        // Execute Python code to save file
+                        if (window.Jupyter && window.Jupyter.notebook && window.Jupyter.notebook.kernel) {{
+                            const code = `
+import json
+import os
+from spytial.dataclassbuilder import json_to_dataclass
+
+# Save export file  
+data = ${{JSON.stringify(event.data.data)}}
+export_dir = "${{event.data.exportDir}}"
+filename = "${{event.data.filename}}"
+filepath = os.path.join(export_dir, filename)
+os.makedirs(export_dir, exist_ok=True)
+with open(filepath, 'w') as f:
+    json.dump(data, f, indent=2)
+
+# Also update widget value directly
+try:
+    widget = spytial_widget_{id(self)}
+    if widget:
+        widget._current_value = json_to_dataclass(data, widget.dataclass_type)
+        with widget.status_output:
+            widget.status_output.clear_output()
+            print(f"Updated: {{widget._current_value}}")
+except:
+    pass
+`;
+                            window.Jupyter.notebook.kernel.execute(code);
+                        }}
+                    }}
+                }});
+                
+                // Store widget reference globally
+                window.spytialWidget_{id(self)} = window.spytialWidget_{id(self)} || {{}};
+                </script>
                 """
                 
                 # Create the widget components
@@ -98,6 +145,10 @@ if IPYWIDGETS_AVAILABLE:
                 
                 # Start file observer thread
                 self._start_file_observer()
+                
+                # Register this widget globally for JavaScript access
+                import sys
+                globals()[f'spytial_widget_{id(self)}'] = self
                 
                 with self.status_output:
                     print("Widget ready - export data to see it here")

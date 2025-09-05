@@ -119,12 +119,16 @@
                     const currentData = graphElement.getDataInstance();
                     const jsonString = JSON.stringify(currentData, null, 2);
                     
-                    // Create download link
-                    const blob = new Blob([jsonString], { type: 'application/json' });
-                    const url = URL.createObjectURL(blob);
-                    
+                    // Save to export directory using fetch (if supported)
                     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
                     const filename = `${dataclassName}_export_${timestamp}.json`;
+                    
+                    // Try to save via Python backend
+                    saveToExportDir(currentData, filename);
+                    
+                    // Also create browser download as backup
+                    const blob = new Blob([jsonString], { type: 'application/json' });
+                    const url = URL.createObjectURL(blob);
                     
                     const a = document.createElement('a');
                     a.href = url;
@@ -134,18 +138,48 @@
                     document.body.removeChild(a);
                     URL.revokeObjectURL(url);
                     
-                    // Also try to save to the watched directory if possible
-                    // (This requires a local server or file system access)
-                    tryAutoSaveToWatchedDir(currentData, filename);
-                    
-                    // Show success message
-                    showInfo(`Data exported as ${filename}`);
+                    showInfo('Data exported! Check widget.value');
                     lastExportedData = currentData;
                     
                 } catch (error) {
                     console.error('Export failed:', error);
                     showError(`Export failed: ${error.message}`);
                 }
+            }
+        }
+
+        /**
+         * Save data to export directory via Python kernel
+         */
+        function saveToExportDir(data, filename) {
+            try {
+                // Use Jupyter's kernel communication if available
+                if (window.Jupyter && window.Jupyter.notebook) {
+                    const code = `
+import json
+import os
+data = ${JSON.stringify(data)}
+export_dir = "${exportDir}"
+filename = "${filename}"
+filepath = os.path.join(export_dir, filename)
+os.makedirs(export_dir, exist_ok=True)
+with open(filepath, 'w') as f:
+    json.dump(data, f, indent=2)
+print(f"Saved to {filepath}")
+`;
+                    window.Jupyter.notebook.kernel.execute(code);
+                } else {
+                    // Fallback: trigger custom event that widget can listen for
+                    window.parent.postMessage({
+                        type: 'spytial-export',
+                        data: data,
+                        filename: filename,
+                        exportDir: exportDir,
+                        dataclassName: dataclassName
+                    }, '*');
+                }
+            } catch (error) {
+                console.error('Save to export dir failed:', error);
             }
         }
 
