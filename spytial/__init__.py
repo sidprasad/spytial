@@ -23,12 +23,10 @@ from .dataclassbuilder import (
 try:
     from .dataclass_widget import (
         DataclassInputWidget,
-         
         create_dataclass_widget,
-        dataclass_widget
+        dataclass_widget,
+        dataclass_builder  # Import the new unified function
     )
-    # Add alias mentioned in the issue
-    dataclass_builder = dataclass_widget
     WIDGETS_AVAILABLE = True
 except ImportError:
     WIDGETS_AVAILABLE = False
@@ -38,10 +36,13 @@ except ImportError:
             "ipywidgets is required for widget functionality. "
             "Install with: pip install ipywidgets"
         )
+    def dataclass_builder(*args, **kwargs):
+        raise ImportError(
+            "ipywidgets is required for widget functionality. "
+            "Install with: pip install ipywidgets"
+        )
     DataclassInputWidget = None
-    SimpleDataclassWidget = None
     create_dataclass_widget = dataclass_widget
-    dataclass_builder = dataclass_widget  # Alias for consistency
 from .annotations import (
     # Class decorators
     orientation,
@@ -97,7 +98,6 @@ __all__ = [
     "dataclass_builder",  # Alias for dataclass_widget
     "create_dataclass_widget",
     "DataclassInputWidget",
-    "SimpleDataclassWidget",
     # New relationalizer system
     "CnDDataInstanceBuilder",
     "RelationalizerBase",

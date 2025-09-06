@@ -390,6 +390,59 @@
                 loadGraph();
             }
         }, 1000);
+        
+        // Listen for value request messages from parent widget
+        window.addEventListener('message', function(event) {
+            try {
+                // Handle requests for current form data
+                if (event.data && event.data.type === 'spytial-get-value' && event.data.widgetId === '{{ widget_id | default("") }}') {
+                    console.log('Received value request from parent widget');
+                    
+                    if (graphElement && graphElement.getDataInstance) {
+                        try {
+                            const currentData = graphElement.getDataInstance();
+                            
+                            // Clean the data to ensure it's serializable
+                            const cleanData = JSON.parse(JSON.stringify(currentData));
+                            
+                            // Send response back to parent
+                            event.source.postMessage({
+                                type: 'spytial-value-response',
+                                widgetId: '{{ widget_id | default("") }}',
+                                data: cleanData,
+                                dataclassName: dataclassName
+                            }, '*');
+                            
+                            console.log('Sent current value to parent widget:', cleanData);
+                        } catch (error) {
+                            console.error('Error getting current data:', error);
+                            
+                            // Send error response
+                            event.source.postMessage({
+                                type: 'spytial-value-response',
+                                widgetId: '{{ widget_id | default("") }}',
+                                data: null,
+                                error: error.message,
+                                dataclassName: dataclassName
+                            }, '*');
+                        }
+                    } else {
+                        console.error('Graph element not available for value request');
+                        
+                        // Send error response
+                        event.source.postMessage({
+                            type: 'spytial-value-response',
+                            widgetId: '{{ widget_id | default("") }}',
+                            data: null,
+                            error: 'Graph not ready',
+                            dataclassName: dataclassName
+                        }, '*');
+                    }
+                }
+            } catch (error) {
+                console.error('Error handling message from parent:', error);
+            }
+        });
     </script>
 </body>
 
