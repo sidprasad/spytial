@@ -396,6 +396,7 @@ def build_input(
     height: Optional[int] = None,
     title: Optional[str] = None,
     export_dir: Optional[str] = None,
+    widget_id: Optional[str] = None,
 ) -> str:
     """
     Build an interactive input interface for a dataclass with spatial annotations.
@@ -452,6 +453,7 @@ def build_input(
     # Add export directory information
     html_content = html_content.replace("{{ export_dir | safe }}", export_dir)
     html_content = html_content.replace("{{ dataclass_name | safe }}", cls.__name__)
+    html_content = html_content.replace("{{ widget_id | default(\"\") }}", widget_id or "")
 
     if method == "file":
         # Generate output filename in the specified export directory if provided

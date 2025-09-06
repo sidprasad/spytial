@@ -117,18 +117,30 @@
             if (graphElement && graphElement.getDataInstance) {
                 try {
                     const currentData = graphElement.getDataInstance();
+                    
+                    // If we're in an iframe (widget mode), use postMessage
+                    if (window.parent !== window) {
+                        // Clean the data to ensure it's serializable
+                        const cleanData = JSON.parse(JSON.stringify(currentData));
+                        
+                        window.parent.postMessage({
+                            type: 'spytial-export',
+                            widgetId: '{{ widget_id | default("") }}',
+                            data: cleanData,
+                            dataclassName: dataclassName
+                        }, '*');
+                        showInfo('Data sent to widget!');
+                        lastExportedData = cleanData;
+                        return;
+                    }
+                    
+                    // Fallback: browser download for standalone mode
                     const jsonString = JSON.stringify(currentData, null, 2);
-                    
-                    // Save to export directory using fetch (if supported)
-                    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-                    const filename = `${dataclassName}_export_${timestamp}.json`;
-                    
-                    // Try to save via Python backend
-                    saveToExportDir(currentData, filename);
-                    
-                    // Also create browser download as backup
                     const blob = new Blob([jsonString], { type: 'application/json' });
                     const url = URL.createObjectURL(blob);
+                    
+                    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+                    const filename = `${dataclassName}_export_${timestamp}.json`;
                     
                     const a = document.createElement('a');
                     a.href = url;
@@ -138,48 +150,15 @@
                     document.body.removeChild(a);
                     URL.revokeObjectURL(url);
                     
-                    showInfo('Data exported! Check widget.value');
+                    showInfo(`Data exported as ${filename}`);
                     lastExportedData = currentData;
                     
                 } catch (error) {
                     console.error('Export failed:', error);
                     showError(`Export failed: ${error.message}`);
                 }
-            }
-        }
-
-        /**
-         * Save data to export directory via Python kernel
-         */
-        function saveToExportDir(data, filename) {
-            try {
-                // Use Jupyter's kernel communication if available
-                if (window.Jupyter && window.Jupyter.notebook) {
-                    const code = `
-import json
-import os
-data = ${JSON.stringify(data)}
-export_dir = "${exportDir}"
-filename = "${filename}"
-filepath = os.path.join(export_dir, filename)
-os.makedirs(export_dir, exist_ok=True)
-with open(filepath, 'w') as f:
-    json.dump(data, f, indent=2)
-print(f"Saved to {filepath}")
-`;
-                    window.Jupyter.notebook.kernel.execute(code);
-                } else {
-                    // Fallback: trigger custom event that widget can listen for
-                    window.parent.postMessage({
-                        type: 'spytial-export',
-                        data: data,
-                        filename: filename,
-                        exportDir: exportDir,
-                        dataclassName: dataclassName
-                    }, '*');
-                }
-            } catch (error) {
-                console.error('Save to export dir failed:', error);
+            } else {
+                showError('Graph element not found or getDataInstance method not available');
             }
         }
 
@@ -270,12 +249,32 @@ print(f"Saved to {filepath}")
          * Load and render the graph using the structured-input-graph custom element
          */
         async function loadGraph() {
+            console.log('Loading graph...');
             graphElement = document.getElementById('structured-graph');
+            
+            if (!graphElement) {
+                console.error('Graph element not found!');
+                showError('Graph container element not found');
+                return;
+            }
 
             // Check if CnD Core is available
             if (typeof CndCore === 'undefined') {
                 console.error('CnD Core library is not available');
                 showError('CnD Core library failed to load. The visualization cannot be displayed.');
+                
+                // Try to load the library again
+                console.log('Attempting to reload CnD library...');
+                const script = document.createElement('script');
+                script.src = 'https://cdn.jsdelivr.net/npm/cnd-core@1.2.0/dist/browser/cnd-core-complete.global.js';
+                script.onload = function() {
+                    console.log('CnD library reloaded, retrying...');
+                    setTimeout(loadGraph, 500);
+                };
+                script.onerror = function() {
+                    showError('Failed to load CnD library even on retry');
+                };
+                document.head.appendChild(script);
                 return;
             }
 
@@ -283,25 +282,35 @@ print(f"Saved to {filepath}")
             if (window.mountErrorMessageModal) {
                 console.log('Mounting error message modal');
                 window.mountErrorMessageModal('error-core');
+            } else {
+                console.log('Error message modal not available');
             }
 
             try {
+                console.log('Parsing data...', { jsonData, cndSpec });
+                
                 // Parse JSON data if it's a string
                 let parsedData;
                 try {
                     parsedData = typeof jsonData === 'string' ? JSON.parse(jsonData) : jsonData;
+                    console.log('Parsed data:', parsedData);
                 } catch (parseError) {
                     throw new Error(`Failed to parse JSON data: ${parseError.message}`);
                 }
 
                 // Create a data instance from the JSON data
+                console.log('Creating data instance...');
                 const dataInstance = new CndCore.JSONDataInstance(parsedData);
 
                 // Set the CnD spec on the component
+                console.log('Setting CnD spec...');
                 graphElement.setCnDSpec(cndSpec);
 
                 // Set the data instance on the component
+                console.log('Setting data instance...');
                 graphElement.setDataInstance(dataInstance);
+
+                console.log('Graph setup complete!');
 
                 // Add event listeners for interactive features
                 graphElement.addEventListener('atom-added', (event) => {
@@ -367,7 +376,20 @@ print(f"Saved to {filepath}")
         }
 
         // Auto-load when page loads
-        window.addEventListener('load', loadGraph);
+        window.addEventListener('load', function() {
+            console.log('Page loaded, starting graph setup...');
+            console.log('CndCore available:', typeof CndCore !== 'undefined');
+            console.log('Graph element:', document.getElementById('structured-graph'));
+            loadGraph();
+        });
+        
+        // Also try loading after a short delay in case of timing issues
+        setTimeout(function() {
+            if (!graphElement) {
+                console.log('Retrying graph load after delay...');
+                loadGraph();
+            }
+        }, 1000);
     </script>
 </body>
 
