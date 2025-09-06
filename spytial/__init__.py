@@ -27,6 +27,8 @@ try:
         create_dataclass_widget,
         dataclass_widget
     )
+    # Add alias mentioned in the issue
+    dataclass_builder = dataclass_widget
     WIDGETS_AVAILABLE = True
 except ImportError:
     WIDGETS_AVAILABLE = False
@@ -39,6 +41,7 @@ except ImportError:
     DataclassInputWidget = None
     SimpleDataclassWidget = None
     create_dataclass_widget = dataclass_widget
+    dataclass_builder = dataclass_widget  # Alias for consistency
 from .annotations import (
     # Class decorators
     orientation,
@@ -91,6 +94,7 @@ __all__ = [
     "InteractiveInputBuilder",
     # Widget functionality (when available)
     "dataclass_widget",
+    "dataclass_builder",  # Alias for dataclass_widget
     "create_dataclass_widget",
     "DataclassInputWidget",
     "SimpleDataclassWidget",

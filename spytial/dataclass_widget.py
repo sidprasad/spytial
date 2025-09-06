@@ -25,6 +25,7 @@ from .dataclassbuilder import json_to_dataclass
 # Only define widget classes if ipywidgets is available
 if IPYWIDGETS_AVAILABLE:
     from ipywidgets import HTML, Button, VBox, HBox, Text, Output
+    from traitlets import Dict as TraitDict, Unicode, observe
     
     class DataclassInputWidget:
         """
@@ -49,7 +50,7 @@ if IPYWIDGETS_AVAILABLE:
             self._setup_widget()
         
         def _setup_widget(self):
-            """Setup the widget with iframe and direct communication."""
+            """Setup the widget with iframe and simple manual update mechanism."""
             
             # Generate HTML content using build_input
             try:
@@ -68,56 +69,7 @@ if IPYWIDGETS_AVAILABLE:
                 import base64
                 html_b64 = base64.b64encode(html_content.encode('utf-8')).decode('utf-8')
                 
-                # Create message handler script
-                message_handler = f"""
-                <script>
-                window.addEventListener('message', function(event) {{
-                    try {{
-                        if (event.data && event.data.type === 'spytial-export' && event.data.widgetId === '{self._widget_id}') {{
-                            console.log('Received export data:', event.data);
-                            
-                            // Execute Python to update widget value directly
-                            var code = `
-# Update widget value directly
-try:
-    import json
-    from spytial.dataclassbuilder import json_to_dataclass
-    
-    # Get widget from global registry
-    widget_id = '{self._widget_id}'
-    if '_spytial_widgets' in globals() and widget_id in _spytial_widgets:
-        widget = _spytial_widgets[widget_id]
-        data = ${{JSON.stringify(event.data.data)}}
-        widget._current_value = json_to_dataclass(data, widget.dataclass_type)
-        
-        # Update status
-        with widget.status_output:
-            widget.status_output.clear_output()
-            print(f"✅ Exported: {{widget._current_value}}")
-    else:
-        print(f"Widget {{widget_id}} not found in registry")
-            
-except Exception as e:
-    print(f"Error updating widget: {{e}}")
-    import traceback
-    traceback.print_exc()
-`;
-                            
-                            if (window.Jupyter && window.Jupyter.notebook && window.Jupyter.notebook.kernel) {{
-                                window.Jupyter.notebook.kernel.execute(code);
-                            }} else {{
-                                console.error('Jupyter kernel not available');
-                            }}
-                        }}
-                    }} catch (error) {{
-                        console.error('Message handler error:', error);
-                    }}
-                }});
-                </script>
-                """
-                
                 iframe_html = f"""
-                {message_handler}
                 <iframe 
                     src="data:text/html;base64,{html_b64}" 
                     width="100%" 
@@ -133,10 +85,24 @@ except Exception as e:
                 self.iframe_widget = HTML(value=iframe_html)
                 self.status_output = Output()
                 
+                # Create JSON input text area for manual updates
+                self.json_input = Text(
+                    placeholder="Paste exported JSON here and click Update",
+                    description="JSON:",
+                    layout={'width': '500px'}
+                )
+                
+                # Create manual update button
+                self.update_button = Button(description="Update from JSON")
+                self.update_button.on_click(self._manual_update)
+                
                 # Create layout
                 self.widget = VBox([
                     HTML(f"<h3>{self.dataclass_type.__name__} Builder</h3>"),
                     self.iframe_widget,
+                    HTML("<h4>Update widget.value</h4>"),
+                    HTML("<p>After building data above, copy the exported JSON and paste it here:</p>"),
+                    HBox([self.json_input, self.update_button]),
                     self.status_output
                 ])
                 
@@ -146,12 +112,32 @@ except Exception as e:
                 globals()['_spytial_widgets'][str(self._widget_id)] = self
                 
                 with self.status_output:
-                    print("Widget ready - build and export your data!")
+                    print("Widget ready!")
+                    print("📋 Usage:")
+                    print("1. Use the visual interface above to build your data")
+                    print("2. Click 'Export JSON' button (downloads/shows JSON)")
+                    print("3. Copy the JSON and paste it in the field below")
+                    print("4. Click 'Update from JSON' to update widget.value")
+                    print("5. Access your dataclass instance with widget.value")
                 
             except Exception as e:
                 # Fallback to error message
                 error_html = f"<p><strong>Error creating widget:</strong> {e}</p>"
                 self.widget = VBox([HTML(value=error_html)])
+                
+        def _manual_update(self, button):
+            """Manual update triggered by button click."""
+            json_text = self.json_input.value.strip()
+            if not json_text:
+                with self.status_output:
+                    self.status_output.clear_output()
+                    print("❌ Please paste JSON data first")
+                return
+                
+            success = self.update_from_json(json_text)
+            if success:
+                # Clear the input field
+                self.json_input.value = ""
         
         def update_value_directly(self, data):
             """Update widget value directly from JavaScript."""
@@ -164,6 +150,26 @@ except Exception as e:
                 with self.status_output:
                     self.status_output.clear_output()
                     print(f"❌ Error: {e}")
+        
+        def update_from_json(self, json_data):
+            """Update widget value from JSON data (for manual updates)."""
+            try:
+                if isinstance(json_data, str):
+                    import json
+                    data = json.loads(json_data)
+                else:
+                    data = json_data
+                    
+                self._current_value = json_to_dataclass(data, self.dataclass_type)
+                with self.status_output:
+                    self.status_output.clear_output()
+                    print(f"✅ Manually updated: {self._current_value}")
+                return True
+            except Exception as e:
+                with self.status_output:
+                    self.status_output.clear_output()
+                    print(f"❌ Manual update error: {e}")
+                return False
         
         @property 
         def value(self):
