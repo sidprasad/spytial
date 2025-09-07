@@ -9,7 +9,7 @@ from .provider_system import (
 )
 from .visualizer import diagram
 from .evaluator import evaluate
-from .dataclassbuilder import (
+from .dataclass_widget import (
     build_input, 
     input_builder, 
     load_from_json_file, 
