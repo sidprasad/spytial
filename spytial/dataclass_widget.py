@@ -356,14 +356,16 @@ if IPYWIDGETS_AVAILABLE:
                 raise ValueError(f"{dataclass_type} is not a dataclass.")
 
             self.dataclass_type = dataclass_type
-            self._saved_value = None  # Stores the dataclass instance from manual updates
+            self._saved_value = (
+                None  # Stores the dataclass instance from manual updates
+            )
             self._saved_json_data = None  # Stores the raw JSON for consistency
             self._widget_id = str(uuid.uuid4())  # Use UUID for unique identification
 
             self._setup_widget()
 
         def _setup_widget(self):
-            """Setup the widget with iframe and simplified save-based communication."""
+            """Setup the widget with iframe and proper communication mechanism."""
 
             # Generate HTML content using build_input
             try:
@@ -383,8 +385,11 @@ if IPYWIDGETS_AVAILABLE:
                     "utf-8"
                 )
 
-                # Create simplified communication handler for "Save Value" approach
-                # This handles the spytial-save-value message from the iframe
+                # Create a hidden input field that will store the saved data
+                # This approach is more reliable than complex JavaScript execution
+                data_input_id = f"spytial-data-{self._widget_id}"
+
+                # Create communication handler using a hidden input field approach
                 message_handler = f"""
                 <script>
                 window.addEventListener('message', function(event) {{
@@ -393,8 +398,15 @@ if IPYWIDGETS_AVAILABLE:
                         if (event.data && event.data.type === 'spytial-save-value' && event.data.widgetId === '{self._widget_id}') {{
                             console.log('Received save value data from iframe:', event.data);
                             
-                            // Store data for access via .value property
-                            window._spytial_saved_data_{self._widget_id.replace('-', '_')} = event.data.data;
+                            // Store data in hidden input field for Python to access
+                            var dataInput = document.getElementById('{data_input_id}');
+                            if (dataInput) {{
+                                dataInput.value = JSON.stringify(event.data.data);
+                                console.log('Data stored in input field');
+                                
+                                // Trigger input event to signal data is ready
+                                dataInput.dispatchEvent(new Event('input'));
+                            }}
                             
                             // Show save status 
                             var statusArea = document.getElementById('spytial-status-{self._widget_id}');
@@ -406,24 +418,25 @@ if IPYWIDGETS_AVAILABLE:
                         console.error('Message handler error:', error);
                     }}
                 }});
-                
-                // Initialize data storage
-                window._spytial_saved_data_{self._widget_id.replace('-', '_')} = null;
                 </script>
                 """
 
                 iframe_html = f"""
-                {message_handler}
-                <iframe 
-                    src="data:text/html;base64,{html_b64}" 
-                    width="100%" 
-                    height="600px" 
-                    frameborder="0"
-                    id="spytial-iframe-{self._widget_id}"
-                    style="border: 1px solid #ddd; border-radius: 4px;">
-                    <p>Your browser does not support iframes.</p>
-                </iframe>
-                <div id="spytial-status-{self._widget_id}"></div>
+                <div>
+                    <iframe 
+                        src="data:text/html;base64,{html_b64}" 
+                        width="100%" 
+                        height="600px" 
+                        frameborder="0"
+                        id="spytial-iframe-{self._widget_id}"
+                        style="border: 1px solid #ddd; border-radius: 4px;">
+                        <p>Your browser does not support iframes.</p>
+                    </iframe>
+                    <div id="spytial-status-{self._widget_id}"></div>
+                    <!-- Hidden input field to store data from iframe -->
+                    <input type="hidden" id="{data_input_id}" value="" />
+                    {message_handler}
+                </div>
                 """
 
                 # Create the widget components
@@ -435,14 +448,18 @@ if IPYWIDGETS_AVAILABLE:
                     [
                         HTML(f"<h3>{self.dataclass_type.__name__} Builder</h3>"),
                         self.iframe_widget,
-                        HTML(f'<p style="color: #666; font-size: 12px; margin-top: 10px;">💡 Click "Save Value" in the interface above, then use <code>widget.value</code> to get the dataclass instance</p>'),
+                        HTML(
+                            f'<p style="color: #666; font-size: 12px; margin-top: 10px;">💡 Click "Save Value" in the interface above, then use <code>widget.value</code> to get the dataclass instance</p>'
+                        ),
                         self.status_output,
                     ]
                 )
 
                 with self.status_output:
                     print("Widget ready - build your data in the interface above!")
-                    print('💾 Click "Save Value" button when ready, then access via widget.value')
+                    print(
+                        '💾 Click "Save Value" button when ready, then access via widget.value'
+                    )
 
             except Exception as e:
                 # Fallback to error message
@@ -485,13 +502,15 @@ if IPYWIDGETS_AVAILABLE:
 
             This property accesses the data that was saved from the iframe when the user
             clicked the "Save Value" button, or data set via update_from_json().
-            The communication flow:
 
-            1. User builds data in the form interface 
+            The communication flow in iframe mode:
+            1. User builds data in the form interface
             2. User clicks "Save Value" button in the iframe
-            3. Iframe sends data via postMessage to JavaScript storage
-            4. Python accesses the stored data and converts to dataclass instance
-            
+            3. Iframe sends data via postMessage to parent window
+            4. Parent window stores data in a hidden input field
+            5. Python reads from the hidden input field via JavaScript
+            6. Data is converted to dataclass instance and returned
+
             OR for programmatic updates:
             1. update_from_json() is called with data
             2. Data is stored locally and returned
@@ -499,46 +518,56 @@ if IPYWIDGETS_AVAILABLE:
             Returns:
                 Saved dataclass instance, or None if no data has been saved yet
             """
-            # First check if we have a locally saved value (from update_from_json)
+            # Return any locally saved value first (from update_from_json)
             if self._saved_value is not None:
                 return self._saved_value
 
             try:
-                # Try to get data from JavaScript (iframe communication)
+                # Try to get data from the hidden input field via JavaScript
                 from IPython.display import Javascript, display
                 from IPython import get_ipython
 
-                # Get the saved data from JavaScript
-                js_var_name = f"_spytial_saved_data_{self._widget_id.replace('-', '_')}"
+                data_input_id = f"spytial-data-{self._widget_id}"
+
+                # Use a simple JavaScript approach to read the hidden input value
                 js_code = f"""
-                var data = window.{js_var_name};
-                if (data) {{
-                    // Store in IPython for Python to access
-                    IPython.notebook.kernel.execute("_spytial_temp_saved_data = " + JSON.stringify(data));
+                var inputField = document.getElementById('{data_input_id}');
+                var data = null;
+                if (inputField && inputField.value) {{
+                    try {{
+                        data = JSON.parse(inputField.value);
+                        IPython.notebook.kernel.execute("_spytial_temp_data = " + inputField.value);
+                    }} catch (e) {{
+                        console.error('Error parsing saved data:', e);
+                        IPython.notebook.kernel.execute("_spytial_temp_data = None");
+                    }}
                 }} else {{
-                    IPython.notebook.kernel.execute("_spytial_temp_saved_data = None");
+                    IPython.notebook.kernel.execute("_spytial_temp_data = None");
                 }}
                 """
 
-                # Execute the JavaScript
+                # Execute JavaScript and wait briefly
                 display(Javascript(js_code))
+                time.sleep(0.05)  # Short wait for JavaScript execution
 
-                # Give time for the JavaScript to execute
-                time.sleep(0.1)
-
-                # Get the data from the global namespace
+                # Get the data from IPython namespace
                 ipython = get_ipython()
-                if ipython and "_spytial_temp_saved_data" in ipython.user_ns:
-                    temp_data = ipython.user_ns.get("_spytial_temp_saved_data")
+                if ipython and "_spytial_temp_data" in ipython.user_ns:
+                    temp_data = ipython.user_ns.get("_spytial_temp_data")
                     if temp_data is not None:
-                        # Convert JSON data to dataclass instance using de-relationalization
-                        return json_to_dataclass(temp_data, self.dataclass_type)
+                        # Convert JSON data to dataclass instance
+                        instance = json_to_dataclass(temp_data, self.dataclass_type)
+                        # Cache the converted instance
+                        self._saved_value = instance
+                        self._saved_json_data = temp_data
+                        return instance
 
                 # No saved data available
-                if self._saved_value is None:
-                    with self.status_output:
-                        print('ℹ️  No data saved yet. Click "Save Value" in the interface above.')
-                
+                with self.status_output:
+                    print(
+                        'ℹ️  No data saved yet. Click "Save Value" in the interface above.'
+                    )
+
                 return None
 
             except Exception as e:
