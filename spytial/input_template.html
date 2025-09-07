@@ -111,6 +111,58 @@
         let lastExportedData = null;
 
         /**
+         * Save current data to widget (simplified communication)
+         */
+        function saveValueToWidget() {
+            if (graphElement && graphElement.getDataInstance) {
+                try {
+                    const currentData = graphElement.getDataInstance();
+                    
+                    // If we're in an iframe (widget mode), use postMessage to save data
+                    if (window.parent !== window) {
+                        // Clean the data to ensure it's serializable
+                        const cleanData = JSON.parse(JSON.stringify(currentData));
+                        
+                        window.parent.postMessage({
+                            type: 'spytial-save-value',
+                            widgetId: '{{ widget_id | default("") }}',
+                            data: cleanData,
+                            dataclassName: dataclassName
+                        }, '*');
+                        showInfo('Value saved to widget! You can now access it via widget.value');
+                        lastExportedData = cleanData;
+                        return;
+                    }
+                    
+                    // Fallback: browser download for standalone mode
+                    const jsonString = JSON.stringify(currentData, null, 2);
+                    const blob = new Blob([jsonString], { type: 'application/json' });
+                    const url = URL.createObjectURL(blob);
+                    
+                    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+                    const filename = `${dataclassName}_export_${timestamp}.json`;
+                    
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = filename;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                    
+                    showInfo(`Data exported as ${filename}`);
+                    lastExportedData = currentData;
+                    
+                } catch (error) {
+                    console.error('Save failed:', error);
+                    showError(`Save failed: ${error.message}`);
+                }
+            } else {
+                showError('Graph element not found or getDataInstance method not available');
+            }
+        }
+
+        /**
          * Export current data to JSON file
          */
         function exportDataToFile() {
@@ -218,12 +270,12 @@
          */
         function addExportControls() {
             if (graphElement && graphElement.addToolbarControl) {
-                // Export to file button
-                const exportButton = document.createElement('button');
-                exportButton.className = 'reset-btn';
-                exportButton.innerHTML = '💾 Export JSON';
-                exportButton.title = 'Export data to JSON file';
-                exportButton.onclick = exportDataToFile;
+                // Save Value button (for widget mode)
+                const saveButton = document.createElement('button');
+                saveButton.className = 'reset-btn';
+                saveButton.innerHTML = '💾 Save Value';
+                saveButton.title = 'Save current form data to widget';
+                saveButton.onclick = saveValueToWidget;
                 
                 // Copy to clipboard button
                 const copyButton = document.createElement('button');
@@ -239,7 +291,7 @@
                 resetButton.title = 'Reset layout';
                 resetButton.onclick = resetLayout;
                 
-                graphElement.addToolbarControl(exportButton);
+                graphElement.addToolbarControl(saveButton);
                 graphElement.addToolbarControl(copyButton);
                 graphElement.addToolbarControl(resetButton);
             }

@@ -338,10 +338,11 @@ if IPYWIDGETS_AVAILABLE:
     class DataclassInputWidget:
         """
         A unified Jupyter widget that displays build_input interface in an iframe
-        with simplified bidirectional communication for seamless dataclass building.
+        with simplified communication for seamless dataclass building.
 
-        This widget combines the functionality of dataclass building and interactive
-        input interface into one streamlined component.
+        This widget uses a "Save Value" button approach where the user explicitly
+        saves the current form data to the widget, which can then be accessed via
+        the value property.
         """
 
         def __init__(self, dataclass_type: Type):
@@ -355,13 +356,14 @@ if IPYWIDGETS_AVAILABLE:
                 raise ValueError(f"{dataclass_type} is not a dataclass.")
 
             self.dataclass_type = dataclass_type
-            self._current_value = None
+            self._saved_value = None  # Stores the dataclass instance from manual updates
+            self._saved_json_data = None  # Stores the raw JSON for consistency
             self._widget_id = str(uuid.uuid4())  # Use UUID for unique identification
 
             self._setup_widget()
 
         def _setup_widget(self):
-            """Setup the widget with iframe and simplified communication system."""
+            """Setup the widget with iframe and simplified save-based communication."""
 
             # Generate HTML content using build_input
             try:
@@ -381,23 +383,23 @@ if IPYWIDGETS_AVAILABLE:
                     "utf-8"
                 )
 
-                # Create simplified communication handler
-                # This only handles automatic data updates from the iframe
+                # Create simplified communication handler for "Save Value" approach
+                # This handles the spytial-save-value message from the iframe
                 message_handler = f"""
                 <script>
                 window.addEventListener('message', function(event) {{
                     try {{
-                        // Handle export data from iframe (automatic updates)
-                        if (event.data && event.data.type === 'spytial-export' && event.data.widgetId === '{self._widget_id}') {{
-                            console.log('Received export data from iframe:', event.data);
+                        // Handle save value data from iframe
+                        if (event.data && event.data.type === 'spytial-save-value' && event.data.widgetId === '{self._widget_id}') {{
+                            console.log('Received save value data from iframe:', event.data);
                             
                             // Store data for access via .value property
-                            window._spytial_widget_data_{self._widget_id.replace('-', '_')} = event.data.data;
+                            window._spytial_saved_data_{self._widget_id.replace('-', '_')} = event.data.data;
                             
-                            // Show update status 
+                            // Show save status 
                             var statusArea = document.getElementById('spytial-status-{self._widget_id}');
                             if (statusArea) {{
-                                statusArea.innerHTML = '<div style="color: green; font-size: 12px; margin-top: 5px;">✅ Data updated automatically</div>';
+                                statusArea.innerHTML = '<div style="color: green; font-size: 12px; margin-top: 5px;">✅ Value saved! Access via widget.value</div>';
                             }}
                         }}
                     }} catch (error) {{
@@ -406,7 +408,7 @@ if IPYWIDGETS_AVAILABLE:
                 }});
                 
                 // Initialize data storage
-                window._spytial_widget_data_{self._widget_id.replace('-', '_')} = null;
+                window._spytial_saved_data_{self._widget_id.replace('-', '_')} = null;
                 </script>
                 """
 
@@ -433,13 +435,14 @@ if IPYWIDGETS_AVAILABLE:
                     [
                         HTML(f"<h3>{self.dataclass_type.__name__} Builder</h3>"),
                         self.iframe_widget,
+                        HTML(f'<p style="color: #666; font-size: 12px; margin-top: 10px;">💡 Click "Save Value" in the interface above, then use <code>widget.value</code> to get the dataclass instance</p>'),
                         self.status_output,
                     ]
                 )
 
                 with self.status_output:
                     print("Widget ready - build your data in the interface above!")
-                    print("💡 Use widget.value to get the current dataclass instance")
+                    print('💾 Click "Save Value" button when ready, then access via widget.value')
 
             except Exception as e:
                 # Fallback to error message
@@ -448,9 +451,10 @@ if IPYWIDGETS_AVAILABLE:
 
         def update_from_json(self, json_data) -> bool:
             """
-            Update the widget's internal value from JSON data.
+            Update the widget's saved value from JSON data.
 
             This method provides backward compatibility for tests and direct updates.
+            It simulates the "Save Value" functionality by storing the data locally.
 
             Args:
                 json_data: JSON string or dict containing the data
@@ -461,7 +465,9 @@ if IPYWIDGETS_AVAILABLE:
             try:
                 # Convert JSON data to dataclass instance
                 instance = json_to_dataclass(json_data, self.dataclass_type)
-                self._current_value = instance
+                # Store both the raw JSON data and the converted instance
+                self._saved_value = instance
+                self._saved_json_data = json_data
 
                 with self.status_output:
                     print(f"✅ Updated from JSON: {instance}")
@@ -475,35 +481,42 @@ if IPYWIDGETS_AVAILABLE:
         @property
         def value(self):
             """
-            Get the current built dataclass instance from the interface.
+            Get the saved dataclass instance from the interface.
 
-            This property accesses the data that was automatically sent from the iframe
-            via postMessage when the user interacts with the form. The communication flow:
+            This property accesses the data that was saved from the iframe when the user
+            clicked the "Save Value" button, or data set via update_from_json().
+            The communication flow:
 
-            1. User interacts with form in iframe
-            2. Iframe automatically sends data via postMessage
-            3. JavaScript stores the data in window object
+            1. User builds data in the form interface 
+            2. User clicks "Save Value" button in the iframe
+            3. Iframe sends data via postMessage to JavaScript storage
             4. Python accesses the stored data and converts to dataclass instance
-
-            If no data has been received from the iframe, returns the last value
-            set via update_from_json() or None.
+            
+            OR for programmatic updates:
+            1. update_from_json() is called with data
+            2. Data is stored locally and returned
 
             Returns:
-                Current dataclass instance reflecting the interface state, or None if no data
+                Saved dataclass instance, or None if no data has been saved yet
             """
+            # First check if we have a locally saved value (from update_from_json)
+            if self._saved_value is not None:
+                return self._saved_value
+
             try:
-                # Execute JavaScript to get current data from window storage
+                # Try to get data from JavaScript (iframe communication)
                 from IPython.display import Javascript, display
                 from IPython import get_ipython
 
-                # Get the current data from JavaScript
+                # Get the saved data from JavaScript
+                js_var_name = f"_spytial_saved_data_{self._widget_id.replace('-', '_')}"
                 js_code = f"""
-                var data = window._spytial_widget_data_{self._widget_id.replace('-', '_')};
+                var data = window.{js_var_name};
                 if (data) {{
                     // Store in IPython for Python to access
-                    IPython.notebook.kernel.execute("_spytial_temp_data = " + JSON.stringify(data));
+                    IPython.notebook.kernel.execute("_spytial_temp_saved_data = " + JSON.stringify(data));
                 }} else {{
-                    IPython.notebook.kernel.execute("_spytial_temp_data = None");
+                    IPython.notebook.kernel.execute("_spytial_temp_saved_data = None");
                 }}
                 """
 
@@ -515,19 +528,23 @@ if IPYWIDGETS_AVAILABLE:
 
                 # Get the data from the global namespace
                 ipython = get_ipython()
-                if ipython and hasattr(ipython.user_ns, "_spytial_temp_data"):
-                    temp_data = ipython.user_ns.get("_spytial_temp_data")
+                if ipython and "_spytial_temp_saved_data" in ipython.user_ns:
+                    temp_data = ipython.user_ns.get("_spytial_temp_saved_data")
                     if temp_data is not None:
-                        # Convert JSON data to dataclass instance
+                        # Convert JSON data to dataclass instance using de-relationalization
                         return json_to_dataclass(temp_data, self.dataclass_type)
 
-                # Fallback to stored value from update_from_json
-                return self._current_value
+                # No saved data available
+                if self._saved_value is None:
+                    with self.status_output:
+                        print('ℹ️  No data saved yet. Click "Save Value" in the interface above.')
+                
+                return None
 
             except Exception as e:
                 with self.status_output:
-                    print(f"❌ Error accessing current value: {e}")
-                return self._current_value
+                    print(f"❌ Error accessing saved value: {e}")
+                return None
 
         def _repr_mimebundle_(self, **kwargs):
             """Display the widget in Jupyter."""
