@@ -22,10 +22,10 @@ class ListRelationalizer(RelationalizerBase):
             idx_id = f"{obj_id}_idx_{i}"
             idx_atom = Atom(id=idx_id, type="int", label=str(i))
             atoms.append(idx_atom)
-            
+
             # Get the element ID
             eid = walker_func(elt)
-            
+
             # Create a ternary relation: idx(list, index, element)
             relations.append(Relation("idx", [obj_id, idx_id, eid]))
 

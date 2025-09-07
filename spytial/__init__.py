@@ -10,13 +10,12 @@ from .provider_system import (
 from .visualizer import diagram
 from .evaluator import evaluate
 from .dataclass_widget import (
-    build_input, 
-    input_builder, 
-    load_from_json_file, 
+    build_input,
+    input_builder,
+    load_from_json_file,
     json_to_dataclass,
-    build_interactive,
     DataclassDerelationalizer,
-    InteractiveInputBuilder
+    # Removed: build_interactive, InteractiveInputBuilder (deprecated timeout-based system)
 )
 
 # Import widget functionality with graceful fallback
@@ -25,22 +24,26 @@ try:
         DataclassInputWidget,
         create_dataclass_widget,
         dataclass_widget,
-        dataclass_builder  # Import the new unified function
+        dataclass_builder,  # Import the new unified function
     )
+
     WIDGETS_AVAILABLE = True
 except ImportError:
     WIDGETS_AVAILABLE = False
+
     # Create dummy functions when widgets aren't available
     def dataclass_widget(*args, **kwargs):
         raise ImportError(
             "ipywidgets is required for widget functionality. "
             "Install with: pip install ipywidgets"
         )
+
     def dataclass_builder(*args, **kwargs):
         raise ImportError(
             "ipywidgets is required for widget functionality. "
             "Install with: pip install ipywidgets"
         )
+
     DataclassInputWidget = None
     create_dataclass_widget = dataclass_widget
 from .annotations import (
@@ -90,9 +93,8 @@ __all__ = [
     "input_builder",
     "load_from_json_file",
     "json_to_dataclass",
-    "build_interactive",
     "DataclassDerelationalizer",
-    "InteractiveInputBuilder",
+    # Removed: "build_interactive", "InteractiveInputBuilder" (deprecated timeout-based system)
     # Widget functionality (when available)
     "dataclass_widget",
     "dataclass_builder",  # Alias for dataclass_widget

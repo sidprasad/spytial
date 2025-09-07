@@ -19,6 +19,7 @@ from typing import Any, Dict, Optional, Type, get_type_hints, Union
 try:
     from ipywidgets import HTML, VBox, Button, Output, DOMWidget
     from traitlets import Unicode, observe, Dict as TraitDict
+
     IPYWIDGETS_AVAILABLE = True
 except ImportError:
     IPYWIDGETS_AVAILABLE = False
@@ -28,6 +29,7 @@ from .provider_system import CnDDataInstanceBuilder
 
 
 # Core dataclass processing functions (moved from dataclassbuilder.py)
+
 
 def json_to_dataclass(json_data: Union[str, Dict], dataclass_type: Type) -> Any:
     """
@@ -292,12 +294,16 @@ def build_input(
     # Add export directory information
     html_content = html_content.replace("{{ export_dir | safe }}", export_dir)
     html_content = html_content.replace("{{ dataclass_name | safe }}", cls.__name__)
-    html_content = html_content.replace("{{ widget_id | default(\"\") }}", widget_id or "")
+    html_content = html_content.replace(
+        '{{ widget_id | default("") }}', widget_id or ""
+    )
 
     if method == "file":
         # Generate output filename in the specified export directory if provided
         if export_dir and os.path.exists(export_dir):
-            output_path = os.path.join(export_dir, f"input_builder_{cls.__name__.lower()}.html")
+            output_path = os.path.join(
+                export_dir, f"input_builder_{cls.__name__.lower()}.html"
+            )
         else:
             output_path = f"input_builder_{cls.__name__.lower()}.html"
 
@@ -443,12 +449,12 @@ if IPYWIDGETS_AVAILABLE:
         def update_from_json(self, json_data) -> bool:
             """
             Update the widget's internal value from JSON data.
-            
+
             This method provides backward compatibility for tests and direct updates.
-            
+
             Args:
                 json_data: JSON string or dict containing the data
-                
+
             Returns:
                 True if update was successful, False otherwise
             """
@@ -456,10 +462,10 @@ if IPYWIDGETS_AVAILABLE:
                 # Convert JSON data to dataclass instance
                 instance = json_to_dataclass(json_data, self.dataclass_type)
                 self._current_value = instance
-                
+
                 with self.status_output:
                     print(f"✅ Updated from JSON: {instance}")
-                
+
                 return True
             except Exception as e:
                 with self.status_output:
@@ -475,7 +481,7 @@ if IPYWIDGETS_AVAILABLE:
             via postMessage when the user interacts with the form. The communication flow:
 
             1. User interacts with form in iframe
-            2. Iframe automatically sends data via postMessage 
+            2. Iframe automatically sends data via postMessage
             3. JavaScript stores the data in window object
             4. Python accesses the stored data and converts to dataclass instance
 
@@ -500,21 +506,21 @@ if IPYWIDGETS_AVAILABLE:
                     IPython.notebook.kernel.execute("_spytial_temp_data = None");
                 }}
                 """
-                
+
                 # Execute the JavaScript
                 display(Javascript(js_code))
-                
+
                 # Give time for the JavaScript to execute
                 time.sleep(0.1)
-                
+
                 # Get the data from the global namespace
                 ipython = get_ipython()
-                if ipython and hasattr(ipython.user_ns, '_spytial_temp_data'):
-                    temp_data = ipython.user_ns.get('_spytial_temp_data')
+                if ipython and hasattr(ipython.user_ns, "_spytial_temp_data"):
+                    temp_data = ipython.user_ns.get("_spytial_temp_data")
                     if temp_data is not None:
                         # Convert JSON data to dataclass instance
                         return json_to_dataclass(temp_data, self.dataclass_type)
-                
+
                 # Fallback to stored value from update_from_json
                 return self._current_value
 
@@ -617,184 +623,83 @@ def dataclass_builder(dataclass_type: Type) -> Any:
 
 # Legacy compatibility functions (moved from dataclassbuilder.py)
 
+
 class DataclassDerelationalizer:
     """
     De-relationalizer that converts CnD relational data back to dataclass instances.
     This handles the reverse of the relationalization process.
     """
-    
+
     def __init__(self, dataclass_type: Type):
         self.dataclass_type = dataclass_type
         self.field_info = {f.name: f for f in fields(dataclass_type)}
         self.type_hints = get_type_hints(dataclass_type)
-    
+
     def derelationalize(self, relational_data: Dict) -> Any:
         """
         Convert relational/CnD data back to a dataclass instance.
-        
+
         Args:
             relational_data: The relational data structure from CnD
-            
+
         Returns:
             A dataclass instance built from the relational data
         """
         # If it's already in simple JSON format, use json_to_dataclass
         if self._is_simple_json(relational_data):
             return json_to_dataclass(relational_data, self.dataclass_type)
-        
+
         # Otherwise, process CnD relational format
         return self._process_cnd_data(relational_data)
-    
+
     def _is_simple_json(self, data: Dict) -> bool:
         """Check if data is in simple JSON format vs CnD relational format."""
         # Simple heuristic: if all keys match dataclass fields, it's simple JSON
         if not isinstance(data, dict):
             return False
         return all(key in self.field_info for key in data.keys())
-    
+
     def _process_cnd_data(self, cnd_data: Dict) -> Any:
         """Process CnD relational data format."""
         # This would need to be implemented based on CnD's actual output format
         # For now, try to extract data from CnD structure
-        
-        if 'atoms' in cnd_data and 'relations' in cnd_data:
+
+        if "atoms" in cnd_data and "relations" in cnd_data:
             # Handle CnD atoms/relations format
             return self._extract_from_atoms_relations(cnd_data)
         else:
             # Fallback to simple JSON processing
             return json_to_dataclass(cnd_data, self.dataclass_type)
-    
+
     def _extract_from_atoms_relations(self, cnd_data: Dict) -> Any:
         """Extract dataclass instance from CnD atoms/relations structure."""
         # Implementation would depend on CnD's exact output format
         # For now, use a simplified approach
-        atoms = cnd_data.get('atoms', [])
-        relations = cnd_data.get('relations', [])
-        
+        atoms = cnd_data.get("atoms", [])
+        relations = cnd_data.get("relations", [])
+
         # Try to reconstruct the original data structure
         reconstructed = {}
-        
+
         # Extract field values from atoms
         for atom in atoms:
             if isinstance(atom, dict):
-                label = atom.get('label', '')
+                label = atom.get("label", "")
                 if label in self.field_info:
-                    reconstructed[label] = atom.get('value', '')
-        
+                    reconstructed[label] = atom.get("value", "")
+
         return json_to_dataclass(reconstructed, self.dataclass_type)
 
 
-class InteractiveInputBuilder:
-    """
-    Enhanced input builder that can capture data dynamically from the web interface.
-    """
-    
-    def __init__(self, dataclass_type: Type, export_dir: Optional[str] = None):
-        self.dataclass_type = dataclass_type
-        self.export_dir = export_dir or tempfile.mkdtemp(prefix="spytial_interactive_")
-        self.derelationalizer = DataclassDerelationalizer(dataclass_type)
-        self.captured_data = None
-        self.waiting_for_input = False
-        
-    def build_and_wait(self, timeout: float = 300.0, **kwargs) -> Optional[Any]:
-        """
-        Build input interface and wait for user to export data, then return dataclass instance.
-        
-        Args:
-            timeout: Maximum time to wait for user input (seconds)
-            **kwargs: Additional arguments for build_input
-            
-        Returns:
-            Dataclass instance created from user input, or None if timeout
-        """
-        # Ensure export_dir is set in kwargs
-        kwargs['export_dir'] = self.export_dir
-        kwargs.setdefault('auto_open', True)
-        kwargs.setdefault('method', 'file')
-        
-        print(f"🎯 Building interactive input for {self.dataclass_type.__name__}")
-        print(f"📁 Watching for exports in: {self.export_dir}")
-        
-        # Build the input interface
-        html_file = build_input(self.dataclass_type, **kwargs)
-        
-        print(f"🌐 Input interface: {html_file}")
-        print(f"⏱️  Waiting up to {timeout} seconds for you to build and export data...")
-        print("💡 Build your data in the web interface, then click 'Export JSON'")
-        
-        # Start watching for exported files
-        return self._wait_for_export(timeout)
-    
-    def _wait_for_export(self, timeout: float) -> Optional[Any]:
-        """Wait for user to export data and return the dataclass instance."""
-        start_time = time.time()
-        os.makedirs(self.export_dir, exist_ok=True)
-        
-        while time.time() - start_time < timeout:
-            # Check for new JSON files in export directory
-            try:
-                json_files = [f for f in os.listdir(self.export_dir) if f.endswith('.json')]
-                
-                if json_files:
-                    # Use the most recent file
-                    latest_file = max(json_files, key=lambda f: os.path.getctime(
-                        os.path.join(self.export_dir, f)))
-                    file_path = os.path.join(self.export_dir, latest_file)
-                    
-                    print(f"📥 Found export: {latest_file}")
-                    
-                    # Load and convert the data
-                    with open(file_path, 'r') as f:
-                        exported_data = json.load(f)
-                    
-                    # Convert to dataclass instance
-                    instance = self.derelationalizer.derelationalize(exported_data)
-                    
-                    print(f"✅ Successfully created {self.dataclass_type.__name__} instance!")
-                    print(f"🎉 Result: {instance}")
-                    
-                    return instance
-                    
-            except Exception as e:
-                print(f"⚠️  Error checking exports: {e}")
-            
-            time.sleep(1.0)  # Check every second
-        
-        print(f"⏰ Timeout reached ({timeout}s). No data was exported.")
-        return None
-
-
-def build_interactive(dataclass_type: Type, timeout: float = 300.0, **kwargs) -> Optional[Any]:
-    """
-    Build an interactive input interface and wait for user to create data.
-    
-    This is the main function that provides seamless roundtrip functionality:
-    1. Opens web interface for building data
-    2. Waits for user to export data  
-    3. Automatically converts exported JSON back to dataclass instance
-    4. Returns the built dataclass instance directly
-    
-    Args:
-        dataclass_type: The dataclass type to build
-        timeout: Maximum time to wait for user input (default 5 minutes)
-        **kwargs: Additional arguments for the input builder
-        
-    Returns:
-        Dataclass instance built by the user, or None if timeout
-        
-    Example:
-        @dataclass
-        class Person:
-            name: str = ""
-            age: int = 0
-            
-        # This will open a web interface and return the built Person instance
-        person = spytial.build_interactive(Person)
-        if person:
-            print(f"Built person: {person.name}, age {person.age}")
-    """
-    builder = InteractiveInputBuilder(dataclass_type)
-    return builder.build_and_wait(timeout=timeout, **kwargs)
+# Legacy file-based approach removed - use the unified DataclassInputWidget instead
+# The old InteractiveInputBuilder with timeout-based file watching was problematic:
+# - Required manual JSON export steps
+# - Used timeout-based polling
+# - Could have file permission issues
+# - Contradicted the unified widget approach
+#
+# The unified DataclassInputWidget provides automatic real-time communication
+# without timeouts, file watching, or manual steps.
 
 
 # Convenience function that works similar to spytial.diagram()
