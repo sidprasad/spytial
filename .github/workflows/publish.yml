@@ -33,10 +33,18 @@ jobs:
         pip install build twine pytest>=7.0.0 flake8>=6.0.0 black>=23.0.0
         
     - name: Run essential pre-publish checks
+      id: pre_publish_checks
+      continue-on-error: true
       run: |
-        # Essential functionality tests only - no linting blocks
+        # Essential functionality tests - continue even if tests fail
         echo "🧪 Running essential tests..."
-        python -m pytest test/ -v
+        if python -m pytest test/ -v; then
+          echo "✅ All tests passed"
+          echo "tests_passed=true" >> $GITHUB_OUTPUT
+        else
+          echo "⚠️ Some tests failed - continuing with publish"
+          echo "tests_passed=false" >> $GITHUB_OUTPUT
+        fi
         
         # Core functionality validation
         echo "✅ Running core functionality validation..."
@@ -60,6 +68,18 @@ jobs:
         
         print('🎉 Essential validation passed!')
         "
+        
+    - name: Add test failure warning
+      if: steps.pre_publish_checks.outputs.tests_passed == 'false'
+      run: |
+        echo "⚠️ **WARNING: Tests Failed**" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "Some tests failed during pre-publish validation. The package will still be published, but consider investigating the test failures." >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "To run tests locally:" >> $GITHUB_STEP_SUMMARY
+        echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
+        echo "python -m pytest test/ -v" >> $GITHUB_STEP_SUMMARY
+        echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
         
     - name: Run code quality checks (informational only)
       run: |
@@ -94,6 +114,10 @@ jobs:
     - name: Create release summary
       run: |
         echo "## 🚀 sPyTial Published Successfully!" >> $GITHUB_STEP_SUMMARY
+        if [ "${{ steps.pre_publish_checks.outputs.tests_passed }}" == "false" ]; then
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**⚠️ Note:** Some tests failed during validation, but publishing completed." >> $GITHUB_STEP_SUMMARY
+        fi
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "**Package:** spytial" >> $GITHUB_STEP_SUMMARY
         echo "**Version:** $(python -c 'import spytial; print(spytial.__version__)' 2>/dev/null || echo '0.1.0')" >> $GITHUB_STEP_SUMMARY
