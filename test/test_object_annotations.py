@@ -231,14 +231,3 @@ if __name__ == "__main__":
     test_self_reference_in_selectors()  # Add the new test
     test_sub_object_annotations_persist_on_composition()
     
-    print("\n🎉 All tests passed! Object-level CND annotations are working correctly.")
-    print("\nExample usage:")
-    print("  from spytial import annotate_group, diagram")
-    print("  my_set = {1, 2, 3, 4, 5}")
-    print("  annotate_group(my_set, field='elements', groupOn=0, addToGroup=1)")
-    print("  diagram(my_set)  # Will show the set as a group")
-    print("\nSelf-reference usage (Issue #16):")
-    print("  from spytial import orientation")
-    print("  obj = MyClass()")
-    print("  obj = orientation(selector='self.field', directions=['left'])(obj)")
-    print("  # 'self.field' refers specifically to this obj's field")

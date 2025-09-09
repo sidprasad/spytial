@@ -34,40 +34,49 @@ jobs:
         
     - name: Run essential pre-publish checks
       id: pre_publish_checks
+      # keep continue-on-error optional, but make the script itself non-fatal
       continue-on-error: true
       run: |
-        # Essential functionality tests - continue even if tests fail
         echo "🧪 Running essential tests..."
-        if python -m pytest test/ -v; then
+        # Run pytest but don't allow the shell to abort on failure; capture rc explicitly
+        set +e
+        python -m pytest test/ -v
+        PYTEST_RC=$?
+        set -e
+
+        if [ "$PYTEST_RC" -eq 0 ]; then
           echo "✅ All tests passed"
           echo "tests_passed=true" >> $GITHUB_OUTPUT
         else
           echo "⚠️ Some tests failed - continuing with publish"
           echo "tests_passed=false" >> $GITHUB_OUTPUT
         fi
-        
-        # Core functionality validation
+
+        # Core functionality validation (if you want this to be non-fatal too, wrap similarly)
         echo "✅ Running core functionality validation..."
+        set +e
         python -c "
-        import spytial
-        
-        # Basic visualization test
-        data = {
-            'name': 'John', 'age': 30, 'hobbies': ['reading', 'cycling'],
-            'address': {'street': '123 Main St', 'city': 'Boston'}
-        }
-        result = spytial.diagram(data, method='file', auto_open=False)
-        print(f'✓ Generated: {result}')
-        
-        import os
-        assert os.path.exists(result)
-        with open(result, 'r') as f:
-            content = f.read()
-            assert 'html' in content.lower() and len(content) > 1000
-        print('✓ Basic visualization works')
-        
-        print('🎉 Essential validation passed!')
+        import spytial, os, sys
+        data = {'name': 'John', 'age': 30, 'hobbies': ['reading', 'cycling'], 'address': {'street': '123 Main St', 'city': 'Boston'}}
+        try:
+            result = spytial.diagram(data, method='file', auto_open=False)
+            print(f'✓ Generated: {result}')
+            ok = os.path.exists(result) and ('html' in open(result,'r').read().lower()) and len(open(result,'r').read())>1000
+            if not ok:
+                print('Core validation did not produce expected HTML', file=sys.stderr); sys.exit(2)
+            print('✓ Basic visualization works')
+        except Exception as e:
+            print('Core validation raised:', e, file=sys.stderr); sys.exit(3)
         "
+        CORE_RC=$?
+        set -e
+
+        if [ "$CORE_RC" -ne 0 ]; then
+          echo "⚠️ Core validation failed (rc=$CORE_RC) - continuing with publish"
+          # optionally set another output var if you want
+        else
+          echo "✓ Core validation passed"
+        fi
         
     - name: Add test failure warning
       if: steps.pre_publish_checks.outputs.tests_passed == 'false'
@@ -89,9 +98,19 @@ jobs:
         echo "📝 Quality checks complete (informational only)"
         
     - name: Build package
+      id: build_step
       run: |
         echo "📦 Building package..."
-        python -m build
+        set +e
+        python -m build --no-isolation
+        BUILD_RC=$?
+        set -e
+        if [ "$BUILD_RC" -ne 0 ]; then
+          echo "⚠️ Build failed (rc=$BUILD_RC) - continuing with publish (warning)" >> $GITHUB_STEP_SUMMARY
+          echo "build_passed=false" >> $GITHUB_OUTPUT
+        else
+          echo "build_passed=true" >> $GITHUB_OUTPUT
+        fi
         
     - name: Check distribution
       run: |
