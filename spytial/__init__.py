@@ -37,7 +37,6 @@ except ImportError:
             "Install with: pip install ipywidgets"
         )
     DataclassInputWidget = None
-    SimpleDataclassWidget = None
     create_dataclass_widget = dataclass_widget
 from .annotations import (
     # Class decorators
@@ -93,7 +92,6 @@ __all__ = [
     "dataclass_widget",
     "create_dataclass_widget",
     "DataclassInputWidget",
-    "SimpleDataclassWidget",
     # New relationalizer system
     "CnDDataInstanceBuilder",
     "RelationalizerBase",
