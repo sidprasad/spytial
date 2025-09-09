@@ -2,7 +2,20 @@
 sPyTial Unified Dataclass Widget
 
 A unified system that combines dataclass building and interactive input interface.
-Provides real-time communication between iframe and Jupyter via postMessage.
+Uses bundled local dependencies instead of external CDNs for reliability.
+
+This module provides widgets that embed the sophisticated CnD (Cope and Drag)
+visualization interface directly in Jupyter notebooks without iframe complexity.
+
+Key features:
+- Bundled JavaScript/CSS dependencies (no CDN requirements)
+- Direct JavaScript-to-Python communication via IPython kernel
+- Full CnD graph visualization capabilities
+- JSON export functionality
+- Reliable value access via widget.value property
+
+Dependencies are bundled locally in spytial/static/ and can be refreshed
+using: python scripts/refresh_dependencies.py
 """
 
 import json
@@ -275,7 +288,7 @@ def build_input(
     builder = CnDDataInstanceBuilder()
     initial_data = builder.build_instance(initial_instance)
 
-    # Load the input template
+    # Load the input template with bundled dependencies
     template_path = os.path.join(os.path.dirname(__file__), "input_template.html")
     with open(template_path, "r") as f:
         template = f.read()
@@ -365,106 +378,193 @@ if IPYWIDGETS_AVAILABLE:
             self._setup_widget()
 
         def _setup_widget(self):
-            """Setup the widget with iframe and proper communication mechanism."""
+            """Setup the widget with bundled local dependencies."""
 
-            # Generate HTML content using build_input
             try:
-                # Get HTML content with widget_id template variable
-                html_content = build_input(
-                    self.dataclass_type,
-                    method="inline",
-                    auto_open=False,
-                    export_dir="/tmp",  # Not used but required
-                    widget_id=self._widget_id,  # Pass widget ID to template
-                )
+                # Generate HTML content with local bundled dependencies
+                html_content = self._build_local_input()
 
-                # Create iframe with embedded HTML content
-                import base64
-
-                html_b64 = base64.b64encode(html_content.encode("utf-8")).decode(
-                    "utf-8"
-                )
-
-                # Create a hidden input field that will store the saved data
-                # This approach is more reliable than complex JavaScript execution
-                data_input_id = f"spytial-data-{self._widget_id}"
-
-                # Create communication handler using a hidden input field approach
-                message_handler = f"""
+                # Modify HTML to add direct Python communication
+                # Add JavaScript that communicates directly with Python kernel
+                communication_js = f"""
                 <script>
-                window.addEventListener('message', function(event) {{
-                    try {{
-                        // Handle save value data from iframe
-                        if (event.data && event.data.type === 'spytial-save-value' && event.data.widgetId === '{self._widget_id}') {{
-                            console.log('Received save value data from iframe:', event.data);
+                // Override saveValueToWidget to work directly with Python (no iframe/postMessage)
+                window.originalSaveValueToWidget = window.saveValueToWidget;
+                window.saveValueToWidget = function() {{
+                    if (graphElement && graphElement.getDataInstance) {{
+                        try {{
+                            const currentData = graphElement.getDataInstance();
+                            const cleanData = JSON.parse(JSON.stringify(currentData));
                             
-                            // Store data in hidden input field for Python to access
-                            var dataInput = document.getElementById('{data_input_id}');
-                            if (dataInput) {{
-                                dataInput.value = JSON.stringify(event.data.data);
-                                console.log('Data stored in input field');
-                                
-                                // Trigger input event to signal data is ready
-                                dataInput.dispatchEvent(new Event('input'));
+                            // Escape the JSON data for Python
+                            const dataStr = JSON.stringify(cleanData).replace(/'/g, "\\\\'");
+                            
+                            // Execute Python code directly via kernel
+                            if (typeof IPython !== 'undefined' && IPython.notebook && IPython.notebook.kernel) {{
+                                const pythonCode = `
+if "{self._widget_id}" in globals().get("_spytial_widgets", {{}}):
+    import json
+    widget = _spytial_widgets["{self._widget_id}"]
+    data = json.loads('''${{dataStr}}''')
+    widget._handle_direct_save(data)
+`;
+                                IPython.notebook.kernel.execute(pythonCode);
+                                showInfo('Value saved to widget! Access via widget.value');
+                            }} else {{
+                                showError('IPython kernel not available');
                             }}
                             
-                            // Show save status 
-                            var statusArea = document.getElementById('spytial-status-{self._widget_id}');
-                            if (statusArea) {{
-                                statusArea.innerHTML = '<div style="color: green; font-size: 12px; margin-top: 5px;">✅ Value saved! Access via widget.value</div>';
-                            }}
+                        }} catch (error) {{
+                            console.error('Save failed:', error);
+                            showError(`Save failed: ${{error.message}}`);
                         }}
-                    }} catch (error) {{
-                        console.error('Message handler error:', error);
+                    }} else {{
+                        showError('Graph element not found');
                     }}
-                }});
+                }};
                 </script>
                 """
 
-                iframe_html = f"""
-                <div>
-                    <iframe 
-                        src="data:text/html;base64,{html_b64}" 
-                        width="100%" 
-                        height="600px" 
-                        frameborder="0"
-                        id="spytial-iframe-{self._widget_id}"
-                        style="border: 1px solid #ddd; border-radius: 4px;">
-                        <p>Your browser does not support iframes.</p>
-                    </iframe>
-                    <div id="spytial-status-{self._widget_id}"></div>
-                    <!-- Hidden input field to store data from iframe -->
-                    <input type="hidden" id="{data_input_id}" value="" />
-                    {message_handler}
-                </div>
-                """
+                # Insert the communication JavaScript into the HTML
+                html_content = html_content.replace(
+                    "</body>", f"{communication_js}</body>"
+                )
 
-                # Create the widget components
-                self.iframe_widget = HTML(value=iframe_html)
+                # Register this widget globally for communication
+                if "_spytial_widgets" not in globals():
+                    globals()["_spytial_widgets"] = {}
+                globals()["_spytial_widgets"][self._widget_id] = self
+
+                # Create the widget with direct HTML content (no iframe)
+                self.html_widget = HTML(value=html_content)
                 self.status_output = Output()
 
                 # Create layout
                 self.widget = VBox(
                     [
                         HTML(f"<h3>{self.dataclass_type.__name__} Builder</h3>"),
-                        self.iframe_widget,
                         HTML(
-                            f'<p style="color: #666; font-size: 12px; margin-top: 10px;">💡 Click "Save Value" in the interface above, then use <code>widget.value</code> to get the dataclass instance</p>'
+                            '<p style="color: #666; font-size: 12px;">Use the CnD graph interface below, then click "💾 Save Value"</p>'
                         ),
+                        self.html_widget,
                         self.status_output,
                     ]
                 )
 
                 with self.status_output:
-                    print("Widget ready - build your data in the interface above!")
                     print(
-                        '💾 Click "Save Value" button when ready, then access via widget.value'
+                        "✅ Widget ready with local dependencies - use the graph interface and click '💾 Save Value'!"
                     )
 
             except Exception as e:
                 # Fallback to error message
                 error_html = f"<p><strong>Error creating widget:</strong> {e}</p>"
                 self.widget = VBox([HTML(value=error_html)])
+                self.status_output = (
+                    Output()
+                )  # Ensure status_output exists for error case
+
+        def _build_local_input(self):
+            """Build HTML input interface with bundled local dependencies."""
+
+            # Generate CnD spec from dataclass annotations
+            cnd_spec = generate_cnd_spec(self.dataclass_type)
+
+            # Create initial empty instance for the input interface
+            initial_instance = create_empty_instance(self.dataclass_type)
+
+            # Convert to CnD data instance format
+            builder = CnDDataInstanceBuilder()
+            initial_data = builder.build_instance(initial_instance)
+
+            # Load the local template with bundled dependencies
+            template_path = os.path.join(
+                os.path.dirname(__file__), "input_template.html"
+            )
+            with open(template_path, "r") as f:
+                template = f.read()
+
+            # Load bundled dependencies
+            static_dir = os.path.join(os.path.dirname(__file__), "static")
+
+            # Read JavaScript files
+            with open(os.path.join(static_dir, "js", "d3.v4.min.js"), "r") as f:
+                d3_js_content = f.read()
+
+            with open(
+                os.path.join(static_dir, "js", "cnd-core-complete.global.js"), "r"
+            ) as f:
+                cnd_core_js_content = f.read()
+
+            with open(
+                os.path.join(static_dir, "js", "react-component-integration.global.js"),
+                "r",
+            ) as f:
+                react_integration_js_content = f.read()
+
+            # Read CSS file
+            with open(
+                os.path.join(static_dir, "css", "react-component-integration.css"), "r"
+            ) as f:
+                react_integration_css_content = f.read()
+
+            # Prepare template variables
+            page_title = f"Input Builder for {self.dataclass_type.__name__}"
+
+            # Replace template placeholders
+            html_content = template.replace(
+                '{{ title | default("sPyTial Visualization") }}', page_title
+            )
+            html_content = html_content.replace("{{ cnd_spec | safe }}", cnd_spec)
+            html_content = html_content.replace(
+                "{{ python_data | safe }}", json.dumps(initial_data)
+            )
+            html_content = html_content.replace(
+                "{{ dataclass_name | safe }}", self.dataclass_type.__name__
+            )
+            html_content = html_content.replace(
+                '{{ widget_id | default("") }}', self._widget_id or ""
+            )
+
+            # Bundle the JavaScript and CSS content
+            html_content = html_content.replace("{{ d3_js_content }}", d3_js_content)
+            html_content = html_content.replace(
+                "{{ cnd_core_js_content }}", cnd_core_js_content
+            )
+            html_content = html_content.replace(
+                "{{ react_integration_js_content }}", react_integration_js_content
+            )
+            html_content = html_content.replace(
+                "{{ react_integration_css_content }}", react_integration_css_content
+            )
+
+            return html_content
+
+        def _handle_direct_save(self, data):
+            """Handle data saved directly from the CnD interface via JavaScript."""
+            try:
+                # Convert to dataclass instance
+                instance = json_to_dataclass(data, self.dataclass_type)
+
+                # Store the value
+                self._saved_value = instance
+                self._saved_json_data = data
+
+                if hasattr(self, "status_output"):
+                    with self.status_output:
+                        self.status_output.clear_output()
+                        print(f"✅ Value saved from CnD interface: {instance}")
+                        print("💡 Access via widget.value")
+                else:
+                    print(f"✅ Value saved from CnD interface: {instance}")
+                    print("💡 Access via widget.value")
+
+            except Exception as e:
+                if hasattr(self, "status_output"):
+                    with self.status_output:
+                        print(f"❌ Save error: {e}")
+                else:
+                    print(f"❌ Save error: {e}")
 
         def update_from_json(self, json_data) -> bool:
             """
@@ -486,12 +586,18 @@ if IPYWIDGETS_AVAILABLE:
                 self._saved_value = instance
                 self._saved_json_data = json_data
 
-                with self.status_output:
+                if hasattr(self, "status_output"):
+                    with self.status_output:
+                        print(f"✅ Updated from JSON: {instance}")
+                else:
                     print(f"✅ Updated from JSON: {instance}")
 
                 return True
             except Exception as e:
-                with self.status_output:
+                if hasattr(self, "status_output"):
+                    with self.status_output:
+                        print(f"❌ Error updating from JSON: {e}")
+                else:
                     print(f"❌ Error updating from JSON: {e}")
                 return False
 
@@ -563,7 +669,12 @@ if IPYWIDGETS_AVAILABLE:
                         return instance
 
                 # No saved data available
-                with self.status_output:
+                if hasattr(self, "status_output"):
+                    with self.status_output:
+                        print(
+                            'ℹ️  No data saved yet. Click "Save Value" in the interface above.'
+                        )
+                else:
                     print(
                         'ℹ️  No data saved yet. Click "Save Value" in the interface above.'
                     )
@@ -571,7 +682,10 @@ if IPYWIDGETS_AVAILABLE:
                 return None
 
             except Exception as e:
-                with self.status_output:
+                if hasattr(self, "status_output"):
+                    with self.status_output:
+                        print(f"❌ Error accessing saved value: {e}")
+                else:
                     print(f"❌ Error accessing saved value: {e}")
                 return None
 

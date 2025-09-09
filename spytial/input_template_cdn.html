@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ title | default("sPyTial Visualization") }}</title>
+    
+    <script src="https://d3js.org/d3.v4.min.js"></script>
+
+    <script src="https://cdn.jsdelivr.net/npm/cnd-core@1.2.1/dist/browser/cnd-core-complete.global.js"></script>  
+    <script src="https://cdn.jsdelivr.net/npm/cnd-core@1.2.1/dist/components/react-component-integration.global.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/cnd-core@1.2.1/dist/components/react-component-integration.css" /> 
+    
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 0;
+            padding: 0;
+            background: transparent;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .container {
+            position: relative;
+            border: 1px solid #e1e5e9;
+            border-radius: 6px;
+            overflow: hidden;
+            background: white;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .graph-wrapper {
+            position: relative;
+            min-height: 400px; /* Ensure minimum height */
+            flex: 1;
+            display: flex;
+        }
+        
+        #graph-container {
+            width: 100%;
+            height: 100%;
+            min-height: 400px;
+            display: block;
+            flex: 1;
+        }
+        
+        .footer {
+            text-align: center;
+            padding: 6px;
+            background: #f8f9fa;
+            border-top: 1px solid #e1e5e9;
+            font-size: 11px;
+            color: #6a737d;
+        }
+        
+        .reset-btn {
+            background: #0366d6;
+            color: white;
+            border: none;
+            padding: 8px 8px;
+            border-radius: 3px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: background-color 0.15s ease;
+            line-height: 1.2;
+            margin-left: 8px;
+        }
+        
+        .reset-btn:hover {
+            background: #0256cc;
+        }
+    </style>
+
+
+
+<body>
+    <div class="container">
+        <div class="graph-wrapper">
+            <!-- Structured Input Graph Element -->
+            <structured-input-graph 
+                id="structured-graph"
+                cnd-spec=""
+                show-export="true"
+                style="width: 100%; height: 100%;">
+            </structured-input-graph>
+        </div>
+        
+        <div class="footer">
+            <span>Cope and Drag 1.2.0</span>
+        </div>
+    </div>
+    
+    <div id="error-message"></div>
+    <div id="error-core"></div>
+
+
+    <script>
+        // Embedded data passed from the server
+        const cndSpec = `{{ cnd_spec | safe }}`;
+        const jsonData = `{{ python_data | safe }}`;
+        const exportDir = `{{ export_dir | safe }}`;
+        const dataclassName = `{{ dataclass_name | safe }}`;
+
+        // Global variables for reset functionality
+        let graphElement = null;
+        let lastExportedData = null;
+
+        /**
+         * Save current data to widget (simplified communication)
+         */
+        function saveValueToWidget() {
+            if (graphElement && graphElement.getDataInstance) {
+                try {
+                    const currentData = graphElement.getDataInstance();
+                    
+                    // If we're in an iframe (widget mode), use postMessage to save data
+                    if (window.parent !== window) {
+                        // Clean the data to ensure it's serializable
+                        const cleanData = JSON.parse(JSON.stringify(currentData));
+                        
+                        window.parent.postMessage({
+                            type: 'spytial-save-value',
+                            widgetId: '{{ widget_id | default("") }}',
+                            data: cleanData,
+                            dataclassName: dataclassName
+                        }, '*');
+                        showInfo('Value saved to widget! You can now access it via widget.value');
+                        lastExportedData = cleanData;
+                        return;
+                    }
+                    
+                    // Fallback: browser download for standalone mode
+                    const jsonString = JSON.stringify(currentData, null, 2);
+                    const blob = new Blob([jsonString], { type: 'application/json' });
+                    const url = URL.createObjectURL(blob);
+                    
+                    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+                    const filename = `${dataclassName}_export_${timestamp}.json`;
+                    
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = filename;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                    
+                    showInfo(`Data exported as ${filename}`);
+                    lastExportedData = currentData;
+                    
+                } catch (error) {
+                    console.error('Save failed:', error);
+                    showError(`Save failed: ${error.message}`);
+                }
+            } else {
+                showError('Graph element not found or getDataInstance method not available');
+            }
+        }
+
+        /**
+         * Export current data to JSON file
+         */
+        function exportDataToFile() {
+            if (graphElement && graphElement.getDataInstance) {
+                try {
+                    const currentData = graphElement.getDataInstance();
+                    
+                    // If we're in an iframe (widget mode), use postMessage
+                    if (window.parent !== window) {
+                        // Clean the data to ensure it's serializable
+                        const cleanData = JSON.parse(JSON.stringify(currentData));
+                        
+                        window.parent.postMessage({
+                            type: 'spytial-export',
+                            widgetId: '{{ widget_id | default("") }}',
+                            data: cleanData,
+                            dataclassName: dataclassName
+                        }, '*');
+                        showInfo('Data sent to widget!');
+                        lastExportedData = cleanData;
+                        return;
+                    }
+                    
+                    // Fallback: browser download for standalone mode
+                    const jsonString = JSON.stringify(currentData, null, 2);
+                    const blob = new Blob([jsonString], { type: 'application/json' });
+                    const url = URL.createObjectURL(blob);
+                    
+                    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+                    const filename = `${dataclassName}_export_${timestamp}.json`;
+                    
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = filename;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                    
+                    showInfo(`Data exported as ${filename}`);
+                    lastExportedData = currentData;
+                    
+                } catch (error) {
+                    console.error('Export failed:', error);
+                    showError(`Export failed: ${error.message}`);
+                }
+            } else {
+                showError('Graph element not found or getDataInstance method not available');
+            }
+        }
+
+        /**
+         * Try to automatically save to the watched directory (for interactive mode)
+         */
+        function tryAutoSaveToWatchedDir(data, filename) {
+            // This would require either:
+            // 1. A local web server that can write files
+            // 2. File System Access API (limited browser support)
+            // 3. A WebSocket connection to Python
+            
+            // For now, we'll just trigger a custom event that could be intercepted
+            const autoSaveEvent = new CustomEvent('auto-save-requested', {
+                detail: { data: data, filename: filename, exportDir: exportDir }
+            });
+            window.dispatchEvent(autoSaveEvent);
+            
+            // Log for debugging
+            console.log('Auto-save requested:', { filename, exportDir });
+        }
+
+        /**
+         * Copy current data to clipboard as JSON
+         */
+        function copyDataToClipboard() {
+            if (graphElement && graphElement.getDataInstance) {
+                try {
+                    const currentData = graphElement.getDataInstance();
+                    const jsonString = JSON.stringify(currentData, null, 2);
+                    
+                    navigator.clipboard.writeText(jsonString).then(() => {
+                        showInfo('Data copied to clipboard!');
+                        lastExportedData = currentData;
+                    }).catch(err => {
+                        console.error('Failed to copy to clipboard:', err);
+                        showError('Failed to copy to clipboard');
+                    });
+                } catch (error) {
+                    console.error('Copy failed:', error);
+                    showError(`Copy failed: ${error.message}`);
+                }
+            }
+        }
+        /**
+         * Reset the graph layout
+         */
+        async function resetLayout() {
+            if (graphElement) {
+                // Re-render with initial data
+                await loadGraph();
+            }
+        }
+
+        /**
+         * Create and add export buttons to the graph toolbar
+         */
+        function addExportControls() {
+            if (graphElement && graphElement.addToolbarControl) {
+                // Save Value button (for widget mode)
+                const saveButton = document.createElement('button');
+                saveButton.className = 'reset-btn';
+                saveButton.innerHTML = '💾 Save Value';
+                saveButton.title = 'Save current form data to widget';
+                saveButton.onclick = saveValueToWidget;
+                
+                // Copy to clipboard button
+                const copyButton = document.createElement('button');
+                copyButton.className = 'reset-btn';
+                copyButton.innerHTML = '📋 Copy JSON';
+                copyButton.title = 'Copy data to clipboard';
+                copyButton.onclick = copyDataToClipboard;
+                
+                // Reset button
+                const resetButton = document.createElement('button');
+                resetButton.className = 'reset-btn';
+                resetButton.innerHTML = '↻ Reset';
+                resetButton.title = 'Reset layout';
+                resetButton.onclick = resetLayout;
+                
+                graphElement.addToolbarControl(saveButton);
+                graphElement.addToolbarControl(copyButton);
+                graphElement.addToolbarControl(resetButton);
+            }
+        }
+
+        /**
+         * Load and render the graph using the structured-input-graph custom element
+         */
+        async function loadGraph() {
+            console.log('Loading graph...');
+            graphElement = document.getElementById('structured-graph');
+            
+            if (!graphElement) {
+                console.error('Graph element not found!');
+                showError('Graph container element not found');
+                return;
+            }
+
+            // Check if CnD Core is available
+            if (typeof CndCore === 'undefined') {
+                console.error('CnD Core library is not available');
+                showError('CnD Core library failed to load. The visualization cannot be displayed.');
+                
+                // Try to load the library again
+                console.log('Attempting to reload CnD library...');
+                const script = document.createElement('script');
+                script.src = 'https://cdn.jsdelivr.net/npm/cnd-core@1.2.0/dist/browser/cnd-core-complete.global.js';
+                script.onload = function() {
+                    console.log('CnD library reloaded, retrying...');
+                    setTimeout(loadGraph, 500);
+                };
+                script.onerror = function() {
+                    showError('Failed to load CnD library even on retry');
+                };
+                document.head.appendChild(script);
+                return;
+            }
+
+            // Step 1: Mount error message modal if available
+            if (window.mountErrorMessageModal) {
+                console.log('Mounting error message modal');
+                window.mountErrorMessageModal('error-core');
+            } else {
+                console.log('Error message modal not available');
+            }
+
+            try {
+                console.log('Parsing data...', { jsonData, cndSpec });
+                
+                // Parse JSON data if it's a string
+                let parsedData;
+                try {
+                    parsedData = typeof jsonData === 'string' ? JSON.parse(jsonData) : jsonData;
+                    console.log('Parsed data:', parsedData);
+                } catch (parseError) {
+                    throw new Error(`Failed to parse JSON data: ${parseError.message}`);
+                }
+
+                // Create a data instance from the JSON data
+                console.log('Creating data instance...');
+                const dataInstance = new CndCore.JSONDataInstance(parsedData);
+
+                // Set the CnD spec on the component
+                console.log('Setting CnD spec...');
+                graphElement.setCnDSpec(cndSpec);
+
+                // Set the data instance on the component
+                console.log('Setting data instance...');
+                graphElement.setDataInstance(dataInstance);
+
+                console.log('Graph setup complete!');
+
+                // Add event listeners for interactive features
+                graphElement.addEventListener('atom-added', (event) => {
+                    console.log('Atom added:', event.detail);
+                });
+
+                graphElement.addEventListener('data-exported', (event) => {
+                    console.log('Data exported:', event.detail);
+                });
+
+                graphElement.addEventListener('edge-creation-requested', (event) => {
+                    console.log('Edge created:', event.detail);
+                });
+
+                // Add export controls after setup
+                addExportControls();
+
+            } catch (error) {
+                console.error('Error setting up graph:', error);
+                showError(`Error setting up graph: ${error.message}`);
+            }
+        }
+
+        /**
+         * Display an error message in the error-message div.
+         * @param {string} message - The error message to display.
+         */
+        function showError(message) {
+            const errorDiv = document.getElementById('error-message');
+            if (errorDiv) {
+                errorDiv.innerHTML = `
+                    <div style="color: red; padding: 10px; border: 1px solid red; background-color: #ffe6e6; margin-top: 10px;">
+                        <h3>Error</h3>
+                        <p>${message}</p>
+                    </div>
+                `;
+            } else {
+                console.error('Error div not found. Error message:', message);
+            }
+        }
+
+        /**
+         * Display a success/info message in the error-message div.
+         * @param {string} message - The info message to display.
+         */
+        function showInfo(message) {
+            const errorDiv = document.getElementById('error-message');
+            if (errorDiv) {
+                errorDiv.innerHTML = `
+                    <div style="color: green; padding: 10px; border: 1px solid green; background-color: #e6ffe6; margin-top: 10px;">
+                        <h3>Success</h3>
+                        <p>${message}</p>
+                        <p><small>💡 Use <code>spytial.load_from_json_file('filename.json', ${dataclassName})</code> to load this data back into Python</small></p>
+                    </div>
+                `;
+                // Auto-hide after 5 seconds
+                setTimeout(() => {
+                    errorDiv.innerHTML = '';
+                }, 5000);
+            } else {
+                console.log('Info message:', message);
+            }
+        }
+
+        // Auto-load when page loads
+        window.addEventListener('load', function() {
+            console.log('Page loaded, starting graph setup...');
+            console.log('CndCore available:', typeof CndCore !== 'undefined');
+            console.log('Graph element:', document.getElementById('structured-graph'));
+            loadGraph();
+        });
+        
+        // Also try loading after a short delay in case of timing issues
+        setTimeout(function() {
+            if (!graphElement) {
+                console.log('Retrying graph load after delay...');
+                loadGraph();
+            }
+        }, 1000);
+        
+        // Listen for value request messages from parent widget
+        window.addEventListener('message', function(event) {
+            try {
+                // Handle requests for current form data
+                if (event.data && event.data.type === 'spytial-get-value' && event.data.widgetId === '{{ widget_id | default("") }}') {
+                    console.log('Received value request from parent widget');
+                    
+                    if (graphElement && graphElement.getDataInstance) {
+                        try {
+                            const currentData = graphElement.getDataInstance();
+                            
+                            // Clean the data to ensure it's serializable
+                            const cleanData = JSON.parse(JSON.stringify(currentData));
+                            
+                            // Send response back to parent
+                            event.source.postMessage({
+                                type: 'spytial-value-response',
+                                widgetId: '{{ widget_id | default("") }}',
+                                data: cleanData,
+                                dataclassName: dataclassName
+                            }, '*');
+                            
+                            console.log('Sent current value to parent widget:', cleanData);
+                        } catch (error) {
+                            console.error('Error getting current data:', error);
+                            
+                            // Send error response
+                            event.source.postMessage({
+                                type: 'spytial-value-response',
+                                widgetId: '{{ widget_id | default("") }}',
+                                data: null,
+                                error: error.message,
+                                dataclassName: dataclassName
+                            }, '*');
+                        }
+                    } else {
+                        console.error('Graph element not available for value request');
+                        
+                        // Send error response
+                        event.source.postMessage({
+                            type: 'spytial-value-response',
+                            widgetId: '{{ widget_id | default("") }}',
+                            data: null,
+                            error: 'Graph not ready',
+                            dataclassName: dataclassName
+                        }, '*');
+                    }
+                }
+            } catch (error) {
+                console.error('Error handling message from parent:', error);
+            }
+        });
+    </script>
+</body>
+
+</html>
