@@ -11,6 +11,7 @@ from .base import RelationalizerBase, Atom, Relation
 from .primitive_relationalizer import PrimitiveRelationalizer
 from .dict_relationalizer import DictRelationalizer
 from .list_relationalizer import ListRelationalizer
+from .tuple_relationalizer import TupleRelationalizer
 from .set_relationalizer import SetRelationalizer
 from .dataclass_relationalizer import DataclassRelationalizer
 from .generic_object_relationalizer import GenericObjectRelationalizer
@@ -21,6 +22,7 @@ _BUILTIN_RELATIONALIZERS = [
     (PrimitiveRelationalizer, 10),
     (DictRelationalizer, 9),
     (ListRelationalizer, 8),
+    (TupleRelationalizer, 8),
     (SetRelationalizer, 8),
     (DataclassRelationalizer, 7),
     (GenericObjectRelationalizer, 5),
@@ -41,6 +43,7 @@ __all__ = [
     "PrimitiveRelationalizer",
     "DictRelationalizer",
     "ListRelationalizer",
+    "TupleRelationalizer",
     "SetRelationalizer",
     "DataclassRelationalizer",
     "GenericObjectRelationalizer",

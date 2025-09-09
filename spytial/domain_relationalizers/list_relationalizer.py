@@ -1,14 +1,14 @@
-"""Relationalizer for list and tuple objects."""
+"""Relationalizer for listobjects."""
 
 from typing import Any, List, Tuple
 from .base import RelationalizerBase, Atom, Relation
 
 
 class ListRelationalizer(RelationalizerBase):
-    """Handles list and tuple objects."""
+    """Handles list objects."""
 
     def can_handle(self, obj: Any) -> bool:
-        return isinstance(obj, (list, tuple))
+        return isinstance(obj, list)
 
     def relationalize(self, obj: Any, walker_func) -> Tuple[List[Atom], List[Relation]]:
         obj_id = walker_func._get_id(obj)
@@ -19,7 +19,11 @@ class ListRelationalizer(RelationalizerBase):
         relations = []
         for i, elt in enumerate(obj):
             # Create an atom for the index
-            idx_id = f"{obj_id}_idx_{i}"
+            idx_id = walker_func._get_id(i)
+
+            # Wait, only create the atom for the index if it's not already created?
+
+
             idx_atom = Atom(id=idx_id, type="int", label=str(i))
             atoms.append(idx_atom)
             
@@ -30,3 +34,5 @@ class ListRelationalizer(RelationalizerBase):
             relations.append(Relation("idx", [obj_id, idx_id, eid]))
 
         return atoms, relations
+
+
