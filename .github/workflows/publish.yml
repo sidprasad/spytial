@@ -24,7 +24,7 @@ jobs:
     - name: Set up Python
       uses: actions/setup-python@v4
       with:
-        python-version: "3.10"
+        python-version: "3.12"
         
     - name: Install dependencies
       run: |
@@ -43,6 +43,14 @@ jobs:
         python -m pytest test/ -v
         PYTEST_RC=$?
         set -e
+
+        if [ "$PYTEST_RC" -eq 0 ]; then
+          echo "tests_passed=true" >> $GITHUB_OUTPUT
+          echo "✅ All tests passed"
+        else
+          echo "tests_passed=false" >> $GITHUB_OUTPUT
+          echo "⚠️ Some tests failed - continuing with publish"
+        fi
 
         if [ "$PYTEST_RC" -eq 0 ]; then
           echo "✅ All tests passed"
