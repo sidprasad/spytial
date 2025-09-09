@@ -43,7 +43,6 @@ class GenericObjectRelationalizer(RelationalizerBase):
                 or inspect.isfunction(value) 
                 or inspect.ismodule(value)
                 or inspect.isbuiltin(value)  # Catch built-in methods
-                or isinstance(value, (int, float, str, bool, bytes, bytearray, type(None)))  # Skip primitives
             ):
                 continue
             
@@ -52,16 +51,13 @@ class GenericObjectRelationalizer(RelationalizerBase):
                 try:
                     actual_value = getattr(obj, name)
                     # Skip if it's still a descriptor or primitive
-                    if actual_value is value or isinstance(actual_value, (int, float, str, bool, bytes, bytearray, type(None))):
+                    if actual_value is value:
                         continue
                     vid = walker_func(actual_value)
                     relations.append(Relation(name, [obj_id, vid]))
                 except (AttributeError, TypeError, ValueError):
                     continue
             else:
-                # Regular attribute - skip primitives
-                if isinstance(value, (int, float, str, bool, bytes, bytearray, type(None))):
-                    continue
                 vid = walker_func(value)
                 relations.append(Relation(name, [obj_id, vid]))
 
