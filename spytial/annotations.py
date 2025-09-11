@@ -24,11 +24,11 @@ CONSTRAINT_TYPES = {
     "group": [
         {
             "required": ["field", "groupOn", "addToGroup"],
-            "optional": ["selector"],
+            "optional": ["selector", "showLabel"],
         },  # Legacy, more ergonomic
         {
             "required": ["selector", "name"],
-            "optional": [],
+            "optional": ["showLabel"],
         },  # Selector-based group constraint
     ],
 }
