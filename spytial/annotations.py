@@ -3,10 +3,6 @@
 #
 
 
-### TODO:
-# - Add support for Flags
-# Add support for 'selector' in some directives.
-
 import yaml
 import re
 
