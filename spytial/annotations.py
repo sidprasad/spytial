@@ -3,10 +3,6 @@
 #
 
 
-### TODO:
-# - Add support for Flags
-# Add support for 'selector' in some directives.
-
 import yaml
 import re
 
@@ -24,11 +20,11 @@ CONSTRAINT_TYPES = {
     "group": [
         {
             "required": ["field", "groupOn", "addToGroup"],
-            "optional": ["selector"],
+            "optional": ["selector", "showLabel"],
         },  # Legacy, more ergonomic
         {
             "required": ["selector", "name"],
-            "optional": [],
+            "optional": ["showLabel"],
         },  # Selector-based group constraint
     ],
 }
@@ -419,6 +415,29 @@ def annotate(obj, annotation_type, **kwargs):
     return _annotate_object(obj, annotation_type, **kwargs)
 
 
+# Conditional decorator macro for sPyTial
+def apply_if(condition, *decorators):
+    """
+    Conditional decorator macro for sPyTial.
+    Usage:
+        @apply_if(CONDITION,
+            orientation(...),
+            hideField(...),
+            attribute(...),
+            ...
+        )
+        class MyClass: ...
+    If CONDITION is True, applies all decorators in order to the class.
+    If CONDITION is False, returns the class unchanged.
+    """
+    def decorator(cls):
+        if condition:
+            for deco in decorators:
+                cls = deco(cls)
+        return cls
+    return decorator
+
+
 def collect_decorators(obj):
     """
     Collect all decorators applied to the class of the given object,
@@ -462,3 +481,10 @@ def serialize_to_yaml_string(decorators):
     :return: YAML string representation of the decorators.
     """
     return yaml.dump(decorators, default_flow_style=False, Dumper=NoAliasDumper)
+
+
+# Export apply_if in module __all__
+__all__ = [
+    # ...other exports...
+    "apply_if",
+]
