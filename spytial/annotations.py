@@ -25,7 +25,7 @@ CONSTRAINT_TYPES = {
         },  # Legacy, more ergonomic
         {
             "required": ["selector", "name"],
-            "optional": ["showLabel"],
+            "optional": ["addEdge"],
         },  # Selector-based group constraint
     ],
 }

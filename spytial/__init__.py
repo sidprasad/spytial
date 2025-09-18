@@ -69,6 +69,7 @@ from .annotations import (
     annotate_hideField,
     annotate_hideAtom,
     annotate_inferredEdge,
+    annotate_flag,
     # Utility functions
     collect_decorators,
     serialize_to_yaml_string,
