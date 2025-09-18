@@ -42,6 +42,7 @@ from .annotations import (
     # Class decorators
     orientation,
     cyclic,
+    align,
     group,
     atomColor,
     size,
@@ -52,10 +53,12 @@ from .annotations import (
     hideField,
     hideAtom,
     inferredEdge,
+    flag,
     # Object annotation functions
     annotate,
     annotate_orientation,
     annotate_cyclic,
+    annotate_align,
     annotate_group,
     annotate_atomColor,
     annotate_size,
@@ -70,6 +73,7 @@ from .annotations import (
     collect_decorators,
     serialize_to_yaml_string,
     reset_object_ids,
+    apply_if,
 )
 
 # Main data instance builder
@@ -100,6 +104,7 @@ __all__ = [
     # Class decorators
     "orientation",
     "cyclic",
+    "align",
     "group",
     "atomColor",
     "size",
@@ -110,10 +115,12 @@ __all__ = [
     "hideField",
     "hideAtom",
     "inferredEdge",
+    "flag",
     # Object annotation functions
     "annotate",
     "annotate_orientation",
     "annotate_cyclic",
+    "annotate_align",
     "annotate_group",
     "annotate_atomColor",
     "annotate_size",
@@ -124,8 +131,10 @@ __all__ = [
     "annotate_hideField",
     "annotate_hideAtom",
     "annotate_inferredEdge",
+    "annotate_flag",
     # Utility functions
     "collect_decorators",
     "serialize_to_yaml_string",
     "reset_object_ids",
+    "apply_if",
 ]

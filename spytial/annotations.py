@@ -17,6 +17,7 @@ class NoAliasDumper(yaml.Dumper):
 CONSTRAINT_TYPES = {
     "cyclic": ["selector", "direction"],
     "orientation": ["selector", "directions"],
+    "align": ["selector", "direction"],
     "group": [
         {
             "required": ["field", "groupOn", "addToGroup"],
@@ -255,6 +256,7 @@ def _create_decorator(constraint_type):
 # Create individual decorator functions for each constraint and directive type
 orientation = _create_decorator("orientation")
 cyclic = _create_decorator("cyclic")
+align = _create_decorator("align")
 group = _create_decorator("group")
 atomColor = _create_decorator("atomColor")
 size = _create_decorator("size")
@@ -346,6 +348,11 @@ def annotate_orientation(obj, **kwargs):
 def annotate_cyclic(obj, **kwargs):
     """Apply cyclic annotation to a specific object."""
     return _annotate_object(obj, "cyclic", **kwargs)
+
+
+def annotate_align(obj, **kwargs):
+    """Apply align annotation to a specific object."""
+    return _annotate_object(obj, "align", **kwargs)
 
 
 def annotate_group(obj, **kwargs):
