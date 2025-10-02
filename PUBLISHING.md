@@ -1,190 +1,55 @@
-# Publishing sPyTial to PyPI
+# Minimal publish steps
 
-> **📚 For complete publishing instructions, see [docs/PUBLISHING.md](docs/PUBLISHING.md)**
+1. Ensure metadata
+   - Confirm distribution name in pyproject.toml: `[project].name = "spytial-diagramming"`
+   - If you have setup.py, make sure it does not override the distribution name (or update it).
+   - Bump the version in pyproject.toml (and setup.py if present).
 
-This document explains how to publish sPyTial to the Python Package Index (PyPI) so users can install it with `pip install spytial`.
-
-## Quick Start
-
-### Automated Publishing (Recommended)
+2. Clean previous builds
 ```bash
-# 1. Run validation
-python scripts/quick_publish_check.py
-
-# 2. Commit and tag
-git add . && git commit -m "Prepare for release v0.1.0"
-git tag v0.1.0 && git push origin main --tags
-
-# 3. Create GitHub release (triggers auto-publish)
-# Go to GitHub → Releases → Create new release
+rm -rf dist/ build/ *.egg-info/
 ```
 
-### Manual Publishing
+3. Build distributions
 ```bash
-python -m build
-twine upload dist/*
+python -m pip install --upgrade build
+python -m build --no-isolation
+ls -la dist/
 ```
 
-## Automated Publishing (Recommended)
+4. (Optional quick test) Run unit tests and import check
+```bash
+python -m pytest test/ -q
+python -c "import spytial; print('import ok')"
+```
 
-### GitHub Workflows
+5. Upload to Test PyPI first
+```bash
+# set token interactively or via env:
+# export TWINE_USERNAME="__token__"
+# export TWINE_PASSWORD="pypi-<TEST_API_TOKEN>"
 
-The repository includes automated GitHub workflows for CI/CD:
+python -m pip install --upgrade twine
+python -m twine upload --repository testpypi dist/*
+# verify install:
+pip install --index-url https://test.pypi.org/simple/ spytial-diagramming
+python -c "import spytial; print('test install ok')"
+```
 
-1. **`.github/workflows/ci.yml`** - Continuous Integration
-   - Runs on every push and pull request
-   - Tests multiple Python versions (3.8-3.12)
-   - Code quality checks (black, flake8)
-   - Full test suite
-   - Build validation
+6. Publish to PyPI (when ready)
+```bash
+# export TWINE_USERNAME="__token__"
+# export TWINE_PASSWORD="pypi-<PROD_API_TOKEN>"
+python -m twine upload dist/*
+```
 
-2. **`.github/workflows/publish.yml`** - Automated Publishing
-   - Triggers on GitHub releases or manual dispatch
-   - Runs comprehensive pre-publish validation
-   - Publishes to PyPI or Test PyPI
-   - Includes all validation scenarios from copilot instructions
+7. Common troubleshooting
+   - If you get `403 Forbidden` for a package name, one of your artifacts uses a name you don't own. Inspect `dist/` and upload only the intended files:
+```bash
+ls dist/
+python -m twine upload dist/spytial_diagramming-*.*
+```
+   - Ensure pyproject.toml / setup.py are consistent and versioned.
+   - Use TestPyPI to verify before publishing to production.
 
-### Publishing Process
-
-1. **Run local pre-publish checks:**
-   ```bash
-   python scripts/pre_publish_check.py
-   ```
-
-2. **Commit and tag a release:**
-   ```bash
-   git add .
-   git commit -m "Prepare for release v0.1.0"
-   git tag v0.1.0
-   git push origin main --tags
-   ```
-
-3. **Create a GitHub release:**
-   - Go to GitHub → Releases → Create new release
-   - Choose the tag you created
-   - Add release notes
-   - Publish the release
-
-4. **Automated publishing will trigger** and handle:
-   - All validation checks
-   - Package building
-   - Publishing to PyPI
-   - Release summary generation
-
-### Manual Testing
-
-To test on Test PyPI first:
-1. Go to GitHub Actions
-2. Select "Publish to PyPI" workflow
-3. Click "Run workflow"
-4. Check "Publish to Test PyPI instead of PyPI"
-5. Run workflow
-
-## Manual Publishing (Fallback)
-
-1. Install publishing tools:
-   ```bash
-   pip install build twine
-   ```
-
-2. Create accounts on:
-   - [PyPI](https://pypi.org/) for production
-   - [Test PyPI](https://test.pypi.org/) for testing
-
-## Manual Publishing (Fallback)
-
-### Prerequisites
-
-1. Install publishing tools:
-   ```bash
-   pip install build twine
-   ```
-
-2. Create accounts on:
-   - [PyPI](https://pypi.org/) for production
-   - [Test PyPI](https://test.pypi.org/) for testing
-
-### Manual Build and Publish
-
-1. **Run comprehensive validation:**
-   ```bash
-   python scripts/pre_publish_check.py
-   ```
-
-2. **Clean any previous builds:**
-   ```bash
-   rm -rf build/ dist/ *.egg-info/
-   ```
-
-3. **Build the package:**
-   ```bash
-   python -m build
-   ```
-
-4. **Test on Test PyPI first:**
-   ```bash
-   twine upload --repository testpypi dist/*
-   pip install --index-url https://test.pypi.org/simple/ spytial
-   ```
-
-5. **Publish to PyPI:**
-   ```bash
-   twine upload dist/*
-   ```
-
-## Setup for Automated Publishing
-
-### Required GitHub Secrets
-
-For automated publishing to work, add these secrets to your GitHub repository:
-
-1. **`PYPI_API_TOKEN`** - Your PyPI API token
-   - Go to PyPI → Account Settings → API Tokens
-   - Create token with "Entire account" scope
-   - Add to GitHub → Settings → Secrets and Variables → Actions
-
-2. **`TEST_PYPI_API_TOKEN`** - Your Test PyPI API token
-   - Go to Test PyPI → Account Settings → API Tokens  
-   - Create token with "Entire account" scope
-   - Add to GitHub secrets
-
-### Repository Environments (Optional but Recommended)
-
-Create GitHub environments for additional security:
-
-1. Go to GitHub → Settings → Environments
-2. Create `pypi` environment
-3. Create `test-pypi` environment  
-4. Add protection rules and required reviewers
-
-## Validation Checks
-
-The automated workflows run comprehensive validation including:
-
-- ✅ **Code Quality**: Black formatting, Flake8 linting
-- ✅ **Test Suite**: Full pytest test execution
-- ✅ **Basic Visualization**: Core diagram generation
-- ✅ **Class Annotations**: Decorator functionality  
-- ✅ **Object Annotations**: Runtime annotation system
-- ✅ **Provider System**: Data serialization pipeline
-- ✅ **Package Building**: Source and wheel distribution
-- ✅ **Installation Testing**: Install from built package
-
-All checks from the copilot instructions are automated!
-
-## Version Management
-
-To release a new version:
-
-1. Update version in `setup.py` and `pyproject.toml`
-2. Create a git tag: `git tag v0.1.1`
-3. Build and publish following the steps above
-
-## Package Contents
-
-The published package includes:
-- Core SpYTial modules
-- HTML templates for visualization
-- Documentation (README, LICENSE)
-- Example notebooks in demos/
-- Dependencies: jinja2, pyyaml, ipython
+That’s it — the minimal end-to-end flow: update metadata, clean, build, test on TestPyPI, then upload to PyPI.
