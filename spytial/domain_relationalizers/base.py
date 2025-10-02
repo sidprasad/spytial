@@ -7,7 +7,8 @@ that form the foundation of the relationalizer architecture.
 
 import abc
 import dataclasses
-from typing import Any, Dict, List, Tuple
+import inspect
+from typing import Any, Dict, List, Tuple, Optional
 
 
 @dataclasses.dataclass
@@ -92,3 +93,54 @@ class RelationalizerBase(abc.ABC):
             relations_list: List of Relation instances connecting this object to others
         """
         pass
+
+    def _try_get_variable_name(self, obj: Any) -> Optional[str]:
+        """
+        Attempt to find the variable name from the calling frame.
+        Returns None if unable to determine.
+        
+        This is a shared helper method that subclasses can use for improved labeling.
+        """
+        try:
+            # Walk up the call stack to find the frame where the object was created
+            frame = inspect.currentframe()
+            # Skip up through: this method -> relationalize -> walker_func -> diagram/user code
+            for _ in range(5):
+                if frame is None:
+                    break
+                frame = frame.f_back
+            
+            if frame is None:
+                return None
+            
+            # Check local and global variables in the caller's frame
+            for name, value in list(frame.f_locals.items()) + list(frame.f_globals.items()):
+                if value is obj and not name.startswith('_') and name.isidentifier():
+                    return name
+            
+            return None
+        except Exception:
+            # Frame inspection can fail in various scenarios - silently fall back
+            return None
+
+    def _make_label_with_fallback(self, obj: Any, typ: str) -> str:
+        """
+        Create a label with variable name if available, otherwise use object ID.
+        
+        Priority: variable name > type_shortid
+        
+        Args:
+            obj: The object to label
+            typ: The type name to use in the label
+            
+        Returns:
+            A label string like "Type:varname" or "Type_a3f2"
+        """
+        # Try to get variable name from frame inspection
+        var_name = self._try_get_variable_name(obj)
+        if var_name:
+            return f"{typ}:{var_name}"
+        
+        # Fallback: use last 4 hex digits of object ID
+        short_id = hex(id(obj))[-4:]
+        return f"{typ}_{short_id}"

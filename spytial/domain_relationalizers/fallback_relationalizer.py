@@ -13,7 +13,8 @@ class FallbackRelationalizer(RelationalizerBase):
     def relationalize(self, obj: Any, walker_func) -> Tuple[List[Atom], List[Relation]]:
         obj_id = walker_func._get_id(obj)
         typ = type(obj).__name__
-        atom = Atom(id=obj_id, type=typ, label=f"{typ}")
+        label = self._make_label_with_fallback(obj, typ)
+        atom = Atom(id=obj_id, type=typ, label=label)
 
         # Fallback doesn't process any relations - just returns the object as-is
         return [atom], []
