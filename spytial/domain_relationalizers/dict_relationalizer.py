@@ -13,7 +13,8 @@ class DictRelationalizer(RelationalizerBase):
     def relationalize(self, obj: Any, walker_func) -> Tuple[List[Atom], List[Relation]]:
         obj_id = walker_func._get_id(obj)
         typ = type(obj).__name__
-        label = self._make_label_with_fallback(obj, typ)
+        caller_namespace = getattr(walker_func, '_caller_namespace', None)
+        label = self._make_label_with_fallback(obj, typ, caller_namespace)
 
         atoms = [Atom(id=obj_id, type=typ, label=label)]
         relations = []

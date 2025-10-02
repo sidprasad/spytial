@@ -93,6 +93,7 @@ class CnDDataInstanceBuilder:
         self._current_depth = 0  # Track current recursion depth
         # Extensibility mechanism: custom reifiers for specific types
         self._custom_reifiers = {}
+        self._caller_namespace = None  # Store caller's namespace for variable name lookup
 
     def build_instance(self, obj: Any) -> Dict:
         """Build a complete data instance from an object."""
@@ -102,6 +103,28 @@ class CnDDataInstanceBuilder:
         self._id_counter = 0
         self._collected_decorators = {"constraints": [], "directives": []}
         self._current_depth = 0  # Reset depth
+        
+        # Capture the caller's namespace for variable name lookup
+        # Call stack: user_code -> diagram/evaluate -> build_instance
+        # We need to go back to user_code (2 frames back from build_instance)
+        try:
+            frame = inspect.currentframe()
+            # Walk back through the frames to find the user's code
+            # Frame 0: build_instance, Frame 1: diagram/evaluate, Frame 2: user code
+            user_frame = frame
+            for _ in range(2):  # Go back 2 frames
+                if user_frame and user_frame.f_back:
+                    user_frame = user_frame.f_back
+                else:
+                    break
+            
+            if user_frame:
+                # Merge locals and globals from the user's frame
+                self._caller_namespace = {**user_frame.f_globals, **user_frame.f_locals}
+            else:
+                self._caller_namespace = None
+        except Exception:
+            self._caller_namespace = None
 
         try:
             self._walk(obj)
