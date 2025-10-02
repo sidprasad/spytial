@@ -12,7 +12,10 @@ class SetRelationalizer(RelationalizerBase):
 
     def relationalize(self, obj: Any, walker_func) -> Tuple[List[Atom], List[Relation]]:
         obj_id = walker_func._get_id(obj)
-        atom = Atom(id=obj_id, type="set", label=f"set[{len(obj)}]")
+        typ = type(obj).__name__
+        caller_namespace = getattr(walker_func, '_caller_namespace', None)
+        label = self._make_label_with_fallback(obj, typ, caller_namespace)
+        atom = Atom(id=obj_id, type=typ, label=label)
 
         relations = []
         for element in obj:
