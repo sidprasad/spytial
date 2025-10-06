@@ -36,3 +36,8 @@ class ListRelationalizer(RelationalizerBase):
         return atoms, relations
 
 
+### Simple, stupid patterns. I don't like having these tho.
+
+## TODO: Fix this.
+LIST_1D_NEXT = "{x,y : idx[object][object] | @num:(x[idx[object]]) < @num:(y[idx[object]])}"
+LIST_2D_SAME_ROW_NEXT = "{x,y : idx[object][idx_x][x], idx[object][idx_y][y] | add[@num:idx_x, 1] = @num:idx_y}"
