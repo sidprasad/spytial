@@ -195,7 +195,18 @@ class CnDDataInstanceBuilder:
             except ImportError:
                 pass
 
-            # Default behavior: generate new ID
+            # For primitive types, use their string representation as ID
+            if isinstance(obj, (int, float, bool)) or obj is None:
+                primitive_id = str(obj)
+                self._seen[oid] = primitive_id
+                return primitive_id
+            elif isinstance(obj, str):
+                # For strings, use quoted representation to distinguish from other IDs
+                string_id = f'"{obj}"'
+                self._seen[oid] = string_id
+                return string_id
+
+            # Default behavior for complex objects: generate new ID
             self._seen[oid] = f"n{self._id_counter}"
             self._id_counter += 1
         return self._seen[oid]
