@@ -21,23 +21,16 @@ from .dataclassbuilder import (
 
 # Import widget functionality with graceful fallback
 try:
-    from .dataclass_widget import (
-        DataclassInputWidget,
-         
-        create_dataclass_widget,
-        dataclass_widget
-    )
+    from .dataclass_widget_cnd import dataclass_builder
     WIDGETS_AVAILABLE = True
 except ImportError:
     WIDGETS_AVAILABLE = False
-    # Create dummy functions when widgets aren't available
-    def dataclass_widget(*args, **kwargs):
+    # Create dummy function when widgets aren't available
+    def dataclass_builder(*args, **kwargs):
         raise ImportError(
             "ipywidgets is required for widget functionality. "
             "Install with: pip install ipywidgets"
         )
-    DataclassInputWidget = None
-    create_dataclass_widget = dataclass_widget
 from .annotations import (
     # Class decorators
     orientation,
@@ -94,9 +87,8 @@ __all__ = [
     "DataclassDerelationalizer",
     "InteractiveInputBuilder",
     # Widget functionality (when available)
-    "dataclass_widget",
-    "create_dataclass_widget",
-    "DataclassInputWidget",
+    # Widgets
+    "dataclass_builder",
     # New relationalizer system
     "CnDDataInstanceBuilder",
     "RelationalizerBase",
