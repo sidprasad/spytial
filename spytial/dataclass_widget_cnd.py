@@ -65,9 +65,12 @@ def _generate_cnd_spec(dataclass_type: Type) -> str:
     # Collect CnD annotations
     annotations = collect_decorators(instance)
     
+
+
+
     # Build spec structure
     spec = {
-        "dataclass_name": dataclass_type.__name__,
+        #"dataclass_name": dataclass_type.__name__,
         "constraints": annotations.get("constraints", []),
         "directives": annotations.get("directives", [])
     }
