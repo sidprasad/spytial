@@ -176,6 +176,9 @@ def _cnd_to_flat_dict(cnd_data: Dict, dataclass_type: Type) -> Dict:
 
 
 if IPYWIDGETS_AVAILABLE:
+    # Global widget registry - store at module level
+    _spytial_widgets = {}
+    
     class DataclassBuilderWidget:
         """
         A widget that uses CnD-core's structured-input-graph for visual dataclass construction.
@@ -189,10 +192,8 @@ if IPYWIDGETS_AVAILABLE:
             self._current_value = None
             self._widget_id = f"spytial_{id(self)}"
             
-            # Register widget globally for JavaScript access
-            if '_spytial_widgets' not in globals():
-                globals()['_spytial_widgets'] = {}
-            globals()['_spytial_widgets'][self._widget_id] = self
+            # Register widget in module-level registry
+            _spytial_widgets[self._widget_id] = self
             
             self._setup_widget()
         
@@ -250,10 +251,11 @@ if IPYWIDGETS_AVAILABLE:
                         var code = `
 try:
     import json
+    from spytial.dataclass_widget_cnd import _spytial_widgets, _json_to_dataclass
     
-    # Get widget from global registry
+    # Get widget from module-level registry
     widget_id = '{self._widget_id}'
-    if '_spytial_widgets' in globals() and widget_id in _spytial_widgets:
+    if widget_id in _spytial_widgets:
         widget = _spytial_widgets[widget_id]
         raw_data = '''` + JSON.stringify(event.data.data) + `'''
         
@@ -263,13 +265,12 @@ try:
         print(f"📊 Data structure keys: {{list(data.keys()) if isinstance(data, dict) else type(data)}}")
         
         # Convert to dataclass instance
-        from spytial.dataclass_widget_cnd import _json_to_dataclass
         widget._current_value = _json_to_dataclass(data, widget.dataclass_type)
         
         print(f"✅ Built: {{widget._current_value}}")
     else:
         print(f"❌ Widget {{widget_id}} not found in registry")
-        print(f"   Available widgets: {{list(globals().get('_spytial_widgets', {{}}).keys())}}")
+        print(f"   Available widgets: {{list(_spytial_widgets.keys())}}")
 except Exception as e:
     print(f"❌ Error: {{e}}")
     import traceback
@@ -326,8 +327,8 @@ except Exception as e:
         
         def __del__(self):
             """Cleanup."""
-            if '_spytial_widgets' in globals() and self._widget_id in globals()['_spytial_widgets']:
-                del globals()['_spytial_widgets'][self._widget_id]
+            if self._widget_id in _spytial_widgets:
+                del _spytial_widgets[self._widget_id]
 
 else:
     class DataclassBuilderWidget:
