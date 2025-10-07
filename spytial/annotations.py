@@ -496,8 +496,3 @@ __all__ = [
     "apply_if",
 ]
 
-### Patterns?
-
-
-
-###

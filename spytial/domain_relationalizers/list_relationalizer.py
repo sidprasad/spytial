@@ -36,8 +36,13 @@ class ListRelationalizer(RelationalizerBase):
         return atoms, relations
 
 
-### Simple, stupid patterns. I don't like having these tho.
 
-## TODO: Fix this.
-LIST_1D_NEXT = "{x,y : idx[object][object] | @num:(x[idx[object]]) < @num:(y[idx[object]])}"
-LIST_2D_SAME_ROW_NEXT = "{x,y : idx[object][idx_x][x], idx[object][idx_y][y] | add[@num:idx_x, 1] = @num:idx_y}"
+## But these are ... very expensive ##
+
+## Simple Idx ##
+
+LIST_1D_IDX = "{ i : int, s : object | (some l : list | (l->i->s in idx)) }"
+
+## TODO: 2D works ish.
+LIST_2D_IDX = "{ i : int, j : int, s : object | (some l1, l2 : list | (l1->i->l2 in idx) and (l2->j->s in idx)) }"
+

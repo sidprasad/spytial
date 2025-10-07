@@ -248,32 +248,29 @@ class CnDDataInstanceBuilder:
         # Add full type hierarchy to each atom
         type_hierarchy = [cls.__name__ for cls in inspect.getmro(type(obj))]
 
-        # Process each atom
 
-        ## TODO: There's a bug here. Why do we provide ATOM types
-        ## in a relationalizer if we are going to override them here?
+
+        ## TODO: There's a bug here. 
         primary_atom_id = None
         for i, atom in enumerate(atoms):
-            # Only override type if the relationalizer didn't provide a custom one
-            if atom.get("type") == type(obj).__name__ or not atom.get("type"):
-                atom["type"] = type_hierarchy[
-                    0
-                ]  # Most specific type (first in the hierarchy)
-
-                atom["type_hierarchy"] = (
-                    type_hierarchy  # Store the full type hierarchy if needed
-                )
+            # Only override type and hierarchy for the PRIMARY atom (the one representing this object)
+            # Other atoms (like list elements) should keep their own types from the relationalizer
+            if i == 0:  # Primary atom - represents the root object being walked
+                if atom.get("type") == type(obj).__name__ or not atom.get("type"):
+                    atom["type"] = type_hierarchy[0]  # Most specific type
+                    atom["type_hierarchy"] = type_hierarchy
+                else:
+                    # Even if relationalizer provided a different type, add the hierarchy
+                    atom["type_hierarchy"] = [atom["type"]] + type_hierarchy
+                primary_atom_id = atom["id"]
             else:
-                atom["type_hierarchy"] = [
-                    atom["type"]
-                ] + type_hierarchy  # Store the full type hierarchy if needed
+                # Secondary atoms (e.g., list elements) - keep their relationalizer-provided type
+                # Don't override with the container's type hierarchy
+                if not atom.get("type_hierarchy"):
+                    atom["type_hierarchy"] = [atom.get("type", "object")]
 
             # Add atom to our collection
             self._atoms.append(atom)
-
-            # The first atom is considered the primary representative of the object
-            if i == 0:
-                primary_atom_id = atom["id"]
 
         # Process relations - handle tuples of arbitrary length
         for rel_data in relations:
