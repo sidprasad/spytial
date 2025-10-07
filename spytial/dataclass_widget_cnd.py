@@ -83,7 +83,7 @@ def _json_to_dataclass(data: Dict, dataclass_type: Type) -> Any:
     Convert JSON data to a dataclass instance with basic type coercion.
     
     Args:
-        data: Dictionary containing field values
+        data: Dictionary containing field values (can be flat dict or CnD format)
         dataclass_type: Target dataclass type
         
     Returns:
@@ -91,6 +91,11 @@ def _json_to_dataclass(data: Dict, dataclass_type: Type) -> Any:
     """
     if not is_dataclass(dataclass_type):
         raise ValueError(f"{dataclass_type} is not a dataclass")
+    
+    # If data is in CnD format (has atoms/relations), extract the field values
+    if isinstance(data, dict) and 'atoms' in data and 'relations' in data:
+        # Convert CnD relational format to flat dict
+        data = _cnd_to_flat_dict(data, dataclass_type)
     
     kwargs = {}
     for field in fields(dataclass_type):
@@ -115,6 +120,59 @@ def _json_to_dataclass(data: Dict, dataclass_type: Type) -> Any:
             kwargs[field.name] = field.default_factory()
     
     return dataclass_type(**kwargs)
+
+
+def _cnd_to_flat_dict(cnd_data: Dict, dataclass_type: Type) -> Dict:
+    """
+    Convert CnD relational format back to a flat dictionary.
+    
+    CnD format has:
+    - atoms: list of {id, label, type, ...}
+    - relations: list of {id, source, target, label, ...}
+    
+    We need to extract field values from atoms and relations.
+    """
+    result = {}
+    
+    # Get dataclass field names
+    field_names = {f.name for f in fields(dataclass_type)}
+    
+    # Extract from atoms - look for atoms with labels matching field names
+    if 'atoms' in cnd_data:
+        for atom in cnd_data['atoms']:
+            if isinstance(atom, dict):
+                label = atom.get('label', '')
+                # Check if label contains a field name (format might be "field:value" or just field name)
+                for field_name in field_names:
+                    if field_name in label or label == field_name:
+                        # Try to get value from atom
+                        if 'value' in atom:
+                            result[field_name] = atom['value']
+                        # Or from label itself if it has the format "field:value"
+                        elif ':' in label:
+                            parts = label.split(':', 1)
+                            if parts[0] == field_name:
+                                result[field_name] = parts[1]
+    
+    # Extract from relations - look for field-value pairs
+    if 'relations' in cnd_data:
+        for relation in cnd_data['relations']:
+            if isinstance(relation, dict):
+                label = relation.get('label', '')
+                # Check if this is a field relation
+                for field_name in field_names:
+                    if label == field_name or field_name in label:
+                        # Get target atom value
+                        target_id = relation.get('target')
+                        if target_id and 'atoms' in cnd_data:
+                            for atom in cnd_data['atoms']:
+                                if atom.get('id') == target_id:
+                                    if 'value' in atom:
+                                        result[field_name] = atom['value']
+                                    elif 'label' in atom:
+                                        result[field_name] = atom['label']
+    
+    return result
 
 
 if IPYWIDGETS_AVAILABLE:
@@ -197,7 +255,12 @@ try:
     widget_id = '{self._widget_id}'
     if '_spytial_widgets' in globals() and widget_id in _spytial_widgets:
         widget = _spytial_widgets[widget_id]
-        data = json.loads('''` + JSON.stringify(event.data.data) + `''')
+        raw_data = '''` + JSON.stringify(event.data.data) + `'''
+        
+        print(f"📥 Received data (length: {{len(raw_data)}} chars)")
+        
+        data = json.loads(raw_data)
+        print(f"📊 Data structure keys: {{list(data.keys()) if isinstance(data, dict) else type(data)}}")
         
         # Convert to dataclass instance
         from spytial.dataclass_widget_cnd import _json_to_dataclass
@@ -205,9 +268,10 @@ try:
         
         print(f"✅ Built: {{widget._current_value}}")
     else:
-        print(f"Widget {{widget_id}} not found")
+        print(f"❌ Widget {{widget_id}} not found in registry")
+        print(f"   Available widgets: {{list(globals().get('_spytial_widgets', {{}}).keys())}}")
 except Exception as e:
-    print(f"Error: {{e}}")
+    print(f"❌ Error: {{e}}")
     import traceback
     traceback.print_exc()
 `;
