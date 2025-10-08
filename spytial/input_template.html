@@ -95,13 +95,32 @@
     <div id="error-message"></div>
     <div id="error-core"></div>
 
+    <!-- Embedded JSON data as separate script to avoid escaping issues -->
+    <script type="application/json" id="initial-data">
+{{ python_data | safe }}
+    </script>
 
     <script>
         // Embedded data passed from the server
         const cndSpec = `{{ cnd_spec | safe }}`;
-        const jsonData = `{{ python_data | safe }}`;
-        const exportDir = `{{ export_dir | safe }}`;
         const dataclassName = `{{ dataclass_name | safe }}`;
+        const exportDir = `{{ export_dir | safe }}`;
+        
+        // Parse the JSON data from inline script
+        let jsonData = null;
+        try {
+            const dataScript = document.getElementById('initial-data');
+            if (dataScript) {
+                jsonData = JSON.parse(dataScript.textContent);
+                console.log('Loaded initial data:', jsonData);
+            } else {
+                console.error('initial-data script not found');
+                jsonData = {};
+            }
+        } catch (e) {
+            console.error('Failed to parse initial JSON data:', e);
+            jsonData = {};
+        }
 
         // Global variables for reset functionality
         let graphElement = null;
@@ -111,51 +130,73 @@
          * Export current data to JSON file
          */
         function exportDataToFile() {
-            if (graphElement && graphElement.getDataInstance) {
-                try {
-                    const currentData = graphElement.getDataInstance();
+            console.log('Export button clicked!');
+            console.log('graphElement:', graphElement);
+            console.log('graphElement.getDataInstance:', graphElement ? graphElement.getDataInstance : 'N/A');
+            
+            if (!graphElement) {
+                showError('Graph element not found. Please wait for initialization.');
+                return;
+            }
+            
+            if (!graphElement.getDataInstance) {
+                showError('getDataInstance method not available on graph element.');
+                console.error('Available methods:', Object.keys(graphElement));
+                return;
+            }
+            
+            try {
+                console.log('Calling getDataInstance()...');
+                const currentData = graphElement.getDataInstance();
+                console.log('Got data:', currentData);
+                console.log('Data type:', typeof currentData);
+                console.log('Data keys:', currentData ? Object.keys(currentData) : 'null');
+                
+                // If we're in an iframe (widget mode), use postMessage
+                if (window.parent !== window) {
+                    console.log('In iframe mode, sending postMessage...');
                     
-                    // If we're in an iframe (widget mode), use postMessage
-                    if (window.parent !== window) {
-                        // Clean the data to ensure it's serializable
-                        const cleanData = JSON.parse(JSON.stringify(currentData));
-                        
-                        window.parent.postMessage({
-                            type: 'spytial-export',
-                            widgetId: '{{ widget_id | default("") }}',
-                            data: cleanData,
-                            dataclassName: dataclassName
-                        }, '*');
-                        showInfo('Data sent to widget!');
-                        lastExportedData = cleanData;
-                        return;
-                    }
+                    // Clean the data to ensure it's serializable
+                    const cleanData = JSON.parse(JSON.stringify(currentData));
+                    console.log('Cleaned data:', cleanData);
                     
-                    // Fallback: browser download for standalone mode
-                    const jsonString = JSON.stringify(currentData, null, 2);
-                    const blob = new Blob([jsonString], { type: 'application/json' });
-                    const url = URL.createObjectURL(blob);
+                    const message = {
+                        type: 'spytial-export',
+                        widgetId: '{{ widget_id | default("") }}',
+                        data: cleanData,
+                        dataclassName: dataclassName
+                    };
                     
-                    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-                    const filename = `${dataclassName}_export_${timestamp}.json`;
-                    
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.download = filename;
-                    document.body.appendChild(a);
-                    a.click();
-                    document.body.removeChild(a);
-                    URL.revokeObjectURL(url);
-                    
-                    showInfo(`Data exported as ${filename}`);
-                    lastExportedData = currentData;
-                    
-                } catch (error) {
-                    console.error('Export failed:', error);
-                    showError(`Export failed: ${error.message}`);
+                    console.log('Sending message:', message);
+                    window.parent.postMessage(message, '*');
+                    showInfo('Data sent to widget!');
+                    lastExportedData = cleanData;
+                    return;
                 }
-            } else {
-                showError('Graph element not found or getDataInstance method not available');
+                
+                // Fallback: browser download for standalone mode
+                console.log('Standalone mode, triggering download...');
+                const jsonString = JSON.stringify(currentData, null, 2);
+                const blob = new Blob([jsonString], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                
+                const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+                const filename = `${dataclassName}_export_${timestamp}.json`;
+                
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = filename;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                
+                showInfo(`Data exported as ${filename}`);
+                lastExportedData = currentData;
+                    
+            } catch (error) {
+                console.error('Export failed:', error);
+                showError(`Export failed: ${error.message}`);
             }
         }
 
@@ -284,16 +325,11 @@
             }
 
             try {
-                console.log('Parsing data...', { jsonData, cndSpec });
+                console.log('Parsing data...', { cndSpec });
+                console.log('Initial data:', jsonData);
                 
-                // Parse JSON data if it's a string
-                let parsedData;
-                try {
-                    parsedData = typeof jsonData === 'string' ? JSON.parse(jsonData) : jsonData;
-                    console.log('Parsed data:', parsedData);
-                } catch (parseError) {
-                    throw new Error(`Failed to parse JSON data: ${parseError.message}`);
-                }
+                // jsonData is already parsed above
+                const parsedData = jsonData;
 
                 // Create a data instance from the JSON data
                 console.log('Creating data instance...');
