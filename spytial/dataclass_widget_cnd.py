@@ -192,6 +192,11 @@ if IPYWIDGETS_AVAILABLE:
             self._current_value = None
             self._widget_id = f"spytial_{id(self)}"
             
+            # Setup export file path
+            import tempfile
+            self._export_dir = tempfile.mkdtemp(prefix="spytial_")
+            self._export_file = os.path.join(self._export_dir, f"{self._widget_id}.json")
+            
             # Register widget in module-level registry
             _spytial_widgets[self._widget_id] = self
             
@@ -226,7 +231,10 @@ if IPYWIDGETS_AVAILABLE:
                 "{{ python_data | safe }}", json.dumps(initial_data)
             )
             html_content = html_content.replace(
-                "{{ export_dir | safe }}", ""
+                "{{ export_dir | safe }}", self._export_dir
+            )
+            html_content = html_content.replace(
+                "{{ export_file | safe }}", self._export_file
             )
             html_content = html_content.replace(
                 "{{ dataclass_name | safe }}", self.dataclass_type.__name__
@@ -251,9 +259,17 @@ if IPYWIDGETS_AVAILABLE:
                         var code = `
 try:
     import json
-    from spytial.dataclass_widget_cnd import _spytial_widgets, _json_to_dataclass
+    import sys
     
-    # Get widget from module-level registry
+    # Import the module and get the registry
+    if 'spytial.dataclass_widget_cnd' in sys.modules:
+        widget_module = sys.modules['spytial.dataclass_widget_cnd']
+        _spytial_widgets = widget_module._spytial_widgets
+        _json_to_dataclass = widget_module._json_to_dataclass
+    else:
+        from spytial.dataclass_widget_cnd import _spytial_widgets, _json_to_dataclass
+    
+    # Get widget from registry
     widget_id = '{self._widget_id}'
     if widget_id in _spytial_widgets:
         widget = _spytial_widgets[widget_id]
@@ -308,17 +324,45 @@ except Exception as e:
             
             self.widget = VBox([
                 HTML(f"<h3>{self.dataclass_type.__name__} Builder (CnD-core)</h3>"),
-                HTML("<p>Build your data visually, then click 'Export JSON' to capture it.</p>"),
+                HTML(f"<p>Build your data visually, then click 'Export JSON'. "
+                     f"Save file to: <code>{self._export_dir}</code></p>"),
                 self.iframe_widget,
                 self.status_output
             ])
             
             with self.status_output:
-                print(f"✨ Widget ready! Build your {self.dataclass_type.__name__} and export to capture.")
+                print(f"✨ Widget ready! Export file will be saved to:")
+                print(f"   {self._export_file}")
+                print(f"💡 Access with: widget.value or widget.refresh()")
         
         @property
         def value(self):
-            """Get the current built dataclass instance."""
+            """Get the current built dataclass instance, checking for file updates."""
+            self._check_for_update()
+            return self._current_value
+        
+        def _check_for_update(self):
+            """Check if export file exists and load it."""
+            if os.path.exists(self._export_file):
+                try:
+                    with open(self._export_file, 'r') as f:
+                        data = json.load(f)
+                    
+                    # Convert to dataclass
+                    self._current_value = _json_to_dataclass(data, self.dataclass_type)
+                    
+                    # Delete file after reading to avoid re-reading
+                    os.remove(self._export_file)
+                    
+                    with self.status_output:
+                        print(f"✅ Loaded: {self._current_value}")
+                except Exception as e:
+                    with self.status_output:
+                        print(f"❌ Error loading export: {e}")
+        
+        def refresh(self):
+            """Manually check for updates from export file."""
+            self._check_for_update()
             return self._current_value
         
         def _repr_mimebundle_(self, **kwargs):

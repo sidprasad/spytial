@@ -132,56 +132,59 @@
         function exportDataToFile() {
             console.log('Export button clicked!');
             console.log('graphElement:', graphElement);
-            console.log('graphElement.getDataInstance:', graphElement ? graphElement.getDataInstance : 'N/A');
             
             if (!graphElement) {
                 showError('Graph element not found. Please wait for initialization.');
                 return;
             }
             
-            if (!graphElement.getDataInstance) {
-                showError('getDataInstance method not available on graph element.');
-                console.error('Available methods:', Object.keys(graphElement));
+            // Check what methods are available
+            console.log('Available methods on graphElement:');
+            const methods = Object.getOwnPropertyNames(graphElement).filter(name => typeof graphElement[name] === 'function');
+            console.log(methods);
+            
+            // Try common method names for getting data
+            const possibleDataMethods = ['getDataInstance', 'getData', 'exportData', 'getCurrentData', 'getGraphData'];
+            let dataMethod = null;
+            
+            for (const method of possibleDataMethods) {
+                if (typeof graphElement[method] === 'function') {
+                    console.log(`✓ Found data method: ${method}`);
+                    dataMethod = method;
+                    break;
+                }
+            }
+            
+            if (!dataMethod) {
+                console.error('✗ No data retrieval method found');
+                showError('Cannot find method to get data from graph. Available methods: ' + methods.join(', '));
                 return;
             }
             
             try {
-                console.log('Calling getDataInstance()...');
-                const currentData = graphElement.getDataInstance();
+                console.log(`Calling ${dataMethod}()...`);
+                const currentData = graphElement[dataMethod]();
                 console.log('Got data:', currentData);
                 console.log('Data type:', typeof currentData);
                 console.log('Data keys:', currentData ? Object.keys(currentData) : 'null');
                 
-                // If we're in an iframe (widget mode), use postMessage
-                if (window.parent !== window) {
-                    console.log('In iframe mode, sending postMessage...');
-                    
-                    // Clean the data to ensure it's serializable
-                    const cleanData = JSON.parse(JSON.stringify(currentData));
-                    console.log('Cleaned data:', cleanData);
-                    
-                    const message = {
-                        type: 'spytial-export',
-                        widgetId: '{{ widget_id | default("") }}',
-                        data: cleanData,
-                        dataclassName: dataclassName
-                    };
-                    
-                    console.log('Sending message:', message);
-                    window.parent.postMessage(message, '*');
-                    showInfo('Data sent to widget!');
-                    lastExportedData = cleanData;
+                if (!currentData) {
+                    showError('No data returned from graph element');
                     return;
                 }
                 
-                // Fallback: browser download for standalone mode
-                console.log('Standalone mode, triggering download...');
-                const jsonString = JSON.stringify(currentData, null, 2);
+                // Clean the data to ensure it's serializable
+                const cleanData = JSON.parse(JSON.stringify(currentData));
+                console.log('Cleaned data:', cleanData);
+                
+                // Always trigger file download for widget mode
+                const jsonString = JSON.stringify(cleanData, null, 2);
                 const blob = new Blob([jsonString], { type: 'application/json' });
                 const url = URL.createObjectURL(blob);
                 
-                const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-                const filename = `${dataclassName}_export_${timestamp}.json`;
+                // Use fixed filename based on widget ID for auto-loading
+                const exportFile = '{{ export_file | safe }}';
+                const filename = exportFile ? exportFile.split('/').pop() : `${dataclassName}_export.json`;
                 
                 const a = document.createElement('a');
                 a.href = url;
@@ -191,12 +194,13 @@
                 document.body.removeChild(a);
                 URL.revokeObjectURL(url);
                 
-                showInfo(`Data exported as ${filename}`);
-                lastExportedData = currentData;
+                showInfo(`Data exported! Check widget.value or call widget.refresh()`);
+                lastExportedData = cleanData;
                     
             } catch (error) {
                 console.error('Export failed:', error);
                 showError(`Export failed: ${error.message}`);
+```
             }
         }
 
@@ -223,24 +227,123 @@
          * Copy current data to clipboard as JSON
          */
         function copyDataToClipboard() {
-            if (graphElement && graphElement.getDataInstance) {
-                try {
-                    const currentData = graphElement.getDataInstance();
-                    const jsonString = JSON.stringify(currentData, null, 2);
-                    
+            console.log('Copy button clicked!');
+            
+            if (!graphElement) {
+                showError('Graph element not found');
+                return;
+            }
+            
+            // Try to find data method
+            const possibleDataMethods = ['getDataInstance', 'getData', 'exportData', 'getCurrentData', 'getGraphData'];
+            let dataMethod = null;
+            
+            for (const method of possibleDataMethods) {
+                if (typeof graphElement[method] === 'function') {
+                    dataMethod = method;
+                    break;
+                }
+            }
+            
+            if (!dataMethod) {
+                showError('Cannot find method to get data from graph');
+                return;
+            }
+            
+            try {
+                const currentData = graphElement[dataMethod]();
+                if (!currentData) {
+                    showError('No data available to copy');
+                    return;
+                }
+                
+                const jsonString = JSON.stringify(currentData, null, 2);
+                
+                // Check if clipboard API is available (not available in iframes)
+                if (navigator.clipboard && navigator.clipboard.writeText) {
                     navigator.clipboard.writeText(jsonString).then(() => {
                         showInfo('Data copied to clipboard!');
                         lastExportedData = currentData;
                     }).catch(err => {
                         console.error('Failed to copy to clipboard:', err);
-                        showError('Failed to copy to clipboard');
+                        fallbackCopyMethod(jsonString);
                     });
-                } catch (error) {
-                    console.error('Copy failed:', error);
-                    showError(`Copy failed: ${error.message}`);
+                } else {
+                    console.log('Clipboard API not available in iframe, using fallback');
+                    fallbackCopyMethod(jsonString);
                 }
+            } catch (error) {
+                console.error('Copy failed:', error);
+                showError(`Copy failed: ${error.message}`);
             }
         }
+        
+        /**
+         * Fallback copy method using a text area
+         */
+        function fallbackCopyMethod(text) {
+            // Create a temporary text area
+            const textArea = document.createElement('textarea');
+            textArea.value = text;
+            textArea.style.position = 'fixed';
+            textArea.style.top = '-1000px';
+            textArea.style.left = '-1000px';
+            document.body.appendChild(textArea);
+            
+            try {
+                textArea.select();
+                textArea.setSelectionRange(0, 99999); // For mobile devices
+                
+                // Try the old execCommand method
+                const successful = document.execCommand('copy');
+                if (successful) {
+                    showInfo('Data copied to clipboard (fallback method)!');
+                    lastExportedData = JSON.parse(text);
+                } else {
+                    // If all else fails, show the data in a prompt for manual copying
+                    showTextForManualCopy(text);
+                }
+            } catch (err) {
+                console.error('Fallback copy failed:', err);
+                showTextForManualCopy(text);
+            } finally {
+                document.body.removeChild(textArea);
+            }
+        }
+        
+        /**
+         * Show text in a dialog for manual copying
+         */
+        function showTextForManualCopy(text) {
+            const modal = document.createElement('div');
+            modal.style.cssText = `
+                position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+                background: rgba(0,0,0,0.5); z-index: 10000; display: flex;
+                align-items: center; justify-content: center;
+            `;
+            
+            const content = document.createElement('div');
+            content.style.cssText = `
+                background: white; padding: 20px; border-radius: 8px; max-width: 80%;
+                max-height: 80%; overflow: auto; box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            `;
+            
+            content.innerHTML = `
+                <h3>Copy Data Manually</h3>
+                <p>Please copy this data manually:</p>
+                <textarea readonly style="width: 100%; height: 200px; font-family: monospace;">${text}</textarea>
+                <br><br>
+                <button onclick="this.closest('div[style*=fixed]').remove()">Close</button>
+            `;
+            
+            modal.appendChild(content);
+            document.body.appendChild(modal);
+            
+            // Auto-select the text
+            const textarea = content.querySelector('textarea');
+            textarea.select();
+        }
+
         /**
          * Reset the graph layout
          */
@@ -255,31 +358,107 @@
          * Create and add export buttons to the graph toolbar
          */
         function addExportControls() {
-            if (graphElement && graphElement.addToolbarControl) {
-                // Export to file button
-                const exportButton = document.createElement('button');
-                exportButton.className = 'reset-btn';
-                exportButton.innerHTML = 'Export';
-                exportButton.title = 'Export data';
-                exportButton.onclick = exportDataToFile;
-                
-                // Copy to clipboard button
-                const copyButton = document.createElement('button');
-                copyButton.className = 'reset-btn';
-                copyButton.innerHTML = 'Copy';
-                copyButton.title = 'Copy data to clipboard';
-                copyButton.onclick = copyDataToClipboard;
-                
-                // Reset button
-                const resetButton = document.createElement('button');
-                resetButton.className = 'reset-btn';
-                resetButton.innerHTML = '↻ Reset';
-                resetButton.title = 'Reset layout';
-                resetButton.onclick = resetLayout;
-                
-                graphElement.addToolbarControl(exportButton);
-                graphElement.addToolbarControl(copyButton);
-                graphElement.addToolbarControl(resetButton);
+            console.log('Adding export controls...');
+            console.log('graphElement:', graphElement);
+            console.log('graphElement methods:', graphElement ? Object.getOwnPropertyNames(graphElement) : 'N/A');
+            
+            if (graphElement) {
+                if (graphElement.addToolbarControl) {
+                    console.log('✓ addToolbarControl method exists');
+                    
+                    // Export to file button
+                    const exportButton = document.createElement('button');
+                    exportButton.className = 'reset-btn';
+                    exportButton.innerHTML = '💾 Export';
+                    exportButton.title = 'Export data';
+                    exportButton.onclick = exportDataToFile;
+                    
+                    // Copy to clipboard button
+                    const copyButton = document.createElement('button');
+                    copyButton.className = 'reset-btn';
+                    copyButton.innerHTML = '📋 Copy';
+                    copyButton.title = 'Copy data to clipboard';
+                    copyButton.onclick = copyDataToClipboard;
+                    
+                    // Reset button
+                    const resetButton = document.createElement('button');
+                    resetButton.className = 'reset-btn';
+                    resetButton.innerHTML = '↻ Reset';
+                    resetButton.title = 'Reset layout';
+                    resetButton.onclick = resetLayout;
+                    
+                    try {
+                        graphElement.addToolbarControl(exportButton);
+                        graphElement.addToolbarControl(copyButton);
+                        graphElement.addToolbarControl(resetButton);
+                        console.log('✓ Buttons added to toolbar');
+                    } catch (e) {
+                        console.error('✗ Failed to add buttons:', e);
+                    }
+                } else {
+                    console.error('✗ addToolbarControl method not available');
+                    console.log('Available methods:', Object.getOwnPropertyNames(graphElement).filter(name => typeof graphElement[name] === 'function'));
+                    
+                    // Fallback: Add buttons to a different location
+                    addFallbackExportControls();
+                }
+            } else {
+                console.error('✗ graphElement is null');
+            }
+        }
+        
+        /**
+         * Fallback: Add export controls outside the graph if addToolbarControl doesn't work
+         */
+        function addFallbackExportControls() {
+            console.log('Adding fallback export controls...');
+            
+            // Create a control panel div
+            const controlPanel = document.createElement('div');
+            controlPanel.style.cssText = `
+                position: absolute;
+                top: 10px;
+                right: 10px;
+                z-index: 1000;
+                background: white;
+                border: 1px solid #ccc;
+                border-radius: 4px;
+                padding: 8px;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            `;
+            
+            // Export button
+            const exportBtn = document.createElement('button');
+            exportBtn.className = 'reset-btn';
+            exportBtn.innerHTML = '💾 Export';
+            exportBtn.onclick = exportDataToFile;
+            exportBtn.style.marginRight = '4px';
+            
+            // Copy button
+            const copyBtn = document.createElement('button');
+            copyBtn.className = 'reset-btn';
+            copyBtn.innerHTML = '📋 Copy';
+            copyBtn.onclick = copyDataToClipboard;
+            copyBtn.style.marginRight = '4px';
+            
+            // Reset button
+            const resetBtn = document.createElement('button');
+            resetBtn.className = 'reset-btn';
+            resetBtn.innerHTML = '↻ Reset';
+            resetBtn.onclick = resetLayout;
+            
+            controlPanel.appendChild(exportBtn);
+            controlPanel.appendChild(copyBtn);
+            controlPanel.appendChild(resetBtn);
+            
+            // Add to the graph wrapper
+            const graphWrapper = document.querySelector('.graph-wrapper');
+            if (graphWrapper) {
+                graphWrapper.style.position = 'relative';
+                graphWrapper.appendChild(controlPanel);
+                console.log('✓ Fallback buttons added');
+            } else {
+                console.error('✗ Could not find graph wrapper');
             }
         }
 
@@ -333,7 +512,13 @@
 
                 // Create a data instance from the JSON data
                 console.log('Creating data instance...');
+                console.log('Parsed data structure:', {
+                    atoms: parsedData.atoms?.length,
+                    relations: parsedData.relations?.length,
+                    types: parsedData.types?.length
+                });
                 const dataInstance = new CndCore.JSONDataInstance(parsedData);
+                console.log('Data instance created:', dataInstance);
 
                 // Set the CnD spec on the component
                 console.log('Setting CnD spec...');
@@ -342,8 +527,16 @@
                 // Set the data instance on the component
                 console.log('Setting data instance...');
                 graphElement.setDataInstance(dataInstance);
-
+                
                 console.log('Graph setup complete!');
+                console.log('Graph element ready state:', graphElement.isConnected);
+                
+                // Verify data was set
+                setTimeout(() => {
+                    console.log('Checking graph state after setup...');
+                    const currentData = graphElement.getDataInstance?.();
+                    console.log('Current data instance:', currentData);
+                }, 100);
 
                 // Add event listeners for interactive features
                 graphElement.addEventListener('atom-added', (event) => {

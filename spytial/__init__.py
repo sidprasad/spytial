@@ -9,15 +9,6 @@ from .provider_system import (
 )
 from .visualizer import diagram
 from .evaluator import evaluate
-from .dataclassbuilder import (
-    build_input, 
-    input_builder, 
-    load_from_json_file, 
-    json_to_dataclass,
-    build_interactive,
-    DataclassDerelationalizer,
-    InteractiveInputBuilder
-)
 
 # Import widget functionality with graceful fallback
 try:
@@ -78,16 +69,7 @@ __all__ = [
     # Core functions
     "diagram",
     "evaluate",
-    # Dataclass input builder
-    "build_input",
-    "input_builder",
-    "load_from_json_file",
-    "json_to_dataclass",
-    "build_interactive",
-    "DataclassDerelationalizer",
-    "InteractiveInputBuilder",
-    # Widget functionality (when available)
-    # Widgets
+    # Widget functionality
     "dataclass_builder",
     # New relationalizer system
     "CnDDataInstanceBuilder",
