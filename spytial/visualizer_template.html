@@ -8,9 +8,9 @@
     
     <script src="https://d3js.org/d3.v4.min.js"></script>
 
-    <script src="https://cdn.jsdelivr.net/npm/cnd-core@1.4.1/dist/browser/cnd-core-complete.global.js"></script>  
-    <script src="https://cdn.jsdelivr.net/npm/cnd-core@1.4.1/dist/components/react-component-integration.global.js"></script>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/cnd-core@1.4.1/dist/components/react-component-integration.css" /> 
+    <script src="https://cdn.jsdelivr.net/npm/cnd-core@1.4.3/dist/browser/cnd-core-complete.global.js"></script>  
+    <script src="https://cdn.jsdelivr.net/npm/cnd-core@1.4.3/dist/components/react-component-integration.global.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/cnd-core@1.4.3/dist/components/react-component-integration.css" /> 
     
     <style>
         body {
@@ -117,6 +117,110 @@
 
 
         /**
+         * Validate the data structure for common issues
+         */
+        function validateDataStructure(data) {
+            if (!data || typeof data !== 'object') {
+                throw new Error('Data must be an object');
+            }
+
+            // Check atoms
+            if (data.atoms) {
+                if (!Array.isArray(data.atoms)) {
+                    throw new Error('atoms must be an array');
+                }
+
+                // Track (id, type, label) tuples to detect race conditions
+                // Multiple atoms with same ID are OK if they have same type and label (same primitive value)
+                // But if same ID has different types/labels, that's a race condition
+                const atomsByIdMap = {};  // id -> array of {type, label}
+
+                for (let i = 0; i < data.atoms.length; i++) {
+                    const atom = data.atoms[i];
+                    if (!atom.id) {
+                        throw new Error(`Atom at index ${i} missing 'id' field`);
+                    }
+
+                    if (!atomsByIdMap[atom.id]) {
+                        atomsByIdMap[atom.id] = [];
+                    }
+                    atomsByIdMap[atom.id].push({ type: atom.type, label: atom.label });
+                }
+
+                // Check for race condition: same ID with different type or label
+                const raceConditionIds = [];
+                for (const [id, atoms] of Object.entries(atomsByIdMap)) {
+                    // Check if all atoms with this ID have same type and label
+                    const firstAtom = atoms[0];
+                    const inconsistent = atoms.some(a => 
+                        a.type !== firstAtom.type || a.label !== firstAtom.label
+                    );
+                    if (inconsistent) {
+                        raceConditionIds.push(id);
+                    }
+                }
+
+                if (raceConditionIds.length > 0) {
+                    const raceList = raceConditionIds.slice(0, 5).join(', ');
+                    const moreCount = raceConditionIds.length > 5 ? ` and ${raceConditionIds.length - 5} more` : '';
+                    throw new Error(
+                        `Primitive ID race condition detected: ${raceList}${moreCount}. ` +
+                        `These IDs have conflicting type or label information, indicating inconsistent ID generation. ` +
+                        `Make sure all primitive values (int, str, bool) are generated with consistent value-based IDs.`
+                    );
+                }
+            }
+
+            // Check relations
+            if (data.relations) {
+                if (!Array.isArray(data.relations)) {
+                    throw new Error('relations must be an array');
+                }
+
+                const atomIds = new Set();
+                if (data.atoms) {
+                    data.atoms.forEach(a => atomIds.add(a.id));
+                }
+
+                for (let i = 0; i < data.relations.length; i++) {
+                    const rel = data.relations[i];
+                    if (!rel.id) {
+                        throw new Error(`Relation at index ${i} missing 'id' field`);
+                    }
+                    if (!rel.source) {
+                        throw new Error(`Relation '${rel.id}' missing 'source' field`);
+                    }
+                    if (!rel.target) {
+                        throw new Error(`Relation '${rel.id}' missing 'target' field`);
+                    }
+
+                    // Check that source/target atoms exist
+                    if (atomIds.size > 0) {
+                        if (!atomIds.has(rel.source)) {
+                            throw new Error(
+                                `Relation '${rel.id}' references unknown source atom '${rel.source}'. ` +
+                                `Available atoms: ${Array.from(atomIds).slice(0, 5).join(', ')}`
+                            );
+                        }
+                        if (!atomIds.has(rel.target)) {
+                            throw new Error(
+                                `Relation '${rel.id}' references unknown target atom '${rel.target}'. ` +
+                                `Available atoms: ${Array.from(atomIds).slice(0, 5).join(', ')}`
+                            );
+                        }
+                    }
+                }
+            }
+
+            // Check types
+            if (data.types) {
+                if (!Array.isArray(data.types)) {
+                    throw new Error('types must be an array');
+                }
+            }
+        }
+
+        /**
          * Create and add reset button to the graph toolbar
          */
         function addResetButton() {
@@ -164,6 +268,13 @@
                     parsedData = typeof jsonData === 'string' ? JSON.parse(jsonData) : jsonData;
                 } catch (parseError) {
                     throw new Error(`Failed to parse JSON data: ${parseError.message}`);
+                }
+
+                // Validate data structure for common issues
+                try {
+                    validateDataStructure(parsedData);
+                } catch (validationError) {
+                    throw new Error(`Data validation failed: ${validationError.message}`);
                 }
 
                 // Create a data instance from the JSON data
