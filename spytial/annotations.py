@@ -39,7 +39,7 @@ DIRECTIVE_TYPES = {
     "attribute": {"required": ["field"], "optional": ["selector"]},
     "hideField": {"required": ["field"], "optional": ["selector"]},
     "hideAtom": ["selector"],
-    "inferredEdge": ["name", "selector"],
+    "inferredEdge": {"required": ["name", "selector"], "optional": ["color"]},
     "flag": ["name"],
 }
 
