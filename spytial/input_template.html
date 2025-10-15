@@ -125,11 +125,69 @@
         // Global variables for reset functionality
         let graphElement = null;
         let lastExportedData = null;
+        let directoryHandle = null;  // Store directory handle for repeated saves
+        
+        // Jupyter comm for widget communication
+        let jupyterComm = null;
 
         /**
-         * Export current data to JSON file
+         * Initialize Jupyter comm if in Jupyter environment
+         * The comm is already created on Python side, we just need to open it from JS
          */
-        function exportDataToFile() {
+        function initJupyterComm() {
+            console.log('Attempting to connect to Jupyter comm...');
+            
+            // The comm is created on Python side with target_name = widget_id
+            // We need to open a matching comm from JavaScript
+            // Try to access Jupyter's comm_manager from different window contexts
+            
+            const commTargetName = '{{ widget_id | safe }}';
+            console.log('Comm target name:', commTargetName);
+            
+            // In VS Code Jupyter, the kernel is available at window.parent
+            // Try multiple locations
+            const contexts = [
+                { name: 'window', ctx: window },
+                { name: 'parent', ctx: window.parent },
+                { name: 'top', ctx: window.top }
+            ];
+            
+            for (const {name, ctx} of contexts) {
+                try {
+                    // Check if Google Colab kernel is available
+                    if (ctx.google?.colab?.kernel) {
+                        console.log(`Found Google Colab kernel at ${name}`);
+                        // Colab uses different API - skip for now
+                        continue;
+                    }
+                    
+                    // Check for Jupyter/IPython kernel
+                    const kernel = ctx.IPython?.notebook?.kernel || ctx.Jupyter?.notebook?.kernel;
+                    if (kernel?.comm_manager) {
+                        console.log(`✓ Found Jupyter kernel at ${name}`);
+                        try {
+                            // Open comm with matching target_name
+                            jupyterComm = kernel.comm_manager.comm_open(commTargetName, {});
+                            console.log('✓ Jupyter comm opened:', commTargetName);
+                            return;
+                        } catch (err) {
+                            console.error(`Failed to open comm at ${name}:`, err);
+                        }
+                    }
+                } catch (err) {
+                    // CORS or access error - expected for cross-origin iframes
+                    console.log(`Cannot access ${name} context (CORS):`, err.message);
+                }
+            }
+            
+            console.log('⚠ Could not connect to Jupyter comm (CORS restrictions)');
+            console.log('Will use file-based export fallback');
+        }
+
+        /**
+         * Export current data to JSON file with automatic save
+         */
+        async function exportDataToFile() {
             console.log('Export button clicked!');
             console.log('graphElement:', graphElement);
             
@@ -175,31 +233,24 @@
                 
                 // Clean the data to ensure it's serializable
                 const cleanData = JSON.parse(JSON.stringify(currentData));
-                console.log('Cleaned data:', cleanData);
                 
-                // Always trigger file download for widget mode
                 const jsonString = JSON.stringify(cleanData, null, 2);
-                const blob = new Blob([jsonString], { type: 'application/json' });
-                const url = URL.createObjectURL(blob);
+                const widgetId = '{{ widget_id | safe }}';
                 
-                // Use fixed filename based on widget ID for auto-loading
-                const exportFile = '{{ export_file | safe }}';
-                const filename = exportFile ? exportFile.split('/').pop() : `${dataclassName}_export.json`;
-                
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = filename;
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                URL.revokeObjectURL(url);
-                
-                showInfo(`Data exported! Check widget.value or call widget.refresh()`);
-                lastExportedData = cleanData;
+                // Send to parent window via postMessage (works with srcdoc iframe!)
+                try {
+                    window.parent.postMessage({
+                        type: 'spytial-export',
+                        widgetId: widgetId,
+                        data: cleanData
+                    }, '*');
+                    showInfo(`✓ Data sent! Check Python output above, then run <code>widget.value</code>`);
+                    lastExportedData = cleanData;
+                } catch (err) {
+                    showError('Failed to send data: ' + err.message);
+                }
                     
-            } catch (error) {
-                console.error('Export failed:', error);
-                showError(`Export failed: ${error.message}`);
+            } catch (error) {                showError(`Export failed: ${error.message}`);
 
             }
         }
@@ -553,6 +604,9 @@
 
                 // Add export controls after setup
                 addExportControls();
+                
+                // Initialize Jupyter comm if available
+                initJupyterComm();
 
             } catch (error) {
                 console.error('Error setting up graph:', error);

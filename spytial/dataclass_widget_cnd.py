@@ -187,7 +187,6 @@ if IPYWIDGETS_AVAILABLE:
         def __init__(self, dataclass_type: Type):
             if not is_dataclass(dataclass_type):
                 raise ValueError(f"{dataclass_type} is not a dataclass")
-            
             self.dataclass_type = dataclass_type
             self._current_value = None
             self._widget_id = f"spytial_{id(self)}"
@@ -200,7 +199,43 @@ if IPYWIDGETS_AVAILABLE:
             # Register widget in module-level registry
             _spytial_widgets[self._widget_id] = self
             
+            # Initialize Jupyter comm if available
+            self._comm = None
+            self._setup_comm()
+            
             self._setup_widget()
+        
+        def _setup_comm(self):
+            """Setup Jupyter comm for direct widget-kernel communication."""
+            try:
+                from ipykernel.comm import Comm
+                
+                def comm_msg_handler(msg):
+                    """Handle messages from JavaScript via Jupyter comm."""
+                    data = msg['content']['data']
+                    print(f"📥 Received data via Jupyter comm: {data.get('type')}")
+                    
+                    if data.get('type') == 'export_data':
+                        export_data = data.get('data')
+                        print(f"📊 Data keys: {list(export_data.keys())}")
+                        
+                        # Convert CnD format to dataclass
+                        try:
+                            flat_dict = _cnd_to_flat_dict(export_data, self.dataclass_type)
+                            result = _json_to_dataclass(flat_dict, self.dataclass_type)
+                            self._current_value = result
+                            print(f"✅ Built: {result}")
+                        except Exception as e:
+                            print(f"❌ Failed to convert: {e}")
+                            print(f"   Raw data: {export_data}")
+                
+                self._comm = Comm(target_name=self._widget_id)
+                self._comm.on_msg(comm_msg_handler)
+                print(f"✓ Jupyter comm initialized: {self._widget_id}")
+            except ImportError:
+                print("⚠ Jupyter comm not available (not in Jupyter environment)")
+            except Exception as e:
+                print(f"⚠ Failed to setup Jupyter comm: {e}")
         
         def _setup_widget(self):
             """Setup the CnD-core based widget."""
@@ -243,97 +278,133 @@ if IPYWIDGETS_AVAILABLE:
                 '{{ widget_id | default("") }}', self._widget_id
             )
             
-            # Encode HTML for iframe
-            html_b64 = base64.b64encode(html_content.encode('utf-8')).decode('utf-8')
-            
-            # Create message handler script
-            message_handler = f"""
+            # Add Python callback registration script that listens for postMessage
+            callback_script = f"""
             <script>
-            window.addEventListener('message', function(event) {{
-                try {{
-                    if (event.data && event.data.type === 'spytial-export' && 
-                        event.data.widgetId === '{self._widget_id}') {{
-                        console.log('Received export data:', event.data);
-                        
-                        // Execute Python to update widget value
-                        var code = `
+            // Listen for postMessage from iframe
+            (function() {{
+                const widgetId = '{self._widget_id}';
+                let statusDiv = document.getElementById('status-' + widgetId);
+                
+                function showStatus(msg) {{
+                    if (!statusDiv) {{
+                        statusDiv = document.createElement('div');
+                        statusDiv.id = 'status-' + widgetId;
+                        statusDiv.style.cssText = 'padding: 10px; margin: 10px 0; background: #f0f0f0; border-left: 4px solid #0366d6; font-family: monospace; font-size: 12px;';
+                        document.body.appendChild(statusDiv);
+                    }}
+                    const timestamp = new Date().toLocaleTimeString();
+                    statusDiv.innerHTML = `<strong>[${{timestamp}}]</strong> ${{msg}}`;
+                }}
+                
+                showStatus('Waiting for export...');
+                
+                window.addEventListener('message', function(event) {{
+                    // Accept messages from any origin (iframe srcdoc)
+                    const data = event.data;
+                    
+                    showStatus(`Received message type: ${{data?.type || 'unknown'}}`);
+                    
+                    if (!data || data.type !== 'spytial-export' || data.widgetId !== widgetId) {{
+                        return;
+                    }}
+                    
+                    showStatus('Processing export data...');
+                    
+                    // Check if Jupyter kernel is available
+                    const hasIPython = typeof IPython !== 'undefined' && IPython.notebook && IPython.notebook.kernel;
+                    const hasJupyter = typeof Jupyter !== 'undefined' && Jupyter.notebook && Jupyter.notebook.kernel;
+                    
+                    if (!hasIPython && !hasJupyter) {{
+                        showStatus('❌ ERROR: No Jupyter kernel found in parent window!');
+                        return;
+                    }}
+                    
+                    showStatus('Jupyter kernel found, executing Python code...');
+                    
+                    // Execute Python code via Jupyter kernel
+                    const code = `
 try:
     import json
     import sys
     
-    # Import the module and get the registry
     if 'spytial.dataclass_widget_cnd' in sys.modules:
         widget_module = sys.modules['spytial.dataclass_widget_cnd']
         _spytial_widgets = widget_module._spytial_widgets
         _json_to_dataclass = widget_module._json_to_dataclass
+        _cnd_to_flat_dict = widget_module._cnd_to_flat_dict
     else:
-        from spytial.dataclass_widget_cnd import _spytial_widgets, _json_to_dataclass
+        from spytial.dataclass_widget_cnd import _spytial_widgets, _json_to_dataclass, _cnd_to_flat_dict
     
-    # Get widget from registry
     widget_id = '{self._widget_id}'
+    json_data = '''` + JSON.stringify(data.data) + `'''
+    
     if widget_id in _spytial_widgets:
         widget = _spytial_widgets[widget_id]
-        raw_data = '''` + JSON.stringify(event.data.data) + `'''
+        export_data = json.loads(json_data)
         
-        print(f"📥 Received data (length: {{len(raw_data)}} chars)")
+        print(f"📥 Received data from CnD interface")
+        print(f"📊 Data structure: {{list(export_data.keys())}}")
         
-        data = json.loads(raw_data)
-        print(f"📊 Data structure keys: {{list(data.keys()) if isinstance(data, dict) else type(data)}}")
+        # Convert CnD format to flat dict then to dataclass  
+        flat_dict = _cnd_to_flat_dict(export_data, widget.dataclass_type)
+        print(f"🔄 Converted to: {{flat_dict}}")
         
-        # Convert to dataclass instance
-        widget._current_value = _json_to_dataclass(data, widget.dataclass_type)
+        result = _json_to_dataclass(flat_dict, widget.dataclass_type)
+        widget._current_value = result
         
-        print(f"✅ Built: {{widget._current_value}}")
+        print(f"✅ Built: {{result}}")
     else:
-        print(f"❌ Widget {{widget_id}} not found in registry")
-        print(f"   Available widgets: {{list(_spytial_widgets.keys())}}")
+        print(f"❌ Widget {{widget_id}} not found")
 except Exception as e:
     print(f"❌ Error: {{e}}")
     import traceback
     traceback.print_exc()
 `;
-                        
-                        if (window.Jupyter && window.Jupyter.notebook && window.Jupyter.notebook.kernel) {{
-                            window.Jupyter.notebook.kernel.execute(code);
-                        }} else {{
-                            console.error('Jupyter kernel not available');
-                        }}
+                    
+                    // Execute via Jupyter kernel
+                    if (hasIPython) {{
+                        IPython.notebook.kernel.execute(code);
+                        showStatus('✅ Python code sent to kernel via IPython');
+                    }} else if (hasJupyter) {{
+                        Jupyter.notebook.kernel.execute(code);
+                        showStatus('✅ Python code sent to kernel via Jupyter');
                     }}
-                }} catch (error) {{
-                    console.error('Message handler error:', error);
-                }}
-            }});
+                }}, false);
+            }})();
             </script>
             """
             
+            # Use srcdoc iframe instead of data: URI - avoids CORS but still renders properly
+            # Escape quotes for srcdoc attribute
+            html_escaped = html_content.replace('"', '&quot;').replace("'", '&#39;')
+            
             iframe_html = f"""
-            {message_handler}
+            {callback_script}
             <iframe 
-                src="data:text/html;base64,{html_b64}" 
+                srcdoc="{html_escaped}"
                 width="100%" 
                 height="600px" 
                 frameborder="0"
                 id="{self._widget_id}"
-                style="border: 1px solid #ddd; border-radius: 4px;">
+                style="border: 1px solid #ddd; border-radius: 4px;"
+                sandbox="allow-scripts allow-same-origin">
             </iframe>
             """
             
-            # Create widget components
             self.iframe_widget = HTML(value=iframe_html)
             self.status_output = Output()
             
             self.widget = VBox([
-                HTML(f"<h3>{self.dataclass_type.__name__} Builder (CnD-core)</h3>"),
-                HTML(f"<p>Build your data visually, then click 'Export JSON'. "
-                     f"Save file to: <code>{self._export_dir}</code></p>"),
+                HTML(f"<h3>{self.dataclass_type.__name__} Builder</h3>"),
+                HTML(f"<p>💡 Build your data visually, then click 'Export JSON'</p>"),
                 self.iframe_widget,
                 self.status_output
             ])
             
             with self.status_output:
-                print(f"✨ Widget ready! Export file will be saved to:")
-                print(f"   {self._export_file}")
-                print(f"💡 Access with: widget.value or widget.refresh()")
+                print(f"✨ Widget ready!")
+                print(f"💡 After export, access with: widget.value")
         
         @property
         def value(self):
