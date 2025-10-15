@@ -270,13 +270,6 @@
                     throw new Error(`Failed to parse JSON data: ${parseError.message}`);
                 }
 
-                // Validate data structure for common issues
-                try {
-                    validateDataStructure(parsedData);
-                } catch (validationError) {
-                    throw new Error(`Data validation failed: ${validationError.message}`);
-                }
-
                 // Create a data instance from the JSON data
                 const dataInstance = new CndCore.JSONDataInstance(parsedData);
                 window.dataInstance = dataInstance; // Expose for debugging
