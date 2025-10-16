@@ -99,8 +99,8 @@
 
     <script>
         // Embedded data passed from the server
-        const cndSpec = `{{ cnd_spec | safe }}`;
-        const jsonData = `{{ python_data | safe }}`;
+        const cndSpec = {{ cnd_spec | safe }};
+        const jsonData = {{ python_data | safe }};
 
         // Global variables for reset functionality
         let instanceLayout = null;
@@ -296,11 +296,11 @@
                 //console.log('sPyTial Spec:', cndSpec);
                 //console.log('JSON Data:', jsonData.substring(0, 200) + '...');
 
-                // Parse JSON data if it's a string
+                // Use JSON data directly (now embedded as object, not string)
                 let parsedData;
                 let dataInstance;
                 try {
-                    parsedData = typeof jsonData === 'string' ? JSON.parse(jsonData) : jsonData;
+                    parsedData = jsonData;  // Already parsed from Jinja2 template
                 } catch (parseError) {
                     const diagnosticIssues = scanDataForIssues(jsonData);
                     const diagnosticHint = diagnosticIssues.length > 0 
@@ -383,7 +383,7 @@
                 addResetButton();
             } catch (error) {
                 console.error('Error rendering graph:', error);
-                const diagnosticIssues = scanDataForIssues(parsedData);
+                const diagnosticIssues = parsedData ? scanDataForIssues(parsedData) : [];
                 const diagnosticHint = diagnosticIssues.length > 0 
                     ? `\n\nData issues detected:\n- ${diagnosticIssues.join('\n- ')}`
                     : '';
