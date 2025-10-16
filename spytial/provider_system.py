@@ -167,7 +167,16 @@ class CnDDataInstanceBuilder:
         # Use the updated `build_types` function
         typs = self.build_types(self._atoms)
 
-        return {"atoms": self._atoms, "relations": relations, "types": typs}
+        # Deduplicate atoms by ID - if multiple atoms have the same ID, keep only the first
+        # This is important for primitives where the same value may be referenced multiple times
+        atoms_by_id = {}
+        for atom in self._atoms:
+            if atom['id'] not in atoms_by_id:
+                atoms_by_id[atom['id']] = atom
+        
+        deduplicated_atoms = list(atoms_by_id.values())
+
+        return {"atoms": deduplicated_atoms, "relations": relations, "types": typs}
 
     def get_collected_decorators(self) -> Dict:
         """Get all decorators collected during the build process."""
