@@ -10,7 +10,10 @@
 
     <script src="https://cdn.jsdelivr.net/npm/cnd-core@1.4.3/dist/browser/cnd-core-complete.global.js"></script>  
     <script src="https://cdn.jsdelivr.net/npm/cnd-core@1.4.3/dist/components/react-component-integration.global.js"></script>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/cnd-core@1.4.3/dist/components/react-component-integration.css" /> 
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/cnd-core@1.4.3/dist/components/react-component-integration.css" />
+    
+    <!-- html2canvas for screenshot functionality -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script> 
     
     <style>
         body {
@@ -255,6 +258,43 @@
         }
 
         /**
+         * Save the visualization as a PNG screenshot
+         */
+        async function saveScreenshot() {
+            try {
+                const container = document.querySelector('.container');
+                if (!container) {
+                    console.error('Container not found');
+                    return;
+                }
+                
+                // Use html2canvas to capture the visualization
+                const canvas = await html2canvas(container, {
+                    backgroundColor: '#ffffff',
+                    scale: 2,  // Higher resolution
+                    useCORS: true,
+                    allowTaint: true
+                });
+                
+                // Convert canvas to blob and download
+                canvas.toBlob(function(blob) {
+                    const url = URL.createObjectURL(blob);
+                    const link = document.createElement('a');
+                    const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
+                    link.href = url;
+                    link.download = `spytial-visualization-${timestamp}.png`;
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    URL.revokeObjectURL(url);
+                });
+            } catch (error) {
+                console.error('Error saving screenshot:', error);
+                showError(`Failed to save screenshot: ${error.message}`);
+            }
+        }
+
+        /**
          * Create and add reset button to the graph toolbar
          */
         function addResetButton() {
@@ -266,6 +306,15 @@
                 resetButton.onclick = resetLayout;
                 
                 graphElement.addToolbarControl(resetButton);
+                
+                // Add screenshot button
+                const screenshotButton = document.createElement('button');
+                screenshotButton.className = 'reset-btn';
+                screenshotButton.innerHTML = '📸 Screenshot';
+                screenshotButton.title = 'Save visualization as PNG';
+                screenshotButton.onclick = saveScreenshot;
+                
+                graphElement.addToolbarControl(screenshotButton);
             }
         }
 
