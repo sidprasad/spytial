@@ -99,7 +99,7 @@
 
     <script>
         // Embedded data passed from the server
-        const cndSpec = {{ cnd_spec | safe }};
+        const cndSpec = `{{ cnd_spec | safe }}`;
         const jsonData = {{ python_data | safe }};
 
         // Global variables for reset functionality
