@@ -271,9 +271,11 @@
                 // Use html2canvas to capture the visualization
                 const canvas = await html2canvas(container, {
                     backgroundColor: '#ffffff',
-                    scale: 2,  // Higher resolution
+                    scale: 4,  // 4x resolution for ultra-high quality
                     useCORS: true,
-                    allowTaint: true
+                    allowTaint: true,
+                    logging: false,
+                    imageTimeout: 10000
                 });
                 
                 // Convert canvas to blob and download
@@ -310,7 +312,7 @@
                 // Add screenshot button
                 const screenshotButton = document.createElement('button');
                 screenshotButton.className = 'reset-btn';
-                screenshotButton.innerHTML = '📸 Screenshot';
+                screenshotButton.innerHTML = '📸';
                 screenshotButton.title = 'Save visualization as PNG';
                 screenshotButton.onclick = saveScreenshot;
                 
