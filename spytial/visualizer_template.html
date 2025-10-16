@@ -116,6 +116,40 @@
         }
 
 
+
+        /**
+         * Scan data for common issues and provide diagnostics
+         */
+        function scanDataForIssues(data) {
+            const issues = [];
+            
+            if (data && data.atoms) {
+                // Check for duplicate atom IDs
+                const idCounts = {};
+                for (const atom of data.atoms) {
+                    idCounts[atom.id] = (idCounts[atom.id] || 0) + 1;
+                }
+                
+                const duplicates = Object.entries(idCounts)
+                    .filter(([_, count]) => count > 1)
+                    .map(([id, count]) => `${id} (${count}x)`);
+                
+                if (duplicates.length > 0) {
+                    issues.push(`Duplicate atom IDs: ${duplicates.slice(0, 5).join(', ')}${duplicates.length > 5 ? '...' : ''}`);
+                }
+                
+                // Check for missing type/label
+                for (let i = 0; i < Math.min(data.atoms.length, 5); i++) {
+                    const atom = data.atoms[i];
+                    if (!atom.type || !atom.label) {
+                        issues.push(`Atom ${atom.id} missing type or label`);
+                    }
+                }
+            }
+            
+            return issues;
+        }
+
         /**
          * Validate the data structure for common issues
          */
@@ -267,11 +301,22 @@
                 try {
                     parsedData = typeof jsonData === 'string' ? JSON.parse(jsonData) : jsonData;
                 } catch (parseError) {
-                    throw new Error(`Failed to parse JSON data: ${parseError.message}`);
+                    const diagnosticIssues = scanDataForIssues(jsonData);
+                    const diagnosticHint = diagnosticIssues.length > 0 
+                        ? `\n\nData issues detected:\n- ${diagnosticIssues.join('\n- ')}`
+                        : '';
+                    throw new Error(`Failed to parse JSON data: ${parseError.message}${diagnosticHint}`);
+                }                // Create a data instance from the JSON data
+                let dataInstance;
+                try {
+                    dataInstance = new CndCore.JSONDataInstance(parsedData);
+                } catch (instanceError) {
+                    const diagnosticIssues = scanDataForIssues(parsedData);
+                    const diagnosticHint = diagnosticIssues.length > 0 
+                        ? `\n\nData issues detected:\n- ${diagnosticIssues.join('\n- ')}`
+                        : '';
+                    throw new Error(`Failed to create data instance: ${instanceError.message}${diagnosticHint}`);
                 }
-
-                // Create a data instance from the JSON data
-                const dataInstance = new CndCore.JSONDataInstance(parsedData);
                 window.dataInstance = dataInstance; // Expose for debugging
 
                 // Initialize the evaluation context
