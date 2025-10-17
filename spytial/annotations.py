@@ -449,20 +449,35 @@ def collect_decorators(obj):
     """
     Collect all decorators applied to the class of the given object,
     as well as any annotations applied directly to the object instance.
+    Respects inheritance control flags (dont_inherit_constraints, dont_inherit_directives).
     :param obj: The object whose class decorators and object annotations should be collected.
     :return: A combined dictionary of constraints and directives.
     """
     combined_registry = {"constraints": [], "directives": []}
 
     # Traverse the class hierarchy for class-level annotations
+    should_inherit_constraints = True
+    should_inherit_directives = True
+    
     for cls in obj.__class__.__mro__:
+        # Check if this class has inheritance control flags
+        if getattr(cls, "__spytial_no_inherit_constraints__", False):
+            should_inherit_constraints = False
+        if getattr(cls, "__spytial_no_inherit_directives__", False):
+            should_inherit_directives = False
+        
         if hasattr(cls, "__spytial_registry__"):
-            combined_registry["constraints"].extend(
-                cls.__spytial_registry__["constraints"]
-            )
-            combined_registry["directives"].extend(
-                cls.__spytial_registry__["directives"]
-            )
+            # Only include constraints if inheritance is enabled
+            if should_inherit_constraints:
+                combined_registry["constraints"].extend(
+                    cls.__spytial_registry__["constraints"]
+                )
+            
+            # Only include directives if inheritance is enabled
+            if should_inherit_directives:
+                combined_registry["directives"].extend(
+                    cls.__spytial_registry__["directives"]
+                )
 
     # Add object-level annotations if they exist
     # First check if stored on object directly
@@ -488,6 +503,82 @@ def serialize_to_yaml_string(decorators):
     :return: YAML string representation of the decorators.
     """
     return yaml.dump(decorators, default_flow_style=False, Dumper=NoAliasDumper)
+
+
+# Inheritance Control
+
+
+def dont_inherit_constraints(cls):
+    """
+    Mark a class to not inherit constraints from parent classes.
+    
+    This is useful when you want to override a parent class's constraints.
+    Constraints applied directly to this class are still included.
+    
+    Example:
+        @orientation(selector='children', directions=['below'])
+        class Parent:
+            pass
+        
+        @dont_inherit_constraints
+        class Child(Parent):
+            # Will NOT have Parent's orientation constraint
+            pass
+    
+    :param cls: The class to mark as not inheriting constraints.
+    :return: The class (for chaining).
+    """
+    cls.__spytial_no_inherit_constraints__ = True
+    return cls
+
+
+def dont_inherit_directives(cls):
+    """
+    Mark a class to not inherit directives from parent classes.
+    
+    This is useful when you want to override a parent class's directives.
+    Directives applied directly to this class are still included.
+    
+    Example:
+        @atomColor(selector='root', value='red')
+        class Parent:
+            pass
+        
+        @dont_inherit_directives
+        class Child(Parent):
+            # Will NOT have Parent's atomColor directive
+            pass
+    
+    :param cls: The class to mark as not inheriting directives.
+    :return: The class (for chaining).
+    """
+    cls.__spytial_no_inherit_directives__ = True
+    return cls
+
+
+def dont_inherit_annotations(cls):
+    """
+    Mark a class to not inherit any annotations from parent classes.
+    
+    Shorthand for applying both dont_inherit_constraints and dont_inherit_directives.
+    
+    Example:
+        @orientation(selector='children', directions=['below'])
+        @atomColor(selector='root', value='red')
+        class Parent:
+            pass
+        
+        @dont_inherit_annotations
+        class Child(Parent):
+            # Will NOT have any annotations from Parent
+            pass
+    
+    :param cls: The class to mark as not inheriting annotations.
+    :return: The class (for chaining).
+    """
+    cls.__spytial_no_inherit_constraints__ = True
+    cls.__spytial_no_inherit_directives__ = True
+    return cls
 
 
 # Export apply_if in module __all__
