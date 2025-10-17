@@ -63,6 +63,10 @@ from .annotations import (
     annotate_hideAtom,
     annotate_inferredEdge,
     annotate_flag,
+    # Inheritance control decorators
+    dont_inherit_constraints,
+    dont_inherit_directives,
+    dont_inherit_annotations,
     # Utility functions
     collect_decorators,
     serialize_to_yaml_string,
@@ -125,6 +129,10 @@ __all__ = [
     "annotate_hideAtom",
     "annotate_inferredEdge",
     "annotate_flag",
+    # Inheritance control decorators
+    "dont_inherit_constraints",
+    "dont_inherit_directives",
+    "dont_inherit_annotations",
     # Utility functions
     "collect_decorators",
     "serialize_to_yaml_string",

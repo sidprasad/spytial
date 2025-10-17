@@ -214,7 +214,9 @@ def _create_decorator(constraint_type):
             # Check if target is a class (type) or an object instance
             if isinstance(target, type):
                 # Class decoration (original behavior)
-                if not hasattr(target, "__spytial_registry__"):
+                # Check if this CLASS (not inherited) has its own registry
+                if "__spytial_registry__" not in target.__dict__:
+                    # Create a new registry for this class
                     target.__spytial_registry__ = {"constraints": [], "directives": []}
 
                 # Determine if it's a constraint or directive
@@ -455,31 +457,32 @@ def collect_decorators(obj):
     """
     combined_registry = {"constraints": [], "directives": []}
 
-    # Traverse the class hierarchy for class-level annotations
-    should_inherit_constraints = True
-    should_inherit_directives = True
-    
-    for cls in obj.__class__.__mro__:
-        # Check if this class has inheritance control flags
-        if getattr(cls, "__spytial_no_inherit_constraints__", False):
-            should_inherit_constraints = False
-        if getattr(cls, "__spytial_no_inherit_directives__", False):
-            should_inherit_directives = False
+    # Check if current class has inheritance control flags
+    should_inherit_constraints = not getattr(
+        obj.__class__, "__spytial_no_inherit_constraints__", False
+    )
+    should_inherit_directives = not getattr(
+        obj.__class__, "__spytial_no_inherit_directives__", False
+    )
+
+    # Traverse the class hierarchy
+    for i, cls in enumerate(obj.__class__.__mro__):
+        is_current_class = (i == 0)
         
         if hasattr(cls, "__spytial_registry__"):
-            # Only include constraints if inheritance is enabled
-            if should_inherit_constraints:
-                combined_registry["constraints"].extend(
-                    cls.__spytial_registry__["constraints"]
-                )
+            cls_registry = cls.__spytial_registry__
             
-            # Only include directives if inheritance is enabled
-            if should_inherit_directives:
-                combined_registry["directives"].extend(
-                    cls.__spytial_registry__["directives"]
-                )
-
-    # Add object-level annotations if they exist
+            if is_current_class:
+                # For current class: include all from its registry
+                combined_registry["constraints"].extend(cls_registry["constraints"])
+                combined_registry["directives"].extend(cls_registry["directives"])
+            else:
+                # For parent classes: only include if inheritance is enabled
+                if should_inherit_constraints:
+                    combined_registry["constraints"].extend(cls_registry["constraints"])
+                
+                if should_inherit_directives:
+                    combined_registry["directives"].extend(cls_registry["directives"])    # Add object-level annotations if they exist
     # First check if stored on object directly
     if hasattr(obj, OBJECT_ANNOTATIONS_ATTR):
         object_registry = getattr(obj, OBJECT_ANNOTATIONS_ATTR)
