@@ -34,7 +34,7 @@ def quick_diagram(obj):
 
 
 def diagram(
-    obj, method="inline", auto_open=True, width=None, height=None, cnd_version=None
+    obj, method="inline", auto_open=True, width=None, height=None, cnd_version=None, perf_path=None, perf_iterations=None
 ):
     """
     Display a Python object in the sPyTial visualizer.
@@ -45,6 +45,13 @@ def diagram(
         auto_open: Whether to automatically open browser (for "browser" method)
         width: Width of the visualization container in pixels (default: auto-detected)
         height: Height of the visualization container in pixels (default: auto-detected)
+        perf_path: Optional path to send performance metrics to (as POST request). 
+                   If provided, metrics will be saved server-side instead of downloaded.
+                   If None, metrics are downloaded as JSON files.
+        perf_iterations: Optional number of times to render for performance benchmarking.
+                        If provided, the visualization will be rendered N times and metrics
+                        will be aggregated. Only works with method="browser" or "file".
+                        Example: perf_iterations=10 renders 10 times and shows average/min/max times.
 
     Returns:
         str: Path to the generated HTML file (if method="file" or "browser")
@@ -71,7 +78,7 @@ def diagram(
 
     # Generate the HTML content
     html_content = _generate_visualizer_html(
-        data_instance, spytial_spec, width, height, cnd_version
+        data_instance, spytial_spec, width, height, cnd_version, perf_path, perf_iterations
     )
 
     if method == "inline":
@@ -244,7 +251,7 @@ def _estimate_object_complexity(obj):
 
 
 def _generate_visualizer_html(
-    data_instance, spytial_spec, width=800, height=600, cnd_version="1.1.9"
+    data_instance, spytial_spec, width=800, height=600, cnd_version="1.1.9", perf_path=None, perf_iterations=None
 ):
     """Generate HTML content using Jinja2 templating."""
 
@@ -275,6 +282,8 @@ def _generate_visualizer_html(
         width=width,  # Container width
         height=height,  # Container height
         cnd_version=cnd_version,  # Cope and Drag version
+        perf_path=perf_path or "",  # Performance metrics endpoint path (empty string if None)
+        perf_iterations=perf_iterations or 0,  # Number of iterations for benchmarking (0 = disabled)
     )
 
     return html_content
