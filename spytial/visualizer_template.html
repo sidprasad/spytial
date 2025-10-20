@@ -136,10 +136,10 @@
         function savePerformanceMetrics() {
             // Log to console
             console.log('=== Performance Metrics ===');
-            console.log(`Parse Spec: ${performanceMetrics.parseSpec.toFixed(2)}ms`);
-            console.log(`Generate Layout: ${performanceMetrics.generateLayout.toFixed(2)}ms`);
-            console.log(`Render Layout: ${performanceMetrics.renderLayout.toFixed(2)}ms`);
-            console.log(`Total Time: ${performanceMetrics.totalTime.toFixed(2)}ms`);
+            console.log(`Parse Spec: ${performanceMetrics.parseSpec.avg.toFixed(2)}ms (min: ${performanceMetrics.parseSpec.min.toFixed(2)}, max: ${performanceMetrics.parseSpec.max.toFixed(2)})`);
+            console.log(`Generate Layout: ${performanceMetrics.generateLayout.avg.toFixed(2)}ms (min: ${performanceMetrics.generateLayout.min.toFixed(2)}, max: ${performanceMetrics.generateLayout.max.toFixed(2)})`);
+            console.log(`Render Layout: ${performanceMetrics.renderLayout.avg.toFixed(2)}ms (min: ${performanceMetrics.renderLayout.min.toFixed(2)}, max: ${performanceMetrics.renderLayout.max.toFixed(2)})`);
+            console.log(`Total Time: ${performanceMetrics.totalTime.avg.toFixed(2)}ms (min: ${performanceMetrics.totalTime.min.toFixed(2)}, max: ${performanceMetrics.totalTime.max.toFixed(2)})`);
             console.log(`Timestamp: ${performanceMetrics.timestamp}`);
             console.log('==========================');
             
@@ -665,7 +665,7 @@
                     performanceMetrics.generateLayout = iterationMetrics.generateLayout;
                     performanceMetrics.renderLayout = iterationMetrics.renderLayout;
                     performanceMetrics.totalTime = iterationMetrics.totalTime;
-                    savePerformanceMetrics();
+                    // Don't save for single renders
                     
                     // Add reset button to toolbar after successful rendering
                     addResetButton();
