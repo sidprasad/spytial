@@ -95,94 +95,17 @@
     <div id="error-message"></div>
     <div id="error-core"></div>
 
-    <!-- Embedded JSON data as separate script to avoid escaping issues -->
-    <script type="application/json" id="initial-data">
-{{ python_data | safe }}
-    </script>
-
     <script>
         // Embedded data passed from the server
+        const jsonData = {{ python_data | safe }};
         const cndSpec = `{{ cnd_spec | safe }}`;
         const dataclassName = `{{ dataclass_name | safe }}`;
-        const exportDir = `{{ export_dir | safe }}`;
         
-        // Parse the JSON data from inline script
-        let jsonData = null;
-        try {
-            const dataScript = document.getElementById('initial-data');
-            if (dataScript) {
-                jsonData = JSON.parse(dataScript.textContent);
-                console.log('Loaded initial data:', jsonData);
-            } else {
-                console.error('initial-data script not found');
-                jsonData = {};
-            }
-        } catch (e) {
-            console.error('Failed to parse initial JSON data:', e);
-            jsonData = {};
-        }
+        console.log('Loaded initial data:', jsonData);
 
         // Global variables for reset functionality
         let graphElement = null;
         let lastExportedData = null;
-        let directoryHandle = null;  // Store directory handle for repeated saves
-        
-        // Jupyter comm for widget communication
-        let jupyterComm = null;
-
-        /**
-         * Initialize Jupyter comm if in Jupyter environment
-         * The comm is already created on Python side, we just need to open it from JS
-         */
-        function initJupyterComm() {
-            console.log('Attempting to connect to Jupyter comm...');
-            
-            // The comm is created on Python side with target_name = widget_id
-            // We need to open a matching comm from JavaScript
-            // Try to access Jupyter's comm_manager from different window contexts
-            
-            const commTargetName = '{{ widget_id | safe }}';
-            console.log('Comm target name:', commTargetName);
-            
-            // In VS Code Jupyter, the kernel is available at window.parent
-            // Try multiple locations
-            const contexts = [
-                { name: 'window', ctx: window },
-                { name: 'parent', ctx: window.parent },
-                { name: 'top', ctx: window.top }
-            ];
-            
-            for (const {name, ctx} of contexts) {
-                try {
-                    // Check if Google Colab kernel is available
-                    if (ctx.google?.colab?.kernel) {
-                        console.log(`Found Google Colab kernel at ${name}`);
-                        // Colab uses different API - skip for now
-                        continue;
-                    }
-                    
-                    // Check for Jupyter/IPython kernel
-                    const kernel = ctx.IPython?.notebook?.kernel || ctx.Jupyter?.notebook?.kernel;
-                    if (kernel?.comm_manager) {
-                        console.log(`✓ Found Jupyter kernel at ${name}`);
-                        try {
-                            // Open comm with matching target_name
-                            jupyterComm = kernel.comm_manager.comm_open(commTargetName, {});
-                            console.log('✓ Jupyter comm opened:', commTargetName);
-                            return;
-                        } catch (err) {
-                            console.error(`Failed to open comm at ${name}:`, err);
-                        }
-                    }
-                } catch (err) {
-                    // CORS or access error - expected for cross-origin iframes
-                    console.log(`Cannot access ${name} context (CORS):`, err.message);
-                }
-            }
-            
-            console.log('⚠ Could not connect to Jupyter comm (CORS restrictions)');
-            console.log('Will use file-based export fallback');
-        }
 
         /**
          * Export current data to JSON file
@@ -414,169 +337,6 @@
             content.appendChild(jsonArea);
             modal.appendChild(content);
             document.body.appendChild(modal);
-                document.execCommand('copy');
-                copyBtn.innerHTML = '✓ Copied!';
-                setTimeout(() => { copyBtn.innerHTML = '📋 Copy JSON to Clipboard'; }, 2000);
-            };
-            
-            const pythonHelp = document.createElement('p');
-            pythonHelp.innerHTML = `
-                <strong>In Python, run:</strong><br>
-                <code>widget.load_from_json_string('''${jsonString.replace(/'/g, "\\'")}''')</code>
-            `;
-            pythonHelp.style.cssText = `
-                background: #f0f0f0; padding: 10px; border-left: 4px solid #0366d6;
-                margin-top: 10px; font-family: monospace; font-size: 12px; overflow-x: auto;
-            `;
-            
-            content.appendChild(closeButton);
-            content.appendChild(title);
-            content.appendChild(instructions);
-            content.appendChild(textarea);
-            content.appendChild(copyBtn);
-            content.appendChild(pythonHelp);
-            modal.appendChild(content);
-            document.body.appendChild(modal);
-        }
-
-        /**
-         * Try to automatically save to the watched directory (for interactive mode)
-         */
-        function tryAutoSaveToWatchedDir(data, filename) {
-            // This would require either:
-            // 1. A local web server that can write files
-            // 2. File System Access API (limited browser support)
-            // 3. A WebSocket connection to Python
-            
-            // For now, we'll just trigger a custom event that could be intercepted
-            const autoSaveEvent = new CustomEvent('auto-save-requested', {
-                detail: { data: data, filename: filename, exportDir: exportDir }
-            });
-            window.dispatchEvent(autoSaveEvent);
-            
-            // Log for debugging
-            console.log('Auto-save requested:', { filename, exportDir });
-        }
-
-        /**
-         * Copy current data to clipboard as JSON
-         */
-        function copyDataToClipboard() {
-            console.log('Copy button clicked!');
-            
-            if (!graphElement) {
-                showError('Graph element not found');
-                return;
-            }
-            
-            // Try to find data method
-            const possibleDataMethods = ['getDataInstance', 'getData', 'exportData', 'getCurrentData', 'getGraphData'];
-            let dataMethod = null;
-            
-            for (const method of possibleDataMethods) {
-                if (typeof graphElement[method] === 'function') {
-                    dataMethod = method;
-                    break;
-                }
-            }
-            
-            if (!dataMethod) {
-                showError('Cannot find method to get data from graph');
-                return;
-            }
-            
-            try {
-                const currentData = graphElement[dataMethod]();
-                if (!currentData) {
-                    showError('No data available to copy');
-                    return;
-                }
-                
-                const jsonString = JSON.stringify(currentData, null, 2);
-                
-                // Check if clipboard API is available (not available in iframes)
-                if (navigator.clipboard && navigator.clipboard.writeText) {
-                    navigator.clipboard.writeText(jsonString).then(() => {
-                        showInfo('Data copied to clipboard!');
-                        lastExportedData = currentData;
-                    }).catch(err => {
-                        console.error('Failed to copy to clipboard:', err);
-                        fallbackCopyMethod(jsonString);
-                    });
-                } else {
-                    console.log('Clipboard API not available in iframe, using fallback');
-                    fallbackCopyMethod(jsonString);
-                }
-            } catch (error) {
-                console.error('Copy failed:', error);
-                showError(`Copy failed: ${error.message}`);
-            }
-        }
-        
-        /**
-         * Fallback copy method using a text area
-         */
-        function fallbackCopyMethod(text) {
-            // Create a temporary text area
-            const textArea = document.createElement('textarea');
-            textArea.value = text;
-            textArea.style.position = 'fixed';
-            textArea.style.top = '-1000px';
-            textArea.style.left = '-1000px';
-            document.body.appendChild(textArea);
-            
-            try {
-                textArea.select();
-                textArea.setSelectionRange(0, 99999); // For mobile devices
-                
-                // Try the old execCommand method
-                const successful = document.execCommand('copy');
-                if (successful) {
-                    showInfo('Data copied to clipboard (fallback method)!');
-                    lastExportedData = JSON.parse(text);
-                } else {
-                    // If all else fails, show the data in a prompt for manual copying
-                    showTextForManualCopy(text);
-                }
-            } catch (err) {
-                console.error('Fallback copy failed:', err);
-                showTextForManualCopy(text);
-            } finally {
-                document.body.removeChild(textArea);
-            }
-        }
-        
-        /**
-         * Show text in a dialog for manual copying
-         */
-        function showTextForManualCopy(text) {
-            const modal = document.createElement('div');
-            modal.style.cssText = `
-                position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-                background: rgba(0,0,0,0.5); z-index: 10000; display: flex;
-                align-items: center; justify-content: center;
-            `;
-            
-            const content = document.createElement('div');
-            content.style.cssText = `
-                background: white; padding: 20px; border-radius: 8px; max-width: 80%;
-                max-height: 80%; overflow: auto; box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-            `;
-            
-            content.innerHTML = `
-                <h3>Copy Data Manually</h3>
-                <p>Please copy this data manually:</p>
-                <textarea readonly style="width: 100%; height: 200px; font-family: monospace;">${text}</textarea>
-                <br><br>
-                <button onclick="this.closest('div[style*=fixed]').remove()">Close</button>
-            `;
-            
-            modal.appendChild(content);
-            document.body.appendChild(modal);
-            
-            // Auto-select the text
-            const textarea = content.querySelector('textarea');
-            textarea.select();
         }
 
         /**
@@ -594,26 +354,12 @@
          */
         function addExportControls() {
             if (graphElement && graphElement.addToolbarControl) {
-                // Export to file button
+                // Export button - generates Python code
                 const exportButton = document.createElement('button');
                 exportButton.className = 'reset-btn';
-                exportButton.innerHTML = '💾 Export JSON';
-                exportButton.title = 'Export data to JSON file';
+                exportButton.innerHTML = '💾 Export';
+                exportButton.title = 'Export as Python code';
                 exportButton.onclick = exportDataToFile;
-                
-                // Upload/Import button
-                const uploadButton = document.createElement('button');
-                uploadButton.className = 'reset-btn';
-                uploadButton.innerHTML = '📤 Load JSON';
-                uploadButton.title = 'Load data from JSON file';
-                uploadButton.onclick = importDataFromFile;
-                
-                // Copy to clipboard button
-                const copyButton = document.createElement('button');
-                copyButton.className = 'reset-btn';
-                copyButton.innerHTML = '📋 Copy JSON';
-                copyButton.title = 'Copy data to clipboard';
-                copyButton.onclick = copyDataToClipboard;
                 
                 // Reset button
                 const resetButton = document.createElement('button');
@@ -623,49 +369,8 @@
                 resetButton.onclick = resetLayout;
                 
                 graphElement.addToolbarControl(exportButton);
-                graphElement.addToolbarControl(uploadButton);
-                graphElement.addToolbarControl(copyButton);
                 graphElement.addToolbarControl(resetButton);
             }
-        }
-
-        /**
-         * Import data from a JSON file (using File Input)
-         */
-        async function importDataFromFile() {
-            console.log('Import button clicked!');
-            
-            // Create a hidden file input
-            const fileInput = document.createElement('input');
-            fileInput.type = 'file';
-            fileInput.accept = '.json';
-            fileInput.style.display = 'none';
-            
-            fileInput.onchange = function(event) {
-                const file = event.target.files[0];
-                if (!file) return;
-                
-                const reader = new FileReader();
-                reader.onload = function(e) {
-                    try {
-                        const data = JSON.parse(e.target.result);
-                        console.log('Loaded data:', data);
-                        
-                        // Create data instance and set it
-                        const dataInstance = new CndCore.JSONDataInstance(data);
-                        graphElement.setDataInstance(dataInstance);
-                        
-                        showInfo('✓ Data loaded from file!');
-                    } catch (err) {
-                        showError('Failed to parse JSON file: ' + err.message);
-                    }
-                };
-                reader.readAsText(file);
-            };
-            
-            document.body.appendChild(fileInput);
-            fileInput.click();
-            document.body.removeChild(fileInput);
         }
 
         /**
@@ -847,9 +552,6 @@
 
                 // Add export controls after setup
                 addExportControls();
-                
-                // Initialize Jupyter comm if available
-                initJupyterComm();
 
             } catch (error) {
                 console.error('Error setting up graph:', error);
@@ -886,7 +588,6 @@
                     <div style="color: green; padding: 10px; border: 1px solid green; background-color: #e6ffe6; margin-top: 10px;">
                         <h3>Success</h3>
                         <p>${message}</p>
-                        <p><small>💡 Use <code>spytial.load_from_json_file('filename.json', ${dataclassName})</code> to load this data back into Python</small></p>
                     </div>
                 `;
                 // Auto-hide after 5 seconds
