@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ title | default("sPyTial Visualization") }}</title>
+    <title>TreeNode Builder</title>
     
     <script src="https://d3js.org/d3.v4.min.js"></script>
 
@@ -97,13 +97,15 @@
 
     <!-- Embedded JSON data as separate script to avoid escaping issues -->
     <script type="application/json" id="initial-data">
-{{ python_data | safe }}
+{"atoms": [{"id": "0", "type": "int", "label": "0", "type_hierarchy": ["int", "object"]}, {"id": "None", "type": "NoneType", "label": "None", "type_hierarchy": ["NoneType", "object"]}, {"id": "n0", "type": "TreeNode", "label": "obj", "type_hierarchy": ["TreeNode", "object"]}], "relations": [{"id": "value", "name": "value", "types": ["object", "object"], "tuples": [{"atoms": ["n0", "0"], "types": ["TreeNode", "int"]}]}, {"id": "left", "name": "left", "types": ["object", "object"], "tuples": [{"atoms": ["n0", "None"], "types": ["TreeNode", "NoneType"]}]}, {"id": "right", "name": "right", "types": ["object", "object"], "tuples": [{"atoms": ["n0", "None"], "types": ["TreeNode", "NoneType"]}]}], "types": [{"_": "type", "id": "int", "types": ["int", "object"], "atoms": [{"_": "atom", "id": "0", "type": "int"}], "meta": {"builtin": true}}, {"_": "type", "id": "NoneType", "types": ["NoneType", "object"], "atoms": [{"_": "atom", "id": "None", "type": "NoneType"}, {"_": "atom", "id": "None", "type": "NoneType"}], "meta": {"builtin": true}}, {"_": "type", "id": "TreeNode", "types": ["TreeNode", "object"], "atoms": [{"_": "atom", "id": "n0", "type": "TreeNode"}], "meta": {"builtin": false}}]}
     </script>
 
     <script>
         // Embedded data passed from the server
-        const cndSpec = `{{ cnd_spec | safe }}`;
-        const dataclassName = `{{ dataclass_name | safe }}`;
+        const cndSpec = `constraints: []
+directives: []
+`;
+        const dataclassName = `TreeNode`;
         const exportDir = `{{ export_dir | safe }}`;
         
         // Parse the JSON data from inline script

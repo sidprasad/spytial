@@ -1,9 +1,9 @@
 """
-sPyTial Dataclass Builder Widget with CnD-core Integration
+sPyTial Dataclass Builder with CnD-core Integration
 
-A Jupyter widget for building dataclass instances interactively using CnD-core's
-visual structured-input-graph component. Uses file-based communication for reliable
-data exchange between the JavaScript UI and Python kernel.
+A simple function for building dataclass instances interactively using CnD-core's
+visual structured-input-graph component. Generates Python constructor code that
+you can copy and paste.
 """
 
 import json
