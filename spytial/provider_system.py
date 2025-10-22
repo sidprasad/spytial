@@ -167,14 +167,35 @@ class CnDDataInstanceBuilder:
         # Use the updated `build_types` function
         typs = self.build_types(self._atoms)
 
-        return {"atoms": self._atoms, "relations": relations, "types": typs}
+        # Deduplicate atoms by ID - if multiple atoms have the same ID, keep only the first
+        # This is important for primitives where the same value may be referenced multiple times
+        atoms_by_id = {}
+        for atom in self._atoms:
+            if atom['id'] not in atoms_by_id:
+                atoms_by_id[atom['id']] = atom
+        
+        deduplicated_atoms = list(atoms_by_id.values())
+
+        return {"atoms": deduplicated_atoms, "relations": relations, "types": typs}
 
     def get_collected_decorators(self) -> Dict:
         """Get all decorators collected during the build process."""
         return self._collected_decorators
 
     def _get_id(self, obj: Any) -> str:
-        """Get or create an ID for an object."""
+        """Get or create an ID for an object.
+        
+        For primitives, uses value-based lookup to avoid race conditions with memory addresses.
+        For objects, uses memory-based ID with spytial registry fallback.
+        """
+        # For primitive types, always use value-based ID (no memory address confusion)
+        if isinstance(obj, (int, float, bool)) or obj is None:
+            return str(obj)
+        elif isinstance(obj, str):
+            # For strings, use quoted representation to distinguish from other IDs
+            return f'"{obj}"'
+        
+        # For non-primitive objects, use memory-based ID with caching
         oid = id(obj)
 
         if oid not in self._seen:
@@ -194,19 +215,9 @@ class CnDDataInstanceBuilder:
                     return spytial_id
             except ImportError:
                 pass
-
-            # For primitive types, use their string representation as ID
-            if isinstance(obj, (int, float, bool)) or obj is None:
-                primitive_id = str(obj)
-                self._seen[oid] = primitive_id
-                return primitive_id
-            elif isinstance(obj, str):
-                # For strings, use quoted representation to distinguish from other IDs
-                string_id = f'"{obj}"'
-                self._seen[oid] = string_id
-                return string_id
-
-            # Default behavior for complex objects: generate new ID
+            
+            # Fall back to simple ID generation for objects
+            # (This will be handled in the remainder of the method below)
             self._seen[oid] = f"n{self._id_counter}"
             self._id_counter += 1
         return self._seen[oid]

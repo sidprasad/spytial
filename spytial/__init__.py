@@ -13,6 +13,7 @@ from .evaluator import evaluate
 # Import widget functionality with graceful fallback
 try:
     from .dataclass_widget_cnd import dataclass_builder
+    from .dataclass_widget_cnd import dataclass_builder
     WIDGETS_AVAILABLE = True
 except ImportError:
     WIDGETS_AVAILABLE = False
@@ -54,6 +55,10 @@ from .annotations import (
     annotate_hideAtom,
     annotate_inferredEdge,
     annotate_flag,
+    # Inheritance control decorators
+    dont_inherit_constraints,
+    dont_inherit_directives,
+    dont_inherit_annotations,
     # Utility functions
     collect_decorators,
     serialize_to_yaml_string,
@@ -69,7 +74,16 @@ __all__ = [
     # Core functions
     "diagram",
     "evaluate",
-    # Widget functionality
+    # Dataclass input builder
+    "build_input",
+    "input_builder",
+    "load_from_json_file",
+    "json_to_dataclass",
+    "build_interactive",
+    "DataclassDerelationalizer",
+    "InteractiveInputBuilder",
+    # Widget functionality (when available)
+    # Widgets
     "dataclass_builder",
     # New relationalizer system
     "CnDDataInstanceBuilder",
@@ -107,6 +121,10 @@ __all__ = [
     "annotate_hideAtom",
     "annotate_inferredEdge",
     "annotate_flag",
+    # Inheritance control decorators
+    "dont_inherit_constraints",
+    "dont_inherit_directives",
+    "dont_inherit_annotations",
     # Utility functions
     "collect_decorators",
     "serialize_to_yaml_string",
