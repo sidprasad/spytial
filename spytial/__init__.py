@@ -9,28 +9,7 @@ from .provider_system import (
 )
 from .visualizer import diagram
 from .evaluator import evaluate
-from .dataclassbuilder import (
-    build_input, 
-    input_builder, 
-    load_from_json_file, 
-    json_to_dataclass,
-    build_interactive,
-    DataclassDerelationalizer,
-    InteractiveInputBuilder
-)
-
-# Import widget functionality with graceful fallback
-try:
-    from .dataclass_widget_cnd import dataclass_builder
-    WIDGETS_AVAILABLE = True
-except ImportError:
-    WIDGETS_AVAILABLE = False
-    # Create dummy function when widgets aren't available
-    def dataclass_builder(*args, **kwargs):
-        raise ImportError(
-            "ipywidgets is required for widget functionality. "
-            "Install with: pip install ipywidgets"
-        )
+from .dataclass_builder import dataclass_builder
 from .annotations import (
     # Class decorators
     orientation,
@@ -82,16 +61,6 @@ __all__ = [
     # Core functions
     "diagram",
     "evaluate",
-    # Dataclass input builder
-    "build_input",
-    "input_builder",
-    "load_from_json_file",
-    "json_to_dataclass",
-    "build_interactive",
-    "DataclassDerelationalizer",
-    "InteractiveInputBuilder",
-    # Widget functionality (when available)
-    # Widgets
     "dataclass_builder",
     # New relationalizer system
     "CnDDataInstanceBuilder",
