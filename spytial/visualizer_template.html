@@ -179,34 +179,33 @@
         }
 
         /**
-         * Save metrics to server file
+         * Save metrics to a file with custom path/name
+         * Since we can't write to arbitrary filesystem locations from browser,
+         * we download the file with the specified name
          */
         function saveMetricsToServer(metrics) {
             try {
-                // Send metrics to server via fetch
-                fetch(perfPath, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify(metrics)
-                })
-                .then(response => {
-                    if (response.ok) {
-                        console.log(`✓ Metrics saved to server: ${perfPath}`);
-                    } else {
-                        console.warn(`Failed to save metrics to server: ${response.status}`);
-                    }
-                })
-                .catch(error => {
-                    console.warn('Could not save metrics to server:', error);
-                    // Fallback to file download
-                    console.log('Falling back to file download...');
-                    saveMetricsToFile(metrics);
-                });
+                const json = JSON.stringify(metrics, null, 2);
+                const blob = new Blob([json], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                
+                // Use perfPath as the download filename
+                // The browser will prompt user or use their default download location
+                link.href = url;
+                link.download = perfPath;  // Use the provided path as filename
+                link.style.display = 'none';
+                
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                URL.revokeObjectURL(url);
+                
+                console.log(`✓ Metrics file download initiated: ${perfPath}`);
+                console.log(`  (Browser will save to your default downloads folder)`);
             } catch (error) {
-                console.warn('Error saving to server:', error);
-                // Fallback to file download
+                console.warn('Error downloading metrics file:', error);
+                // Fallback to default file download
                 saveMetricsToFile(metrics);
             }
         }
