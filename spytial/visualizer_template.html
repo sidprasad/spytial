@@ -645,13 +645,11 @@
                         const webcolaGraphElement = document.getElementById('graph-container');
                         webcolaGraphElement.setAttribute('unsat', "");
                     }
-                    
-                    return iterationMetrics;
                 }  
 
                 instanceLayout = layoutResult.layout;
 
-                // Render the graph with timing
+                // Render the graph with timing (even if there's an error, render what we have)
                 const renderLayoutStart = performance.now();
                 await graphElement.renderLayout(instanceLayout);
                 iterationMetrics.renderLayout = performance.now() - renderLayoutStart;
@@ -782,13 +780,6 @@
                 }
             }
         };
-
-        console.log('✓ sPyTial performance utilities available at window.spytialPerformance');
-        console.log('  - getMetrics(): Get current metrics');
-        console.log('  - getHistory(): Get all stored metrics and statistics');
-        console.log('  - downloadMetrics(): Download current metrics as JSON');
-        console.log('  - clearHistory(): Clear stored metrics');
-        console.log('  - exportAsCSV(): Export all metrics as CSV file');
     </script>
 </body>
 
