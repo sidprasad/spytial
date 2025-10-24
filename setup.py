@@ -7,8 +7,8 @@ def read_readme():
         return f.read()
 
 setup(
-    name="spytial-diagramming",
-    version="0.2.2",
+    name="spytial_diagramming",
+    version="0.2.5",
     packages=find_packages(),
     install_requires=[
         "jinja2>=3.0.0",

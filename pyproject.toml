@@ -3,8 +3,8 @@ requires = ["setuptools>=45", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "spytial-diagramming"
-version = "0.2.2"
+name = "spytial_diagramming"
+version = "0.2.5"
 description = "sPyTial: Spatial Python visualization with declarative constraints"
 readme = "README.md"
 license = {text = "MIT"}
