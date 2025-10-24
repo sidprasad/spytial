@@ -8,9 +8,9 @@
     
     <script src="https://d3js.org/d3.v4.min.js"></script>
 
-    <script src="https://cdn.jsdelivr.net/npm/cnd-core@1.4.5-beta.2/dist/browser/cnd-core-complete.global.js"></script>  
-    <script src="https://cdn.jsdelivr.net/npm/cnd-core@1.4.5-beta.2/dist/components/react-component-integration.global.js"></script>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/cnd-core@1.4.5-beta.2/dist/components/react-component-integration.css" />
+    <script src="https://cdn.jsdelivr.net/npm/cnd-core@1.4.6/dist/browser/cnd-core-complete.global.js"></script>  
+    <script src="https://cdn.jsdelivr.net/npm/cnd-core@1.4.6/dist/components/react-component-integration.global.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/cnd-core@1.4.6/dist/components/react-component-integration.css" />
     
     <!-- html2canvas for screenshot functionality -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script> 
@@ -134,48 +134,21 @@
          * Save performance metrics to browser storage and console
          */
         function savePerformanceMetrics() {
-            // Log to console
-            console.log('=== Performance Metrics ===');
-            console.log(`Parse Spec: ${performanceMetrics.parseSpec.avg.toFixed(2)}ms (min: ${performanceMetrics.parseSpec.min.toFixed(2)}, max: ${performanceMetrics.parseSpec.max.toFixed(2)})`);
-            console.log(`Generate Layout: ${performanceMetrics.generateLayout.avg.toFixed(2)}ms (min: ${performanceMetrics.generateLayout.min.toFixed(2)}, max: ${performanceMetrics.generateLayout.max.toFixed(2)})`);
-            console.log(`Render Layout: ${performanceMetrics.renderLayout.avg.toFixed(2)}ms (min: ${performanceMetrics.renderLayout.min.toFixed(2)}, max: ${performanceMetrics.renderLayout.max.toFixed(2)})`);
-            console.log(`Total Time: ${performanceMetrics.totalTime.avg.toFixed(2)}ms (min: ${performanceMetrics.totalTime.min.toFixed(2)}, max: ${performanceMetrics.totalTime.max.toFixed(2)})`);
-            console.log(`Timestamp: ${performanceMetrics.timestamp}`);
-            console.log('==========================');
-            
-            // Save to localStorage for benchmarking
-            const metrics = {
-                ...performanceMetrics,
-                dataSize: {
-                    atomCount: (jsonData.atoms || []).length,
-                    relationCount: (jsonData.relations || []).length,
-                    typeCount: (jsonData.types || []).length
-                }
-            };
-            
-            // Store in localStorage as JSON array for historical tracking
-            try {
-                let history = JSON.parse(localStorage.getItem('spytialMetricsHistory') || '[]');
-                history.push(metrics);
-                // Keep last 100 measurements
-                if (history.length > 100) {
-                    history = history.slice(-100);
-                }
-                localStorage.setItem('spytialMetricsHistory', JSON.stringify(history));
-                console.log(`✓ Metrics saved to localStorage (${history.length} total measurements)`);
-            } catch (e) {
-                console.warn('Could not save to localStorage:', e);
-            }
+            // Only log if NOT benchmarking
+            // if (!perfIterations) {
+            //     console.log('=== Performance Metrics ===');
+            //     console.log(`Parse Spec: ${performanceMetrics.parseSpec.avg.toFixed(2)}ms (min: ${performanceMetrics.parseSpec.min.toFixed(2)}, max: ${performanceMetrics.parseSpec.max.toFixed(2)})`);
+            //     console.log(`Generate Layout: ${performanceMetrics.generateLayout.avg.toFixed(2)}ms (min: ${performanceMetrics.generateLayout.min.toFixed(2)}, max: ${performanceMetrics.generateLayout.max.toFixed(2)})`);
+            //     console.log(`Render Layout: ${performanceMetrics.renderLayout.avg.toFixed(2)}ms (min: ${performanceMetrics.renderLayout.min.toFixed(2)}, max: ${performanceMetrics.renderLayout.max.toFixed(2)})`);
+            //     console.log(`Total Time: ${performanceMetrics.totalTime.avg.toFixed(2)}ms (min: ${performanceMetrics.totalTime.min.toFixed(2)}, max: ${performanceMetrics.totalTime.max.toFixed(2)})`);
+            //     console.log(`Timestamp: ${performanceMetrics.timestamp}`);
+            //     console.log('==========================');
+            // }
             
             // Save to server if perf_path is provided
             if (perfPath) {
-                saveMetricsToServer(metrics);
-            } else {
-                // Otherwise save as a downloadable JSON file
-                saveMetricsToFile(metrics);
+                saveMetricsToServer(performanceMetrics);
             }
-            
-            return metrics;
         }
 
         /**
@@ -200,78 +173,10 @@
                 link.click();
                 document.body.removeChild(link);
                 URL.revokeObjectURL(url);
-                
-                console.log(`✓ Metrics file download initiated: ${perfPath}`);
-                console.log(`  (Browser will save to your default downloads folder)`);
             } catch (error) {
                 console.warn('Error downloading metrics file:', error);
                 // Fallback to default file download
                 saveMetricsToFile(metrics);
-            }
-        }
-
-        /**
-         * Download performance metrics as a JSON file
-         */
-        function saveMetricsToFile(metrics) {
-            try {
-                const json = JSON.stringify(metrics, null, 2);
-                const blob = new Blob([json], { type: 'application/json' });
-                const url = URL.createObjectURL(blob);
-                const link = document.createElement('a');
-                const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
-                link.href = url;
-                link.download = `spytial-metrics-${timestamp}.json`;
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
-                URL.revokeObjectURL(url);
-                console.log(`✓ Metrics file downloaded: ${link.download}`);
-            } catch (error) {
-                console.warn('Could not download metrics file:', error);
-            }
-        }
-
-        /**
-         * Get all stored performance metrics from localStorage
-         */
-        function getPerformanceHistory() {
-            try {
-                const history = JSON.parse(localStorage.getItem('spytialMetricsHistory') || '[]');
-                if (history.length === 0) {
-                    console.log('No performance history found');
-                    return [];
-                }
-                
-                // Calculate statistics
-                const generateLayoutTimes = history.map(m => m.generateLayout);
-                const renderLayoutTimes = history.map(m => m.renderLayout);
-                
-                const stats = {
-                    measurementCount: history.length,
-                    generateLayout: {
-                        min: Math.min(...generateLayoutTimes),
-                        max: Math.max(...generateLayoutTimes),
-                        avg: generateLayoutTimes.reduce((a, b) => a + b, 0) / generateLayoutTimes.length,
-                        median: generateLayoutTimes.sort((a, b) => a - b)[Math.floor(generateLayoutTimes.length / 2)]
-                    },
-                    renderLayout: {
-                        min: Math.min(...renderLayoutTimes),
-                        max: Math.max(...renderLayoutTimes),
-                        avg: renderLayoutTimes.reduce((a, b) => a + b, 0) / renderLayoutTimes.length,
-                        median: renderLayoutTimes.sort((a, b) => a - b)[Math.floor(renderLayoutTimes.length / 2)]
-                    }
-                };
-                
-                console.log('=== Performance History ===');
-                console.table(stats);
-                console.log('==========================');
-                console.log('Full history:', history);
-                
-                return { history, stats };
-            } catch (e) {
-                console.error('Error retrieving performance history:', e);
-                return [];
             }
         }
 
@@ -495,18 +400,16 @@
 
             // If performing multiple iterations, run them sequentially and collect metrics
             if (perfIterations > 1) {
-                console.log(`📊 Performance benchmark: Running ${perfIterations} iterations...`);
                 const allMetrics = [];
                 
                 for (let i = 1; i <= perfIterations; i++) {
-                    console.log(`  [${i}/${perfIterations}] Rendering...`);
                     const iterationMetrics = await renderOnce();
                     if (iterationMetrics) {
                         allMetrics.push(iterationMetrics);
                     }
                 }
                 
-                // Aggregate metrics
+                // Aggregate metrics (save without logging to preserve benchmark accuracy)
                 if (allMetrics.length > 0) {
                     const aggregatedMetrics = aggregateMetrics(allMetrics);
                     performanceMetrics.parseSpec = aggregatedMetrics.parseSpec;
@@ -515,14 +418,7 @@
                     performanceMetrics.totalTime = aggregatedMetrics.totalTime;
                     performanceMetrics.iterations = perfIterations;
                     
-                    console.log('=== Aggregated Performance Metrics ===');
-                    console.log(`Parse Spec: ${aggregatedMetrics.parseSpec.avg.toFixed(2)}ms (min: ${aggregatedMetrics.parseSpec.min.toFixed(2)}, max: ${aggregatedMetrics.parseSpec.max.toFixed(2)})`);
-                    console.log(`Generate Layout: ${aggregatedMetrics.generateLayout.avg.toFixed(2)}ms (min: ${aggregatedMetrics.generateLayout.min.toFixed(2)}, max: ${aggregatedMetrics.generateLayout.max.toFixed(2)})`);
-                    console.log(`Render Layout: ${aggregatedMetrics.renderLayout.avg.toFixed(2)}ms (min: ${aggregatedMetrics.renderLayout.min.toFixed(2)}, max: ${aggregatedMetrics.renderLayout.max.toFixed(2)})`);
-                    console.log(`Total Time: ${aggregatedMetrics.totalTime.avg.toFixed(2)}ms (min: ${aggregatedMetrics.totalTime.min.toFixed(2)}, max: ${aggregatedMetrics.totalTime.max.toFixed(2)})`);
-                    console.log('=====================================');
-                    
-                    // Save final aggregated metrics
+                    // Save final aggregated metrics without verbose logging
                     savePerformanceMetrics();
                 }
                 return;
@@ -553,7 +449,6 @@
 
             // Step 1: Mount error message modal if available
             if (window.mountErrorMessageModal && !perfIterations) {
-                console.log('Mounting error message modal');
                 window.mountErrorMessageModal('error-core');
             }
 
@@ -592,7 +487,6 @@
                 sgqEvaluator.initialize(evaluationContext);
                 
                 if (!perfIterations) {
-                    console.log('Evaluation context initialized');
                     window.evaluator = sgqEvaluator; // Expose evaluator for debugging
                 }
 
@@ -600,20 +494,12 @@
                 const parseSpecStart = performance.now();
                 const layoutSpec = CndCore.parseLayoutSpec(cndSpec);
                 iterationMetrics.parseSpec = performance.now() - parseSpecStart;
-                
-                if (!perfIterations) {
-                    console.log('Layout spec parsed');
-                }
 
                 // Generate the layout with timing
                 const generateLayoutStart = performance.now();
                 const layoutInstance = new CndCore.LayoutInstance(layoutSpec, sgqEvaluator, 0, true);
                 const layoutResult = layoutInstance.generateLayout(dataInstance, {});
                 iterationMetrics.generateLayout = performance.now() - generateLayoutStart;
-                
-                if (!perfIterations) {
-                    console.log('Layout generated');
-                }
 
                 // Check for layout errors
                 if (layoutResult.error) {
@@ -729,57 +615,6 @@
 
         // Auto-load when page loads
         window.addEventListener('load', loadGraph);
-
-        // Expose performance utilities to window for console access
-        window.spytialPerformance = {
-            // Get current metrics
-            getMetrics: () => performanceMetrics,
-            // Get historical metrics and statistics
-            getHistory: getPerformanceHistory,
-            // Download current metrics
-            downloadMetrics: () => saveMetricsToFile(performanceMetrics),
-            // Clear localStorage history
-            clearHistory: () => {
-                localStorage.removeItem('spytialMetricsHistory');
-                console.log('✓ Performance history cleared');
-            },
-            // Export all metrics as CSV
-            exportAsCSV: () => {
-                try {
-                    const history = JSON.parse(localStorage.getItem('spytialMetricsHistory') || '[]');
-                    if (history.length === 0) {
-                        console.log('No metrics to export');
-                        return;
-                    }
-                    
-                    const headers = ['timestamp', 'parseSpec', 'generateLayout', 'renderLayout', 'totalTime', 'atomCount', 'relationCount'];
-                    const rows = history.map(m => [
-                        m.timestamp,
-                        m.parseSpec.toFixed(2),
-                        m.generateLayout.toFixed(2),
-                        m.renderLayout.toFixed(2),
-                        m.totalTime.toFixed(2),
-                        m.dataSize?.atomCount || 0,
-                        m.dataSize?.relationCount || 0
-                    ]);
-                    
-                    const csv = [headers, ...rows].map(row => row.join(',')).join('\n');
-                    const blob = new Blob([csv], { type: 'text/csv' });
-                    const url = URL.createObjectURL(blob);
-                    const link = document.createElement('a');
-                    const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
-                    link.href = url;
-                    link.download = `spytial-metrics-${timestamp}.csv`;
-                    document.body.appendChild(link);
-                    link.click();
-                    document.body.removeChild(link);
-                    URL.revokeObjectURL(url);
-                    console.log(`✓ Metrics exported as CSV: ${link.download}`);
-                } catch (error) {
-                    console.error('Error exporting metrics:', error);
-                }
-            }
-        };
     </script>
 </body>
 
