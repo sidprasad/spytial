@@ -26,21 +26,12 @@
 
     <script>
         // Embedded data passed from the server
-        const jsonData = `{{ python_data | safe }}`;
-
-        // Parse the JSON data
-        let parsedData;
-        try {
-            parsedData = typeof jsonData === 'string' ? JSON.parse(jsonData) : jsonData;
-        } catch (error) {
-            console.error('Failed to parse JSON data:', error);
-            appendToReplOutput(`<span class="error">Error: Failed to parse JSON data: ${error.message}</span>`);
-        }
+        const jsonData = {{ python_data | safe }};
 
         // Initialize the evaluator
         let evaluator;
         try {
-            const dataInstance = new CndCore.JSONDataInstance(parsedData);
+            const dataInstance = new CndCore.JSONDataInstance(jsonData);
             const evaluationContext = { sourceData: dataInstance };
             evaluator = new CndCore.SGraphQueryEvaluator();
             evaluator.initialize(evaluationContext);
