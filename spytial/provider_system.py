@@ -164,10 +164,7 @@ class CnDDataInstanceBuilder:
                 }
             )
 
-        # Use the updated `build_types` function
-        typs = self.build_types(self._atoms)
-
-        # Deduplicate atoms by ID - if multiple atoms have the same ID, keep only the first
+        # Deduplicate atoms by ID FIRST - if multiple atoms have the same ID, keep only the first
         # This is important for primitives where the same value may be referenced multiple times
         atoms_by_id = {}
         for atom in self._atoms:
@@ -175,6 +172,9 @@ class CnDDataInstanceBuilder:
                 atoms_by_id[atom['id']] = atom
         
         deduplicated_atoms = list(atoms_by_id.values())
+
+        # Build types from deduplicated atoms to avoid duplicate entries in type.atoms
+        typs = self.build_types(deduplicated_atoms)
 
         return {"atoms": deduplicated_atoms, "relations": relations, "types": typs}
 
