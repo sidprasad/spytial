@@ -3,6 +3,10 @@ jinja2>=3.0.0  # For HTML templating
 pyyaml>=6.0    # For YAML serialization
 ipython>=8.0.0 # For Jupyter notebook integration
 
+# Optional dependencies for headless browser support
+# Install with: pip install spytial_diagramming[headless]
+# selenium>=4.0.0
+
 # Development and testing dependencies
 pytest>=7.0.0  # For testing
 flake8>=6.0.0  # For linting

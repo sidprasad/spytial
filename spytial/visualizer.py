@@ -34,29 +34,47 @@ def quick_diagram(obj):
 
 
 def diagram(
-    obj, method="inline", auto_open=True, width=None, height=None, title=None, cnd_version=None, perf_path=None, perf_iterations=None
+    obj, method="inline", auto_open=True, width=None, height=None, title=None, cnd_version=None, perf_path=None, perf_iterations=None, headless=False, timeout=None
 ):
     """
     Display a Python object in the sPyTial visualizer.
 
     Args:
         obj: Any Python object to visualize
-        method: Display method - "inline" (Jupyter), "browser" (new tab), or "file" (save to file)
+        method: Display method - "inline" (Jupyter), "browser" (new tab), "file" (save to file), or "headless" (headless browser for testing)
         auto_open: Whether to automatically open browser (for "browser" method)
         width: Width of the visualization container in pixels (default: auto-detected)
         height: Height of the visualization container in pixels (default: auto-detected)
         title: Title for the browser tab/page (default: "sPyTial Visualization")
-        perf_path: Optional path to send performance metrics to (as POST request). 
-                   If provided, metrics will be saved server-side instead of downloaded.
-                   If None, metrics are downloaded as JSON files.
+        cnd_version: Version of CnD core to use (default: "1.1.9")
+        perf_path: Optional path to save performance metrics JSON file. 
+                   If None, metrics are not saved (unless perf_iterations is set).
         perf_iterations: Optional number of times to render for performance benchmarking.
                         If provided, the visualization will be rendered N times and metrics
-                        will be aggregated. Only works with method="browser" or "file".
+                        will be aggregated. Works with method="browser", "file", or "headless".
                         Example: perf_iterations=10 renders 10 times and shows average/min/max times.
+        headless: Run in headless Chrome for testing/benchmarking (requires selenium and chromedriver).
+                  If True, method is automatically set to "headless".
+        timeout: Timeout in seconds for headless mode. If None, automatically calculated based on
+                 perf_iterations (default: max(120, perf_iterations * 5)). For large/complex
+                 visualizations, set this higher (e.g., timeout=600 for 10 minutes).
+
+
+        perf_iterations: Optional number of times to render for performance benchmarking.
+                        If provided, the visualization will be rendered N times and metrics
+                        will be aggregated. Works with method="browser", "file", or "headless".
+                        Example: perf_iterations=10 renders 10 times and shows average/min/max times.
+        headless: Run in headless Chrome for testing/benchmarking (requires selenium and chromedriver).
+                  If True, method is automatically set to "headless".
 
     Returns:
-        str: Path to the generated HTML file (if method="file" or "browser")
+        str: Path to the generated HTML file (if method="file", "browser", or "headless")
+        dict: Performance metrics (if method="headless" and perf_iterations > 0)
     """
+    # Override method if headless flag is set
+    if headless:
+        method = "headless"
+
     # Auto-detect sizing if not provided
     if width is None or height is None:
         detected_width, detected_height = _detect_optimal_size(obj, method)
@@ -68,6 +86,8 @@ def diagram(
     )  # No longer need collect_decorators here
 
     # Serialize the object using the provider system (which now also collects decorators)
+    if headless and title:
+        print(f"Building data instance for: {title}", flush=True)
     builder = CnDDataInstanceBuilder()
     data_instance = builder.build_instance(obj)
 
@@ -77,6 +97,8 @@ def diagram(
     # Serialize the collected decorators into a YAML string
     spytial_spec = serialize_to_yaml_string(decorators)
 
+    if headless and title:
+        print(f"Generating HTML for: {title}", flush=True)
     # Generate the HTML content
     html_content = _generate_visualizer_html(
         data_instance, spytial_spec, width, height, title, cnd_version, perf_path, perf_iterations
@@ -144,6 +166,10 @@ def diagram(
 
         print(f"Visualization saved to: {output_path.absolute()}")
         return str(output_path.absolute())
+
+    elif method == "headless":
+        # Run in headless browser for testing/benchmarking
+        return _run_headless(html_content, perf_path, perf_iterations, timeout, title)
 
     else:
         raise ValueError(f"Unknown display method: {method}")
@@ -289,3 +315,193 @@ def _generate_visualizer_html(
     )
 
     return html_content
+
+
+def _run_headless(html_content, perf_path=None, perf_iterations=None, timeout=None, title=None):
+    """
+    Run visualization in headless Chrome for testing/benchmarking.
+    
+    Args:
+        html_content: The HTML content to render
+        perf_path: Path to save performance metrics
+        perf_iterations: Number of iterations to run
+        timeout: Custom timeout in seconds. If None, calculated as max(120, perf_iterations * 5)
+        title: Title of the visualization (for display in progress messages)
+        
+    Returns:
+        dict: Performance metrics if perf_iterations > 0, otherwise path to temp file
+    """
+    try:
+        from selenium import webdriver
+        from selenium.webdriver.chrome.options import Options
+        from selenium.webdriver.chrome.service import Service
+        from selenium.webdriver.common.by import By
+        from selenium.webdriver.support.ui import WebDriverWait
+        from selenium.webdriver.support import expected_conditions as EC
+    except ImportError:
+        raise ImportError(
+            "Headless mode requires selenium. Install with: pip install selenium webdriver-manager"
+        )
+    
+    try:
+        from webdriver_manager.chrome import ChromeDriverManager
+        use_webdriver_manager = True
+    except ImportError:
+        use_webdriver_manager = False
+    
+    # Create temporary HTML file
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".html", delete=False) as f:
+        f.write(html_content)
+        temp_path = f.name
+    
+    # Configure Chrome options for headless mode
+    chrome_options = Options()
+    chrome_options.add_argument("--headless=new")  # Use new headless mode
+    chrome_options.add_argument("--disable-gpu")
+    chrome_options.add_argument("--no-sandbox")
+    chrome_options.add_argument("--disable-dev-shm-usage")
+    chrome_options.add_argument("--window-size=1920,1080")
+    # Increase memory for performance testing
+    chrome_options.add_argument("--js-flags=--max-old-space-size=4096")
+    
+    # Calculate the timeout to use for HTTP client
+    http_timeout = timeout if timeout else 300
+    
+    driver = None
+    try:
+        # Initialize Chrome driver with custom HTTP timeout
+        if use_webdriver_manager:
+            # Automatically download and manage chromedriver
+            service = Service(ChromeDriverManager().install())
+            driver = webdriver.Chrome(service=service, options=chrome_options)
+        else:
+            # Try to use system chromedriver
+            driver = webdriver.Chrome(options=chrome_options)
+        
+        # Set the RemoteConnection timeout (this is the 120s timeout we're hitting)
+        driver.command_executor._client_config.timeout = http_timeout
+        
+        # Set longer page load timeout for complex visualizations
+        # Use the custom timeout if provided, otherwise use 300s default
+        page_load_timeout = http_timeout
+        driver.set_page_load_timeout(page_load_timeout)
+        driver.set_script_timeout(page_load_timeout)
+        
+        if title:
+            print(f"Loading page for {title} (timeout: {page_load_timeout}s)...", flush=True)
+        
+        # Load the HTML file
+        try:
+            driver.get(f"file://{temp_path}")
+        except Exception as load_error:
+            if "tab crashed" in str(load_error).lower() or "crash" in str(load_error).lower():
+                print(f"✗ Chrome tab crashed - visualization too large/complex", flush=True)
+                print(f"  Consider: reducing perf_iterations, simplifying data, or using method='browser'", flush=True)
+            raise
+        
+        # Wait for the page to load and rendering to complete
+        # For performance testing, wait for the download to trigger
+        if perf_iterations and perf_iterations > 0:
+            # Calculate timeout - use custom timeout if provided, otherwise auto-calculate
+            if timeout is None:
+                # Use 5 seconds per iteration as base, with minimum of 120 seconds
+                # Complex visualizations can take much longer than simple ones
+                wait_time = max(120, perf_iterations * 5)
+            else:
+                wait_time = timeout
+            
+            # Display title if provided
+            title_str = f" - {title}" if title else ""
+            print(f"Running {perf_iterations} iterations{title_str} (timeout: {wait_time}s)...", flush=True)
+            if timeout is not None:
+                print(f"  Using custom timeout of {timeout}s", flush=True)
+            
+            # Monitor progress with periodic polling
+            import time
+            start_time = time.time()
+            last_count = 0
+            completed = False
+            
+            # Poll for progress updates
+            try:
+                poll_count = 0
+                while time.time() - start_time < wait_time:
+                    poll_count += 1
+                    try:
+                        metrics = driver.execute_script("return window.performanceMetrics;")
+                        if metrics and 'iterations' in metrics:
+                            current_count = metrics['iterations']
+                            if current_count > last_count:
+                                elapsed = time.time() - start_time
+                                print(f"  Progress: {current_count}/{perf_iterations} iterations ({elapsed:.1f}s elapsed)", flush=True)
+                                last_count = current_count
+                            
+                            # Check if benchmark is complete (completed flag set after metrics saved)
+                            if metrics.get('completed', False):
+                                completed = True
+                                break
+                        else:
+                            # Debug: print when we can't get metrics
+                            if poll_count % 6 == 0:  # Every minute (6 * 10s)
+                                elapsed = time.time() - start_time
+                                print(f"  Waiting for metrics... ({elapsed:.1f}s elapsed, poll #{poll_count})", flush=True)
+                    except Exception as poll_error:
+                        if poll_count % 6 == 0:
+                            print(f"  Poll error: {poll_error}", flush=True)
+                    
+                    # Sleep before next poll
+                    time.sleep(10)  # Poll every 10 seconds
+                
+                if not completed:
+                    elapsed = time.time() - start_time
+                    print(f"Warning: Timeout after {elapsed:.1f}s - completed {last_count}/{perf_iterations} iterations")
+                    
+            except Exception as e:
+                elapsed = time.time() - start_time
+                print(f"Warning: Error after {elapsed:.1f}s waiting for metrics: {e}")
+                import traceback
+                traceback.print_exc()
+            
+            # Try to get performance metrics from the page
+            try:
+                metrics = driver.execute_script("return window.performanceMetrics;")
+                if metrics:
+                    print(f"✓ Headless benchmark completed: {perf_iterations} iterations")
+                    print(f"  Generate Layout: {metrics.get('generateLayout', {}).get('avg', 0):.2f}ms avg")
+                    print(f"  Render Layout: {metrics.get('renderLayout', {}).get('avg', 0):.2f}ms avg")
+                    print(f"  Total Time: {metrics.get('totalTime', {}).get('avg', 0):.2f}ms avg")
+                    
+                    # Save metrics to file if path provided
+                    if perf_path:
+                        import json
+                        with open(perf_path, 'w') as f:
+                            json.dump(metrics, f, indent=2)
+                        print(f"  Metrics saved to: {perf_path}")
+                    
+                    return metrics
+            except Exception as e:
+                print(f"Warning: Could not retrieve performance metrics: {e}")
+                import traceback
+                traceback.print_exc()
+        else:
+            # For non-performance runs, just wait for basic rendering
+            WebDriverWait(driver, 30).until(
+                EC.presence_of_element_located((By.ID, "graph-container"))
+            )
+            print(f"✓ Headless render completed")
+        
+        return temp_path
+        
+    except Exception as e:
+        print(f"Error running headless browser: {e}")
+        import traceback
+        traceback.print_exc()
+        raise
+    finally:
+        if driver:
+            driver.quit()
+        # Clean up temp file
+        try:
+            os.unlink(temp_path)
+        except:
+            pass

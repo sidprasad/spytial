@@ -8,13 +8,21 @@ def read_readme():
 
 setup(
     name="spytial_diagramming",
-    version="0.3.3"",
+    version="0.3.3",
     packages=find_packages(),
     install_requires=[
         "jinja2>=3.0.0",
         "pyyaml>=6.0",
         "ipython>=8.0.0",
     ],
+    extras_require={
+        "headless": ["selenium>=4.0.0"],
+        "dev": [
+            "pytest>=7.0.0",
+            "flake8>=6.0.0", 
+            "black>=23.0.0",
+        ],
+    },
     author="Siddhartha Prasad",
     author_email="", # Will be filled when available
     description="sPyTial: Spatial Python visualization with declarative constraints",

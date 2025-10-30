@@ -400,12 +400,23 @@
 
             // If performing multiple iterations, run them sequentially and collect metrics
             if (perfIterations > 1) {
+                // Safety check: warn if too many iterations (risk of OOM)
+                const MAX_SAFE_ITERATIONS = 100;
+                if (perfIterations > MAX_SAFE_ITERATIONS) {
+                    console.warn(`Warning: ${perfIterations} iterations may cause out-of-memory errors. Consider reducing to ${MAX_SAFE_ITERATIONS} or fewer.`);
+                }
+                
                 const allMetrics = [];
                 
                 for (let i = 1; i <= perfIterations; i++) {
                     const iterationMetrics = await renderOnce();
                     if (iterationMetrics) {
                         allMetrics.push(iterationMetrics);
+                    }
+                    
+                    // Clean up between iterations to prevent memory leaks
+                    if (i < perfIterations) {
+                        await cleanupIteration();
                     }
                 }
                 
@@ -417,6 +428,10 @@
                     performanceMetrics.renderLayout = aggregatedMetrics.renderLayout;
                     performanceMetrics.totalTime = aggregatedMetrics.totalTime;
                     performanceMetrics.iterations = perfIterations;
+                    performanceMetrics.completed = true;  // Signal completion for headless mode
+                    
+                    // Expose to window for external access
+                    window.performanceMetrics = performanceMetrics;
                     
                     // Save final aggregated metrics without verbose logging
                     savePerformanceMetrics();
@@ -426,6 +441,42 @@
             
             // Single iteration (normal rendering)
             await renderOnce();
+        }
+
+        /**
+         * Clean up resources between performance iterations to prevent memory leaks
+         */
+        async function cleanupIteration() {
+            try {
+                // Clear the graph element's internal state and DOM
+                if (graphElement) {
+                    // Try to clear using the element's built-in clear method
+                    if (typeof graphElement.clear === 'function') {
+                        graphElement.clear();
+                    }
+                    
+                    // Clear shadow DOM if present
+                    if (graphElement.shadowRoot) {
+                        // Don't remove shadow root, but clear its content
+                        const svg = graphElement.shadowRoot.querySelector('svg');
+                        if (svg) {
+                            // Remove all child elements from SVG
+                            while (svg.firstChild) {
+                                svg.removeChild(svg.firstChild);
+                            }
+                        }
+                    }
+                }
+                
+                // Null out large objects to hint at garbage collection
+                instanceLayout = null;
+                
+                // Small delay to allow browser to clean up
+                // This gives the JS engine time to run garbage collection
+                await new Promise(resolve => setTimeout(resolve, 50));
+            } catch (error) {
+                // Silent cleanup - errors here shouldn't break benchmarking
+            }
         }
 
         /**
