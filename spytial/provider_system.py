@@ -6,6 +6,7 @@ into CnD-compatible atom/relation representations using relationalizers.
 """
 
 import inspect
+import json
 from typing import Any, Dict, List, Tuple, Type, Optional
 
 # Import base classes from domain-relationalizers
@@ -194,12 +195,15 @@ class CnDDataInstanceBuilder:
         Returns:
             Dictionary with deduplicated constraints and directives
         """
-        import json
 
         def make_hashable(item):
             """Convert a decorator dict to a hashable string for deduplication."""
-            # Sort keys to ensure consistent ordering
-            return json.dumps(item, sort_keys=True)
+            try:
+                # Sort keys to ensure consistent ordering
+                return json.dumps(item, sort_keys=True)
+            except (TypeError, ValueError):
+                # Fallback for non-JSON-serializable objects
+                return str(item)
 
         # Deduplicate constraints
         seen_constraints = set()

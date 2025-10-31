@@ -6,6 +6,7 @@ from the generated CnD specifications, addressing the issue of bloated
 YAML specs when multiple instances of the same class are visualized.
 """
 
+import re
 import pytest
 import spytial
 from spytial.provider_system import CnDDataInstanceBuilder
@@ -187,8 +188,6 @@ def test_yaml_output_no_duplicates():
     result = spytial.diagram(root, method="file", auto_open=False)
 
     # Read the generated HTML and extract YAML
-    import re
-
     with open(result, "r") as f:
         content = f.read()
         match = re.search(r"const cndSpec = `(.*?)`;", content, re.DOTALL)
