@@ -8,9 +8,9 @@
     
     <script src="https://d3js.org/d3.v4.min.js"></script>
 
-    <script src="https://cdn.jsdelivr.net/npm/cnd-core@1.4.7-beta.4/dist/browser/cnd-core-complete.global.js"></script>  
-    <script src="https://cdn.jsdelivr.net/npm/cnd-core@1.4.7-beta.4/dist/components/react-component-integration.global.js"></script>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/cnd-core@1.4.7-beta.4/dist/components/react-component-integration.css" />
+    <script src="https://cdn.jsdelivr.net/npm/cnd-core@1.4.7-beta.10/dist/browser/cnd-core-complete.global.js"></script>  
+    <script src="https://cdn.jsdelivr.net/npm/cnd-core@1.4.7-beta.10/dist/components/react-component-integration.global.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/cnd-core@1.4.7-beta.10/dist/components/react-component-integration.css" />
     
     <!-- html2canvas for screenshot functionality -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script> 
@@ -77,6 +77,20 @@
         .reset-btn:hover {
             background: #0256cc;
         }
+        
+        #perf-indicator {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(0, 0, 0, 0.75);
+            color: white;
+            padding: 8px 12px;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 14px;
+            z-index: 1000;
+            display: none;
+        }
     </style>
 
 
@@ -84,6 +98,7 @@
 <body>
     <div class="container">
         <div class="graph-wrapper">
+            <span id="perf-indicator"></span>
             <!-- WebCola sPyTial Graph Element -->
             <webcola-cnd-graph 
                 id="graph-container"
@@ -406,9 +421,16 @@
                     console.warn(`Warning: ${perfIterations} iterations may cause out-of-memory errors. Consider reducing to ${MAX_SAFE_ITERATIONS} or fewer.`);
                 }
                 
+                // Show performance indicator
+                const perfIndicator = document.getElementById('perf-indicator');
+                perfIndicator.style.display = 'block';
+                
                 const allMetrics = [];
                 
                 for (let i = 1; i <= perfIterations; i++) {
+                    // Update indicator
+                    perfIndicator.textContent = `Iteration ${i}/${perfIterations}`;
+                    
                     const iterationMetrics = await renderOnce();
                     if (iterationMetrics) {
                         allMetrics.push(iterationMetrics);
@@ -419,6 +441,9 @@
                         await cleanupIteration();
                     }
                 }
+                
+                // Hide indicator after completion
+                perfIndicator.style.display = 'none';
                 
                 // Aggregate metrics (save without logging to preserve benchmark accuracy)
                 if (allMetrics.length > 0) {
@@ -471,9 +496,18 @@
                 // Null out large objects to hint at garbage collection
                 instanceLayout = null;
                 
-                // Small delay to allow browser to clean up
+                // Force garbage collection hint (if available in headless Chrome)
+                if (window.gc) {
+                    try {
+                        window.gc();
+                    } catch (e) {
+                        // gc() not available
+                    }
+                }
+                
+                // Longer delay to allow browser to clean up, especially for large visualizations
                 // This gives the JS engine time to run garbage collection
-                await new Promise(resolve => setTimeout(resolve, 50));
+                await new Promise(resolve => setTimeout(resolve, 100));
             } catch (error) {
                 // Silent cleanup - errors here shouldn't break benchmarking
             }
@@ -533,8 +567,8 @@
                 }
 
                 // Initialize the evaluation context
-                const evaluationContext = { sourceData: dataInstance };
-                const sgqEvaluator = new CndCore.SGraphQueryEvaluator();
+                let evaluationContext = { sourceData: dataInstance };
+                let sgqEvaluator = new CndCore.SGraphQueryEvaluator();
                 sgqEvaluator.initialize(evaluationContext);
                 
                 if (!perfIterations) {
@@ -543,13 +577,13 @@
 
                 // Parse the CND specification
                 const parseSpecStart = performance.now();
-                const layoutSpec = CndCore.parseLayoutSpec(cndSpec);
+                let layoutSpec = CndCore.parseLayoutSpec(cndSpec);
                 iterationMetrics.parseSpec = performance.now() - parseSpecStart;
 
                 // Generate the layout with timing
                 const generateLayoutStart = performance.now();
-                const layoutInstance = new CndCore.LayoutInstance(layoutSpec, sgqEvaluator, 0, true);
-                const layoutResult = layoutInstance.generateLayout(dataInstance, {});
+                let layoutInstance = new CndCore.LayoutInstance(layoutSpec, sgqEvaluator, 0, true);
+                let layoutResult = layoutInstance.generateLayout(dataInstance, {});
                 iterationMetrics.generateLayout = performance.now() - generateLayoutStart;
 
                 // Check for layout errors
@@ -603,6 +637,15 @@
                     
                     // Add reset button to toolbar after successful rendering
                     addResetButton();
+                } else {
+                    // For performance iterations, aggressively clean up to prevent memory leaks
+                    // Null out all large objects to help GC
+                    dataInstance = null;
+                    layoutInstance = null;
+                    layoutResult = null;
+                    layoutSpec = null;
+                    sgqEvaluator = null;
+                    evaluationContext.sourceData = null;
                 }
                 
                 return iterationMetrics;
