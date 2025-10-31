@@ -8,9 +8,9 @@
     
     <script src="https://d3js.org/d3.v4.min.js"></script>
 
-    <script src="https://cdn.jsdelivr.net/npm/cnd-core@1.4.7-beta.5/dist/browser/cnd-core-complete.global.js"></script>  
-    <script src="https://cdn.jsdelivr.net/npm/cnd-core@1.4.7-beta.5/dist/components/react-component-integration.global.js"></script>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/cnd-core@1.4.7-beta.5/dist/components/react-component-integration.css" />
+    <script src="https://cdn.jsdelivr.net/npm/cnd-core@1.4.7-beta.9/dist/browser/cnd-core-complete.global.js"></script>  
+    <script src="https://cdn.jsdelivr.net/npm/cnd-core@1.4.7-beta.9/dist/components/react-component-integration.global.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/cnd-core@1.4.7-beta.9/dist/components/react-component-integration.css" />
     
     <!-- html2canvas for screenshot functionality -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script> 
@@ -77,6 +77,20 @@
         .reset-btn:hover {
             background: #0256cc;
         }
+        
+        #perf-indicator {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(0, 0, 0, 0.75);
+            color: white;
+            padding: 8px 12px;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 14px;
+            z-index: 1000;
+            display: none;
+        }
     </style>
 
 
@@ -84,6 +98,7 @@
 <body>
     <div class="container">
         <div class="graph-wrapper">
+            <span id="perf-indicator"></span>
             <!-- WebCola sPyTial Graph Element -->
             <webcola-cnd-graph 
                 id="graph-container"
@@ -406,9 +421,16 @@
                     console.warn(`Warning: ${perfIterations} iterations may cause out-of-memory errors. Consider reducing to ${MAX_SAFE_ITERATIONS} or fewer.`);
                 }
                 
+                // Show performance indicator
+                const perfIndicator = document.getElementById('perf-indicator');
+                perfIndicator.style.display = 'block';
+                
                 const allMetrics = [];
                 
                 for (let i = 1; i <= perfIterations; i++) {
+                    // Update indicator
+                    perfIndicator.textContent = `Iteration ${i}/${perfIterations}`;
+                    
                     const iterationMetrics = await renderOnce();
                     if (iterationMetrics) {
                         allMetrics.push(iterationMetrics);
@@ -419,6 +441,9 @@
                         await cleanupIteration();
                     }
                 }
+                
+                // Hide indicator after completion
+                perfIndicator.style.display = 'none';
                 
                 // Aggregate metrics (save without logging to preserve benchmark accuracy)
                 if (allMetrics.length > 0) {
