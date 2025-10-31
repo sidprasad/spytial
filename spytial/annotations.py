@@ -439,11 +439,13 @@ def apply_if(condition, *decorators):
     If CONDITION is True, applies all decorators in order to the class.
     If CONDITION is False, returns the class unchanged.
     """
+
     def decorator(cls):
         if condition:
             for deco in decorators:
                 cls = deco(cls)
         return cls
+
     return decorator
 
 
@@ -467,11 +469,11 @@ def collect_decorators(obj):
 
     # Traverse the class hierarchy
     for i, cls in enumerate(obj.__class__.__mro__):
-        is_current_class = (i == 0)
-        
+        is_current_class = i == 0
+
         if hasattr(cls, "__spytial_registry__"):
             cls_registry = cls.__spytial_registry__
-            
+
             if is_current_class:
                 # For current class: include all from its registry
                 combined_registry["constraints"].extend(cls_registry["constraints"])
@@ -480,9 +482,11 @@ def collect_decorators(obj):
                 # For parent classes: only include if inheritance is enabled
                 if should_inherit_constraints:
                     combined_registry["constraints"].extend(cls_registry["constraints"])
-                
+
                 if should_inherit_directives:
-                    combined_registry["directives"].extend(cls_registry["directives"])    # Add object-level annotations if they exist
+                    combined_registry["directives"].extend(
+                        cls_registry["directives"]
+                    )  # Add object-level annotations if they exist
     # First check if stored on object directly
     if hasattr(obj, OBJECT_ANNOTATIONS_ATTR):
         object_registry = getattr(obj, OBJECT_ANNOTATIONS_ATTR)
@@ -514,20 +518,20 @@ def serialize_to_yaml_string(decorators):
 def dont_inherit_constraints(cls):
     """
     Mark a class to not inherit constraints from parent classes.
-    
+
     This is useful when you want to override a parent class's constraints.
     Constraints applied directly to this class are still included.
-    
+
     Example:
         @orientation(selector='children', directions=['below'])
         class Parent:
             pass
-        
+
         @dont_inherit_constraints
         class Child(Parent):
             # Will NOT have Parent's orientation constraint
             pass
-    
+
     :param cls: The class to mark as not inheriting constraints.
     :return: The class (for chaining).
     """
@@ -538,20 +542,20 @@ def dont_inherit_constraints(cls):
 def dont_inherit_directives(cls):
     """
     Mark a class to not inherit directives from parent classes.
-    
+
     This is useful when you want to override a parent class's directives.
     Directives applied directly to this class are still included.
-    
+
     Example:
         @atomColor(selector='root', value='red')
         class Parent:
             pass
-        
+
         @dont_inherit_directives
         class Child(Parent):
             # Will NOT have Parent's atomColor directive
             pass
-    
+
     :param cls: The class to mark as not inheriting directives.
     :return: The class (for chaining).
     """
@@ -562,20 +566,20 @@ def dont_inherit_directives(cls):
 def dont_inherit_annotations(cls):
     """
     Mark a class to not inherit any annotations from parent classes.
-    
+
     Shorthand for applying both dont_inherit_constraints and dont_inherit_directives.
-    
+
     Example:
         @orientation(selector='children', directions=['below'])
         @atomColor(selector='root', value='red')
         class Parent:
             pass
-        
+
         @dont_inherit_annotations
         class Child(Parent):
             # Will NOT have any annotations from Parent
             pass
-    
+
     :param cls: The class to mark as not inheriting annotations.
     :return: The class (for chaining).
     """
@@ -589,4 +593,3 @@ __all__ = [
     # ...other exports...
     "apply_if",
 ]
-

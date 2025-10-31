@@ -13,7 +13,7 @@ class DictRelationalizer(RelationalizerBase):
     def relationalize(self, obj: Any, walker_func) -> Tuple[List[Atom], List[Relation]]:
         obj_id = walker_func._get_id(obj)
         typ = type(obj).__name__
-        caller_namespace = getattr(walker_func, '_caller_namespace', None)
+        caller_namespace = getattr(walker_func, "_caller_namespace", None)
         label = self._make_label_with_fallback(obj, typ, caller_namespace)
 
         atoms = [Atom(id=obj_id, type=typ, label=label)]
@@ -28,10 +28,10 @@ class DictRelationalizer(RelationalizerBase):
             )
             key_atom = Atom(id=key_id, type=type(k).__name__, label=key_str)
             atoms.append(key_atom)
-            
+
             # Get the value ID
             vid = walker_func(v)
-            
+
             # Create a ternary relation: keyval(dict, key, value)
             relations.append(Relation("kv", [obj_id, key_id, vid]))
 

@@ -23,18 +23,16 @@ class ListRelationalizer(RelationalizerBase):
 
             # Wait, only create the atom for the index if it's not already created?
 
-
             idx_atom = Atom(id=idx_id, type="int", label=str(i))
             atoms.append(idx_atom)
-            
+
             # Get the element ID
             eid = walker_func(elt)
-            
+
             # Create a ternary relation: idx(list, index, element)
             relations.append(Relation("idx", [obj_id, idx_id, eid]))
 
         return atoms, relations
-
 
 
 ## But these are ... very expensive ##
@@ -45,4 +43,3 @@ LIST_1D_IDX = "{ i : int, s : object | (some l : list | (l->i->s in idx)) }"
 
 ## TODO: 2D works ish.
 LIST_2D_IDX = "{ i : int, j : int, s : object | (some l1, l2 : list | (l1->i->l2 in idx) and (l2->j->s in idx)) }"
-
