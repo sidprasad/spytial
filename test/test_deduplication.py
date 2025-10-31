@@ -34,7 +34,7 @@ def test_class_decorator_deduplication():
 
     # Build the data instance
     builder = CnDDataInstanceBuilder()
-    data_instance = builder.build_instance(root)
+    builder.build_instance(root)
     collected_decorators = builder.get_collected_decorators()
 
     # Should only have 1 of each decorator, not 7 (one per Node instance)
@@ -76,7 +76,7 @@ def test_mixed_decorators_deduplication():
     # Build from a list containing both
     data = [container1, container2]
     builder = CnDDataInstanceBuilder()
-    data_instance = builder.build_instance(data)
+    builder.build_instance(data)
     collected_decorators = builder.get_collected_decorators()
 
     # Should have 1 orientation constraint
@@ -110,7 +110,7 @@ def test_different_decorators_not_deduplicated():
     # Build from a list containing both
     data = [container1, container2]
     builder = CnDDataInstanceBuilder()
-    data_instance = builder.build_instance(data)
+    builder.build_instance(data)
     collected_decorators = builder.get_collected_decorators()
 
     # Should have 1 orientation constraint and 2 different atomColor directives
@@ -133,7 +133,7 @@ def test_empty_decorators():
     obj = SimpleClass(42)
 
     builder = CnDDataInstanceBuilder()
-    data_instance = builder.build_instance(obj)
+    builder.build_instance(obj)
     collected_decorators = builder.get_collected_decorators()
 
     # Should be empty
@@ -155,7 +155,7 @@ def test_deduplication_preserves_order():
     containers = [Container([i]) for i in range(5)]
 
     builder = CnDDataInstanceBuilder()
-    data_instance = builder.build_instance(containers)
+    builder.build_instance(containers)
     collected_decorators = builder.get_collected_decorators()
 
     # Should have 2 constraints and 1 directive (deduplicated)
