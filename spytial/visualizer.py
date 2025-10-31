@@ -361,8 +361,8 @@ def _run_headless(html_content, perf_path=None, perf_iterations=None, timeout=No
     chrome_options.add_argument("--no-sandbox")
     chrome_options.add_argument("--disable-dev-shm-usage")
     chrome_options.add_argument("--window-size=1920,1080")
-    # Increase memory for performance testing
-    chrome_options.add_argument("--js-flags=--max-old-space-size=4096")
+    # Increase memory for performance testing and enable explicit GC
+    chrome_options.add_argument("--js-flags=--max-old-space-size=4096 --expose-gc")
     
     # Calculate the timeout to use for HTTP client
     http_timeout = timeout if timeout else 300

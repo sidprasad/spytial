@@ -8,9 +8,9 @@
     
     <script src="https://d3js.org/d3.v4.min.js"></script>
 
-    <script src="https://cdn.jsdelivr.net/npm/cnd-core@1.4.7-beta.4/dist/browser/cnd-core-complete.global.js"></script>  
-    <script src="https://cdn.jsdelivr.net/npm/cnd-core@1.4.7-beta.4/dist/components/react-component-integration.global.js"></script>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/cnd-core@1.4.7-beta.4/dist/components/react-component-integration.css" />
+    <script src="https://cdn.jsdelivr.net/npm/cnd-core@1.4.7-beta.5/dist/browser/cnd-core-complete.global.js"></script>  
+    <script src="https://cdn.jsdelivr.net/npm/cnd-core@1.4.7-beta.5/dist/components/react-component-integration.global.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/cnd-core@1.4.7-beta.5/dist/components/react-component-integration.css" />
     
     <!-- html2canvas for screenshot functionality -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script> 
@@ -471,9 +471,18 @@
                 // Null out large objects to hint at garbage collection
                 instanceLayout = null;
                 
-                // Small delay to allow browser to clean up
+                // Force garbage collection hint (if available in headless Chrome)
+                if (window.gc) {
+                    try {
+                        window.gc();
+                    } catch (e) {
+                        // gc() not available
+                    }
+                }
+                
+                // Longer delay to allow browser to clean up, especially for large visualizations
                 // This gives the JS engine time to run garbage collection
-                await new Promise(resolve => setTimeout(resolve, 50));
+                await new Promise(resolve => setTimeout(resolve, 100));
             } catch (error) {
                 // Silent cleanup - errors here shouldn't break benchmarking
             }
@@ -603,6 +612,15 @@
                     
                     // Add reset button to toolbar after successful rendering
                     addResetButton();
+                } else {
+                    // For performance iterations, aggressively clean up to prevent memory leaks
+                    // Null out all large objects to help GC
+                    dataInstance = null;
+                    layoutInstance = null;
+                    layoutResult = null;
+                    layoutSpec = null;
+                    sgqEvaluator = null;
+                    evaluationContext.sourceData = null;
                 }
                 
                 return iterationMetrics;
