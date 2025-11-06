@@ -1,12 +1,12 @@
-# sPyTial Dataclass Builder Widget (CnD-core Integration)
+# sPyTial Dataclass Builder Widget (spytial-core Integration)
 
 ## Overview
 
-The sPyTial Dataclass Builder is a Jupyter widget that provides **visual, interactive construction** of dataclass instances using CnD-core's `structured-input-graph` component. It enables users to build complex data structures visually with spatial constraints and immediately access the result.
+The sPyTial Dataclass Builder is a Jupyter widget that provides **visual, interactive construction** of dataclass instances using spytial-core's `structured-input-graph` component. It enables users to build complex data structures visually with spatial constraints and immediately access the result.
 
 ## Key Features
 
-- **Visual Construction**: Uses CnD-core's graph-based visual interface
+- **Visual Construction**: Uses spytial-core's graph-based visual interface
 - **Spatial Annotations**: Automatically includes constraints from sPyTial decorators
 - **No File I/O**: Direct JavaScript-Python communication via postMessage
 - **Real-time Access**: `widget.value` always contains the current dataclass instance

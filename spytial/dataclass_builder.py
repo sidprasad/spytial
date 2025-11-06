@@ -1,7 +1,7 @@
 """
-sPyTial Dataclass Builder with CnD-core Integration
+sPyTial Dataclass Builder with spytial-core Integration
 
-A simple function for building dataclass instances interactively using CnD-core's
+A simple function for building dataclass instances interactively using spytial-core's
 visual structured-input-graph component. Generates Python constructor code that
 you can copy and paste.
 """
@@ -35,7 +35,7 @@ def _generate_cnd_spec(instance: Any) -> str:
 
 def dataclass_builder(instance: Any, method: str = "inline", auto_open: bool = True):
     """
-    Create a visual builder interface for a dataclass instance using CnD-core.
+    Create a visual builder interface for a dataclass instance using spytial-core.
 
     Opens an HTML interface where you can build/modify instances visually.
     Click "Export" to get Python constructor code to copy/paste.
