@@ -37,7 +37,7 @@ def evaluate(
         auto_open: Whether to automatically open the browser (for "browser" method).
         width: Width of the evaluation container in pixels (default: auto-detected).
         height: Height of the evaluation container in pixels (default: auto-detected).
-        cnd_version: Version of the cnd-core library to use.
+        cnd_version: Version of the spytial-core library to use.
 
     Returns:
         str: Path to the generated HTML file (if method="file" or "browser").
@@ -130,7 +130,7 @@ def _generate_evaluator_html(data_instance, width=800, height=600, cnd_version="
         data_instance: The serialized data instance to evaluate.
         width: Width of the evaluation container in pixels.
         height: Height of the evaluation container in pixels.
-        cnd_version: Version of the cnd-core library to use.
+        cnd_version: Version of the spytial-core library to use.
 
     Returns:
         str: The generated HTML content.
