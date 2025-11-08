@@ -8,9 +8,9 @@
     
     <script src="https://d3js.org/d3.v4.min.js"></script>
 
-    <script src="https://cdn.jsdelivr.net/npm/spytial-core@1.4.10/dist/browser/spytial-core-complete.global.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/spytial-core@1.4.10/dist/components/react-component-integration.global.js"></script>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/spytial-core@1.4.10/dist/components/react-component-integration.css" /> 
+    <script src="https://cdn.jsdelivr.net/npm/spytial-core@1.4.11-beta.3/dist/browser/spytial-core-complete.global.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/spytial-core@1.4.11-beta.3/dist/components/react-component-integration.global.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/spytial-core@1.4.11-beta.3/dist/components/react-component-integration.css" /> 
     
     <style>
         body {
@@ -106,6 +106,8 @@
         // Global variables for reset functionality
         let graphElement = null;
         let lastExportedData = null;
+        let currentDataInstance = null;  // Track the current data instance
+        let isInitialized = false;  // Track if we've already set up event listeners
 
         /**
          * Export current data to JSON file
@@ -340,19 +342,58 @@
         }
 
         /**
-         * Reset the graph layout
+         * Reset the graph layout to current data instance (preserves user edits)
          */
         async function resetLayout() {
-            if (graphElement) {
-                // Re-render with initial data
-                await loadGraph();
+            if (!graphElement) {
+                console.error('Graph element not available for reset');
+                return;
+            }
+            
+            console.log('🔄 Reset button clicked');
+            
+            // Get the current data instance from the graph (includes user edits)
+            let dataToReset = null;
+            if (graphElement.getDataInstance && typeof graphElement.getDataInstance === 'function') {
+                dataToReset = graphElement.getDataInstance();
+                console.log('📊 Data before reset:', JSON.stringify(dataToReset, null, 2));
+            }
+            
+            // If we can't get current data, use the tracked instance or fall back to initial data
+            if (!dataToReset) {
+                dataToReset = currentDataInstance || new CndCore.JSONDataInstance(jsonData);
+                console.log('⚠️ Using fallback data for reset');
+            }
+            
+            console.log('Resetting layout with current data instance');
+            
+            // Reset the layout while preserving the data
+            if (graphElement.reset && typeof graphElement.reset === 'function') {
+                await graphElement.reset();
+                console.log('✅ Reset using graphElement.reset()');
+            } else {
+                // Fallback: re-render with current data
+                graphElement.setDataInstance(dataToReset);
+                console.log('✅ Reset using setDataInstance()');
+            }
+            
+            // Log data after reset
+            if (graphElement.getDataInstance) {
+                const dataAfterReset = graphElement.getDataInstance();
+                console.log('📊 Data after reset:', JSON.stringify(dataAfterReset, null, 2));
             }
         }
 
         /**
-         * Create and add export buttons to the graph toolbar
+         * Create and add export buttons to the graph toolbar (only once)
          */
         function addExportControls() {
+            // Only add controls once
+            if (isInitialized) {
+                console.log('Export controls already added, skipping...');
+                return;
+            }
+            
             if (graphElement && graphElement.addToolbarControl) {
                 // Export button - generates Python code
                 const exportButton = document.createElement('button');
@@ -370,6 +411,8 @@
                 
                 graphElement.addToolbarControl(exportButton);
                 graphElement.addToolbarControl(resetButton);
+                
+                console.log('Export controls added');
             }
         }
 
@@ -482,7 +525,7 @@
                 // Try to load the library again
                 console.log('Attempting to reload CnD library...');
                 const script = document.createElement('script');
-                script.src = 'https://cdn.jsdelivr.net/npm/spytial-core@1.4.10/dist/browser/spytial-core-complete.global.js';
+                script.src = 'https://cdn.jsdelivr.net/npm/spytial-core@1.4.11-beta.3/dist/browser/spytial-core-complete.global.js';
                 script.onload = function() {
                     console.log('CnD library reloaded, retrying...');
                     setTimeout(loadGraph, 500);
@@ -518,6 +561,9 @@
                 });
                 const dataInstance = new CndCore.JSONDataInstance(parsedData);
                 console.log('Data instance created:', dataInstance);
+                
+                // Store the initial data instance
+                currentDataInstance = dataInstance;
 
                 // Set the CnD spec on the component
                 console.log('Setting CnD spec...');
@@ -537,21 +583,170 @@
                     console.log('Current data instance:', currentData);
                 }, 100);
 
-                // Add event listeners for interactive features
-                graphElement.addEventListener('atom-added', (event) => {
-                    console.log('Atom added:', event.detail);
-                });
+                // Add event listeners for layout events (only once)
+                if (!isInitialized) {
+                    console.log('Setting up event listeners...');
+                    
+                    // Log initial data
+                    console.log('📊 Initial data instance:', JSON.stringify(parsedData, null, 2));
+                    
+                    graphElement.addEventListener('layout-complete', (event) => {
+                        console.log('Layout complete event:', event.detail);
+                        
+                        if (event.detail && event.detail.layoutResult) {
+                            const layoutResult = event.detail.layoutResult;
+                            
+                            // Check for layout errors
+                            if (layoutResult.error) {
+                                console.error('Layout generation error:', layoutResult.error);
+                                
+                                // Check if this is a constraint conflict error
+                                if (layoutResult.error.errorMessages) {
+                                    if (window.showPositionalError) {
+                                        window.showPositionalError(layoutResult.error.errorMessages);
+                                    } else {
+                                        showError(`Positional constraint conflict: ${layoutResult.error.message}`);
+                                    }
+                                } else if (layoutResult.error.overlappingNodes) {
+                                    if (window.showGroupOverlapError) {
+                                        window.showGroupOverlapError(layoutResult.error.message);
+                                    } else {
+                                        showError(`Group overlap error: ${layoutResult.error.message}`);
+                                    }
+                                } else {
+                                    if (window.showGeneralError) {
+                                        window.showGeneralError(`Layout generation error: ${layoutResult.error.message}`);
+                                    } else {
+                                        showError(`Layout generation error: ${layoutResult.error.message}`);
+                                    }
+                                }
+                                
+                                // Set the element to indicate unsat state
+                                graphElement.setAttribute('unsat', "");
+                            } else {
+                                // Layout succeeded - clear any unsat state
+                                graphElement.removeAttribute('unsat');
+                                
+                                // Clear any error modal if layout is now SAT
+                                if (window.clearErrorModal) {
+                                    window.clearErrorModal();
+                                }
+                            }
+                        }
+                    });
+                    
+                    graphElement.addEventListener('layout-error', (event) => {
+                        console.error('Layout error event:', event.detail);
+                        
+                        if (window.showGeneralError) {
+                            window.showGeneralError(`Layout error: ${event.detail?.message || 'Unknown error'}`);
+                        } else {
+                            showError(`Layout error: ${event.detail?.message || 'Unknown error'}`);
+                        }
+                        
+                        graphElement.setAttribute('unsat', "");
+                    });
 
-                graphElement.addEventListener('data-exported', (event) => {
-                    console.log('Data exported:', event.detail);
-                });
+                    // Add event listeners for interactive features
+                    graphElement.addEventListener('atom-added', (event) => {
+                        console.log('Atom added:', event.detail);
+                        // Log updated data
+                        if (graphElement.getDataInstance) {
+                            const updatedData = graphElement.getDataInstance();
+                            console.log('📊 Data after atom added:', JSON.stringify(updatedData, null, 2));
+                        }
+                    });
 
-                graphElement.addEventListener('edge-creation-requested', (event) => {
-                    console.log('Edge created:', event.detail);
-                });
+                    graphElement.addEventListener('data-exported', (event) => {
+                        console.log('Data exported:', event.detail);
+                    });
 
-                // Add export controls after setup
-                addExportControls();
+                    graphElement.addEventListener('edge-creation-requested', (event) => {
+                        console.log('Edge created:', event.detail);
+                        // Log updated data
+                        if (graphElement.getDataInstance) {
+                            const updatedData = graphElement.getDataInstance();
+                            console.log('📊 Data after edge created:', JSON.stringify(updatedData, null, 2));
+                        }
+                    });
+                    
+                    // Listen for atom deletions
+                    graphElement.addEventListener('atom-removed', (event) => {
+                        console.log('Atom removed:', event.detail);
+                        if (graphElement.getDataInstance) {
+                            const updatedData = graphElement.getDataInstance();
+                            console.log('📊 Data after atom removed:', JSON.stringify(updatedData, null, 2));
+                        }
+                    });
+                    
+                    // Listen for relation/edge deletions
+                    graphElement.addEventListener('edge-removed', (event) => {
+                        console.log('Edge removed:', event.detail);
+                        if (graphElement.getDataInstance) {
+                            const updatedData = graphElement.getDataInstance();
+                            console.log('📊 Data after edge removed:', JSON.stringify(updatedData, null, 2));
+                        }
+                    });
+                    
+                    // Listen for atom updates (e.g., attribute changes)
+                    graphElement.addEventListener('atom-updated', (event) => {
+                        console.log('Atom updated:', event.detail);
+                        if (graphElement.getDataInstance) {
+                            const updatedData = graphElement.getDataInstance();
+                            console.log('📊 Data after atom updated:', JSON.stringify(updatedData, null, 2));
+                        }
+                    });
+                    
+                    // Listen for data instance changes
+                    graphElement.addEventListener('data-changed', (event) => {
+                        console.log('Data changed:', event.detail);
+                        if (graphElement.getDataInstance) {
+                            const updatedData = graphElement.getDataInstance();
+                            console.log('📊 Data after data-changed event:', JSON.stringify(updatedData, null, 2));
+                        }
+                    });
+                    
+                    // Listen for edge reconnection events
+                    graphElement.addEventListener('edge-reconnected', (event) => {
+                        console.log('🔄 Edge reconnected:', event.detail);
+                        if (graphElement.getDataInstance) {
+                            const updatedData = graphElement.getDataInstance();
+                            console.log('📊 Data after edge reconnection:', JSON.stringify(updatedData, null, 2));
+                            
+                            // Specifically check for duplicate edges
+                            if (updatedData.relations) {
+                                const relationCounts = {};
+                                updatedData.relations.forEach(rel => {
+                                    const key = `${rel.label}:${rel.source}->${rel.target}`;
+                                    relationCounts[key] = (relationCounts[key] || 0) + 1;
+                                });
+                                
+                                const duplicates = Object.entries(relationCounts)
+                                    .filter(([_, count]) => count > 1);
+                                
+                                if (duplicates.length > 0) {
+                                    console.error('❌ Duplicate relations detected after reconnection:', duplicates);
+                                }
+                            }
+                        }
+                    });
+                    
+                    // Listen for edge reconnection requests
+                    graphElement.addEventListener('edge-reconnection-requested', (event) => {
+                        console.log('🔄 Edge reconnection requested:', event.detail);
+                        if (graphElement.getDataInstance) {
+                            const beforeData = graphElement.getDataInstance();
+                            console.log('📊 Data BEFORE reconnection request:', JSON.stringify(beforeData, null, 2));
+                        }
+                    });
+                    
+                    // Add export controls after setup
+                    addExportControls();
+                    
+                    // Mark as initialized
+                    isInitialized = true;
+                    console.log('Event listeners and controls initialized');
+                }
 
             } catch (error) {
                 console.error('Error setting up graph:', error);
