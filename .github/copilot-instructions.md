@@ -1,6 +1,6 @@
 # sPyTial: Spatial Python Visualization Library
 
-sPyTial is a Python library for spatial visualization of structured data using declarative constraints. It compiles to the Cope and Drag diagramming language to generate interactive HTML visualizations. The library enables developers to visualize Python objects (trees, graphs, nested structures) with minimal effort while providing advanced spatial annotation capabilities.
+sPyTial is a Python library for spatial visualization of structured data using declarative constraints. It compiles to the Spytial diagramming language to generate interactive HTML visualizations. The library enables developers to visualize Python objects (trees, graphs, nested structures) with minimal effort while providing advanced spatial annotation capabilities.
 
 **Always reference these instructions first and fallback to search or bash commands only when you encounter unexpected information that does not match the info here.**
 
@@ -211,8 +211,7 @@ spytial.annotate_atomColor(obj, selector, value)
 ## Expected File Outputs
 
 When `diagram()` is called with `method='file'`, it generates:
-- `cnd_visualization.html` - Interactive HTML visualization
-- Uses Cope and Drag 1.1.9-beta.6 JavaScript libraries
+- `spytial_visualization.html` - Interactive HTML visualization
 - Contains embedded CnD specification in YAML format
 - Typically 2-10KB in size for moderate data structures
 

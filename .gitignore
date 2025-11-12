@@ -50,7 +50,7 @@ htmlcov/
 *.swo
 
 # Generated visualization files
-cnd_visualization.html
+spytial_visualization.html
 
 # Erroneous version files from broken pip install commands
 =*.*.*

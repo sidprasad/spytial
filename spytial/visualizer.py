@@ -34,7 +34,7 @@ def quick_diagram(obj):
 
 
 def diagram(
-    obj, method="inline", auto_open=True, width=None, height=None, title=None, cnd_version=None, perf_path=None, perf_iterations=None, headless=False, timeout=None
+    obj, method="inline", auto_open=True, width=None, height=None, title=None, spytial_version=None, perf_path=None, perf_iterations=None, headless=False, timeout=None
 ):
     """
     Display a Python object in the sPyTial visualizer.
@@ -46,7 +46,7 @@ def diagram(
         width: Width of the visualization container in pixels (default: auto-detected)
         height: Height of the visualization container in pixels (default: auto-detected)
         title: Title for the browser tab/page (default: "sPyTial Visualization")
-        cnd_version: Version of CnD core to use (default: "1.1.9")
+        spytial_version: Version of CnD core to use (default: "1.1.9")
         perf_path: Optional path to save performance metrics JSON file. 
                    If None, metrics are not saved (unless perf_iterations is set).
         perf_iterations: Optional number of times to render for performance benchmarking.
@@ -101,7 +101,7 @@ def diagram(
         print(f"Generating HTML for: {title}", flush=True)
     # Generate the HTML content
     html_content = _generate_visualizer_html(
-        data_instance, spytial_spec, width, height, title, cnd_version, perf_path, perf_iterations
+        data_instance, spytial_spec, width, height, title, spytial_version, perf_path, perf_iterations
     )
 
     if method == "inline":
@@ -160,7 +160,7 @@ def diagram(
 
     elif method == "file":
         # Save to file
-        output_path = Path("cnd_visualization.html")
+        output_path = Path("spytial_visualization.html")
         with open(output_path, "w") as f:
             f.write(html_content)
 
@@ -278,7 +278,7 @@ def _estimate_object_complexity(obj):
 
 
 def _generate_visualizer_html(
-    data_instance, spytial_spec, width=800, height=600, title=None, cnd_version="1.1.9", perf_path=None, perf_iterations=None
+    data_instance, spytial_spec, width=800, height=600, title=None, spytial_version="1.1.9", perf_path=None, perf_iterations=None
 ):
     """Generate HTML content using Jinja2 templating."""
 
@@ -309,7 +309,7 @@ def _generate_visualizer_html(
         title=title,  # Page title for browser tab
         width=width,  # Container width
         height=height,  # Container height
-        cnd_version=cnd_version,  # Cope and Drag version
+        spytial_version=spytial_version,  # Spytial version
         perf_path=perf_path or "",  # Performance metrics endpoint path (empty string if None)
         perf_iterations=perf_iterations or 0,  # Number of iterations for benchmarking (0 = disabled)
     )

@@ -26,7 +26,7 @@ except ImportError:
 
 
 def evaluate(
-    obj, method="inline", auto_open=True, width=None, height=None, cnd_version=None
+    obj, method="inline", auto_open=True, width=None, height=None, spytial_version=None
 ):
     """
     Evaluate a Python object using the sPyTial evaluator.
@@ -37,7 +37,7 @@ def evaluate(
         auto_open: Whether to automatically open the browser (for "browser" method).
         width: Width of the evaluation container in pixels (default: auto-detected).
         height: Height of the evaluation container in pixels (default: auto-detected).
-        cnd_version: Version of the spytial-core library to use.
+        spytial_version: Version of the spytial-core library to use.
 
     Returns:
         str: Path to the generated HTML file (if method="file" or "browser").
@@ -53,7 +53,7 @@ def evaluate(
     data_instance = builder.build_instance(obj)
 
     # Generate the HTML content
-    html_content = _generate_evaluator_html(data_instance, width, height, cnd_version)
+    html_content = _generate_evaluator_html(data_instance, width, height, spytial_version)
 
     if method == "inline":
         # Display inline in Jupyter notebook using iframe
@@ -122,7 +122,7 @@ def evaluate(
         raise ValueError(f"Unknown display method: {method}")
 
 
-def _generate_evaluator_html(data_instance, width=800, height=600, cnd_version="1.1.9"):
+def _generate_evaluator_html(data_instance, width=800, height=600, spytial_version="1.4.12"):
     """
     Generate HTML content for the evaluator using Jinja2 templating.
 
@@ -130,7 +130,7 @@ def _generate_evaluator_html(data_instance, width=800, height=600, cnd_version="
         data_instance: The serialized data instance to evaluate.
         width: Width of the evaluation container in pixels.
         height: Height of the evaluation container in pixels.
-        cnd_version: Version of the spytial-core library to use.
+        spytial_version: Version of the spytial-core library to use.
 
     Returns:
         str: The generated HTML content.
@@ -156,7 +156,7 @@ def _generate_evaluator_html(data_instance, width=800, height=600, cnd_version="
         python_data=json.dumps(data_instance),  # Properly serialize to JSON
         width=width,  # Container width
         height=height,  # Container height
-        cnd_version=cnd_version,  # Cope and Drag version
+        spytial_version=spytial_version,  # Spytial version
     )
 
     return html_content
