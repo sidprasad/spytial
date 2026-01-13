@@ -35,60 +35,12 @@ data = {
     ]
 }
 
-# Opens in browser
+# Opens in browser or inline if in a jupyter notebook.
 spytial.diagram(data)
 
 # Or save to file
 spytial.diagram(data, method='file')
 ```
-
-## Headless Mode for Testing & Automation
-
-sPyTial supports headless browser mode for automated testing, CI/CD pipelines, and performance benchmarking without GUI overhead:
-
-```python
-import spytial
-
-# Basic headless rendering
-result = spytial.diagram(data, headless=True)
-
-# Performance benchmarking in headless mode
-metrics = spytial.diagram(
-    data,
-    headless=True,
-    perf_iterations=10,
-    perf_path='metrics.json'
-)
-
-print(f"Average render time: {metrics['totalTime']['avg']:.2f}ms")
-
-# For large/complex visualizations, specify a custom timeout
-# Default timeout is max(120, perf_iterations * 5) seconds
-metrics = spytial.diagram(
-    large_data,
-    headless=True,
-    perf_iterations=30,
-    timeout=600  # 10 minutes for complex visualization
-)
-```
-
-**Requirements for headless mode:**
-```bash
-pip install spytial_diagramming[headless]
-# chromedriver is automatically managed via webdriver-manager
-```
-
-Headless mode uses Selenium with Chrome to render visualizations programmatically, making it ideal for:
-- Automated testing in CI/CD pipelines
-- Performance regression testing
-- Batch processing of visualizations
-- Server-side rendering without display
-
-**Timeout Guidance:**
-- Small visualizations (< 20 atoms): Default timeout is sufficient
-- Medium visualizations (20-100 atoms): Consider `timeout=300` (5 min) for 30+ iterations
-- Large visualizations (100+ atoms): Use `timeout=600` (10 min) or higher
-
 
 
 ## License

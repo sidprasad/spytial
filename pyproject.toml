@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "spytial_diagramming"
-version = "0.4.3"
+version = "0.5.0"
 description = "sPyTial: Spatial Python visualization with declarative constraints"
 readme = "README.md"
 license = {text = "MIT"}
