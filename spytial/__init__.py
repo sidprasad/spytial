@@ -11,7 +11,7 @@ from .visualizer import diagram
 from .evaluator import evaluate
 from .dataclass_builder import dataclass_builder
 from .annotations import (
-    # Class decorators
+    # Class decorators (for decorating classes)
     orientation,
     cyclic,
     align,
@@ -42,6 +42,29 @@ from .annotations import (
     annotate_hideAtom,
     annotate_inferredEdge,
     annotate_flag,
+    # Type alias annotation classes (for use with typing.Annotated)
+    SpytialAnnotation,
+    Orientation,
+    Cyclic,
+    Align,
+    Group,
+    AtomColor,
+    Size,
+    Icon,
+    EdgeColor,
+    HideField,
+    HideAtom,
+    Projection,
+    Attribute,
+    InferredEdge,
+    Flag,
+    extract_spytial_annotations,
+    get_base_type,
+    # Legacy type alias functions (prefer using typing.Annotated instead)
+    annotate_type_alias,
+    get_type_alias_annotations,
+    clear_type_alias_annotations,
+    list_type_alias_annotations,
     # Inheritance control decorators
     dont_inherit_constraints,
     dont_inherit_directives,
@@ -98,6 +121,29 @@ __all__ = [
     "annotate_hideAtom",
     "annotate_inferredEdge",
     "annotate_flag",
+    # Type alias annotation classes (for use with typing.Annotated)
+    "SpytialAnnotation",
+    "Orientation",
+    "Cyclic",
+    "Align",
+    "Group",
+    "AtomColor",
+    "Size",
+    "Icon",
+    "EdgeColor",
+    "HideField",
+    "HideAtom",
+    "Projection",
+    "Attribute",
+    "InferredEdge",
+    "Flag",
+    "extract_spytial_annotations",
+    "get_base_type",
+    # Legacy type alias functions
+    "annotate_type_alias",
+    "get_type_alias_annotations",
+    "clear_type_alias_annotations",
+    "list_type_alias_annotations",
     # Inheritance control decorators
     "dont_inherit_constraints",
     "dont_inherit_directives",

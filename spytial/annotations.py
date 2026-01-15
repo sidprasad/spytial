@@ -58,6 +58,469 @@ _OBJECT_ID_REGISTRY = {}
 # Counter for generating unique object IDs
 _OBJECT_ID_COUNTER = 0
 
+# =============================================
+# Type Alias Annotation System using typing.Annotated
+# =============================================
+#
+# This system leverages Python's typing.Annotated to attach spytial
+# annotations directly to type aliases in a clean, declarative way:
+#
+#   from typing import Annotated
+#   import spytial
+#
+#   IntList = Annotated[list[int],
+#       spytial.Orientation(selector='items', directions=['horizontal']),
+#       spytial.AtomColor(selector='self', value='blue')
+#   ]
+#
+# This is the standard Python pattern for type metadata and works
+# beautifully with type checkers.
+
+
+class SpytialAnnotation:
+    """
+    Base class for spytial type annotations.
+
+    Subclasses represent specific constraints or directives that can be
+    attached to type aliases using typing.Annotated.
+    """
+
+    _annotation_type: str = None
+    _is_constraint: bool = True
+
+    def __init__(self, **kwargs):
+        self.kwargs = kwargs
+
+    def to_entry(self):
+        """Convert to the internal registry format."""
+        return {self._annotation_type: self.kwargs}
+
+    def __repr__(self):
+        args = ", ".join(f"{k}={v!r}" for k, v in self.kwargs.items())
+        return f"{self.__class__.__name__}({args})"
+
+
+# =============================================
+# Constraint Annotation Classes
+# =============================================
+
+
+class Orientation(SpytialAnnotation):
+    """
+    Orientation constraint for spatial layout.
+
+    Usage:
+        from typing import Annotated
+        IntList = Annotated[list[int], Orientation(selector='items', directions=['horizontal'])]
+    """
+
+    _annotation_type = "orientation"
+    _is_constraint = True
+
+    def __init__(self, *, selector: str, directions: list):
+        super().__init__(selector=selector, directions=directions)
+
+
+class Cyclic(SpytialAnnotation):
+    """
+    Cyclic constraint for circular layouts.
+
+    Usage:
+        NodeRing = Annotated[list[Node], Cyclic(selector='items', direction='clockwise')]
+    """
+
+    _annotation_type = "cyclic"
+    _is_constraint = True
+
+    def __init__(self, *, selector: str, direction: str):
+        super().__init__(selector=selector, direction=direction)
+
+
+class Align(SpytialAnnotation):
+    """
+    Alignment constraint.
+
+    Usage:
+        AlignedList = Annotated[list[int], Align(selector='items', direction='left')]
+    """
+
+    _annotation_type = "align"
+    _is_constraint = True
+
+    def __init__(self, *, selector: str, direction: str):
+        super().__init__(selector=selector, direction=direction)
+
+
+class Group(SpytialAnnotation):
+    """
+    Grouping constraint.
+
+    Usage (field-based):
+        Tree = Annotated[TreeNode, Group(field='children', groupOn=0, addToGroup=1)]
+
+    Usage (selector-based):
+        Grouped = Annotated[MyType, Group(selector='items', name='mygroup')]
+    """
+
+    _annotation_type = "group"
+    _is_constraint = True
+
+    def __init__(self, **kwargs):
+        # Accept either field-based or selector-based parameters
+        super().__init__(**kwargs)
+
+
+# =============================================
+# Directive Annotation Classes
+# =============================================
+
+
+class AtomColor(SpytialAnnotation):
+    """
+    Atom color directive.
+
+    Usage:
+        ColoredList = Annotated[list[int], AtomColor(selector='self', value='blue')]
+    """
+
+    _annotation_type = "atomColor"
+    _is_constraint = False
+
+    def __init__(self, *, selector: str, value: str):
+        super().__init__(selector=selector, value=value)
+
+
+class Size(SpytialAnnotation):
+    """
+    Size directive.
+
+    Usage:
+        SizedList = Annotated[list[int], Size(selector='items', height=50, width=50)]
+    """
+
+    _annotation_type = "size"
+    _is_constraint = False
+
+    def __init__(self, *, selector: str, height: int, width: int):
+        super().__init__(selector=selector, height=height, width=width)
+
+
+class Icon(SpytialAnnotation):
+    """
+    Icon directive.
+
+    Usage:
+        IconList = Annotated[list[int], Icon(selector='items', path='icon.svg', showLabels=True)]
+    """
+
+    _annotation_type = "icon"
+    _is_constraint = False
+
+    def __init__(self, *, selector: str, path: str, showLabels: bool = True):
+        super().__init__(selector=selector, path=path, showLabels=showLabels)
+
+
+class EdgeColor(SpytialAnnotation):
+    """
+    Edge color directive.
+
+    Usage:
+        ColoredEdges = Annotated[Tree, EdgeColor(field='children', value='red')]
+    """
+
+    _annotation_type = "edgeColor"
+    _is_constraint = False
+
+    def __init__(self, *, field: str, value: str, selector: str = None):
+        kwargs = {"field": field, "value": value}
+        if selector is not None:
+            kwargs["selector"] = selector
+        super().__init__(**kwargs)
+
+
+class HideField(SpytialAnnotation):
+    """
+    Hide field directive.
+
+    Usage:
+        CleanView = Annotated[MyClass, HideField(field='_private')]
+    """
+
+    _annotation_type = "hideField"
+    _is_constraint = False
+
+    def __init__(self, *, field: str, selector: str = None):
+        kwargs = {"field": field}
+        if selector is not None:
+            kwargs["selector"] = selector
+        super().__init__(**kwargs)
+
+
+class HideAtom(SpytialAnnotation):
+    """
+    Hide atom directive.
+
+    Usage:
+        Filtered = Annotated[list[int], HideAtom(selector='hidden')]
+    """
+
+    _annotation_type = "hideAtom"
+    _is_constraint = False
+
+    def __init__(self, *, selector: str):
+        super().__init__(selector=selector)
+
+
+class Projection(SpytialAnnotation):
+    """
+    Projection directive.
+
+    Usage:
+        Projected = Annotated[MyType, Projection(sig='MySig')]
+    """
+
+    _annotation_type = "projection"
+    _is_constraint = False
+
+    def __init__(self, *, sig: str):
+        super().__init__(sig=sig)
+
+
+class Attribute(SpytialAnnotation):
+    """
+    Attribute directive.
+
+    Usage:
+        WithAttr = Annotated[MyType, Attribute(field='value')]
+    """
+
+    _annotation_type = "attribute"
+    _is_constraint = False
+
+    def __init__(self, *, field: str, selector: str = None):
+        kwargs = {"field": field}
+        if selector is not None:
+            kwargs["selector"] = selector
+        super().__init__(**kwargs)
+
+
+class InferredEdge(SpytialAnnotation):
+    """
+    Inferred edge directive.
+
+    Usage:
+        WithEdges = Annotated[Graph, InferredEdge(name='connection', selector='nodes')]
+    """
+
+    _annotation_type = "inferredEdge"
+    _is_constraint = False
+
+    def __init__(self, *, name: str, selector: str, color: str = None):
+        kwargs = {"name": name, "selector": selector}
+        if color is not None:
+            kwargs["color"] = color
+        super().__init__(**kwargs)
+
+
+class Flag(SpytialAnnotation):
+    """
+    Flag directive.
+
+    Usage:
+        Flagged = Annotated[MyType, Flag(name='debug')]
+    """
+
+    _annotation_type = "flag"
+    _is_constraint = False
+
+    def __init__(self, *, name: str):
+        super().__init__(name=name)
+
+    def to_entry(self):
+        """Flags store just the name as a scalar."""
+        return {self._annotation_type: self.kwargs["name"]}
+
+
+def extract_spytial_annotations(type_hint):
+    """
+    Extract spytial annotations from a typing.Annotated type hint.
+
+    :param type_hint: A type hint, possibly Annotated with spytial markers.
+    :return: A dict with 'constraints' and 'directives' lists, or None if no annotations.
+    """
+    import typing
+
+    # Check if it's an Annotated type
+    origin = typing.get_origin(type_hint)
+    if origin is not typing.Annotated:
+        return None
+
+    args = typing.get_args(type_hint)
+    if len(args) < 2:
+        return None
+
+    # First arg is the base type, rest are annotations
+    annotations = args[1:]
+
+    constraints = []
+    directives = []
+
+    for ann in annotations:
+        if isinstance(ann, SpytialAnnotation):
+            entry = ann.to_entry()
+            if ann._is_constraint:
+                constraints.append(entry)
+            else:
+                directives.append(entry)
+
+    if not constraints and not directives:
+        return None
+
+    return {"constraints": constraints, "directives": directives}
+
+
+def get_base_type(type_hint):
+    """
+    Get the base type from an Annotated type hint.
+
+    :param type_hint: A type hint, possibly Annotated.
+    :return: The base type (unwrapped from Annotated if applicable).
+    """
+    import typing
+
+    origin = typing.get_origin(type_hint)
+    if origin is typing.Annotated:
+        args = typing.get_args(type_hint)
+        if args:
+            return args[0]
+    return type_hint
+
+
+# Legacy registry-based system (kept for backward compatibility)
+_TYPE_ALIAS_ANNOTATION_REGISTRY = {}
+
+
+def _normalize_type_alias_key(type_alias):
+    """
+    Normalize a type alias to a consistent hashable key.
+    Handles generic aliases, typing constructs, and Python 3.12+ TypeAliasType.
+    :param type_alias: The type alias to normalize.
+    :return: A hashable key representing the type alias.
+    """
+    import typing
+    import sys
+
+    # For Python 3.12+ TypeAliasType (from `type X = ...` statement)
+    if sys.version_info >= (3, 12):
+        try:
+            from typing import TypeAliasType
+
+            if isinstance(type_alias, TypeAliasType):
+                # Use the name and underlying value for uniqueness
+                return ("TypeAliasType", type_alias.__name__, type_alias.__value__)
+        except ImportError:
+            pass
+
+    # For generic aliases (list[int], dict[str, int], etc.)
+    origin = typing.get_origin(type_alias)
+    if origin is not None:
+        args = typing.get_args(type_alias)
+        return (origin, args)
+
+    # For regular types and simple aliases
+    return type_alias
+
+
+def annotate_type_alias(type_alias, annotation_type, **kwargs):
+    """
+    Attach a spytial annotation to a type alias.
+
+    This function allows you to annotate type aliases (e.g., list[int], MyTypeAlias)
+    with spatial constraints and directives. When objects are visualized, if their
+    type annotation matches a registered type alias, these annotations are applied.
+
+    Usage:
+        # Define a type alias
+        IntList = list[int]
+
+        # Annotate it
+        annotate_type_alias(IntList, 'orientation', selector='items', directions=['horizontal'])
+        annotate_type_alias(IntList, 'atomColor', selector='self', value='blue')
+
+        # Or use the convenience functions:
+        annotate_type_alias_orientation(IntList, selector='items', directions=['horizontal'])
+
+    :param type_alias: The type alias to annotate (e.g., list[int], MyClass, etc.)
+    :param annotation_type: The type of annotation ('orientation', 'group', etc.)
+    :param kwargs: The annotation parameters.
+    :return: The type alias (for chaining).
+    """
+    key = _normalize_type_alias_key(type_alias)
+
+    if key not in _TYPE_ALIAS_ANNOTATION_REGISTRY:
+        _TYPE_ALIAS_ANNOTATION_REGISTRY[key] = {"constraints": [], "directives": []}
+
+    registry = _TYPE_ALIAS_ANNOTATION_REGISTRY[key]
+
+    # Validate and add the annotation
+    if annotation_type in CONSTRAINT_TYPES:
+        validate_fields(annotation_type, kwargs, CONSTRAINT_TYPES[annotation_type])
+        entry = {annotation_type: kwargs}
+        registry["constraints"].append(entry)
+    elif annotation_type in DIRECTIVE_TYPES:
+        validate_fields(annotation_type, kwargs, DIRECTIVE_TYPES[annotation_type])
+        # Special handling for flag directives - store as scalar
+        if annotation_type == "flag" and "name" in kwargs:
+            entry = {annotation_type: kwargs["name"]}
+        else:
+            entry = {annotation_type: kwargs}
+        registry["directives"].append(entry)
+    else:
+        raise ValueError(
+            f"Unknown annotation type '{annotation_type}' for type alias annotation."
+        )
+
+    return type_alias
+
+
+def get_type_alias_annotations(type_alias):
+    """
+    Retrieve annotations registered for a type alias.
+
+    :param type_alias: The type alias to look up.
+    :return: A dictionary with 'constraints' and 'directives' lists, or None if not found.
+    """
+    key = _normalize_type_alias_key(type_alias)
+    return _TYPE_ALIAS_ANNOTATION_REGISTRY.get(key)
+
+
+def clear_type_alias_annotations(type_alias=None):
+    """
+    Clear annotations for a specific type alias or all type aliases.
+
+    Note: This only clears the legacy registry-based annotations.
+    Annotations using typing.Annotated are immutable and don't need clearing.
+
+    :param type_alias: If provided, clear only this type alias's annotations.
+                       If None, clear all type alias annotations.
+    """
+    global _TYPE_ALIAS_ANNOTATION_REGISTRY
+    if type_alias is None:
+        _TYPE_ALIAS_ANNOTATION_REGISTRY.clear()
+    else:
+        key = _normalize_type_alias_key(type_alias)
+        if key in _TYPE_ALIAS_ANNOTATION_REGISTRY:
+            del _TYPE_ALIAS_ANNOTATION_REGISTRY[key]
+
+
+def list_type_alias_annotations():
+    """
+    List all registered type alias annotations (legacy registry).
+
+    :return: A dictionary mapping type alias keys to their annotation registries.
+    """
+    return dict(_TYPE_ALIAS_ANNOTATION_REGISTRY)
+
 
 def reset_object_ids():
     """
@@ -439,20 +902,24 @@ def apply_if(condition, *decorators):
     If CONDITION is True, applies all decorators in order to the class.
     If CONDITION is False, returns the class unchanged.
     """
+
     def decorator(cls):
         if condition:
             for deco in decorators:
                 cls = deco(cls)
         return cls
+
     return decorator
 
 
-def collect_decorators(obj):
+def collect_decorators(obj, type_hint=None):
     """
     Collect all decorators applied to the class of the given object,
-    as well as any annotations applied directly to the object instance.
+    as well as any annotations applied directly to the object instance,
+    and any annotations registered for matching type aliases.
     Respects inheritance control flags (dont_inherit_constraints, dont_inherit_directives).
     :param obj: The object whose class decorators and object annotations should be collected.
+    :param type_hint: Optional type hint to look up type alias annotations.
     :return: A combined dictionary of constraints and directives.
     """
     combined_registry = {"constraints": [], "directives": []}
@@ -467,11 +934,11 @@ def collect_decorators(obj):
 
     # Traverse the class hierarchy
     for i, cls in enumerate(obj.__class__.__mro__):
-        is_current_class = (i == 0)
-        
+        is_current_class = i == 0
+
         if hasattr(cls, "__spytial_registry__"):
             cls_registry = cls.__spytial_registry__
-            
+
             if is_current_class:
                 # For current class: include all from its registry
                 combined_registry["constraints"].extend(cls_registry["constraints"])
@@ -480,9 +947,11 @@ def collect_decorators(obj):
                 # For parent classes: only include if inheritance is enabled
                 if should_inherit_constraints:
                     combined_registry["constraints"].extend(cls_registry["constraints"])
-                
+
                 if should_inherit_directives:
-                    combined_registry["directives"].extend(cls_registry["directives"])    # Add object-level annotations if they exist
+                    combined_registry["directives"].extend(cls_registry["directives"])
+
+    # Add object-level annotations if they exist
     # First check if stored on object directly
     if hasattr(obj, OBJECT_ANNOTATIONS_ATTR):
         object_registry = getattr(obj, OBJECT_ANNOTATIONS_ATTR)
@@ -495,6 +964,15 @@ def collect_decorators(obj):
         object_registry = _OBJECT_ANNOTATION_REGISTRY[obj_id]
         combined_registry["constraints"].extend(object_registry["constraints"])
         combined_registry["directives"].extend(object_registry["directives"])
+
+    # Check for type alias annotations if a type hint was provided
+    if type_hint is not None:
+        type_alias_annotations = get_type_alias_annotations(type_hint)
+        if type_alias_annotations:
+            combined_registry["constraints"].extend(
+                type_alias_annotations["constraints"]
+            )
+            combined_registry["directives"].extend(type_alias_annotations["directives"])
 
     return combined_registry
 
@@ -514,20 +992,20 @@ def serialize_to_yaml_string(decorators):
 def dont_inherit_constraints(cls):
     """
     Mark a class to not inherit constraints from parent classes.
-    
+
     This is useful when you want to override a parent class's constraints.
     Constraints applied directly to this class are still included.
-    
+
     Example:
         @orientation(selector='children', directions=['below'])
         class Parent:
             pass
-        
+
         @dont_inherit_constraints
         class Child(Parent):
             # Will NOT have Parent's orientation constraint
             pass
-    
+
     :param cls: The class to mark as not inheriting constraints.
     :return: The class (for chaining).
     """
@@ -538,20 +1016,20 @@ def dont_inherit_constraints(cls):
 def dont_inherit_directives(cls):
     """
     Mark a class to not inherit directives from parent classes.
-    
+
     This is useful when you want to override a parent class's directives.
     Directives applied directly to this class are still included.
-    
+
     Example:
         @atomColor(selector='root', value='red')
         class Parent:
             pass
-        
+
         @dont_inherit_directives
         class Child(Parent):
             # Will NOT have Parent's atomColor directive
             pass
-    
+
     :param cls: The class to mark as not inheriting directives.
     :return: The class (for chaining).
     """
@@ -562,20 +1040,20 @@ def dont_inherit_directives(cls):
 def dont_inherit_annotations(cls):
     """
     Mark a class to not inherit any annotations from parent classes.
-    
+
     Shorthand for applying both dont_inherit_constraints and dont_inherit_directives.
-    
+
     Example:
         @orientation(selector='children', directions=['below'])
         @atomColor(selector='root', value='red')
         class Parent:
             pass
-        
+
         @dont_inherit_annotations
         class Child(Parent):
             # Will NOT have any annotations from Parent
             pass
-    
+
     :param cls: The class to mark as not inheriting annotations.
     :return: The class (for chaining).
     """
@@ -589,4 +1067,3 @@ __all__ = [
     # ...other exports...
     "apply_if",
 ]
-
