@@ -25,8 +25,28 @@ except ImportError:
     HAS_JINJA2 = False
 
 
+def _is_notebook():
+    """
+    Detect if we're running in a Jupyter notebook environment.
+    Returns True if in a notebook, False otherwise.
+    """
+    if not HAS_IPYTHON:
+        return False
+
+    try:
+        from IPython import get_ipython
+
+        ipython = get_ipython()
+        if ipython is None:
+            return False
+        # Check if we're in a notebook (IPython kernel has 'IPKernelApp')
+        return "IPKernelApp" in ipython.config
+    except:
+        return False
+
+
 def evaluate(
-    obj, method="inline", auto_open=True, width=None, height=None, spytial_version=None
+    obj, method=None, auto_open=True, width=None, height=None, spytial_version=None
 ):
     """
     Evaluate a Python object using the sPyTial evaluator.
@@ -34,6 +54,7 @@ def evaluate(
     Args:
         obj: Any Python object to evaluate.
         method: Display method - "inline" (Jupyter), "browser" (new tab), or "file" (save to file).
+                If None (default), automatically selects "inline" in notebooks or "browser" otherwise.
         auto_open: Whether to automatically open the browser (for "browser" method).
         width: Width of the evaluation container in pixels (default: auto-detected).
         height: Height of the evaluation container in pixels (default: auto-detected).
@@ -42,6 +63,10 @@ def evaluate(
     Returns:
         str: Path to the generated HTML file (if method="file" or "browser").
     """
+    # Auto-detect method based on environment if not specified
+    if method is None:
+        method = "inline" if _is_notebook() else "browser"
+
     # Auto-detect sizing if not provided
     if width is None or height is None:
         width, height = 600, 200
@@ -53,7 +78,9 @@ def evaluate(
     data_instance = builder.build_instance(obj)
 
     # Generate the HTML content
-    html_content = _generate_evaluator_html(data_instance, width, height, spytial_version)
+    html_content = _generate_evaluator_html(
+        data_instance, width, height, spytial_version
+    )
 
     if method == "inline":
         # Display inline in Jupyter notebook using iframe
@@ -122,7 +149,9 @@ def evaluate(
         raise ValueError(f"Unknown display method: {method}")
 
 
-def _generate_evaluator_html(data_instance, width=800, height=600, spytial_version="1.4.12"):
+def _generate_evaluator_html(
+    data_instance, width=800, height=600, spytial_version="1.4.12"
+):
     """
     Generate HTML content for the evaluator using Jinja2 templating.
 
