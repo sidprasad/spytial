@@ -10,6 +10,8 @@ import webbrowser
 from pathlib import Path
 import os
 
+from .utils import is_notebook, default_method
+
 try:
     from IPython.display import display, HTML
 
@@ -25,28 +27,13 @@ except ImportError:
     HAS_JINJA2 = False
 
 
-def _is_notebook():
-    """
-    Detect if we're running in a Jupyter notebook environment.
-    Returns True if in a notebook, False otherwise.
-    """
-    if not HAS_IPYTHON:
-        return False
-
-    try:
-        from IPython import get_ipython
-
-        ipython = get_ipython()
-        if ipython is None:
-            return False
-        # Check if we're in a notebook (IPython kernel has 'IPKernelApp')
-        return "IPKernelApp" in ipython.config
-    except:
-        return False
-
-
 def evaluate(
-    obj, method=None, auto_open=True, width=None, height=None, spytial_version=None
+    obj,
+    method=None,
+    auto_open=True,
+    width=None,
+    height=None,
+    as_type=None,
 ):
     """
     Evaluate a Python object using the sPyTial evaluator.
@@ -58,14 +45,21 @@ def evaluate(
         auto_open: Whether to automatically open the browser (for "browser" method).
         width: Width of the evaluation container in pixels (default: auto-detected).
         height: Height of the evaluation container in pixels (default: auto-detected).
-        spytial_version: Version of the spytial-core library to use.
+        as_type: Optional annotated type to treat the object as. Annotations from this type
+                 will be applied in addition to any introspected from the object itself.
 
     Returns:
         str: Path to the generated HTML file (if method="file" or "browser").
     """
+    # Handle AnnotatedType - extract the underlying Annotated type
+    from .utils import AnnotatedType
+
+    if isinstance(as_type, AnnotatedType):
+        as_type = as_type._annotated
+
     # Auto-detect method based on environment if not specified
     if method is None:
-        method = "inline" if _is_notebook() else "browser"
+        method = default_method()
 
     # Auto-detect sizing if not provided
     if width is None or height is None:
@@ -75,12 +69,10 @@ def evaluate(
     from .provider_system import CnDDataInstanceBuilder
 
     builder = CnDDataInstanceBuilder()
-    data_instance = builder.build_instance(obj)
+    data_instance = builder.build_instance(obj, as_type=as_type)
 
     # Generate the HTML content
-    html_content = _generate_evaluator_html(
-        data_instance, width, height, spytial_version
-    )
+    html_content = _generate_evaluator_html(data_instance, width, height)
 
     if method == "inline":
         # Display inline in Jupyter notebook using iframe
@@ -149,9 +141,7 @@ def evaluate(
         raise ValueError(f"Unknown display method: {method}")
 
 
-def _generate_evaluator_html(
-    data_instance, width=800, height=600, spytial_version="1.4.12"
-):
+def _generate_evaluator_html(data_instance, width=800, height=600):
     """
     Generate HTML content for the evaluator using Jinja2 templating.
 
@@ -159,7 +149,6 @@ def _generate_evaluator_html(
         data_instance: The serialized data instance to evaluate.
         width: Width of the evaluation container in pixels.
         height: Height of the evaluation container in pixels.
-        spytial_version: Version of the spytial-core library to use.
 
     Returns:
         str: The generated HTML content.
@@ -185,7 +174,6 @@ def _generate_evaluator_html(
         python_data=json.dumps(data_instance),  # Properly serialize to JSON
         width=width,  # Container width
         height=height,  # Container height
-        spytial_version=spytial_version,  # Spytial version
     )
 
     return html_content

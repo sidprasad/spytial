@@ -10,6 +10,8 @@ import webbrowser
 from pathlib import Path
 import os
 
+from .utils import is_notebook, default_method
+
 try:
     from IPython.display import display, HTML
 
@@ -23,26 +25,6 @@ try:
     HAS_JINJA2 = True
 except ImportError:
     HAS_JINJA2 = False
-
-
-def _is_notebook():
-    """
-    Detect if we're running in a Jupyter notebook environment.
-    Returns True if in a notebook, False otherwise.
-    """
-    if not HAS_IPYTHON:
-        return False
-
-    try:
-        from IPython import get_ipython
-
-        ipython = get_ipython()
-        if ipython is None:
-            return False
-        # Check if we're in a notebook (IPython kernel has 'IPKernelApp')
-        return "IPKernelApp" in ipython.config
-    except:
-        return False
 
 
 def quick_diagram(obj):
@@ -60,55 +42,62 @@ def diagram(
     width=None,
     height=None,
     title=None,
-    spytial_version=None,
     perf_path=None,
     perf_iterations=None,
     headless=False,
     timeout=None,
+    as_type=None,
 ):
     """
     Display a Python object in the sPyTial visualizer.
 
     Args:
-        obj: Any Python object to visualize
+        obj: Any Python object to visualize.
         method: Display method - "inline" (Jupyter), "browser" (new tab), "file" (save to file), or "headless" (headless browser for testing)
                 If None (default), automatically selects "inline" in notebooks or "browser" otherwise.
         auto_open: Whether to automatically open browser (for "browser" method)
         width: Width of the visualization container in pixels (default: auto-detected)
         height: Height of the visualization container in pixels (default: auto-detected)
         title: Title for the browser tab/page (default: "sPyTial Visualization")
-        spytial_version: Version of CnD core to use (default: "1.1.9")
         perf_path: Optional path to save performance metrics JSON file.
                    If None, metrics are not saved (unless perf_iterations is set).
         perf_iterations: Optional number of times to render for performance benchmarking.
                         If provided, the visualization will be rendered N times and metrics
                         will be aggregated. Works with method="browser", "file", or "headless".
-                        Example: perf_iterations=10 renders 10 times and shows average/min/max times.
         headless: Run in headless Chrome for testing/benchmarking (requires selenium and chromedriver).
                   If True, method is automatically set to "headless".
         timeout: Timeout in seconds for headless mode. If None, automatically calculated based on
                  perf_iterations (default: max(120, perf_iterations * 5)). For large/complex
                  visualizations, set this higher (e.g., timeout=600 for 10 minutes).
+        as_type: Optional annotated type to treat the object as. Annotations from this type
+                 will be applied in addition to any introspected from the object itself.
+                 Use AnnotatedType() or typing.Annotated to define types with spytial annotations.
 
+    Examples:
+        # Define an annotated type
+        Graph = AnnotatedType(Dict[int, List[int]], InferredEdge(...), Orientation(...))
 
-        perf_iterations: Optional number of times to render for performance benchmarking.
-                        If provided, the visualization will be rendered N times and metrics
-                        will be aggregated. Works with method="browser", "file", or "headless".
-                        Example: perf_iterations=10 renders 10 times and shows average/min/max times.
-        headless: Run in headless Chrome for testing/benchmarking (requires selenium and chromedriver).
-                  If True, method is automatically set to "headless".
+        # Display a dict as a Graph
+        g = {0: [1], 1: [2]}
+        diagram(g, as_type=Graph)
 
     Returns:
         str: Path to the generated HTML file (if method="file", "browser", or "headless")
         dict: Performance metrics (if method="headless" and perf_iterations > 0)
     """
+    # Handle AnnotatedType - extract the underlying Annotated type
+    from .utils import AnnotatedType
+
+    if isinstance(as_type, AnnotatedType):
+        as_type = as_type._annotated
+
     # Override method if headless flag is set
     if headless:
         method = "headless"
 
     # Auto-detect method based on environment if not specified
     if method is None:
-        method = "inline" if _is_notebook() else "browser"
+        method = default_method()
 
     # Auto-detect sizing if not provided
     if width is None or height is None:
@@ -118,13 +107,16 @@ def diagram(
     from .provider_system import CnDDataInstanceBuilder
     from .annotations import (
         serialize_to_yaml_string,
-    )  # No longer need collect_decorators here
+        extract_spytial_annotations,
+    )
 
     # Serialize the object using the provider system (which now also collects decorators)
     if headless and title:
         print(f"Building data instance for: {title}", flush=True)
     builder = CnDDataInstanceBuilder()
-    data_instance = builder.build_instance(obj)
+
+    # Pass as_type to the builder so it can extract annotations
+    data_instance = builder.build_instance(obj, as_type=as_type)
 
     # Get all decorators collected during the build process (from all sub-objects)
     decorators = builder.get_collected_decorators()
@@ -141,7 +133,6 @@ def diagram(
         width,
         height,
         title,
-        spytial_version,
         perf_path,
         perf_iterations,
     )
@@ -325,7 +316,6 @@ def _generate_visualizer_html(
     width=800,
     height=600,
     title=None,
-    spytial_version="1.1.9",
     perf_path=None,
     perf_iterations=None,
 ):
@@ -358,7 +348,6 @@ def _generate_visualizer_html(
         title=title,  # Page title for browser tab
         width=width,  # Container width
         height=height,  # Container height
-        spytial_version=spytial_version,  # Spytial version
         perf_path=perf_path
         or "",  # Performance metrics endpoint path (empty string if None)
         perf_iterations=perf_iterations
