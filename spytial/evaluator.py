@@ -9,6 +9,7 @@ import tempfile
 import webbrowser
 from pathlib import Path
 import os
+from typing import Any, Optional
 
 from .utils import is_notebook, default_method
 
@@ -28,13 +29,13 @@ except ImportError:
 
 
 def evaluate(
-    obj,
-    method=None,
-    auto_open=True,
-    width=None,
-    height=None,
-    as_type=None,
-):
+    obj: Any,
+    method: Optional[str] = None,
+    auto_open: bool = True,
+    width: Optional[int] = None,
+    height: Optional[int] = None,
+    as_type: Optional[Any] = None,
+) -> Optional[str]:
     """
     Evaluate a Python object using the sPyTial evaluator.
 

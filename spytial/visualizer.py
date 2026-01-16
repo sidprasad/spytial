@@ -9,6 +9,7 @@ import tempfile
 import webbrowser
 from pathlib import Path
 import os
+from typing import Any, Dict, Optional, Union
 
 from .utils import is_notebook, default_method
 
@@ -27,27 +28,19 @@ except ImportError:
     HAS_JINJA2 = False
 
 
-def quick_diagram(obj):
-    """
-    Quick display function for Jupyter notebooks.
-    Alias for diagram(obj, method="inline").
-    """
-    return diagram(obj, method="inline")
-
-
 def diagram(
-    obj,
-    method=None,
-    auto_open=True,
-    width=None,
-    height=None,
-    title=None,
-    perf_path=None,
-    perf_iterations=None,
-    headless=False,
-    timeout=None,
-    as_type=None,
-):
+    obj: Any,
+    method: Optional[str] = None,
+    auto_open: bool = True,
+    width: Optional[int] = None,
+    height: Optional[int] = None,
+    title: Optional[str] = None,
+    perf_path: Optional[Union[str, Path]] = None,
+    perf_iterations: Optional[int] = None,
+    headless: bool = False,
+    timeout: Optional[float] = None,
+    as_type: Optional[Any] = None,
+) -> Optional[Union[str, Dict[str, Any]]]:
     """
     Display a Python object in the sPyTial visualizer.
 

@@ -11,7 +11,7 @@ Most users attach operations to classes with decorators. You can also attach the
 
 Constraints affect the structure and layout of the diagram. Think of them as statements about **where boxes should go** relative to each other.
 
-- **orientation**: directional relationships between selected boxes (for example, `left` vs. `directlyLeft`). The stricter forms imply alignment on the perpendicular axis.
+- **orientation**: directional relationships between selected boxes (for example, `left` vs. `directlyLeft`). Use spelled-out directions like `left`/`right`/`above`/`below` (not `TB`/`LR`). The stricter forms imply alignment on the perpendicular axis.
 - **align**: force selected boxes to share a common axis (e.g., vertical alignment means they share the same top-left `x` coordinate).
 - **cyclic**: arrange a sequence of boxes in a polygonal pattern, derived from an adjacency relation, to reflect cycles or ordered chains.
 - **group**: introduce a bounding region that must contain selected boxes and exclude others (optionally with keyed subgroups).
@@ -42,8 +42,8 @@ Attach operations to a class using decorators. This is the most common and reusa
 ```python
 import spytial
 
-@spytial.orientation(direction="TB")
-@spytial.group(name="Cluster A")
+@spytial.orientation(selector="children", directions=["below"])
+@spytial.group(selector="children", name="Cluster A")
 class Node:
     def __init__(self, value, children=None):
         self.value = value
@@ -58,8 +58,8 @@ Attach operations to a single instance without modifying the class:
 
 ```python
 node = Node("root")
-spytial.annotate_orientation(node, direction="LR")
-spytial.annotate_group(node, name="Root Group")
+spytial.annotate_orientation(node, selector="children", directions=["below"])
+spytial.annotate_group(node, selector="children", name="Root Group")
 ```
 
 ### typing.Annotated / AnnotatedType
@@ -72,8 +72,8 @@ from spytial import InferredEdge, Orientation
 
 Graph = Annotated[
     Dict[int, List[int]],
-    InferredEdge(target_field="__values__"),
-    Orientation(direction="LR"),
+    InferredEdge(name="edge", selector="values"),
+    Orientation(selector="values", directions=["right"]),
 ]
 
 spytial.diagram({0: [1, 2]}, as_type=Graph)

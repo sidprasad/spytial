@@ -10,7 +10,10 @@ import json
 import os
 import yaml
 from dataclasses import is_dataclass
-from typing import Any
+from typing import Any, Optional, TYPE_CHECKING, Union
+
+if TYPE_CHECKING:
+    from IPython.display import HTML as IPythonHTML
 
 from .provider_system import CnDDataInstanceBuilder
 from .annotations import collect_decorators
@@ -33,7 +36,9 @@ def _generate_cnd_spec(instance: Any) -> str:
     return yaml.dump(spec, default_flow_style=False)
 
 
-def dataclass_builder(instance: Any, method: str = "inline", auto_open: bool = True):
+def dataclass_builder(
+    instance: Any, method: str = "inline", auto_open: bool = True
+) -> Optional[Union[str, "IPythonHTML"]]:
     """
     Create a visual builder interface for a dataclass instance using spytial-core.
 
