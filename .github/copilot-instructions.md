@@ -146,7 +146,7 @@ python -m pip install pandas numpy matplotlib seaborn z3-solver
 - `visualizer.py` - HTML diagram generation (`diagram()` function)
 - `annotations.py` - Spatial constraint decorators and object annotations
 - `provider_system.py` - Data serialization and instance building
-- `evaluator.py` - CnD evaluation engine integration
+- `evaluator.py` - Spytial-Core evaluation engine integration
 - `*_template.html` - HTML templates for visualization output
 
 ### Tests (`/test/`)
@@ -187,8 +187,8 @@ python -m pytest test/ -v
 ### Visualization Pipeline
 1. **Input**: Python object (any structure)
 2. **Annotations**: Class decorators + object-level spatial constraints  
-3. **Serialization**: Convert to CnD data instance format
-4. **Rendering**: Generate HTML with embedded CnD specification
+3. **Serialization**: Convert to Spytial-Core data instance format
+4. **Rendering**: Generate HTML with embedded Spytial-Core specification
 5. **Output**: Interactive HTML visualization
 
 ### Spatial Annotation Types
@@ -212,7 +212,7 @@ spytial.annotate_atomColor(obj, selector, value)
 
 When `diagram()` is called with `method='file'`, it generates:
 - `spytial_visualization.html` - Interactive HTML visualization
-- Contains embedded CnD specification in YAML format
+- Contains embedded Spytial-Core specification in YAML format
 - Typically 2-10KB in size for moderate data structures
 
 ## Troubleshooting

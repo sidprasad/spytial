@@ -325,7 +325,7 @@ def _generate_visualizer_html(
 
     # And error handling in react components COULD go here, depending on What we want to include?
     # Like, mount stuff if needed?
-    ## Error viz, CnD Builder, etc.
+    ## Error viz, Spytial-Core Builder, etc.
 
     try:
         template = env.get_template("visualizer_template.html")

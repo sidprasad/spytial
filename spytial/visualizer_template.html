@@ -529,10 +529,10 @@
                 totalTime: 0
             };
 
-            // Check if CnD Core is available
+            // Check if Spytial-Core Core is available
             if (typeof CndCore === 'undefined') {
-                console.error('CnD Core library is not available');
-                showError('CnD Core library failed to load. The visualization cannot be displayed.');
+                console.error('Spytial-Core Core library is not available');
+                showError('Spytial-Core Core library failed to load. The visualization cannot be displayed.');
                 return null;
             }
 
@@ -579,7 +579,7 @@
                     window.evaluator = sgqEvaluator; // Expose evaluator for debugging
                 }
 
-                // Parse the CND specification
+                // Parse the Spytial-Core specification
                 const parseSpecStart = performance.now();
                 let layoutSpec = CndCore.parseLayoutSpec(cndSpec);
                 iterationMetrics.parseSpec = performance.now() - parseSpecStart;

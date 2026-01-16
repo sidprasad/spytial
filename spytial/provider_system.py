@@ -1,5 +1,5 @@
 """
-CnD Data Instance Relationalizer Architecture
+Spytial-Core Data Instance Relationalizer Architecture
 
 This module provides a pluggable system for converting Python objects
 into CnD-compatible atom/relation representations using relationalizers.
@@ -380,7 +380,7 @@ class CnDDataInstanceBuilder:
 
     def reify(self, data_instance: Dict) -> Any:
         """
-        Reconstruct Python objects from a CnD data instance.
+        Reconstruct Python objects from a Spytial-Core data instance.
 
         This method reverses the build_instance operation, converting atoms and relations
         back into Python objects.
