@@ -97,6 +97,9 @@ class CnDDataInstanceBuilder:
             None  # Store caller's namespace for variable name lookup
         )
         self._as_type = None  # Store type for root object
+        self._seen_class_decorators = (
+            set()
+        )  # Track which classes we've collected decorators from
 
     def build_instance(self, obj: Any, as_type=None) -> Dict:
         """Build a complete data instance from an object.
@@ -113,6 +116,7 @@ class CnDDataInstanceBuilder:
         self._collected_decorators = {"constraints": [], "directives": []}
         self._current_depth = 0  # Reset depth
         self._as_type = as_type  # Store for use during walk
+        self._seen_class_decorators.clear()  # Reset class decorator tracking
 
         # Extract annotations from as_type if provided
         if as_type is not None:
@@ -259,18 +263,77 @@ class CnDDataInstanceBuilder:
             self._current_depth -= 1
             return self._seen[oid]
 
+    def _walk(self, obj: Any, max_depth: int = 100) -> str:
+        """Walk an object using the appropriate provider."""
+        self._current_depth += 1
+        if self._current_depth > max_depth:
+            raise RecursionError("Maximum recursion depth exceeded")
+
+        oid = id(obj)
+        if oid in self._seen:
+            self._current_depth -= 1
+            return self._seen[oid]
+
         # Collect decorators from this object
         try:
-            from .annotations import collect_decorators
+            from .annotations import (
+                OBJECT_ANNOTATIONS_ATTR,
+                _OBJECT_ANNOTATION_REGISTRY,
+            )
 
-            obj_decorators = collect_decorators(obj)
-            # Merge decorators into our collected set
-            self._collected_decorators["constraints"].extend(
-                obj_decorators["constraints"]
-            )
-            self._collected_decorators["directives"].extend(
-                obj_decorators["directives"]
-            )
+            # Collect class-level decorators from class hierarchy
+            # Track which registries we've seen to avoid duplicates
+            obj_class = obj.__class__
+
+            # Traverse the class hierarchy and collect decorators
+            # from each class's registry
+            # But only collect from each registry once across all instances
+            for i, cls in enumerate(obj_class.__mro__):
+                is_current_class = i == 0
+
+                if hasattr(cls, "__spytial_registry__"):
+                    # Check if we've already collected from this
+                    # specific class's registry
+                    if cls not in self._seen_class_decorators:
+                        self._seen_class_decorators.add(cls)
+                        cls_registry = cls.__spytial_registry__
+
+                        # Collect this class's decorators
+                        self._collected_decorators["constraints"].extend(
+                            cls_registry["constraints"]
+                        )
+                        self._collected_decorators["directives"].extend(
+                            cls_registry["directives"]
+                        )
+                    # If we've seen this class before, skip it
+                    # (already collected)
+                elif is_current_class:
+                    # Mark current class as seen even if it has no registry
+                    # This prevents re-processing instances of the same class
+                    if obj_class not in self._seen_class_decorators:
+                        self._seen_class_decorators.add(obj_class)
+
+            # Always collect object-level annotations (unique per instance)
+            if hasattr(obj, OBJECT_ANNOTATIONS_ATTR):
+                object_registry = getattr(obj, OBJECT_ANNOTATIONS_ATTR)
+                self._collected_decorators["constraints"].extend(
+                    object_registry["constraints"]
+                )
+                self._collected_decorators["directives"].extend(
+                    object_registry["directives"]
+                )
+
+            # Check global registry for objects that can't store attributes
+            obj_id = id(obj)
+            if obj_id in _OBJECT_ANNOTATION_REGISTRY:
+                object_registry = _OBJECT_ANNOTATION_REGISTRY[obj_id]
+                self._collected_decorators["constraints"].extend(
+                    object_registry["constraints"]
+                )
+                self._collected_decorators["directives"].extend(
+                    object_registry["directives"]
+                )
+
         except Exception as e:
             # If decorator collection fails, continue without them
             # This prevents the entire visualization from failing due to annotation issues
