@@ -11,3 +11,9 @@ ipython>=8.0.0 # For Jupyter notebook integration
 pytest>=7.0.0  # For testing
 flake8>=6.0.0  # For linting
 black>=23.0.0  # For code formatting
+
+# Documentation dependencies
+# Install with: pip install spytial_diagramming[docs]
+# mkdocs>=1.5.0
+# mkdocs-material>=9.0.0
+# mkdocstrings[python]>=0.24.0
