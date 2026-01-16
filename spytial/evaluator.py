@@ -33,7 +33,6 @@ def evaluate(
     auto_open=True,
     width=None,
     height=None,
-    spytial_version=None,
     as_type=None,
 ):
     """
@@ -46,7 +45,6 @@ def evaluate(
         auto_open: Whether to automatically open the browser (for "browser" method).
         width: Width of the evaluation container in pixels (default: auto-detected).
         height: Height of the evaluation container in pixels (default: auto-detected).
-        spytial_version: Version of the spytial-core library to use.
         as_type: Optional annotated type to treat the object as. Annotations from this type
                  will be applied in addition to any introspected from the object itself.
 
@@ -74,9 +72,7 @@ def evaluate(
     data_instance = builder.build_instance(obj, as_type=as_type)
 
     # Generate the HTML content
-    html_content = _generate_evaluator_html(
-        data_instance, width, height, spytial_version
-    )
+    html_content = _generate_evaluator_html(data_instance, width, height)
 
     if method == "inline":
         # Display inline in Jupyter notebook using iframe
@@ -145,9 +141,7 @@ def evaluate(
         raise ValueError(f"Unknown display method: {method}")
 
 
-def _generate_evaluator_html(
-    data_instance, width=800, height=600, spytial_version="1.4.12"
-):
+def _generate_evaluator_html(data_instance, width=800, height=600):
     """
     Generate HTML content for the evaluator using Jinja2 templating.
 
@@ -155,7 +149,6 @@ def _generate_evaluator_html(
         data_instance: The serialized data instance to evaluate.
         width: Width of the evaluation container in pixels.
         height: Height of the evaluation container in pixels.
-        spytial_version: Version of the spytial-core library to use.
 
     Returns:
         str: The generated HTML content.
@@ -181,7 +174,6 @@ def _generate_evaluator_html(
         python_data=json.dumps(data_instance),  # Properly serialize to JSON
         width=width,  # Container width
         height=height,  # Container height
-        spytial_version=spytial_version,  # Spytial version (lets get rf)
     )
 
     return html_content

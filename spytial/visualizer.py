@@ -42,7 +42,6 @@ def diagram(
     width=None,
     height=None,
     title=None,
-    spytial_version=None,
     perf_path=None,
     perf_iterations=None,
     headless=False,
@@ -60,7 +59,6 @@ def diagram(
         width: Width of the visualization container in pixels (default: auto-detected)
         height: Height of the visualization container in pixels (default: auto-detected)
         title: Title for the browser tab/page (default: "sPyTial Visualization")
-        spytial_version: Version of CnD core to use (default: "1.1.9")
         perf_path: Optional path to save performance metrics JSON file.
                    If None, metrics are not saved (unless perf_iterations is set).
         perf_iterations: Optional number of times to render for performance benchmarking.
@@ -78,7 +76,7 @@ def diagram(
     Examples:
         # Define an annotated type
         Graph = AnnotatedType(Dict[int, List[int]], InferredEdge(...), Orientation(...))
-        
+
         # Display a dict as a Graph
         g = {0: [1], 1: [2]}
         diagram(g, as_type=Graph)
@@ -135,7 +133,6 @@ def diagram(
         width,
         height,
         title,
-        spytial_version,
         perf_path,
         perf_iterations,
     )
@@ -319,7 +316,6 @@ def _generate_visualizer_html(
     width=800,
     height=600,
     title=None,
-    spytial_version="1.1.9",
     perf_path=None,
     perf_iterations=None,
 ):
@@ -352,7 +348,6 @@ def _generate_visualizer_html(
         title=title,  # Page title for browser tab
         width=width,  # Container width
         height=height,  # Container height
-        spytial_version=spytial_version,  # Spytial version
         perf_path=perf_path
         or "",  # Performance metrics endpoint path (empty string if None)
         perf_iterations=perf_iterations
