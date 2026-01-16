@@ -709,6 +709,45 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#examples-from-demos" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Examples from demos
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Examples from demos">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#decision-diagrams-dd-bdd" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Decision diagrams (dd / BDD)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#smtz3-model-relationalizer-ffi" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        SMT/Z3 model relationalizer (FFI)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#next-steps" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -951,6 +990,45 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#examples-from-demos" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Examples from demos
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Examples from demos">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#decision-diagrams-dd-bdd" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Decision diagrams (dd / BDD)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#smtz3-model-relationalizer-ffi" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        SMT/Z3 model relationalizer (FFI)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#next-steps" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1007,8 +1085,7 @@
         <span class="n">atom</span> <span class="o">=</span> <span class="n">Atom</span><span class="p">(</span>
             <span class="nb">id</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;widget:</span><span class="si">{</span><span class="n">obj</span><span class="o">.</span><span class="n">widget_id</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
             <span class="nb">type</span><span class="o">=</span><span class="s2">&quot;Widget&quot;</span><span class="p">,</span>
-            <span class="n">name</span><span class="o">=</span><span class="n">obj</span><span class="o">.</span><span class="n">widget_id</span><span class="p">,</span>
-            <span class="n">attrs</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;label&quot;</span><span class="p">:</span> <span class="n">obj</span><span class="o">.</span><span class="n">label</span><span class="p">},</span>
+            <span class="n">label</span><span class="o">=</span><span class="n">obj</span><span class="o">.</span><span class="n">label</span><span class="p">,</span>
         <span class="p">)</span>
         <span class="k">return</span> <span class="p">[</span><span class="n">atom</span><span class="p">],</span> <span class="p">[]</span>
 </code></pre></div>
@@ -1020,6 +1097,49 @@
 <div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">spytial</span><span class="w"> </span><span class="kn">import</span> <span class="n">RelationalizerRegistry</span>
 
 <span class="nb">print</span><span class="p">(</span><span class="n">RelationalizerRegistry</span><span class="o">.</span><span class="n">list_relationalizers</span><span class="p">())</span>
+</code></pre></div>
+<h2 id="examples-from-demos">Examples from demos</h2>
+<h3 id="decision-diagrams-dd-bdd">Decision diagrams (dd / BDD)</h3>
+<p>The decision diagram demo defines a <code>BDDRelationalizer</code> for the <code>dd</code> library and shows a full end-to-end visualization. It:</p>
+<ul>
+<li>Emits <code>BDDNode</code> atoms for decision nodes and <code>Terminal</code> atoms for True/False.</li>
+<li>Adds <code>at_level</code> relations to connect nodes to level atoms.</li>
+<li>Adds <code>precedes</code> relations to order levels, plus <code>low</code>/<code>high</code> edges (including complemented variants).</li>
+</ul>
+<p>Minimal excerpt (full demo in <code>demos/05-dds.ipynb</code> or https://github.com/sidprasad/spytial/blob/main/demos/05-dds.ipynb):</p>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">dd.autoref</span><span class="w"> </span><span class="kn">import</span> <span class="n">BDD</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">spytial</span><span class="w"> </span><span class="kn">import</span> <span class="n">RelationalizerBase</span><span class="p">,</span> <span class="n">relationalizer</span><span class="p">,</span> <span class="n">Atom</span><span class="p">,</span> <span class="n">Relation</span>
+
+<span class="nd">@relationalizer</span><span class="p">(</span><span class="n">priority</span><span class="o">=</span><span class="mi">101</span><span class="p">)</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">BDDRelationalizer</span><span class="p">(</span><span class="n">RelationalizerBase</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">can_handle</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">obj</span><span class="p">):</span>
+        <span class="k">return</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="n">BDD</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">relationalize</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">obj</span><span class="p">,</span> <span class="n">walker_func</span><span class="p">):</span>
+        <span class="n">atoms</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">relations</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="c1"># Emit Terminal + BDDNode atoms and attach at_level/precedes/low/high relations.</span>
+        <span class="k">return</span> <span class="n">atoms</span><span class="p">,</span> <span class="n">relations</span>
+</code></pre></div>
+<h3 id="smtz3-model-relationalizer-ffi">SMT/Z3 model relationalizer (FFI)</h3>
+<p>The Z3 case study builds a relationalizer for <code>z3.ModelRef</code>, treating Z3 as an FFI boundary and emitting pure-Python atoms/relations. It:</p>
+<ul>
+<li>Creates <code>Decl</code>, <code>Const</code>, <code>App</code> atoms for declarations, constants, and applications.</li>
+<li>Emits <code>defines</code>, <code>value_of</code>, <code>arg_N</code>, <code>result</code>, and <code>default</code> relations.</li>
+<li>Preserves sort information and avoids Python truthiness checks on Z3 ASTs.</li>
+</ul>
+<p>Minimal excerpt (full demo in <code>demos/02-z3-case-study.ipynb</code> or https://github.com/sidprasad/spytial/blob/main/demos/02-z3-case-study.ipynb):</p>
+<div class="highlight"><pre><span></span><code><span class="kn">import</span><span class="w"> </span><span class="nn">z3</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">spytial</span><span class="w"> </span><span class="kn">import</span> <span class="n">RelationalizerBase</span><span class="p">,</span> <span class="n">relationalizer</span>
+
+<span class="nd">@relationalizer</span><span class="p">(</span><span class="n">priority</span><span class="o">=</span><span class="mi">100</span><span class="p">)</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">Z3ModelRelationalizer</span><span class="p">(</span><span class="n">RelationalizerBase</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">can_handle</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">obj</span><span class="p">):</span>
+        <span class="k">return</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="n">z3</span><span class="o">.</span><span class="n">ModelRef</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">relationalize</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">obj</span><span class="p">,</span> <span class="n">walker_func</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="c1"># Convert Z3 model into Atom/Relation lists.</span>
+        <span class="k">return</span> <span class="p">[],</span> <span class="p">[]</span>
 </code></pre></div>
 <h2 id="next-steps">Next steps</h2>
 <p>Once your relationalizer is in place, use <code>spytial.diagram()</code> or <code>spytial.evaluate()</code> to test how it behaves.</p>
