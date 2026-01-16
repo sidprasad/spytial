@@ -93,17 +93,43 @@ class CnDDataInstanceBuilder:
         self._current_depth = 0  # Track current recursion depth
         # Extensibility mechanism: custom reifiers for specific types
         self._custom_reifiers = {}
-        self._caller_namespace = None  # Store caller's namespace for variable name lookup
+        self._caller_namespace = (
+            None  # Store caller's namespace for variable name lookup
+        )
+        self._as_type = None  # Store type for root object
 
-    def build_instance(self, obj: Any) -> Dict:
-        """Build a complete data instance from an object."""
+    def build_instance(self, obj: Any, as_type=None) -> Dict:
+        """Build a complete data instance from an object.
+
+        Args:
+            obj: The Python object to build an instance from.
+            as_type: Optional annotated type to treat the object as. Annotations
+                     from this type will be applied in addition to introspected ones.
+        """
         self._seen.clear()
         self._atoms.clear()
         self._rels.clear()
         self._id_counter = 0
         self._collected_decorators = {"constraints": [], "directives": []}
         self._current_depth = 0  # Reset depth
-        
+        self._as_type = as_type  # Store for use during walk
+
+        # Extract annotations from as_type if provided
+        if as_type is not None:
+            try:
+                from .annotations import extract_spytial_annotations
+
+                type_annotations = extract_spytial_annotations(as_type)
+                if type_annotations:
+                    self._collected_decorators["constraints"].extend(
+                        type_annotations["constraints"]
+                    )
+                    self._collected_decorators["directives"].extend(
+                        type_annotations["directives"]
+                    )
+            except Exception:
+                pass
+
         # Capture the caller's namespace for variable name lookup
         # Call stack: user_code -> diagram/evaluate -> build_instance
         # We need to go back to user_code (2 frames back from build_instance)
@@ -117,7 +143,7 @@ class CnDDataInstanceBuilder:
                     user_frame = user_frame.f_back
                 else:
                     break
-            
+
             if user_frame:
                 # Merge locals and globals from the user's frame
                 self._caller_namespace = {**user_frame.f_globals, **user_frame.f_locals}
@@ -168,9 +194,9 @@ class CnDDataInstanceBuilder:
         # This is important for primitives where the same value may be referenced multiple times
         atoms_by_id = {}
         for atom in self._atoms:
-            if atom['id'] not in atoms_by_id:
-                atoms_by_id[atom['id']] = atom
-        
+            if atom["id"] not in atoms_by_id:
+                atoms_by_id[atom["id"]] = atom
+
         deduplicated_atoms = list(atoms_by_id.values())
 
         # Build types from deduplicated atoms to avoid duplicate entries in type.atoms
@@ -184,7 +210,7 @@ class CnDDataInstanceBuilder:
 
     def _get_id(self, obj: Any) -> str:
         """Get or create an ID for an object.
-        
+
         For primitives, uses value-based lookup to avoid race conditions with memory addresses.
         For objects, uses memory-based ID with spytial registry fallback.
         """
@@ -194,7 +220,7 @@ class CnDDataInstanceBuilder:
         elif isinstance(obj, str):
             # For strings, use quoted representation to distinguish from other IDs
             return f'"{obj}"'
-        
+
         # For non-primitive objects, use memory-based ID with caching
         oid = id(obj)
 
@@ -215,7 +241,7 @@ class CnDDataInstanceBuilder:
                     return spytial_id
             except ImportError:
                 pass
-            
+
             # Fall back to simple ID generation for objects
             # (This will be handled in the remainder of the method below)
             self._seen[oid] = f"n{self._id_counter}"
@@ -270,9 +296,7 @@ class CnDDataInstanceBuilder:
         # Add full type hierarchy to each atom
         type_hierarchy = [cls.__name__ for cls in inspect.getmro(type(obj))]
 
-
-
-        ## TODO: There's a bug here. 
+        ## TODO: There's a bug here.
         primary_atom_id = None
         for i, atom in enumerate(atoms):
             # Only override type and hierarchy for the PRIMARY atom (the one representing this object)

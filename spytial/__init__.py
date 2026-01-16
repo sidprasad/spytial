@@ -10,6 +10,7 @@ from .provider_system import (
 from .visualizer import diagram
 from .evaluator import evaluate
 from .dataclass_builder import dataclass_builder
+from .utils import AnnotatedType
 from .annotations import (
     # Class decorators (for decorating classes)
     orientation,
@@ -139,6 +140,8 @@ __all__ = [
     "Flag",
     "extract_spytial_annotations",
     "get_base_type",
+    # AnnotatedType for reusable type aliases with spytial annotations
+    "AnnotatedType",
     # Legacy type alias functions
     "annotate_type_alias",
     "get_type_alias_annotations",
