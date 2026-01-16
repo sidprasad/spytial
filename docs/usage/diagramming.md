@@ -34,8 +34,8 @@ from spytial import AnnotatedType, InferredEdge, Orientation
 
 Graph = AnnotatedType(
     Dict[int, List[int]],
-    InferredEdge(target_field="__values__"),
-    Orientation(direction="LR"),
+    InferredEdge(name="edge", selector="values"),
+    Orientation(selector="values", directions=["right"]),
 )
 
 graph = {0: [1, 2], 1: [3]}

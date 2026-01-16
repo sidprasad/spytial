@@ -6,7 +6,7 @@ into CnD-compatible atom/relation representations using relationalizers.
 """
 
 import inspect
-from typing import Any, Dict, List, Tuple, Type, Optional
+from typing import Any, Callable, Dict, List, Optional, Tuple, Type
 
 # Import base classes from domain-relationalizers
 from .domain_relationalizers.base import RelationalizerBase, Atom, Relation
@@ -98,7 +98,7 @@ class CnDDataInstanceBuilder:
         )
         self._as_type = None  # Store type for root object
 
-    def build_instance(self, obj: Any, as_type=None) -> Dict:
+    def build_instance(self, obj: Any, as_type: Optional[Any] = None) -> Dict:
         """Build a complete data instance from an object.
 
         Args:
@@ -643,7 +643,7 @@ class CnDDataInstanceBuilder:
         except Exception:
             return False
 
-    def register_reifier(self, type_name: str, reifier_func):
+    def register_reifier(self, type_name: str, reifier_func: Callable[..., Any]) -> None:
         """
         Register a custom reifier function for a specific type.
 

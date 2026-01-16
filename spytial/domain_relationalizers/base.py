@@ -79,7 +79,9 @@ class RelationalizerBase(abc.ABC):
         pass
 
     @abc.abstractmethod
-    def relationalize(self, obj: Any, walker_func) -> Tuple[List[Atom], List[Relation]]:
+    def relationalize(
+        self, obj: Any, walker_func: Any
+    ) -> Tuple[List[Atom], List[Relation]]:
         """
         Convert object to atoms and relations using structured types.
 
