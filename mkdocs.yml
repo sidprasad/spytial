@@ -11,7 +11,7 @@ nav:
       - Diagramming: usage/diagramming.md
       - Evaluator: usage/evaluator.md
       - Dataclass Builder: usage/dataclass-builder.md
-  - Annotations & Constraints: annotations.md
+  - Operations: operations.md
   - Custom Relationalizers: relationalizers.md
   - API Reference: reference/api.md
   - Development:
