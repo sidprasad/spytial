@@ -1,0 +1,49 @@
+site_name: sPyTial
+site_description: Spatial Python visualization with declarative constraints.
+repo_url: https://github.com/sidprasad/spytial
+repo_name: sidprasad/spytial
+site_dir: site
+
+nav:
+  - Home: index.md
+  - Getting Started: getting-started.md
+  - Usage:
+      - Diagramming: usage/diagramming.md
+      - Evaluator: usage/evaluator.md
+      - Dataclass Builder: usage/dataclass-builder.md
+  - Operations: operations.md
+  - Custom Relationalizers: relationalizers.md
+  - API Reference: reference/api.md
+  - Development:
+      - Python Integration Notes: pythonspecific.md
+      - Performance Metrics: PERFORMANCE_METRICS.md
+
+theme:
+  name: material
+  features:
+    - navigation.tabs
+    - navigation.expand
+    - content.code.copy
+
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          options:
+            docstring_style: google
+            show_root_heading: true
+            show_symbol_type_heading: true
+            show_source: false
+            members_order: source
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.tabbed
+  - pymdownx.highlight
+  - pymdownx.inlinehilite
+
+watch:
+  - spytial

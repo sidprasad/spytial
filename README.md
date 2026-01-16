@@ -42,8 +42,11 @@ spytial.diagram(data)
 spytial.diagram(data, method='file')
 ```
 
+## Documentation
+
+User-facing documentation is available at https://sidprasad.github.io/spytial/ and is generated with MkDocs from the codebase and Markdown guides.
+
 
 ## License
 This project is licensed under the MIT License. See the LICENSE file for details.
-
 
