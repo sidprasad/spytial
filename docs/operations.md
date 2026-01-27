@@ -22,7 +22,10 @@ These constraints influence the geometry the solver must satisfy, so they direct
 
 Directives control rendering details. They **do not change the underlying structure**, but they alter how nodes and edges are drawn.
 
-- **atomColor** / **edgeColor**: apply color to boxes or edges.
+- **atomColor** / **edgeColor**: apply color to boxes or edges. `edgeColor` supports additional styling options:
+  - `style`: line style (`solid`, `dashed`, `dotted`)
+  - `weight`: line thickness (integer)
+  - `showLabel` / `hideLabel`: control edge label visibility
 - **attribute**: replace outgoing edges with labels.
 - **inferredEdge**: add derived edges to expose implicit relationships.
 - **icon**: attach a graphical icon (optionally alongside the label).

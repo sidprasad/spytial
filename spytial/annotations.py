@@ -34,7 +34,7 @@ DIRECTIVE_TYPES = {
     "atomColor": ["selector", "value"],
     "size": ["selector", "height", "width"],
     "icon": ["selector", "path", "showLabels"],
-    "edgeColor": {"required": ["field", "value"], "optional": ["selector"]},
+    "edgeColor": {"required": ["field", "value"], "optional": ["selector", "style", "weight", "showLabel", "hideLabel"]},
     "projection": ["sig"],
     "attribute": {"required": ["field"], "optional": ["selector"]},
     "hideField": {"required": ["field"], "optional": ["selector"]},
@@ -226,15 +226,26 @@ class EdgeColor(SpytialAnnotation):
 
     Usage:
         ColoredEdges = Annotated[Tree, EdgeColor(field='children', value='red')]
+        StyledEdges = Annotated[Tree, EdgeColor(field='Uses', value='#d10000', style='dashed', weight=3, showLabel=False)]
     """
 
     _annotation_type = "edgeColor"
     _is_constraint = False
 
-    def __init__(self, *, field: str, value: str, selector: str = None):
+    def __init__(self, *, field: str, value: str, selector: str = None,
+                 style: str = None, weight: int = None, showLabel: bool = None,
+                 hideLabel: bool = None):
         kwargs = {"field": field, "value": value}
         if selector is not None:
             kwargs["selector"] = selector
+        if style is not None:
+            kwargs["style"] = style
+        if weight is not None:
+            kwargs["weight"] = weight
+        if showLabel is not None:
+            kwargs["showLabel"] = showLabel
+        if hideLabel is not None:
+            kwargs["hideLabel"] = hideLabel
         super().__init__(**kwargs)
 
 
