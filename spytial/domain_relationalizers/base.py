@@ -143,25 +143,25 @@ class RelationalizerBase(abc.ABC):
             # Frame inspection can fail in various scenarios - silently fall back
             return None
 
-    def _make_label_with_fallback(self, obj: Any, typ: str, caller_namespace: Optional[Dict] = None) -> str:
+    def _make_label_with_fallback(self, obj: Any, typ: str, caller_namespace: Optional[Dict] = None, atom_id: Optional[str] = None) -> str:
         """
-        Create a label with variable name if available, otherwise use object ID.
+        Create a label with variable name if available, otherwise use atom ID.
         
-        Priority: variable name > type_shortid
+        Priority: variable name > atom_id
         
         Args:
             obj: The object to label
             typ: The type name to use in the label
             caller_namespace: Optional namespace dict from the original caller
+            atom_id: Optional atom ID to use as fallback label
             
         Returns:
-            A label string like "Type:varname" or "Type_a3f2"
+            A label string like "varname" or the atom ID
         """
         # Try to get variable name
         var_name = self._try_get_variable_name(obj, caller_namespace)
         if var_name:
-            return var_name # f"{typ}:{var_name}"
+            return var_name
         
-        # Fallback: use last 4 hex digits of object ID
-        short_id = hex(id(obj))[-4:]
-        return f"{typ}:{short_id}"
+        # Fallback: use the atom ID if provided, otherwise type name
+        return atom_id if atom_id else typ
