@@ -175,7 +175,7 @@ def diagram(
 
     elif method == "browser":
         # Open in browser
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".html", delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".html", delete=False, encoding="utf-8") as f:
             f.write(html_content)
             temp_path = f.name
 
@@ -187,7 +187,7 @@ def diagram(
     elif method == "file":
         # Save to file
         output_path = Path("spytial_visualization.html")
-        with open(output_path, "w") as f:
+        with open(output_path, "w", encoding="utf-8") as f:
             f.write(html_content)
 
         print(f"Visualization saved to: {output_path.absolute()}")
@@ -386,7 +386,7 @@ def _run_headless(
         use_webdriver_manager = False
 
     # Create temporary HTML file
-    with tempfile.NamedTemporaryFile(mode="w", suffix=".html", delete=False) as f:
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".html", delete=False, encoding="utf-8") as f:
         f.write(html_content)
         temp_path = f.name
 
@@ -546,7 +546,7 @@ def _run_headless(
                     if perf_path:
                         import json
 
-                        with open(perf_path, "w") as f:
+                        with open(perf_path, "w", encoding="utf-8") as f:
                             json.dump(metrics, f, indent=2)
                         print(f"  Metrics saved to: {perf_path}")
 

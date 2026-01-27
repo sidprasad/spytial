@@ -108,7 +108,7 @@ def dataclass_builder(
     if method == "file":
         # Save to file
         output_file = "dataclass_builder.html"
-        with open(output_file, "w") as f:
+        with open(output_file, "w", encoding="utf-8") as f:
             f.write(html_content)
 
         if auto_open:
