@@ -120,7 +120,7 @@ def evaluate(
 
     elif method == "browser":
         # Open in browser
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".html", delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".html", delete=False, encoding="utf-8") as f:
             f.write(html_content)
             temp_path = f.name
 
@@ -132,7 +132,7 @@ def evaluate(
     elif method == "file":
         # Save to file
         output_path = Path("cnd_evaluator.html")
-        with open(output_path, "w") as f:
+        with open(output_path, "w", encoding="utf-8") as f:
             f.write(html_content)
 
         print(f"Evaluator saved to: {output_path.absolute()}")
