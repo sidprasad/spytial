@@ -14,7 +14,7 @@ class FallbackRelationalizer(RelationalizerBase):
         obj_id = walker_func._get_id(obj)
         typ = type(obj).__name__
         caller_namespace = getattr(walker_func, '_caller_namespace', None)
-        label = self._make_label_with_fallback(obj, typ, caller_namespace)
+        label = self._make_label_with_fallback(obj, typ, caller_namespace, obj_id)
         atom = Atom(id=obj_id, type=typ, label=label)
 
         # Fallback doesn't process any relations - just returns the object as-is
