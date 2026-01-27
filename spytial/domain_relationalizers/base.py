@@ -109,11 +109,16 @@ class RelationalizerBase(abc.ABC):
         
         This is a shared helper method that subclasses can use for improved labeling.
         """
+        # Names used internally by spytial that should not be returned as variable names
+        internal_names = {'obj', 'value', 'self', 'walker_func', 'builder', 'instance',
+                          'item', 'element', 'child', 'node', 'result', 'data', 'target', 'elt'}
+        
         try:
             # First try the provided caller namespace (most reliable)
             if caller_namespace:
                 for name, value in caller_namespace.items():
-                    if value is obj and not name.startswith('_') and name.isidentifier():
+                    if (value is obj and not name.startswith('_') 
+                        and name.isidentifier() and name not in internal_names):
                         return name
             
             # Fallback: walk up the call stack to find user's frame
@@ -130,12 +135,12 @@ class RelationalizerBase(abc.ABC):
                 if frame and frame.f_locals:
                     # Check if this frame looks like user code (has varied variable names)
                     local_vars = list(frame.f_locals.keys())
-                    # Skip frames dominated by generic names like 'obj', 'value', 'self'
-                    generic_names = {'obj', 'value', 'self', 'walker_func', 'builder', 'instance'}
-                    if len(local_vars) > len(generic_names.intersection(local_vars)):
+                    # Skip frames dominated by generic names
+                    if len(local_vars) > len(internal_names.intersection(local_vars)):
                         # This might be user code, check for the object
                         for name, value in frame.f_locals.items():
-                            if value is obj and not name.startswith('_') and name.isidentifier():
+                            if (value is obj and not name.startswith('_') 
+                                and name.isidentifier() and name not in internal_names):
                                 return name
             
             return None
