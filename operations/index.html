@@ -1068,7 +1068,10 @@
 <h2 id="directives-drawing">Directives (drawing)</h2>
 <p>Directives control rendering details. They <strong>do not change the underlying structure</strong>, but they alter how nodes and edges are drawn.</p>
 <ul>
-<li><strong>atomColor</strong> / <strong>edgeColor</strong>: apply color to boxes or edges.</li>
+<li><strong>atomColor</strong> / <strong>edgeColor</strong>: apply color to boxes or edges. <code>edgeColor</code> supports additional styling options:</li>
+<li><code>style</code>: line style (<code>solid</code>, <code>dashed</code>, <code>dotted</code>)</li>
+<li><code>weight</code>: line thickness (integer)</li>
+<li><code>showLabel</code> / <code>hideLabel</code>: control edge label visibility</li>
 <li><strong>attribute</strong>: replace outgoing edges with labels.</li>
 <li><strong>inferredEdge</strong>: add derived edges to expose implicit relationships.</li>
 <li><strong>icon</strong>: attach a graphical icon (optionally alongside the label).</li>
