@@ -8,9 +8,9 @@
     
     <script src="https://d3js.org/d3.v4.min.js"></script>
 
-    <script src="https://cdn.jsdelivr.net/npm/spytial-core@1.6.4/dist/browser/spytial-core-complete.global.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/spytial-core@1.6.4/dist/components/react-component-integration.global.js"></script>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/spytial-core@1.6.4/dist/components/react-component-integration.css" /> 
+    <script src="https://cdn.jsdelivr.net/npm/spytial-core@1.7.0/dist/browser/spytial-core-complete.global.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/spytial-core@1.7.0/dist/components/react-component-integration.global.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/spytial-core@1.7.0/dist/components/react-component-integration.css" /> 
     
     <style>
         body {
@@ -525,7 +525,7 @@
                 // Try to load the library again
                 console.log('Attempting to reload Spytial-Core library...');
                 const script = document.createElement('script');
-                script.src = 'https://cdn.jsdelivr.net/npm/spytial-core@1.6.4/dist/browser/spytial-core-complete.global.js';
+                script.src = 'https://cdn.jsdelivr.net/npm/spytial-core@1.7.0/dist/browser/spytial-core-complete.global.js';
                 script.onload = function() {
                     console.log('Spytial-Core library reloaded, retrying...');
                     setTimeout(loadGraph, 500);
