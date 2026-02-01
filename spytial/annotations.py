@@ -5,6 +5,7 @@
 
 import yaml
 import re
+import json
 
 
 class NoAliasDumper(yaml.Dumper):
@@ -990,6 +991,25 @@ def apply_if(condition, *decorators):
     return decorator
 
 
+def _deduplicate_entries(entries):
+    """
+    Remove duplicate entries while preserving order. Entries can be dicts
+    (e.g., {"orientation": {...}}) or scalar values (e.g., flag name).
+    We use a JSON-stable canonicalization for dicts and fallback to repr.
+    """
+    seen = set()
+    unique = []
+    for entry in entries:
+        try:
+            key = json.dumps(entry, sort_keys=True, default=str)
+        except Exception:
+            key = repr(entry)
+        if key not in seen:
+            seen.add(key)
+            unique.append(entry)
+    return unique
+
+
 def collect_decorators(obj, type_hint=None):
     """
     Collect all decorators applied to the class of the given object,
@@ -998,7 +1018,7 @@ def collect_decorators(obj, type_hint=None):
     Respects inheritance control flags (dont_inherit_constraints, dont_inherit_directives).
     :param obj: The object whose class decorators and object annotations should be collected.
     :param type_hint: Optional type hint to look up type alias annotations.
-    :return: A combined dictionary of constraints and directives.
+    :return: A combined dictionary of constraints and directives (deduplicated).
     """
     combined_registry = {"constraints": [], "directives": []}
 
@@ -1051,6 +1071,14 @@ def collect_decorators(obj, type_hint=None):
                 type_alias_annotations["constraints"]
             )
             combined_registry["directives"].extend(type_alias_annotations["directives"])
+
+    # Deduplicate entries to avoid excessive redundant YAML rules
+    combined_registry["constraints"] = _deduplicate_entries(
+        combined_registry["constraints"]
+    )
+    combined_registry["directives"] = _deduplicate_entries(
+        combined_registry["directives"]
+    )
 
     return combined_registry
 
