@@ -643,7 +643,9 @@ class CnDDataInstanceBuilder:
         except Exception:
             return False
 
-    def register_reifier(self, type_name: str, reifier_func: Callable[..., Any]) -> None:
+    def register_reifier(
+        self, type_name: str, reifier_func: Callable[..., Any]
+    ) -> None:
         """
         Register a custom reifier function for a specific type.
 

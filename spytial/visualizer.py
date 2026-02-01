@@ -175,7 +175,9 @@ def diagram(
 
     elif method == "browser":
         # Open in browser
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".html", delete=False, encoding="utf-8") as f:
+        with tempfile.NamedTemporaryFile(
+            mode="w", suffix=".html", delete=False, encoding="utf-8"
+        ) as f:
             f.write(html_content)
             temp_path = f.name
 
@@ -386,7 +388,9 @@ def _run_headless(
         use_webdriver_manager = False
 
     # Create temporary HTML file
-    with tempfile.NamedTemporaryFile(mode="w", suffix=".html", delete=False, encoding="utf-8") as f:
+    with tempfile.NamedTemporaryFile(
+        mode="w", suffix=".html", delete=False, encoding="utf-8"
+    ) as f:
         f.write(html_content)
         temp_path = f.name
 

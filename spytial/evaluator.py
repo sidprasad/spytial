@@ -120,7 +120,9 @@ def evaluate(
 
     elif method == "browser":
         # Open in browser
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".html", delete=False, encoding="utf-8") as f:
+        with tempfile.NamedTemporaryFile(
+            mode="w", suffix=".html", delete=False, encoding="utf-8"
+        ) as f:
             f.write(html_content)
             temp_path = f.name
 

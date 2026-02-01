@@ -26,6 +26,7 @@ from .annotations import (
     hideField,
     hideAtom,
     inferredEdge,
+    tag,
     flag,
     # Object annotation functions
     annotate,
@@ -42,6 +43,7 @@ from .annotations import (
     annotate_hideField,
     annotate_hideAtom,
     annotate_inferredEdge,
+    annotate_tag,
     annotate_flag,
     # Type alias annotation classes (for use with typing.Annotated)
     SpytialAnnotation,
@@ -58,6 +60,7 @@ from .annotations import (
     Projection,
     Attribute,
     InferredEdge,
+    Tag,
     Flag,
     extract_spytial_annotations,
     get_base_type,
@@ -105,6 +108,7 @@ __all__ = [
     "hideField",
     "hideAtom",
     "inferredEdge",
+    "tag",
     "flag",
     # Object annotation functions
     "annotate",
@@ -121,6 +125,7 @@ __all__ = [
     "annotate_hideField",
     "annotate_hideAtom",
     "annotate_inferredEdge",
+    "annotate_tag",
     "annotate_flag",
     # Type alias annotation classes (for use with typing.Annotated)
     "SpytialAnnotation",
@@ -137,6 +142,7 @@ __all__ = [
     "Projection",
     "Attribute",
     "InferredEdge",
+    "Tag",
     "Flag",
     "extract_spytial_annotations",
     "get_base_type",
