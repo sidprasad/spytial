@@ -4,7 +4,7 @@ This document outlines the agents or components involved in the `CnD` Python int
 
 ## Serializer Agent
 ### Description
-The `CnDSerializer` class is the primary agent responsible for serializing Python-like data structures into a format compatible with the CnD framework. It traverses objects, captures their attributes, and establishes relationships between them.
+The `CnDSerializer` class is the primary agent responsible for serializing Python-like data structures into a format compatible with the Spytial-Core framework. It traverses objects, captures their attributes, and establishes relationships between them.
 
 ### Key Features
 - Handles primitive types, collections, and custom objects.

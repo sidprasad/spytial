@@ -10,18 +10,21 @@ import json
 import os
 import yaml
 from dataclasses import is_dataclass
-from typing import Any
+from typing import Any, Optional, TYPE_CHECKING, Union
+
+if TYPE_CHECKING:
+    from IPython.display import HTML as IPythonHTML
 
 from .provider_system import CnDDataInstanceBuilder
 from .annotations import collect_decorators
 
 
 def _generate_cnd_spec(instance: Any) -> str:
-    """Generate CnD spec in YAML format from dataclass instance annotations."""
+    """Generate Spytial-Core spec in YAML format from dataclass instance annotations."""
     if not is_dataclass(instance):
         raise ValueError(f"{instance} is not a dataclass instance")
 
-    # Collect CnD annotations directly from the instance
+    # Collect Spytial-Core annotations directly from the instance
     annotations = collect_decorators(instance)
 
     # Build spec structure
@@ -33,7 +36,9 @@ def _generate_cnd_spec(instance: Any) -> str:
     return yaml.dump(spec, default_flow_style=False)
 
 
-def dataclass_builder(instance: Any, method: str = "inline", auto_open: bool = True):
+def dataclass_builder(
+    instance: Any, method: str = "inline", auto_open: bool = True
+) -> Optional[Union[str, "IPythonHTML"]]:
     """
     Create a visual builder interface for a dataclass instance using spytial-core.
 
@@ -74,10 +79,10 @@ def dataclass_builder(instance: Any, method: str = "inline", auto_open: bool = T
     # Get the dataclass type from the instance
     dataclass_type = type(instance)
 
-    # Generate CnD spec from the instance's annotations
+    # Generate Spytial-Core spec from the instance's annotations
     cnd_spec = _generate_cnd_spec(instance)
 
-    # Convert to CnD data instance format (using the provided instance)
+    # Convert to Spytial-Core data instance format (using the provided instance)
     builder = CnDDataInstanceBuilder()
     initial_data = builder.build_instance(instance)
 
@@ -103,7 +108,7 @@ def dataclass_builder(instance: Any, method: str = "inline", auto_open: bool = T
     if method == "file":
         # Save to file
         output_file = "dataclass_builder.html"
-        with open(output_file, "w") as f:
+        with open(output_file, "w", encoding="utf-8") as f:
             f.write(html_content)
 
         if auto_open:

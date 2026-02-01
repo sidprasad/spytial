@@ -79,7 +79,9 @@ class RelationalizerBase(abc.ABC):
         pass
 
     @abc.abstractmethod
-    def relationalize(self, obj: Any, walker_func) -> Tuple[List[Atom], List[Relation]]:
+    def relationalize(
+        self, obj: Any, walker_func: Any
+    ) -> Tuple[List[Atom], List[Relation]]:
         """
         Convert object to atoms and relations using structured types.
 
@@ -94,26 +96,51 @@ class RelationalizerBase(abc.ABC):
         """
         pass
 
-    def _try_get_variable_name(self, obj: Any, caller_namespace: Optional[Dict] = None) -> Optional[str]:
+    def _try_get_variable_name(
+        self, obj: Any, caller_namespace: Optional[Dict] = None
+    ) -> Optional[str]:
         """
         Attempt to find the variable name for an object.
-        
+
         Args:
             obj: The object to find a name for
             caller_namespace: Optional namespace dict from the original caller (diagram/evaluate)
-        
+
         Returns:
             Variable name if found, None otherwise
-        
+
         This is a shared helper method that subclasses can use for improved labeling.
         """
+        # Names used internally by spytial that should not be returned as variable names
+        internal_names = {
+            "obj",
+            "value",
+            "self",
+            "walker_func",
+            "builder",
+            "instance",
+            "item",
+            "element",
+            "child",
+            "node",
+            "result",
+            "data",
+            "target",
+            "elt",
+        }
+
         try:
             # First try the provided caller namespace (most reliable)
             if caller_namespace:
                 for name, value in caller_namespace.items():
-                    if value is obj and not name.startswith('_') and name.isidentifier():
+                    if (
+                        value is obj
+                        and not name.startswith("_")
+                        and name.isidentifier()
+                        and name not in internal_names
+                    ):
                         return name
-            
+
             # Fallback: walk up the call stack to find user's frame
             # This is less reliable but better than nothing
             frame = inspect.currentframe()
@@ -123,43 +150,53 @@ class RelationalizerBase(abc.ABC):
                 if frame is None:
                     break
                 frame = frame.f_back
-                
+
                 # Skip frames that are clearly internal (have 'obj', 'value', 'walker_func', etc)
                 if frame and frame.f_locals:
                     # Check if this frame looks like user code (has varied variable names)
                     local_vars = list(frame.f_locals.keys())
-                    # Skip frames dominated by generic names like 'obj', 'value', 'self'
-                    generic_names = {'obj', 'value', 'self', 'walker_func', 'builder', 'instance'}
-                    if len(local_vars) > len(generic_names.intersection(local_vars)):
+                    # Skip frames dominated by generic names
+                    if len(local_vars) > len(internal_names.intersection(local_vars)):
                         # This might be user code, check for the object
                         for name, value in frame.f_locals.items():
-                            if value is obj and not name.startswith('_') and name.isidentifier():
+                            if (
+                                value is obj
+                                and not name.startswith("_")
+                                and name.isidentifier()
+                                and name not in internal_names
+                            ):
                                 return name
-            
+
             return None
         except Exception:
             # Frame inspection can fail in various scenarios - silently fall back
             return None
 
-    def _make_label_with_fallback(self, obj: Any, typ: str, caller_namespace: Optional[Dict] = None) -> str:
+    def _make_label_with_fallback(
+        self,
+        obj: Any,
+        typ: str,
+        caller_namespace: Optional[Dict] = None,
+        atom_id: Optional[str] = None,
+    ) -> str:
         """
-        Create a label with variable name if available, otherwise use object ID.
-        
-        Priority: variable name > type_shortid
-        
+        Create a label with variable name if available, otherwise use atom ID.
+
+        Priority: variable name > atom_id
+
         Args:
             obj: The object to label
             typ: The type name to use in the label
             caller_namespace: Optional namespace dict from the original caller
-            
+            atom_id: Optional atom ID to use as fallback label
+
         Returns:
-            A label string like "Type:varname" or "Type_a3f2"
+            A label string like "varname" or the atom ID
         """
         # Try to get variable name
         var_name = self._try_get_variable_name(obj, caller_namespace)
         if var_name:
-            return var_name # f"{typ}:{var_name}"
-        
-        # Fallback: use last 4 hex digits of object ID
-        short_id = hex(id(obj))[-4:]
-        return f"{typ}:{short_id}"
+            return var_name
+
+        # Fallback: use the atom ID if provided, otherwise type name
+        return atom_id if atom_id else typ

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Simple test file to validate object-level CND annotations.
+Simple test file to validate object-level Spytial-Core annotations.
 """
 
 from spytial.annotations import (
@@ -220,7 +220,7 @@ def test_self_reference_in_selectors():
     print("✓ Self-reference in selectors works correctly")
 
 if __name__ == "__main__":
-    print("Testing Object-Level CND Annotations\n")
+    print("Testing Object-Level Spytial-Core Annotations\n")
     
     test_object_annotations_basic()
     test_object_annotations_builtin_types()

@@ -163,7 +163,7 @@ For very large datasets or many iterations, the browser may become unresponsive.
 
 Based on metrics, you can identify bottlenecks:
 
-- **High parseSpec time**: CnD specification is complex, consider simplifying constraints
+- **High parseSpec time**: Spytial-Core specification is complex, consider simplifying constraints
 - **High generateLayout time**: Data structure is large or constraints are expensive to solve
 - **High renderLayout time**: Many visual elements, consider simplifying styling or reducing data
 

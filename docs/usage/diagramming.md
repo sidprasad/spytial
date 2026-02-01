@@ -30,12 +30,13 @@ Use `AnnotatedType` (or `typing.Annotated`) to attach spatial constraints to a t
 
 ```python
 from typing import Dict, List
-from spytial import AnnotatedType, InferredEdge, Orientation
+from spytial import AnnotatedType, InferredEdge, Orientation, Tag
 
 Graph = AnnotatedType(
     Dict[int, List[int]],
-    InferredEdge(target_field="__values__"),
-    Orientation(direction="LR"),
+    InferredEdge(name="edge", selector="values"),
+    Orientation(selector="values", directions=["right"]),
+    Tag(toTag="univ", name="count", value="values"),  # display value counts
 )
 
 graph = {0: [1, 2], 1: [3]}

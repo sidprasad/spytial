@@ -34,12 +34,19 @@ DIRECTIVE_TYPES = {
     "atomColor": ["selector", "value"],
     "size": ["selector", "height", "width"],
     "icon": ["selector", "path", "showLabels"],
-    "edgeColor": {"required": ["field", "value"], "optional": ["selector"]},
+    "edgeColor": {
+        "required": ["field", "value"],
+        "optional": ["selector", "filter", "style", "weight", "showLabel", "hidden"],
+    },
     "projection": ["sig"],
-    "attribute": {"required": ["field"], "optional": ["selector"]},
-    "hideField": {"required": ["field"], "optional": ["selector"]},
+    "attribute": {"required": ["field"], "optional": ["selector", "filter"]},
+    "hideField": {"required": ["field"], "optional": ["selector", "filter"]},
     "hideAtom": ["selector"],
-    "inferredEdge": {"required": ["name", "selector"], "optional": ["color"]},
+    "inferredEdge": {
+        "required": ["name", "selector"],
+        "optional": ["color", "style", "weight"],
+    },
+    "tag": {"required": ["toTag", "name", "value"], "optional": []},
     "flag": ["name"],
 }
 
@@ -226,15 +233,39 @@ class EdgeColor(SpytialAnnotation):
 
     Usage:
         ColoredEdges = Annotated[Tree, EdgeColor(field='children', value='red')]
+        StyledEdges = Annotated[Tree, EdgeColor(field='Uses', value='#d10000', style='dashed', weight=3, showLabel=False)]
+        FilteredEdges = Annotated[Tree, EdgeColor(field='link', value='blue', filter='link & Active')]
+        HiddenEdges = Annotated[Tree, EdgeColor(field='internal', value='gray', hidden=True)]
     """
 
     _annotation_type = "edgeColor"
     _is_constraint = False
 
-    def __init__(self, *, field: str, value: str, selector: str = None):
+    def __init__(
+        self,
+        *,
+        field: str,
+        value: str,
+        selector: str = None,
+        filter: str = None,
+        style: str = None,
+        weight: int = None,
+        showLabel: bool = None,
+        hidden: bool = None,
+    ):
         kwargs = {"field": field, "value": value}
         if selector is not None:
             kwargs["selector"] = selector
+        if filter is not None:
+            kwargs["filter"] = filter
+        if style is not None:
+            kwargs["style"] = style
+        if weight is not None:
+            kwargs["weight"] = weight
+        if showLabel is not None:
+            kwargs["showLabel"] = showLabel
+        if hidden is not None:
+            kwargs["hidden"] = hidden
         super().__init__(**kwargs)
 
 
@@ -244,15 +275,18 @@ class HideField(SpytialAnnotation):
 
     Usage:
         CleanView = Annotated[MyClass, HideField(field='_private')]
+        Filtered = Annotated[MyClass, HideField(field='debug', filter='debug & Production')]
     """
 
     _annotation_type = "hideField"
     _is_constraint = False
 
-    def __init__(self, *, field: str, selector: str = None):
+    def __init__(self, *, field: str, selector: str = None, filter: str = None):
         kwargs = {"field": field}
         if selector is not None:
             kwargs["selector"] = selector
+        if filter is not None:
+            kwargs["filter"] = filter
         super().__init__(**kwargs)
 
 
@@ -292,15 +326,18 @@ class Attribute(SpytialAnnotation):
 
     Usage:
         WithAttr = Annotated[MyType, Attribute(field='value')]
+        Filtered = Annotated[MyType, Attribute(field='status', filter='status & Active')]
     """
 
     _annotation_type = "attribute"
     _is_constraint = False
 
-    def __init__(self, *, field: str, selector: str = None):
+    def __init__(self, *, field: str, selector: str = None, filter: str = None):
         kwargs = {"field": field}
         if selector is not None:
             kwargs["selector"] = selector
+        if filter is not None:
+            kwargs["filter"] = filter
         super().__init__(**kwargs)
 
 
@@ -310,15 +347,28 @@ class InferredEdge(SpytialAnnotation):
 
     Usage:
         WithEdges = Annotated[Graph, InferredEdge(name='connection', selector='nodes')]
+        StyledEdges = Annotated[Graph, InferredEdge(name='ancestor', selector='^parent', color='gray', style='dotted', weight=2)]
     """
 
     _annotation_type = "inferredEdge"
     _is_constraint = False
 
-    def __init__(self, *, name: str, selector: str, color: str = None):
+    def __init__(
+        self,
+        *,
+        name: str,
+        selector: str,
+        color: str = None,
+        style: str = None,
+        weight: int = None,
+    ):
         kwargs = {"name": name, "selector": selector}
         if color is not None:
             kwargs["color"] = color
+        if style is not None:
+            kwargs["style"] = style
+        if weight is not None:
+            kwargs["weight"] = weight
         super().__init__(**kwargs)
 
 
@@ -339,6 +389,28 @@ class Flag(SpytialAnnotation):
     def to_entry(self):
         """Flags store just the name as a scalar."""
         return {self._annotation_type: self.kwargs["name"]}
+
+
+class Tag(SpytialAnnotation):
+    """
+    Tag directive for adding computed attributes to nodes.
+
+    Unlike 'attribute', this does NOT remove edges - it adds computed
+    attribute values to nodes based on selector evaluation.
+
+    Usage:
+        # Simple binary tag - displays as "age: 25"
+        Tagged = Annotated[MyType, Tag(toTag='Person', name='age', value='age')]
+
+        # Ternary selector - displays as "score[Math]: 95"
+        Graded = Annotated[MyType, Tag(toTag='Student', name='score', value='grades')]
+    """
+
+    _annotation_type = "tag"
+    _is_constraint = False
+
+    def __init__(self, *, toTag: str, name: str, value: str):
+        super().__init__(toTag=toTag, name=name, value=value)
 
 
 def extract_spytial_annotations(type_hint):
@@ -732,6 +804,7 @@ attribute = _create_decorator("attribute")
 hideField = _create_decorator("hideField")
 hideAtom = _create_decorator("hideAtom")
 inferredEdge = _create_decorator("inferredEdge")
+tag = _create_decorator("tag")
 flag = _create_decorator("flag")
 
 
@@ -868,6 +941,11 @@ def annotate_hideAtom(obj, **kwargs):
 def annotate_inferredEdge(obj, **kwargs):
     """Apply inferredEdge annotation to a specific object."""
     return _annotate_object(obj, "inferredEdge", **kwargs)
+
+
+def annotate_tag(obj, **kwargs):
+    """Apply tag annotation to a specific object."""
+    return _annotate_object(obj, "tag", **kwargs)
 
 
 def annotate_flag(obj, **kwargs):

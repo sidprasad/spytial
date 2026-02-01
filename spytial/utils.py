@@ -2,6 +2,8 @@
 Shared utilities for sPyTial.
 """
 
+from typing import Any
+
 try:
     from IPython.display import display, HTML
 
@@ -10,7 +12,7 @@ except ImportError:
     HAS_IPYTHON = False
 
 
-def is_notebook():
+def is_notebook() -> bool:
     """
     Detect if we're running in a Jupyter notebook environment.
     Returns True if in a notebook, False otherwise.
@@ -30,7 +32,7 @@ def is_notebook():
         return False
 
 
-def default_method():
+def default_method() -> str:
     """
     Return the default display method based on environment.
     Returns 'inline' in notebooks, 'browser' otherwise.
@@ -51,11 +53,11 @@ class Typed:
         diagram(Typed(g, Graph))  # Annotations from Graph will be applied
     """
 
-    def __init__(self, value, type_hint):
+    def __init__(self, value: Any, type_hint: Any) -> None:
         self.value = value
         self.type_hint = type_hint
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"Typed({self.value!r}, {self.type_hint})"
 
 
@@ -78,7 +80,7 @@ class AnnotatedType:
     - A constructor (wraps values with the type info)
     """
 
-    def __init__(self, base_type, *annotations):
+    def __init__(self, base_type: Any, *annotations: Any) -> None:
         """
         Create an annotated type alias.
 
@@ -97,7 +99,7 @@ class AnnotatedType:
         else:
             self._annotated = base_type
 
-    def __call__(self, value):
+    def __call__(self, value: Any) -> "Typed":
         """
         Wrap a value with this type's annotations.
 
@@ -109,7 +111,7 @@ class AnnotatedType:
         """
         return Typed(value, self._annotated)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         ann_str = ", ".join(repr(a) for a in self.annotations)
         return f"AnnotatedType({self.base_type}, {ann_str})"
 

@@ -8,9 +8,9 @@
     
     <script src="https://d3js.org/d3.v4.min.js"></script>
 
-    <script src="https://cdn.jsdelivr.net/npm/spytial-core@1.4.23/dist/browser/spytial-core-complete.global.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/spytial-core@1.4.23/dist/components/react-component-integration.global.js"></script>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/spytial-core@1.4.23/dist/components/react-component-integration.css" /> 
+    <script src="https://cdn.jsdelivr.net/npm/spytial-core@1.8.1/dist/browser/spytial-core-complete.global.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/spytial-core@1.8.1/dist/components/react-component-integration.global.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/spytial-core@1.8.1/dist/components/react-component-integration.css" /> 
     
     <style>
         body {
@@ -155,7 +155,7 @@
                 console.log('Data exported successfully');
                 console.log('Data preview:', jsonString.substring(0, 200));
                 
-                // Convert CnD data to Python code
+                // Convert Spytial-Core data to Python code
                 const pythonCode = convertCnDToPythonCode(cleanData, dataclassName);
                 
                 // Store globally so user can access via console
@@ -173,7 +173,7 @@
         }
 
         /**
-         * Convert CnD relational data to Python dataclass constructor code
+         * Convert Spytial-Core relational data to Python dataclass constructor code
          */
         function convertCnDToPythonCode(cndData, dataclassName) {
             // Build a map of atom ID to its value/label
@@ -517,21 +517,21 @@
                 return;
             }
 
-            // Check if CnD Core is available
+            // Check if Spytial-Core Core is available
             if (typeof CndCore === 'undefined') {
-                console.error('CnD Core library is not available');
-                showError('CnD Core library failed to load. The visualization cannot be displayed.');
+                console.error('Spytial-Core Core library is not available');
+                showError('Spytial-Core Core library failed to load. The visualization cannot be displayed.');
                 
                 // Try to load the library again
-                console.log('Attempting to reload CnD library...');
+                console.log('Attempting to reload Spytial-Core library...');
                 const script = document.createElement('script');
-                script.src = 'https://cdn.jsdelivr.net/npm/spytial-core@1.4.23/dist/browser/spytial-core-complete.global.js';
+                script.src = 'https://cdn.jsdelivr.net/npm/spytial-core@1.8.1/dist/browser/spytial-core-complete.global.js';
                 script.onload = function() {
-                    console.log('CnD library reloaded, retrying...');
+                    console.log('Spytial-Core library reloaded, retrying...');
                     setTimeout(loadGraph, 500);
                 };
                 script.onerror = function() {
-                    showError('Failed to load CnD library even on retry');
+                    showError('Failed to load Spytial-Core library even on retry');
                 };
                 document.head.appendChild(script);
                 return;
@@ -565,8 +565,8 @@
                 // Store the initial data instance
                 currentDataInstance = dataInstance;
 
-                // Set the CnD spec on the component
-                console.log('Setting CnD spec...');
+                // Set the Spytial-Core spec on the component
+                console.log('Setting Spytial-Core spec...');
                 graphElement.setCnDSpec(cndSpec);
 
                 // Set the data instance on the component

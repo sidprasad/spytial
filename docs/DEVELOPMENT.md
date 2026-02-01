@@ -61,7 +61,7 @@ pip install package>=1.0.0
 
 ## Publishing
 
-See [docs/PUBLISHING.md](docs/PUBLISHING.md) for complete publishing instructions.
+See [PUBLISHING.md](PUBLISHING.md) for complete publishing instructions.
 
 ### Quick validation:
 ```bash

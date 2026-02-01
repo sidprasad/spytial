@@ -9,6 +9,7 @@ import tempfile
 import webbrowser
 from pathlib import Path
 import os
+from typing import Any, Dict, Optional, Union
 
 from .utils import is_notebook, default_method
 
@@ -27,27 +28,19 @@ except ImportError:
     HAS_JINJA2 = False
 
 
-def quick_diagram(obj):
-    """
-    Quick display function for Jupyter notebooks.
-    Alias for diagram(obj, method="inline").
-    """
-    return diagram(obj, method="inline")
-
-
 def diagram(
-    obj,
-    method=None,
-    auto_open=True,
-    width=None,
-    height=None,
-    title=None,
-    perf_path=None,
-    perf_iterations=None,
-    headless=False,
-    timeout=None,
-    as_type=None,
-):
+    obj: Any,
+    method: Optional[str] = None,
+    auto_open: bool = True,
+    width: Optional[int] = None,
+    height: Optional[int] = None,
+    title: Optional[str] = None,
+    perf_path: Optional[Union[str, Path]] = None,
+    perf_iterations: Optional[int] = None,
+    headless: bool = False,
+    timeout: Optional[float] = None,
+    as_type: Optional[Any] = None,
+) -> Optional[Union[str, Dict[str, Any]]]:
     """
     Display a Python object in the sPyTial visualizer.
 
@@ -182,7 +175,9 @@ def diagram(
 
     elif method == "browser":
         # Open in browser
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".html", delete=False) as f:
+        with tempfile.NamedTemporaryFile(
+            mode="w", suffix=".html", delete=False, encoding="utf-8"
+        ) as f:
             f.write(html_content)
             temp_path = f.name
 
@@ -194,7 +189,7 @@ def diagram(
     elif method == "file":
         # Save to file
         output_path = Path("spytial_visualization.html")
-        with open(output_path, "w") as f:
+        with open(output_path, "w", encoding="utf-8") as f:
             f.write(html_content)
 
         print(f"Visualization saved to: {output_path.absolute()}")
@@ -332,7 +327,7 @@ def _generate_visualizer_html(
 
     # And error handling in react components COULD go here, depending on What we want to include?
     # Like, mount stuff if needed?
-    ## Error viz, CnD Builder, etc.
+    ## Error viz, Spytial-Core Builder, etc.
 
     try:
         template = env.get_template("visualizer_template.html")
@@ -393,7 +388,9 @@ def _run_headless(
         use_webdriver_manager = False
 
     # Create temporary HTML file
-    with tempfile.NamedTemporaryFile(mode="w", suffix=".html", delete=False) as f:
+    with tempfile.NamedTemporaryFile(
+        mode="w", suffix=".html", delete=False, encoding="utf-8"
+    ) as f:
         f.write(html_content)
         temp_path = f.name
 
@@ -553,7 +550,7 @@ def _run_headless(
                     if perf_path:
                         import json
 
-                        with open(perf_path, "w") as f:
+                        with open(perf_path, "w", encoding="utf-8") as f:
                             json.dump(metrics, f, indent=2)
                         print(f"  Metrics saved to: {perf_path}")
 
