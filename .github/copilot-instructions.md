@@ -196,6 +196,8 @@ python -m pytest test/ -v
 - **Groups**: `@group(field='items', groupOn=0, addToGroup=1)`  
 - **Styling**: `@atomColor(selector='self', value='red')`
 - **Cycles**: `@cyclic(selector='root', direction='clockwise')`
+- **Tags**: `@tag(toTag='Person', name='age', value='age')`
+- **Edge Styling**: `@edgeColor(field='link', value='blue', style='dashed', hidden=False)`
 
 ### Method Signatures
 ```python

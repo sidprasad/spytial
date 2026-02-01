@@ -25,11 +25,24 @@ Directives control rendering details. They **do not change the underlying struct
 - **atomColor** / **edgeColor**: apply color to boxes or edges. `edgeColor` supports additional styling options:
   - `style`: line style (`solid`, `dashed`, `dotted`)
   - `weight`: line thickness (integer)
-  - `showLabel` / `hideLabel`: control edge label visibility
-- **attribute**: replace outgoing edges with labels.
-- **inferredEdge**: add derived edges to expose implicit relationships.
+  - `showLabel`: control edge label visibility
+  - `filter`: N-ary selector to filter which tuples to style
+  - `hidden`: hide the edge entirely while keeping the relationship
+- **attribute**: replace outgoing edges with labels. Supports:
+  - `selector`: filter by source atom
+  - `filter`: N-ary selector to filter which tuples to include
+- **tag**: add computed attributes to nodes without removing edges. Unlike `attribute`, this keeps the edge visible while displaying the value as an attribute. Requires:
+  - `toTag`: selector for atoms that receive this tag
+  - `name`: attribute name to display
+  - `value`: selector returning the attribute values
+- **inferredEdge**: add derived edges to expose implicit relationships. Supports:
+  - `color`: edge color
+  - `style`: line style (`solid`, `dashed`, `dotted`)
+  - `weight`: line thickness
 - **icon**: attach a graphical icon (optionally alongside the label).
-- **hideField**: suppress drawing a field edge.
+- **hideField**: suppress drawing a field edge. Supports:
+  - `selector`: filter by source atom
+  - `filter`: N-ary selector to filter which tuples to hide
 
 Two operations are often used alongside directives:
 
@@ -51,6 +64,44 @@ class Node:
     def __init__(self, value, children=None):
         self.value = value
         self.children = children or []
+```
+
+### Using the tag directive
+
+The `tag` directive displays computed values as node attributes without removing the underlying edges:
+
+```python
+import spytial
+
+@spytial.tag(toTag="Person", name="age", value="age")
+@spytial.tag(toTag="Student", name="grade", value="currentGrade")
+class Person:
+    def __init__(self, name, age):
+        self.name = name
+        self.age = age
+
+# For ternary selectors, the tag shows as: score[Math]: 95
+@spytial.tag(toTag="Student", name="score", value="grades")
+class Student(Person):
+    def __init__(self, name, age, grades):
+        super().__init__(name, age)
+        self.grades = grades  # e.g., {"Math": 95, "English": 87}
+```
+
+### Styling edges
+
+Edge appearance can be customized with color, style, weight, and visibility:
+
+```python
+import spytial
+
+@spytial.edgeColor(field="parent", value="blue", style="solid", weight=2)
+@spytial.edgeColor(field="sibling", value="gray", style="dashed", hidden=False)
+@spytial.edgeColor(field="internal", value="red", hidden=True)  # hide edge entirely
+class TreeNode:
+    def __init__(self, value, parent=None):
+        self.value = value
+        self.parent = parent
 ```
 
 ## Other attachment methods
