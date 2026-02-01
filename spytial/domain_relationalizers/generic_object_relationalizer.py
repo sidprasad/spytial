@@ -22,15 +22,20 @@ class GenericObjectRelationalizer(RelationalizerBase):
     def can_handle(self, obj: Any) -> bool:
         # Handle objects with __dict__, __slots__, or any class-based object (excluding built-ins handled elsewhere)
         return (
-            hasattr(obj, "__dict__") 
-            or hasattr(obj, "__slots__") 
-            or (hasattr(obj, "__class__") and not isinstance(obj, (list, tuple, dict, str, int, float, bool, type)))
+            hasattr(obj, "__dict__")
+            or hasattr(obj, "__slots__")
+            or (
+                hasattr(obj, "__class__")
+                and not isinstance(
+                    obj, (list, tuple, dict, str, int, float, bool, type)
+                )
+            )
         )
 
     def relationalize(self, obj: Any, walker_func) -> Tuple[List[Atom], List[Relation]]:
         obj_id = walker_func._get_id(obj)
         typ = type(obj).__name__
-        caller_namespace = getattr(walker_func, '_caller_namespace', None)
+        caller_namespace = getattr(walker_func, "_caller_namespace", None)
         label = self._make_label_with_fallback(obj, typ, caller_namespace, obj_id)
         atom = Atom(id=obj_id, type=typ, label=label)
 
@@ -40,16 +45,16 @@ class GenericObjectRelationalizer(RelationalizerBase):
         for name, value in inspect.getmembers(obj):
             # Skip private attributes, methods, functions, modules, and built-ins
             if (
-                name.startswith("_") 
-                or inspect.ismethod(value) 
-                or inspect.isfunction(value) 
+                name.startswith("_")
+                or inspect.ismethod(value)
+                or inspect.isfunction(value)
                 or inspect.ismodule(value)
                 or inspect.isbuiltin(value)  # Catch built-in methods
             ):
                 continue
-            
+
             # Handle properties and descriptors by evaluating on the instance
-            if isinstance(value, property) or hasattr(value, '__get__'):
+            if isinstance(value, property) or hasattr(value, "__get__"):
                 try:
                     actual_value = getattr(obj, name)
                     # Skip if it's still a descriptor or primitive
