@@ -657,6 +657,34 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Primary attachment: class decorators">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#using-the-tag-directive" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Using the tag directive
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#styling-edges" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Styling edges
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -960,6 +988,34 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Primary attachment: class decorators">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#using-the-tag-directive" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Using the tag directive
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#styling-edges" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Styling edges
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -1071,11 +1127,24 @@
 <li><strong>atomColor</strong> / <strong>edgeColor</strong>: apply color to boxes or edges. <code>edgeColor</code> supports additional styling options:</li>
 <li><code>style</code>: line style (<code>solid</code>, <code>dashed</code>, <code>dotted</code>)</li>
 <li><code>weight</code>: line thickness (integer)</li>
-<li><code>showLabel</code> / <code>hideLabel</code>: control edge label visibility</li>
-<li><strong>attribute</strong>: replace outgoing edges with labels.</li>
-<li><strong>inferredEdge</strong>: add derived edges to expose implicit relationships.</li>
+<li><code>showLabel</code>: control edge label visibility</li>
+<li><code>filter</code>: N-ary selector to filter which tuples to style</li>
+<li><code>hidden</code>: hide the edge entirely while keeping the relationship</li>
+<li><strong>attribute</strong>: replace outgoing edges with labels. Supports:</li>
+<li><code>selector</code>: filter by source atom</li>
+<li><code>filter</code>: N-ary selector to filter which tuples to include</li>
+<li><strong>tag</strong>: add computed attributes to nodes without removing edges. Unlike <code>attribute</code>, this keeps the edge visible while displaying the value as an attribute. Requires:</li>
+<li><code>toTag</code>: selector for atoms that receive this tag</li>
+<li><code>name</code>: attribute name to display</li>
+<li><code>value</code>: selector returning the attribute values</li>
+<li><strong>inferredEdge</strong>: add derived edges to expose implicit relationships. Supports:</li>
+<li><code>color</code>: edge color</li>
+<li><code>style</code>: line style (<code>solid</code>, <code>dashed</code>, <code>dotted</code>)</li>
+<li><code>weight</code>: line thickness</li>
 <li><strong>icon</strong>: attach a graphical icon (optionally alongside the label).</li>
-<li><strong>hideField</strong>: suppress drawing a field edge.</li>
+<li><strong>hideField</strong>: suppress drawing a field edge. Supports:</li>
+<li><code>selector</code>: filter by source atom</li>
+<li><code>filter</code>: N-ary selector to filter which tuples to hide</li>
 </ul>
 <p>Two operations are often used alongside directives:</p>
 <ul>
@@ -1093,6 +1162,36 @@
     <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="n">children</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">value</span> <span class="o">=</span> <span class="n">value</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">children</span> <span class="o">=</span> <span class="n">children</span> <span class="ow">or</span> <span class="p">[]</span>
+</code></pre></div>
+<h3 id="using-the-tag-directive">Using the tag directive</h3>
+<p>The <code>tag</code> directive displays computed values as node attributes without removing the underlying edges:</p>
+<div class="highlight"><pre><span></span><code><span class="kn">import</span><span class="w"> </span><span class="nn">spytial</span>
+
+<span class="nd">@spytial</span><span class="o">.</span><span class="n">tag</span><span class="p">(</span><span class="n">toTag</span><span class="o">=</span><span class="s2">&quot;Person&quot;</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">&quot;age&quot;</span><span class="p">,</span> <span class="n">value</span><span class="o">=</span><span class="s2">&quot;age&quot;</span><span class="p">)</span>
+<span class="nd">@spytial</span><span class="o">.</span><span class="n">tag</span><span class="p">(</span><span class="n">toTag</span><span class="o">=</span><span class="s2">&quot;Student&quot;</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">&quot;grade&quot;</span><span class="p">,</span> <span class="n">value</span><span class="o">=</span><span class="s2">&quot;currentGrade&quot;</span><span class="p">)</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">Person</span><span class="p">:</span>
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">age</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="n">name</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">age</span> <span class="o">=</span> <span class="n">age</span>
+
+<span class="c1"># For ternary selectors, the tag shows as: score[Math]: 95</span>
+<span class="nd">@spytial</span><span class="o">.</span><span class="n">tag</span><span class="p">(</span><span class="n">toTag</span><span class="o">=</span><span class="s2">&quot;Student&quot;</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">&quot;score&quot;</span><span class="p">,</span> <span class="n">value</span><span class="o">=</span><span class="s2">&quot;grades&quot;</span><span class="p">)</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">Student</span><span class="p">(</span><span class="n">Person</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">age</span><span class="p">,</span> <span class="n">grades</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">age</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">grades</span> <span class="o">=</span> <span class="n">grades</span>  <span class="c1"># e.g., {&quot;Math&quot;: 95, &quot;English&quot;: 87}</span>
+</code></pre></div>
+<h3 id="styling-edges">Styling edges</h3>
+<p>Edge appearance can be customized with color, style, weight, and visibility:</p>
+<div class="highlight"><pre><span></span><code><span class="kn">import</span><span class="w"> </span><span class="nn">spytial</span>
+
+<span class="nd">@spytial</span><span class="o">.</span><span class="n">edgeColor</span><span class="p">(</span><span class="n">field</span><span class="o">=</span><span class="s2">&quot;parent&quot;</span><span class="p">,</span> <span class="n">value</span><span class="o">=</span><span class="s2">&quot;blue&quot;</span><span class="p">,</span> <span class="n">style</span><span class="o">=</span><span class="s2">&quot;solid&quot;</span><span class="p">,</span> <span class="n">weight</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+<span class="nd">@spytial</span><span class="o">.</span><span class="n">edgeColor</span><span class="p">(</span><span class="n">field</span><span class="o">=</span><span class="s2">&quot;sibling&quot;</span><span class="p">,</span> <span class="n">value</span><span class="o">=</span><span class="s2">&quot;gray&quot;</span><span class="p">,</span> <span class="n">style</span><span class="o">=</span><span class="s2">&quot;dashed&quot;</span><span class="p">,</span> <span class="n">hidden</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+<span class="nd">@spytial</span><span class="o">.</span><span class="n">edgeColor</span><span class="p">(</span><span class="n">field</span><span class="o">=</span><span class="s2">&quot;internal&quot;</span><span class="p">,</span> <span class="n">value</span><span class="o">=</span><span class="s2">&quot;red&quot;</span><span class="p">,</span> <span class="n">hidden</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>  <span class="c1"># hide edge entirely</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">TreeNode</span><span class="p">:</span>
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="n">parent</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">value</span> <span class="o">=</span> <span class="n">value</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">parent</span> <span class="o">=</span> <span class="n">parent</span>
 </code></pre></div>
 <h2 id="other-attachment-methods">Other attachment methods</h2>
 <h3 id="object-annotations">Object annotations</h3>
