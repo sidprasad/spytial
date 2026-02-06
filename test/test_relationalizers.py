@@ -51,6 +51,7 @@ def test_relationalizer_inheritance_requirement():
 
 def test_relationalizer_inheritance_requirement_manual():
     """Test inheritance requirement without pytest."""
+    ok = False
     try:
         @relationalizer(priority=100)
         class BadRelationalizer:
@@ -59,16 +60,12 @@ def test_relationalizer_inheritance_requirement_manual():
             
             def relationalize(self, obj, walker_func):
                 return None, []
-        
-        # If we get here, the test failed
-        return False
     except TypeError as e:
-        if "Relationalizer must inherit from RelationalizerBase" in str(e):
-            return True
-        else:
-            return False
+        ok = "Relationalizer must inherit from RelationalizerBase" in str(e)
     except Exception:
-        return False
+        ok = False
+
+    assert ok
 
 
 
