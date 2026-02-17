@@ -205,8 +205,22 @@ class CnDDataInstanceBuilder:
         return {"atoms": deduplicated_atoms, "relations": relations, "types": typs}
 
     def get_collected_decorators(self) -> Dict:
-        """Get all decorators collected during the build process."""
-        return self._collected_decorators
+        """Get all decorators collected during the build process, deduplicated.
+
+        During _walk(), the same class-level decorators are collected once per
+        object instance of that class.  This deduplicates them so the final
+        YAML spec contains each unique rule only once.
+        """
+        from .annotations import _deduplicate_entries
+
+        return {
+            "constraints": _deduplicate_entries(
+                self._collected_decorators["constraints"]
+            ),
+            "directives": _deduplicate_entries(
+                self._collected_decorators["directives"]
+            ),
+        }
 
     def _get_id(self, obj: Any) -> str:
         """Get or create an ID for an object.
