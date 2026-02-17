@@ -9961,7 +9961,10 @@ into CnD-compatible atom/relation representations using relationalizers.</p>
 
     <div class="doc doc-contents ">
 
-        <p>Get all decorators collected during the build process.</p>
+        <p>Get all decorators collected during the build process, deduplicated.</p>
+<p>During _walk(), the same class-level decorators are collected once per
+object instance of that class.  This deduplicates them so the final
+YAML spec contains each unique rule only once.</p>
 
 
     </div>
