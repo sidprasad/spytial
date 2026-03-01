@@ -6,15 +6,13 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="Spatial Python visualization with declarative constraints.">
+        <meta name="description" content="Spatial Python visualization for structured data.">
       
       
       
+        <link rel="canonical" href="https://sidprasad.github.io/cnd-py/pythonspecific/">
       
-        <link rel="prev" href="../reference/api/">
       
-      
-        <link rel="next" href="../PERFORMANCE_METRICS/">
       
       
         
@@ -25,7 +23,7 @@
     
     
       
-        <title>Python Integration Notes - sPyTial</title>
+        <title>Python Integration Details - sPyTial</title>
       
     
     
@@ -102,7 +100,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Python Integration Notes
+              Python Integration Details
             
           </span>
         </div>
@@ -156,13 +154,13 @@
     
     
       <div class="md-header__source">
-        <a href="https://github.com/sidprasad/spytial" title="Go to repository" class="md-source" data-md-component="source">
+        <a href="https://github.com/sidprasad/cnd-py" title="Go to repository" class="md-source" data-md-component="source">
   <div class="md-source__icon md-icon">
     
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
   </div>
   <div class="md-source__repository">
-    sidprasad/spytial
+    sidprasad/cnd-py
   </div>
 </a>
       </div>
@@ -224,18 +222,36 @@
   
   
   
-    
-    
-      <li class="md-tabs__item">
-        <a href="../usage/diagramming/" class="md-tabs__link">
-          
+    <li class="md-tabs__item">
+      <a href="../usage/diagramming/" class="md-tabs__link">
+        
   
   
-  Usage
+    
+  
+  Diagramming
 
-        </a>
-      </li>
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../usage/evaluator/" class="md-tabs__link">
+        
+  
+  
     
+  
+  Evaluator
+
+      </a>
+    </li>
   
 
       
@@ -252,6 +268,25 @@
     
   
   Operations
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../usage/dataclass-builder/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Dataclass Builder
 
       </a>
     </li>
@@ -283,13 +318,13 @@
   
   
     <li class="md-tabs__item">
-      <a href="../reference/api/" class="md-tabs__link">
+      <a href="../examples/spytial-clrs/" class="md-tabs__link">
         
   
   
     
   
-  API Reference
+  CLRS Examples
 
       </a>
     </li>
@@ -300,21 +335,18 @@
   
   
   
-    
+  
+    <li class="md-tabs__item">
+      <a href="../reference/api/" class="md-tabs__link">
+        
   
   
     
-    
-      <li class="md-tabs__item md-tabs__item--active">
-        <a href="./" class="md-tabs__link">
-          
   
-  
-  Development
+  API Reference
 
-        </a>
-      </li>
-    
+      </a>
+    </li>
   
 
       
@@ -350,13 +382,13 @@
   </label>
   
     <div class="md-nav__source">
-      <a href="https://github.com/sidprasad/spytial" title="Go to repository" class="md-source" data-md-component="source">
+      <a href="https://github.com/sidprasad/cnd-py" title="Go to repository" class="md-source" data-md-component="source">
   <div class="md-source__icon md-icon">
     
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
   </div>
   <div class="md-source__repository">
-    sidprasad/spytial
+    sidprasad/cnd-py
   </div>
 </a>
     </div>
@@ -423,58 +455,6 @@
   
   
   
-    
-    
-    
-    
-      
-      
-    
-    
-    <li class="md-nav__item md-nav__item--nested">
-      
-        
-        
-          
-        
-        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3" >
-        
-          
-          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
-            
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Usage
-  
-
-    
-  </span>
-  
-  
-
-            <span class="md-nav__icon md-icon"></span>
-          </label>
-        
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_3">
-            <span class="md-nav__icon md-icon"></span>
-            
-  
-    Usage
-  
-
-          </label>
-          <ul class="md-nav__list" data-md-scrollfix>
-            
-              
-                
-  
-  
-  
-  
     <li class="md-nav__item">
       <a href="../usage/diagramming/" class="md-nav__link">
         
@@ -495,10 +475,9 @@
     </li>
   
 
-              
-            
-              
-                
+    
+      
+      
   
   
   
@@ -523,42 +502,6 @@
     </li>
   
 
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../usage/dataclass-builder/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Dataclass Builder
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-          </ul>
-        </nav>
-      
-    </li>
-  
-
     
       
       
@@ -575,6 +518,33 @@
     
   
     Operations
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../usage/dataclass-builder/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Dataclass Builder
   
 
     
@@ -621,6 +591,33 @@
   
   
     <li class="md-nav__item">
+      <a href="../examples/spytial-clrs/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CLRS Examples
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../reference/api/" class="md-nav__link">
         
   
@@ -637,204 +634,6 @@
   
 
       </a>
-    </li>
-  
-
-    
-      
-      
-  
-  
-    
-  
-  
-  
-    
-    
-    
-    
-      
-        
-        
-      
-      
-    
-    
-    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
-      
-        
-        
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" checked>
-        
-          
-          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="">
-            
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Development
-  
-
-    
-  </span>
-  
-  
-
-            <span class="md-nav__icon md-icon"></span>
-          </label>
-        
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="true">
-          <label class="md-nav__title" for="__nav_7">
-            <span class="md-nav__icon md-icon"></span>
-            
-  
-    Development
-  
-
-          </label>
-          <ul class="md-nav__list" data-md-scrollfix>
-            
-              
-                
-  
-  
-    
-  
-  
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Python Integration Notes
-  
-
-    
-  </span>
-  
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="./" class="md-nav__link md-nav__link--active">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Python Integration Notes
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#annotation-lifecycle" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Annotation lifecycle
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#relationalization-pipeline" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Relationalization pipeline
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#enabling-python-features" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Enabling Python features
-      
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../PERFORMANCE_METRICS/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Performance Metrics
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-          </ul>
-        </nav>
-      
     </li>
   
 
@@ -859,47 +658,6 @@
     
   
   
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#annotation-lifecycle" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Annotation lifecycle
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#relationalization-pipeline" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Relationalization pipeline
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#enabling-python-features" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Enabling Python features
-      
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
 </nav>
                   </div>
                 </div>
@@ -919,20 +677,12 @@
 
 
 <h1 id="python-integration-details">Python Integration Details</h1>
-<p>This document summarizes how sPyTial uses Python features to bridge spatial annotations with the Spytial-Core atom/relation data model.</p>
-<h2 id="annotation-lifecycle">Annotation lifecycle</h2>
-<p><em>Decorator factories</em> defined in <code>spytial.annotations</code> create per-constraint callables that can target either classes or individual objects. The unified decorator detects whether the target is a type or an instance, initializes or locates the appropriate registry, validates keyword arguments against the allowed schema, and stores the resulting payload in a structured <code>constraints</code>/<code>directives</code> map (<code>__spytial_registry__</code> for classes or <code>__spytial_object_annotations__</code>/a global fallback for objects).【F:spytial/annotations.py†L204-L341】</p>
-<p>During serialization, <code>collect_decorators</code> walks the instance’s method resolution order (MRO), merging each class registry that is eligible for inheritance and layering in any per-instance annotations from both direct attributes and the fallback registry.【F:spytial/annotations.py†L450-L499】 The collected directives can then be emitted as YAML via <code>serialize_to_yaml_string</code>, allowing Spytial-Core to consume the constraints as part of a visualization spec.【F:spytial/annotations.py†L502-L508】</p>
-<h2 id="relationalization-pipeline">Relationalization pipeline</h2>
-<p><code>CnDDataInstanceBuilder</code> orchestrates conversion of arbitrary Python values into the atom/relation graph that Spytial-Core expects. As it traverses an object graph it records encountered objects, captures their annotations, and selects an appropriate <code>RelationalizerBase</code> implementation from the <code>RelationalizerRegistry</code> to describe each value.【F:spytial/provider_system.py†L84-L259】 Every relationalizer returns <code>Atom</code> and <code>Relation</code> dataclasses, which the builder normalizes, augments with type hierarchies, and merges into the aggregated instance payload (<code>{"atoms": ..., "relations": ..., "types": ...}</code>).【F:spytial/provider_system.py†L262-L355】【F:spytial/domain_relationalizers/base.py†L13-L78】 ID management ensures stable references for primitives, object instances, and annotated objects so relations remain consistent across the walk.【F:spytial/provider_system.py†L185-L224】 The builder also deduplicates atoms and attaches inherited type information so Spytial-Core receives canonical tuples for each relation.【F:spytial/provider_system.py†L135-L180】【F:spytial/provider_system.py†L270-L355】</p>
-<h2 id="enabling-python-features">Enabling Python features</h2>
-<p>This integration relies on dynamic capabilities that are idiomatic to Python:</p>
+<p>This page is no longer part of the published user documentation.</p>
+<p>For the public docs, use:</p>
 <ul>
-<li><strong>Runtime attribute injection.</strong> Decorators and annotation helpers attach registries and identifiers directly onto classes or instances, and fall back to module-level dictionaries when objects do not expose <code>__dict__</code>. This leverages Python’s ability to add attributes post-definition, even for decorator-generated metadata.【F:spytial/annotations.py†L204-L341】</li>
-<li><strong>Reflection and inspection.</strong> The builder uses <code>inspect.currentframe()</code> to locate the caller’s namespace so relationalizers can recover variable names for labeling, and to derive MRO-based type hierarchies for atoms.【F:spytial/provider_system.py†L107-L176】【F:spytial/domain_relationalizers/base.py†L55-L91】</li>
-<li><strong>Duck typing with registries.</strong> Relationalizers self-register through a decorator, and the registry queries each candidate’s <code>can_handle</code> method at runtime to determine how to serialize a value. This plug-in mechanism depends on Python’s flexible class system and dynamic imports.【F:spytial/provider_system.py†L15-L63】</li>
+<li><a href="../operations/">Operations</a></li>
+<li><a href="../relationalizers/">Custom Relationalizers</a></li>
 </ul>
-<p>Together these features let sPyTial observe, annotate, and serialize live Python objects without code generation, enabling a smooth bridge between idiomatic Python data structures and CnD’s declarative spatial model.</p>
 
 
 

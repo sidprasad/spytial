@@ -6,9 +6,11 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="Spatial Python visualization with declarative constraints.">
+        <meta name="description" content="Spatial Python visualization for structured data.">
       
       
+      
+        <link rel="canonical" href="https://sidprasad.github.io/cnd-py/">
       
       
       
@@ -154,13 +156,13 @@
     
     
       <div class="md-header__source">
-        <a href="https://github.com/sidprasad/spytial" title="Go to repository" class="md-source" data-md-component="source">
+        <a href="https://github.com/sidprasad/cnd-py" title="Go to repository" class="md-source" data-md-component="source">
   <div class="md-source__icon md-icon">
     
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
   </div>
   <div class="md-source__repository">
-    sidprasad/spytial
+    sidprasad/cnd-py
   </div>
 </a>
       </div>
@@ -224,18 +226,36 @@
   
   
   
-    
-    
-      <li class="md-tabs__item">
-        <a href="usage/diagramming/" class="md-tabs__link">
-          
+    <li class="md-tabs__item">
+      <a href="usage/diagramming/" class="md-tabs__link">
+        
   
   
-  Usage
+    
+  
+  Diagramming
 
-        </a>
-      </li>
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="usage/evaluator/" class="md-tabs__link">
+        
+  
+  
     
+  
+  Evaluator
+
+      </a>
+    </li>
   
 
       
@@ -252,6 +272,25 @@
     
   
   Operations
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="usage/dataclass-builder/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Dataclass Builder
 
       </a>
     </li>
@@ -283,13 +322,13 @@
   
   
     <li class="md-tabs__item">
-      <a href="reference/api/" class="md-tabs__link">
+      <a href="examples/spytial-clrs/" class="md-tabs__link">
         
   
   
     
   
-  API Reference
+  CLRS Examples
 
       </a>
     </li>
@@ -301,18 +340,17 @@
   
   
   
-    
-    
-      <li class="md-tabs__item">
-        <a href="pythonspecific/" class="md-tabs__link">
-          
+    <li class="md-tabs__item">
+      <a href="reference/api/" class="md-tabs__link">
+        
   
   
-  Development
+    
+  
+  API Reference
 
-        </a>
-      </li>
-    
+      </a>
+    </li>
   
 
       
@@ -348,13 +386,13 @@
   </label>
   
     <div class="md-nav__source">
-      <a href="https://github.com/sidprasad/spytial" title="Go to repository" class="md-source" data-md-component="source">
+      <a href="https://github.com/sidprasad/cnd-py" title="Go to repository" class="md-source" data-md-component="source">
   <div class="md-source__icon md-icon">
     
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
   </div>
   <div class="md-source__repository">
-    sidprasad/spytial
+    sidprasad/cnd-py
   </div>
 </a>
     </div>
@@ -428,17 +466,6 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#what-you-can-do" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        What you can do
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
   <a href="#install" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -461,10 +488,21 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#documentation-layout" class="md-nav__link">
+  <a href="#what-lives-in-this-site" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Documentation layout
+        What lives in this site
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#using-spytial-clrs-as-the-examples-repo" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Using spytial-clrs as the examples repo
       
     </span>
   </a>
@@ -512,58 +550,6 @@
   
   
   
-    
-    
-    
-    
-      
-      
-    
-    
-    <li class="md-nav__item md-nav__item--nested">
-      
-        
-        
-          
-        
-        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3" >
-        
-          
-          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
-            
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Usage
-  
-
-    
-  </span>
-  
-  
-
-            <span class="md-nav__icon md-icon"></span>
-          </label>
-        
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_3">
-            <span class="md-nav__icon md-icon"></span>
-            
-  
-    Usage
-  
-
-          </label>
-          <ul class="md-nav__list" data-md-scrollfix>
-            
-              
-                
-  
-  
-  
-  
     <li class="md-nav__item">
       <a href="usage/diagramming/" class="md-nav__link">
         
@@ -584,10 +570,9 @@
     </li>
   
 
-              
-            
-              
-                
+    
+      
+      
   
   
   
@@ -612,42 +597,6 @@
     </li>
   
 
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="usage/dataclass-builder/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Dataclass Builder
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-          </ul>
-        </nav>
-      
-    </li>
-  
-
     
       
       
@@ -664,6 +613,33 @@
     
   
     Operations
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="usage/dataclass-builder/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Dataclass Builder
   
 
     
@@ -710,6 +686,33 @@
   
   
     <li class="md-nav__item">
+      <a href="examples/spytial-clrs/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CLRS Examples
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="reference/api/" class="md-nav__link">
         
   
@@ -726,121 +729,6 @@
   
 
       </a>
-    </li>
-  
-
-    
-      
-      
-  
-  
-  
-  
-    
-    
-    
-    
-      
-      
-    
-    
-    <li class="md-nav__item md-nav__item--nested">
-      
-        
-        
-          
-        
-        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_7" >
-        
-          
-          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="0">
-            
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Development
-  
-
-    
-  </span>
-  
-  
-
-            <span class="md-nav__icon md-icon"></span>
-          </label>
-        
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_7">
-            <span class="md-nav__icon md-icon"></span>
-            
-  
-    Development
-  
-
-          </label>
-          <ul class="md-nav__list" data-md-scrollfix>
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="pythonspecific/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Python Integration Notes
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="PERFORMANCE_METRICS/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Performance Metrics
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-          </ul>
-        </nav>
-      
     </li>
   
 
@@ -872,17 +760,6 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#what-you-can-do" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        What you can do
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
   <a href="#install" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -905,10 +782,21 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#documentation-layout" class="md-nav__link">
+  <a href="#what-lives-in-this-site" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Documentation layout
+        What lives in this site
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#using-spytial-clrs-as-the-examples-repo" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Using spytial-clrs as the examples repo
       
     </span>
   </a>
@@ -936,42 +824,39 @@
 
 
 <h1 id="spytial">sPyTial</h1>
-<p>sPyTial helps you turn Python objects into meaningful <strong>box-and-arrow diagrams</strong> using spatial layout rules. It focuses on the structure of your data rather than UI chrome, making it ideal for debugging, teaching, and research.</p>
-<h2 id="what-you-can-do">What you can do</h2>
-<ul>
-<li><strong>Diagram</strong> any Python object in a browser tab or notebook.</li>
-<li><strong>Evaluate</strong> your data as a structured payload to validate serialization.</li>
-<li><strong>Annotate</strong> types or instances with spatial constraints (orientation, grouping, colors, icons, etc.).</li>
-<li><strong>Build</strong> dataclass instances with a visual, copy/pasteable builder.</li>
-<li><strong>Extend</strong> the serializer with custom relationalizers for domain objects.</li>
-</ul>
+<p>sPyTial turns Python objects into box-and-arrow diagrams backed by Spytial's layout engine. It is aimed at cases where the structure matters more than the UI: debugging recursive objects, teaching data structures, inspecting serialized state, or building small visual tools around Python models.</p>
 <h2 id="install">Install</h2>
 <div class="highlight"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span>spytial-diagramming
 </code></pre></div>
 <h2 id="quick-start">Quick start</h2>
 <div class="highlight"><pre><span></span><code><span class="kn">import</span><span class="w"> </span><span class="nn">spytial</span>
 
-<span class="n">data</span> <span class="o">=</span> <span class="p">{</span>
+<span class="n">tree</span> <span class="o">=</span> <span class="p">{</span>
     <span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;root&quot;</span><span class="p">,</span>
     <span class="s2">&quot;children&quot;</span><span class="p">:</span> <span class="p">[</span>
-        <span class="p">{</span><span class="s2">&quot;value&quot;</span><span class="p">:</span> <span class="mi">1</span><span class="p">},</span>
-        <span class="p">{</span><span class="s2">&quot;value&quot;</span><span class="p">:</span> <span class="mi">2</span><span class="p">},</span>
-        <span class="p">{</span><span class="s2">&quot;value&quot;</span><span class="p">:</span> <span class="mi">3</span><span class="p">},</span>
+        <span class="p">{</span><span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;left&quot;</span><span class="p">},</span>
+        <span class="p">{</span><span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;right&quot;</span><span class="p">},</span>
     <span class="p">],</span>
 <span class="p">}</span>
 
-<span class="c1"># Open a diagram in a browser or inline notebook view.</span>
-<span class="n">spytial</span><span class="o">.</span><span class="n">diagram</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+<span class="n">spytial</span><span class="o">.</span><span class="n">diagram</span><span class="p">(</span><span class="n">tree</span><span class="p">)</span>
 </code></pre></div>
-<h2 id="documentation-layout">Documentation layout</h2>
-<p>Use the sections in the navigation to explore:</p>
+<h2 id="what-lives-in-this-site">What lives in this site</h2>
+<p>This site focuses on using sPyTial:</p>
 <ul>
-<li><strong>Getting Started</strong> for installation and first steps.</li>
-<li><strong>Usage</strong> for diagramming, evaluation, and builder workflows.</li>
-<li><strong>Annotations &amp; Constraints</strong> for spatial controls.</li>
-<li><strong>Custom Relationalizers</strong> to extend serialization for your own types.</li>
-<li><strong>API Reference</strong> for auto-generated docs from the codebase.</li>
+<li>installation and first steps</li>
+<li>diagramming and evaluation</li>
+<li>operations and custom relationalizers</li>
+<li>worked examples drawn from classic data structures</li>
 </ul>
+<h2 id="using-spytial-clrs-as-the-examples-repo">Using <code>spytial-clrs</code> as the examples repo</h2>
+<p>The sibling <a href="https://github.com/sidprasad/spytial-clrs"><code>spytial-clrs</code></a> repository is the best source of worked examples for this package. It contains CLRS-style notebooks for linked lists, heaps, trees, graphs, disjoint sets, and memoization tables.</p>
+<ul>
+<li>It gives you larger, more realistic examples than small <code>dict</code> and <code>list</code> snippets.</li>
+<li>It shows how sPyTial can be used to explain common data structures visually.</li>
+<li>It is a good place to browse if you want inspiration for your own diagrams.</li>
+</ul>
+<p>Start with <a href="getting-started/">Getting Started</a>, then move to <a href="usage/diagramming/">Diagramming</a> or <a href="examples/spytial-clrs/">CLRS Examples</a>.</p>
 
 
 

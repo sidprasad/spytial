@@ -6,15 +6,17 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="Spatial Python visualization with declarative constraints.">
+        <meta name="description" content="Spatial Python visualization for structured data.">
       
       
       
+        <link rel="canonical" href="https://sidprasad.github.io/cnd-py/usage/dataclass-builder/">
       
-        <link rel="prev" href="../evaluator/">
+      
+        <link rel="prev" href="../../operations/">
       
       
-        <link rel="next" href="../../operations/">
+        <link rel="next" href="../../relationalizers/">
       
       
         
@@ -156,13 +158,13 @@
     
     
       <div class="md-header__source">
-        <a href="https://github.com/sidprasad/spytial" title="Go to repository" class="md-source" data-md-component="source">
+        <a href="https://github.com/sidprasad/cnd-py" title="Go to repository" class="md-source" data-md-component="source">
   <div class="md-source__icon md-icon">
     
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
   </div>
   <div class="md-source__repository">
-    sidprasad/spytial
+    sidprasad/cnd-py
   </div>
 </a>
       </div>
@@ -223,21 +225,37 @@
   
   
   
-    
+  
+    <li class="md-tabs__item">
+      <a href="../diagramming/" class="md-tabs__link">
+        
   
   
     
-    
-      <li class="md-tabs__item md-tabs__item--active">
-        <a href="../diagramming/" class="md-tabs__link">
-          
   
-  
-  Usage
+  Diagramming
 
-        </a>
-      </li>
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../evaluator/" class="md-tabs__link">
+        
+  
+  
     
+  
+  Evaluator
+
+      </a>
+    </li>
   
 
       
@@ -254,6 +272,27 @@
     
   
   Operations
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    <li class="md-tabs__item md-tabs__item--active">
+      <a href="./" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Dataclass Builder
 
       </a>
     </li>
@@ -285,13 +324,13 @@
   
   
     <li class="md-tabs__item">
-      <a href="../../reference/api/" class="md-tabs__link">
+      <a href="../../examples/spytial-clrs/" class="md-tabs__link">
         
   
   
     
   
-  API Reference
+  CLRS Examples
 
       </a>
     </li>
@@ -303,18 +342,17 @@
   
   
   
-    
-    
-      <li class="md-tabs__item">
-        <a href="../../pythonspecific/" class="md-tabs__link">
-          
+    <li class="md-tabs__item">
+      <a href="../../reference/api/" class="md-tabs__link">
+        
   
   
-  Development
+    
+  
+  API Reference
 
-        </a>
-      </li>
-    
+      </a>
+    </li>
   
 
       
@@ -350,13 +388,13 @@
   </label>
   
     <div class="md-nav__source">
-      <a href="https://github.com/sidprasad/spytial" title="Go to repository" class="md-source" data-md-component="source">
+      <a href="https://github.com/sidprasad/cnd-py" title="Go to repository" class="md-source" data-md-component="source">
   <div class="md-source__icon md-icon">
     
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
   </div>
   <div class="md-source__repository">
-    sidprasad/spytial
+    sidprasad/cnd-py
   </div>
 </a>
     </div>
@@ -421,61 +459,6 @@
       
   
   
-    
-  
-  
-  
-    
-    
-    
-    
-      
-        
-        
-      
-      
-    
-    
-    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
-      
-        
-        
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" checked>
-        
-          
-          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="">
-            
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Usage
-  
-
-    
-  </span>
-  
-  
-
-            <span class="md-nav__icon md-icon"></span>
-          </label>
-        
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="true">
-          <label class="md-nav__title" for="__nav_3">
-            <span class="md-nav__icon md-icon"></span>
-            
-  
-    Usage
-  
-
-          </label>
-          <ul class="md-nav__list" data-md-scrollfix>
-            
-              
-                
-  
-  
   
   
     <li class="md-nav__item">
@@ -498,10 +481,9 @@
     </li>
   
 
-              
-            
-              
-                
+    
+      
+      
   
   
   
@@ -526,10 +508,36 @@
     </li>
   
 
-              
-            
-              
-                
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../operations/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Operations
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
   
   
     
@@ -606,10 +614,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#methods" class="md-nav__link">
+  <a href="#what-it-expects" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Methods
+        What it expects
       
     </span>
   </a>
@@ -617,10 +625,21 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#output" class="md-nav__link">
+  <a href="#output-methods" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Output
+        Output methods
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#typical-workflow" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Typical workflow
       
     </span>
   </a>
@@ -631,41 +650,6 @@
   
 </nav>
       
-    </li>
-  
-
-              
-            
-          </ul>
-        </nav>
-      
-    </li>
-  
-
-    
-      
-      
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../operations/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Operations
-  
-
-    
-  </span>
-  
-  
-
-      </a>
     </li>
   
 
@@ -704,6 +688,33 @@
   
   
     <li class="md-nav__item">
+      <a href="../../examples/spytial-clrs/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CLRS Examples
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../reference/api/" class="md-nav__link">
         
   
@@ -720,121 +731,6 @@
   
 
       </a>
-    </li>
-  
-
-    
-      
-      
-  
-  
-  
-  
-    
-    
-    
-    
-      
-      
-    
-    
-    <li class="md-nav__item md-nav__item--nested">
-      
-        
-        
-          
-        
-        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_7" >
-        
-          
-          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="0">
-            
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Development
-  
-
-    
-  </span>
-  
-  
-
-            <span class="md-nav__icon md-icon"></span>
-          </label>
-        
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_7">
-            <span class="md-nav__icon md-icon"></span>
-            
-  
-    Development
-  
-
-          </label>
-          <ul class="md-nav__list" data-md-scrollfix>
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../pythonspecific/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Python Integration Notes
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../PERFORMANCE_METRICS/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Performance Metrics
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-          </ul>
-        </nav>
-      
     </li>
   
 
@@ -877,10 +773,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#methods" class="md-nav__link">
+  <a href="#what-it-expects" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Methods
+        What it expects
       
     </span>
   </a>
@@ -888,10 +784,21 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#output" class="md-nav__link">
+  <a href="#output-methods" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Output
+        Output methods
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#typical-workflow" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Typical workflow
       
     </span>
   </a>
@@ -934,13 +841,20 @@
 <span class="c1"># Start with an empty instance</span>
 <span class="n">spytial</span><span class="o">.</span><span class="n">dataclass_builder</span><span class="p">(</span><span class="n">TreeNode</span><span class="p">())</span>
 </code></pre></div>
-<h2 id="methods">Methods</h2>
+<h2 id="what-it-expects">What it expects</h2>
+<p>The builder requires a dataclass instance, not a class object. Pass <code>TreeNode()</code> rather than <code>TreeNode</code>.</p>
+<h2 id="output-methods">Output methods</h2>
 <div class="highlight"><pre><span></span><code><span class="n">spytial</span><span class="o">.</span><span class="n">dataclass_builder</span><span class="p">(</span><span class="n">TreeNode</span><span class="p">(),</span> <span class="n">method</span><span class="o">=</span><span class="s2">&quot;browser&quot;</span><span class="p">)</span>
 <span class="n">spytial</span><span class="o">.</span><span class="n">dataclass_builder</span><span class="p">(</span><span class="n">TreeNode</span><span class="p">(),</span> <span class="n">method</span><span class="o">=</span><span class="s2">&quot;file&quot;</span><span class="p">)</span>
 <span class="n">spytial</span><span class="o">.</span><span class="n">dataclass_builder</span><span class="p">(</span><span class="n">TreeNode</span><span class="p">(),</span> <span class="n">method</span><span class="o">=</span><span class="s2">&quot;inline&quot;</span><span class="p">)</span>
 </code></pre></div>
-<h2 id="output">Output</h2>
-<p>Use the <strong>Export</strong> button in the UI to copy the generated Python constructor code. Paste it back into your codebase to recreate the edited structure.</p>
+<h2 id="typical-workflow">Typical workflow</h2>
+<ol>
+<li>Start with a minimal dataclass instance.</li>
+<li>Open the builder.</li>
+<li>Edit the structure in the UI.</li>
+<li>Use <strong>Export</strong> to copy the generated constructor code back into your Python code.</li>
+</ol>
 <div class="admonition tip">
 <p class="admonition-title">Tip</p>
 <p>For large models, start with a minimal instance and build up visually before exporting the final constructor.</p>

@@ -6,9 +6,11 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="Spatial Python visualization with declarative constraints.">
+        <meta name="description" content="Spatial Python visualization for structured data.">
       
       
+      
+        <link rel="canonical" href="https://sidprasad.github.io/cnd-py/DATACLASS_BUILDER/">
       
       
       
@@ -21,7 +23,7 @@
     
     
       
-        <title>sPyTial Dataclass Builder Widget (spytial-core Integration) - sPyTial</title>
+        <title>Dataclass Builder - sPyTial</title>
       
     
     
@@ -64,7 +66,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#spytial-dataclass-builder-widget-spytial-core-integration" class="md-skip">
+        <a href="#dataclass-builder" class="md-skip">
           Skip to content
         </a>
       
@@ -98,7 +100,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              sPyTial Dataclass Builder Widget (spytial-core Integration)
+              Dataclass Builder
             
           </span>
         </div>
@@ -152,13 +154,13 @@
     
     
       <div class="md-header__source">
-        <a href="https://github.com/sidprasad/spytial" title="Go to repository" class="md-source" data-md-component="source">
+        <a href="https://github.com/sidprasad/cnd-py" title="Go to repository" class="md-source" data-md-component="source">
   <div class="md-source__icon md-icon">
     
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
   </div>
   <div class="md-source__repository">
-    sidprasad/spytial
+    sidprasad/cnd-py
   </div>
 </a>
       </div>
@@ -220,18 +222,36 @@
   
   
   
-    
-    
-      <li class="md-tabs__item">
-        <a href="../usage/diagramming/" class="md-tabs__link">
-          
+    <li class="md-tabs__item">
+      <a href="../usage/diagramming/" class="md-tabs__link">
+        
   
   
-  Usage
+    
+  
+  Diagramming
 
-        </a>
-      </li>
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../usage/evaluator/" class="md-tabs__link">
+        
+  
+  
     
+  
+  Evaluator
+
+      </a>
+    </li>
   
 
       
@@ -248,6 +268,25 @@
     
   
   Operations
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../usage/dataclass-builder/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Dataclass Builder
 
       </a>
     </li>
@@ -279,13 +318,13 @@
   
   
     <li class="md-tabs__item">
-      <a href="../reference/api/" class="md-tabs__link">
+      <a href="../examples/spytial-clrs/" class="md-tabs__link">
         
   
   
     
   
-  API Reference
+  CLRS Examples
 
       </a>
     </li>
@@ -297,18 +336,17 @@
   
   
   
-    
-    
-      <li class="md-tabs__item">
-        <a href="../pythonspecific/" class="md-tabs__link">
-          
+    <li class="md-tabs__item">
+      <a href="../reference/api/" class="md-tabs__link">
+        
   
   
-  Development
+    
+  
+  API Reference
 
-        </a>
-      </li>
-    
+      </a>
+    </li>
   
 
       
@@ -344,13 +382,13 @@
   </label>
   
     <div class="md-nav__source">
-      <a href="https://github.com/sidprasad/spytial" title="Go to repository" class="md-source" data-md-component="source">
+      <a href="https://github.com/sidprasad/cnd-py" title="Go to repository" class="md-source" data-md-component="source">
   <div class="md-source__icon md-icon">
     
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
   </div>
   <div class="md-source__repository">
-    sidprasad/spytial
+    sidprasad/cnd-py
   </div>
 </a>
     </div>
@@ -417,58 +455,6 @@
   
   
   
-    
-    
-    
-    
-      
-      
-    
-    
-    <li class="md-nav__item md-nav__item--nested">
-      
-        
-        
-          
-        
-        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3" >
-        
-          
-          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
-            
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Usage
-  
-
-    
-  </span>
-  
-  
-
-            <span class="md-nav__icon md-icon"></span>
-          </label>
-        
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_3">
-            <span class="md-nav__icon md-icon"></span>
-            
-  
-    Usage
-  
-
-          </label>
-          <ul class="md-nav__list" data-md-scrollfix>
-            
-              
-                
-  
-  
-  
-  
     <li class="md-nav__item">
       <a href="../usage/diagramming/" class="md-nav__link">
         
@@ -489,10 +475,9 @@
     </li>
   
 
-              
-            
-              
-                
+    
+      
+      
   
   
   
@@ -517,42 +502,6 @@
     </li>
   
 
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../usage/dataclass-builder/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Dataclass Builder
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-          </ul>
-        </nav>
-      
-    </li>
-  
-
     
       
       
@@ -569,6 +518,33 @@
     
   
     Operations
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../usage/dataclass-builder/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Dataclass Builder
   
 
     
@@ -615,6 +591,33 @@
   
   
     <li class="md-nav__item">
+      <a href="../examples/spytial-clrs/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CLRS Examples
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../reference/api/" class="md-nav__link">
         
   
@@ -631,121 +634,6 @@
   
 
       </a>
-    </li>
-  
-
-    
-      
-      
-  
-  
-  
-  
-    
-    
-    
-    
-      
-      
-    
-    
-    <li class="md-nav__item md-nav__item--nested">
-      
-        
-        
-          
-        
-        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_7" >
-        
-          
-          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="0">
-            
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Development
-  
-
-    
-  </span>
-  
-  
-
-            <span class="md-nav__icon md-icon"></span>
-          </label>
-        
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_7">
-            <span class="md-nav__icon md-icon"></span>
-            
-  
-    Development
-  
-
-          </label>
-          <ul class="md-nav__list" data-md-scrollfix>
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../pythonspecific/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Python Integration Notes
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../PERFORMANCE_METRICS/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Performance Metrics
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-          </ul>
-        </nav>
-      
     </li>
   
 
@@ -770,58 +658,6 @@
     
   
   
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#overview" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Overview
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#key-features" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Key Features
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#installation" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Installation
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#basic-usage" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Basic Usage
-      
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
 </nav>
                   </div>
                 </div>
@@ -840,39 +676,8 @@
   
 
 
-<h1 id="spytial-dataclass-builder-widget-spytial-core-integration">sPyTial Dataclass Builder Widget (spytial-core Integration)</h1>
-<h2 id="overview">Overview</h2>
-<p>The sPyTial Dataclass Builder is a Jupyter widget that provides <strong>visual, interactive construction</strong> of dataclass instances using spytial-core's <code>structured-input-graph</code> component. It enables users to build complex data structures visually with spatial constraints and immediately access the result.</p>
-<h2 id="key-features">Key Features</h2>
-<ul>
-<li><strong>Visual Construction</strong>: Uses spytial-core's graph-based visual interface</li>
-<li><strong>Spatial Annotations</strong>: Automatically includes constraints from sPyTial decorators</li>
-<li><strong>No File I/O</strong>: Direct JavaScript-Python communication via postMessage</li>
-<li><strong>Real-time Access</strong>: <code>widget.value</code> always contains the current dataclass instance</li>
-<li><strong>No Timeouts</strong>: Immediate updates when you export data</li>
-</ul>
-<h2 id="installation">Installation</h2>
-<div class="highlight"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span>ipywidgets
-jupyter<span class="w"> </span>nbextension<span class="w"> </span><span class="nb">enable</span><span class="w"> </span>--py<span class="w"> </span>widgetsnbextension
-</code></pre></div>
-<h2 id="basic-usage">Basic Usage</h2>
-<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">dataclasses</span><span class="w"> </span><span class="kn">import</span> <span class="n">dataclass</span>
-<span class="kn">import</span><span class="w"> </span><span class="nn">spytial</span>
-
-<span class="nd">@dataclass</span>
-<span class="k">class</span><span class="w"> </span><span class="nc">Person</span><span class="p">:</span>
-    <span class="n">name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
-    <span class="n">age</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span>
-    <span class="n">email</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
-
-<span class="c1"># Create the widget</span>
-<span class="n">widget</span> <span class="o">=</span> <span class="n">spytial</span><span class="o">.</span><span class="n">dataclass_builder</span><span class="p">(</span><span class="n">Person</span><span class="p">)</span>
-<span class="n">widget</span>  <span class="c1"># Display in Jupyter</span>
-
-<span class="c1"># After building and clicking &quot;Export JSON&quot;:</span>
-<span class="n">person</span> <span class="o">=</span> <span class="n">widget</span><span class="o">.</span><span class="n">value</span>
-<span class="nb">print</span><span class="p">(</span><span class="n">person</span><span class="p">)</span>  <span class="c1"># Person(name=&#39;Alice&#39;, age=30, email=&#39;alice@example.com&#39;)</span>
-</code></pre></div>
+<h1 id="dataclass-builder">Dataclass Builder</h1>
+<p>This page has moved to <a href="../usage/dataclass-builder/">Use sPyTial &gt; Dataclass Builder</a>.</p>
 
 
 

@@ -6,15 +6,17 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="Spatial Python visualization with declarative constraints.">
+        <meta name="description" content="Spatial Python visualization for structured data.">
       
       
       
+        <link rel="canonical" href="https://sidprasad.github.io/cnd-py/relationalizers/">
       
-        <link rel="prev" href="../operations/">
+      
+        <link rel="prev" href="../usage/dataclass-builder/">
       
       
-        <link rel="next" href="../reference/api/">
+        <link rel="next" href="../examples/spytial-clrs/">
       
       
         
@@ -156,13 +158,13 @@
     
     
       <div class="md-header__source">
-        <a href="https://github.com/sidprasad/spytial" title="Go to repository" class="md-source" data-md-component="source">
+        <a href="https://github.com/sidprasad/cnd-py" title="Go to repository" class="md-source" data-md-component="source">
   <div class="md-source__icon md-icon">
     
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
   </div>
   <div class="md-source__repository">
-    sidprasad/spytial
+    sidprasad/cnd-py
   </div>
 </a>
       </div>
@@ -224,18 +226,36 @@
   
   
   
-    
-    
-      <li class="md-tabs__item">
-        <a href="../usage/diagramming/" class="md-tabs__link">
-          
+    <li class="md-tabs__item">
+      <a href="../usage/diagramming/" class="md-tabs__link">
+        
   
   
-  Usage
+    
+  
+  Diagramming
 
-        </a>
-      </li>
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../usage/evaluator/" class="md-tabs__link">
+        
+  
+  
     
+  
+  Evaluator
+
+      </a>
+    </li>
   
 
       
@@ -252,6 +272,25 @@
     
   
   Operations
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../usage/dataclass-builder/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Dataclass Builder
 
       </a>
     </li>
@@ -285,13 +324,13 @@
   
   
     <li class="md-tabs__item">
-      <a href="../reference/api/" class="md-tabs__link">
+      <a href="../examples/spytial-clrs/" class="md-tabs__link">
         
   
   
     
   
-  API Reference
+  CLRS Examples
 
       </a>
     </li>
@@ -303,18 +342,17 @@
   
   
   
-    
-    
-      <li class="md-tabs__item">
-        <a href="../pythonspecific/" class="md-tabs__link">
-          
+    <li class="md-tabs__item">
+      <a href="../reference/api/" class="md-tabs__link">
+        
   
   
-  Development
+    
+  
+  API Reference
 
-        </a>
-      </li>
-    
+      </a>
+    </li>
   
 
       
@@ -350,13 +388,13 @@
   </label>
   
     <div class="md-nav__source">
-      <a href="https://github.com/sidprasad/spytial" title="Go to repository" class="md-source" data-md-component="source">
+      <a href="https://github.com/sidprasad/cnd-py" title="Go to repository" class="md-source" data-md-component="source">
   <div class="md-source__icon md-icon">
     
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
   </div>
   <div class="md-source__repository">
-    sidprasad/spytial
+    sidprasad/cnd-py
   </div>
 </a>
     </div>
@@ -423,58 +461,6 @@
   
   
   
-    
-    
-    
-    
-      
-      
-    
-    
-    <li class="md-nav__item md-nav__item--nested">
-      
-        
-        
-          
-        
-        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3" >
-        
-          
-          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
-            
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Usage
-  
-
-    
-  </span>
-  
-  
-
-            <span class="md-nav__icon md-icon"></span>
-          </label>
-        
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_3">
-            <span class="md-nav__icon md-icon"></span>
-            
-  
-    Usage
-  
-
-          </label>
-          <ul class="md-nav__list" data-md-scrollfix>
-            
-              
-                
-  
-  
-  
-  
     <li class="md-nav__item">
       <a href="../usage/diagramming/" class="md-nav__link">
         
@@ -495,10 +481,9 @@
     </li>
   
 
-              
-            
-              
-                
+    
+      
+      
   
   
   
@@ -523,42 +508,6 @@
     </li>
   
 
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../usage/dataclass-builder/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Dataclass Builder
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-          </ul>
-        </nav>
-      
-    </li>
-  
-
     
       
       
@@ -575,6 +524,33 @@
     
   
     Operations
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../usage/dataclass-builder/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Dataclass Builder
   
 
     
@@ -676,6 +652,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#built-in-coverage-first" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Built-in coverage first
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#priorities" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -687,63 +674,13 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#registering-at-runtime" class="md-nav__link">
+  <a href="#registering-and-inspecting" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Registering at runtime
+        Registering and inspecting
       
     </span>
   </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#inspecting-the-registry" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Inspecting the registry
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#examples-from-demos" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Examples from demos
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Examples from demos">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#decision-diagrams-dd-bdd" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Decision diagrams (dd / BDD)
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#smtz3-model-relationalizer-ffi" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        SMT/Z3 model relationalizer (FFI)
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
   
 </li>
       
@@ -773,6 +710,33 @@
   
   
     <li class="md-nav__item">
+      <a href="../examples/spytial-clrs/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CLRS Examples
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../reference/api/" class="md-nav__link">
         
   
@@ -789,121 +753,6 @@
   
 
       </a>
-    </li>
-  
-
-    
-      
-      
-  
-  
-  
-  
-    
-    
-    
-    
-      
-      
-    
-    
-    <li class="md-nav__item md-nav__item--nested">
-      
-        
-        
-          
-        
-        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_7" >
-        
-          
-          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="0">
-            
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Development
-  
-
-    
-  </span>
-  
-  
-
-            <span class="md-nav__icon md-icon"></span>
-          </label>
-        
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_7">
-            <span class="md-nav__icon md-icon"></span>
-            
-  
-    Development
-  
-
-          </label>
-          <ul class="md-nav__list" data-md-scrollfix>
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../pythonspecific/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Python Integration Notes
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../PERFORMANCE_METRICS/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Performance Metrics
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-          </ul>
-        </nav>
-      
     </li>
   
 
@@ -957,6 +806,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#built-in-coverage-first" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Built-in coverage first
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#priorities" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -968,63 +828,13 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#registering-at-runtime" class="md-nav__link">
+  <a href="#registering-and-inspecting" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Registering at runtime
+        Registering and inspecting
       
     </span>
   </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#inspecting-the-registry" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Inspecting the registry
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#examples-from-demos" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Examples from demos
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Examples from demos">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#decision-diagrams-dd-bdd" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Decision diagrams (dd / BDD)
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#smtz3-model-relationalizer-ffi" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        SMT/Z3 model relationalizer (FFI)
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
   
 </li>
       
@@ -1064,15 +874,15 @@
 <h2 id="when-to-use-a-relationalizer">When to use a relationalizer</h2>
 <p>Use a relationalizer when:</p>
 <ul>
-<li>You want fine-grained control of how an object becomes nodes and edges.</li>
-<li>Your objects are not handled well by the built-in defaults.</li>
-<li>You need to emit domain-specific relations (e.g., <code>"depends_on"</code>, <code>"flows_to"</code>).</li>
+<li>you want fine-grained control over how an object becomes nodes and edges</li>
+<li>your objects are not handled well by the built-in defaults</li>
+<li>you need domain-specific relations such as <code>depends_on</code> or <code>flows_to</code></li>
 </ul>
 <h2 id="anatomy-of-a-relationalizer">Anatomy of a relationalizer</h2>
-<p>A relationalizer is a class that inherits from <code>RelationalizerBase</code> and implements two methods:</p>
+<p>A relationalizer inherits from <code>RelationalizerBase</code> and implements two methods:</p>
 <ul>
-<li><code>can_handle(obj)</code> — return <code>True</code> when the relationalizer should handle the object.</li>
-<li><code>relationalize(obj, builder)</code> — return <code>Atom</code> and <code>Relation</code> instances for the object.</li>
+<li><code>can_handle(obj)</code> returns <code>True</code> when the relationalizer should handle the object</li>
+<li><code>relationalize(obj, walker_func)</code> returns <code>Atom</code> and <code>Relation</code> instances</li>
 </ul>
 <div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">spytial</span><span class="w"> </span><span class="kn">import</span> <span class="n">RelationalizerBase</span><span class="p">,</span> <span class="n">relationalizer</span><span class="p">,</span> <span class="n">Atom</span><span class="p">,</span> <span class="n">Relation</span>
 
@@ -1081,7 +891,7 @@
     <span class="k">def</span><span class="w"> </span><span class="nf">can_handle</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">obj</span><span class="p">):</span>
         <span class="k">return</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="s2">&quot;widget_id&quot;</span><span class="p">)</span>
 
-    <span class="k">def</span><span class="w"> </span><span class="nf">relationalize</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">obj</span><span class="p">,</span> <span class="n">builder</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">relationalize</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">obj</span><span class="p">,</span> <span class="n">walker_func</span><span class="p">):</span>
         <span class="n">atom</span> <span class="o">=</span> <span class="n">Atom</span><span class="p">(</span>
             <span class="nb">id</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;widget:</span><span class="si">{</span><span class="n">obj</span><span class="o">.</span><span class="n">widget_id</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
             <span class="nb">type</span><span class="o">=</span><span class="s2">&quot;Widget&quot;</span><span class="p">,</span>
@@ -1089,60 +899,25 @@
         <span class="p">)</span>
         <span class="k">return</span> <span class="p">[</span><span class="n">atom</span><span class="p">],</span> <span class="p">[]</span>
 </code></pre></div>
+<h2 id="built-in-coverage-first">Built-in coverage first</h2>
+<p>Before you write a custom relationalizer, check whether the built-ins already cover your case. <code>spytial-py</code> already ships relationalizers for:</p>
+<ul>
+<li>primitives</li>
+<li><code>dict</code>, <code>list</code>, <code>tuple</code>, and <code>set</code></li>
+<li>dataclasses</li>
+<li>generic Python objects as a fallback</li>
+</ul>
+<p>Most examples in <code>spytial-clrs</code> work without custom relationalizers because regular Python objects plus operations are usually enough.</p>
 <h2 id="priorities">Priorities</h2>
-<p>Relationalizers with higher priorities are checked first. Priorities from <strong>0–99</strong> are reserved for built-ins, so custom relationalizers should use <strong>100 or higher</strong>.</p>
-<h2 id="registering-at-runtime">Registering at runtime</h2>
-<p>The <code>@relationalizer</code> decorator registers the class automatically when the module is imported. If you want to register manually, you can call <code>RelationalizerRegistry.register()</code>.</p>
-<h2 id="inspecting-the-registry">Inspecting the registry</h2>
+<p>Relationalizers with higher priorities are checked first. Priorities from <strong>0-99</strong> are reserved for built-ins, so custom relationalizers should use <strong>100 or higher</strong>.</p>
+<h2 id="registering-and-inspecting">Registering and inspecting</h2>
+<p>The <code>@relationalizer</code> decorator registers the class automatically when the module is imported. You can inspect the active registry like this:</p>
 <div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">spytial</span><span class="w"> </span><span class="kn">import</span> <span class="n">RelationalizerRegistry</span>
 
 <span class="nb">print</span><span class="p">(</span><span class="n">RelationalizerRegistry</span><span class="o">.</span><span class="n">list_relationalizers</span><span class="p">())</span>
 </code></pre></div>
-<h2 id="examples-from-demos">Examples from demos</h2>
-<h3 id="decision-diagrams-dd-bdd">Decision diagrams (dd / BDD)</h3>
-<p>The decision diagram demo defines a <code>BDDRelationalizer</code> for the <code>dd</code> library and shows a full end-to-end visualization. It:</p>
-<ul>
-<li>Emits <code>BDDNode</code> atoms for decision nodes and <code>Terminal</code> atoms for True/False.</li>
-<li>Adds <code>at_level</code> relations to connect nodes to level atoms.</li>
-<li>Adds <code>precedes</code> relations to order levels, plus <code>low</code>/<code>high</code> edges (including complemented variants).</li>
-</ul>
-<p>Minimal excerpt (full demo in <code>demos/05-dds.ipynb</code> or https://github.com/sidprasad/spytial/blob/main/demos/05-dds.ipynb):</p>
-<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">dd.autoref</span><span class="w"> </span><span class="kn">import</span> <span class="n">BDD</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">spytial</span><span class="w"> </span><span class="kn">import</span> <span class="n">RelationalizerBase</span><span class="p">,</span> <span class="n">relationalizer</span><span class="p">,</span> <span class="n">Atom</span><span class="p">,</span> <span class="n">Relation</span>
-
-<span class="nd">@relationalizer</span><span class="p">(</span><span class="n">priority</span><span class="o">=</span><span class="mi">101</span><span class="p">)</span>
-<span class="k">class</span><span class="w"> </span><span class="nc">BDDRelationalizer</span><span class="p">(</span><span class="n">RelationalizerBase</span><span class="p">):</span>
-    <span class="k">def</span><span class="w"> </span><span class="nf">can_handle</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">obj</span><span class="p">):</span>
-        <span class="k">return</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="n">BDD</span><span class="p">)</span>
-
-    <span class="k">def</span><span class="w"> </span><span class="nf">relationalize</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">obj</span><span class="p">,</span> <span class="n">walker_func</span><span class="p">):</span>
-        <span class="n">atoms</span> <span class="o">=</span> <span class="p">[]</span>
-        <span class="n">relations</span> <span class="o">=</span> <span class="p">[]</span>
-        <span class="c1"># Emit Terminal + BDDNode atoms and attach at_level/precedes/low/high relations.</span>
-        <span class="k">return</span> <span class="n">atoms</span><span class="p">,</span> <span class="n">relations</span>
-</code></pre></div>
-<h3 id="smtz3-model-relationalizer-ffi">SMT/Z3 model relationalizer (FFI)</h3>
-<p>The Z3 case study builds a relationalizer for <code>z3.ModelRef</code>, treating Z3 as an FFI boundary and emitting pure-Python atoms/relations. It:</p>
-<ul>
-<li>Creates <code>Decl</code>, <code>Const</code>, <code>App</code> atoms for declarations, constants, and applications.</li>
-<li>Emits <code>defines</code>, <code>value_of</code>, <code>arg_N</code>, <code>result</code>, and <code>default</code> relations.</li>
-<li>Preserves sort information and avoids Python truthiness checks on Z3 ASTs.</li>
-</ul>
-<p>Minimal excerpt (full demo in <code>demos/02-z3-case-study.ipynb</code> or https://github.com/sidprasad/spytial/blob/main/demos/02-z3-case-study.ipynb):</p>
-<div class="highlight"><pre><span></span><code><span class="kn">import</span><span class="w"> </span><span class="nn">z3</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">spytial</span><span class="w"> </span><span class="kn">import</span> <span class="n">RelationalizerBase</span><span class="p">,</span> <span class="n">relationalizer</span>
-
-<span class="nd">@relationalizer</span><span class="p">(</span><span class="n">priority</span><span class="o">=</span><span class="mi">100</span><span class="p">)</span>
-<span class="k">class</span><span class="w"> </span><span class="nc">Z3ModelRelationalizer</span><span class="p">(</span><span class="n">RelationalizerBase</span><span class="p">):</span>
-    <span class="k">def</span><span class="w"> </span><span class="nf">can_handle</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">obj</span><span class="p">):</span>
-        <span class="k">return</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="n">z3</span><span class="o">.</span><span class="n">ModelRef</span><span class="p">)</span>
-
-    <span class="k">def</span><span class="w"> </span><span class="nf">relationalize</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">obj</span><span class="p">,</span> <span class="n">walker_func</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
-        <span class="c1"># Convert Z3 model into Atom/Relation lists.</span>
-        <span class="k">return</span> <span class="p">[],</span> <span class="p">[]</span>
-</code></pre></div>
 <h2 id="next-steps">Next steps</h2>
-<p>Once your relationalizer is in place, use <code>spytial.diagram()</code> or <code>spytial.evaluate()</code> to test how it behaves.</p>
+<p>Once your relationalizer is in place, use <code>spytial.evaluate()</code> first to validate the emitted structure, then <code>spytial.diagram()</code> to tune layout and directives.</p>
 
 
 

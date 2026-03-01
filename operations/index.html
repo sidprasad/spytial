@@ -6,15 +6,17 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="Spatial Python visualization with declarative constraints.">
+        <meta name="description" content="Spatial Python visualization for structured data.">
       
       
       
+        <link rel="canonical" href="https://sidprasad.github.io/cnd-py/operations/">
       
-        <link rel="prev" href="../usage/dataclass-builder/">
+      
+        <link rel="prev" href="../usage/evaluator/">
       
       
-        <link rel="next" href="../relationalizers/">
+        <link rel="next" href="../usage/dataclass-builder/">
       
       
         
@@ -156,13 +158,13 @@
     
     
       <div class="md-header__source">
-        <a href="https://github.com/sidprasad/spytial" title="Go to repository" class="md-source" data-md-component="source">
+        <a href="https://github.com/sidprasad/cnd-py" title="Go to repository" class="md-source" data-md-component="source">
   <div class="md-source__icon md-icon">
     
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
   </div>
   <div class="md-source__repository">
-    sidprasad/spytial
+    sidprasad/cnd-py
   </div>
 </a>
       </div>
@@ -224,18 +226,36 @@
   
   
   
-    
-    
-      <li class="md-tabs__item">
-        <a href="../usage/diagramming/" class="md-tabs__link">
-          
+    <li class="md-tabs__item">
+      <a href="../usage/diagramming/" class="md-tabs__link">
+        
   
   
-  Usage
+    
+  
+  Diagramming
 
-        </a>
-      </li>
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../usage/evaluator/" class="md-tabs__link">
+        
+  
+  
     
+  
+  Evaluator
+
+      </a>
+    </li>
   
 
       
@@ -254,6 +274,25 @@
     
   
   Operations
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../usage/dataclass-builder/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Dataclass Builder
 
       </a>
     </li>
@@ -285,13 +324,13 @@
   
   
     <li class="md-tabs__item">
-      <a href="../reference/api/" class="md-tabs__link">
+      <a href="../examples/spytial-clrs/" class="md-tabs__link">
         
   
   
     
   
-  API Reference
+  CLRS Examples
 
       </a>
     </li>
@@ -303,18 +342,17 @@
   
   
   
-    
-    
-      <li class="md-tabs__item">
-        <a href="../pythonspecific/" class="md-tabs__link">
-          
+    <li class="md-tabs__item">
+      <a href="../reference/api/" class="md-tabs__link">
+        
   
   
-  Development
+    
+  
+  API Reference
 
-        </a>
-      </li>
-    
+      </a>
+    </li>
   
 
       
@@ -350,13 +388,13 @@
   </label>
   
     <div class="md-nav__source">
-      <a href="https://github.com/sidprasad/spytial" title="Go to repository" class="md-source" data-md-component="source">
+      <a href="https://github.com/sidprasad/cnd-py" title="Go to repository" class="md-source" data-md-component="source">
   <div class="md-source__icon md-icon">
     
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
   </div>
   <div class="md-source__repository">
-    sidprasad/spytial
+    sidprasad/cnd-py
   </div>
 </a>
     </div>
@@ -423,58 +461,6 @@
   
   
   
-    
-    
-    
-    
-      
-      
-    
-    
-    <li class="md-nav__item md-nav__item--nested">
-      
-        
-        
-          
-        
-        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3" >
-        
-          
-          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
-            
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Usage
-  
-
-    
-  </span>
-  
-  
-
-            <span class="md-nav__icon md-icon"></span>
-          </label>
-        
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_3">
-            <span class="md-nav__icon md-icon"></span>
-            
-  
-    Usage
-  
-
-          </label>
-          <ul class="md-nav__list" data-md-scrollfix>
-            
-              
-                
-  
-  
-  
-  
     <li class="md-nav__item">
       <a href="../usage/diagramming/" class="md-nav__link">
         
@@ -495,10 +481,9 @@
     </li>
   
 
-              
-            
-              
-                
+    
+      
+      
   
   
   
@@ -520,42 +505,6 @@
   
 
       </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../usage/dataclass-builder/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Dataclass Builder
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-          </ul>
-        </nav>
-      
     </li>
   
 
@@ -627,10 +576,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#constraints-layout" class="md-nav__link">
+  <a href="#constraints" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Constraints (layout)
+        Constraints
       
     </span>
   </a>
@@ -638,10 +587,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#directives-drawing" class="md-nav__link">
+  <a href="#directives" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Directives (drawing)
+        Directives
       
     </span>
   </a>
@@ -649,80 +598,46 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#primary-attachment-class-decorators" class="md-nav__link">
+  <a href="#class-decorators" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Primary attachment: class decorators
+        Class decorators
       
     </span>
   </a>
-  
-    <nav class="md-nav" aria-label="Primary attachment: class decorators">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#using-the-tag-directive" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Using the tag directive
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#styling-edges" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Styling edges
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#other-attachment-methods" class="md-nav__link">
+  <a href="#object-level-annotations" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Other attachment methods
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Other attachment methods">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#object-annotations" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Object annotations
+        Object-level annotations
       
     </span>
   </a>
   
 </li>
-        
-          <li class="md-nav__item">
-  <a href="#typingannotated-annotatedtype" class="md-nav__link">
+      
+        <li class="md-nav__item">
+  <a href="#typingannotated-and-annotatedtype" class="md-nav__link">
     <span class="md-ellipsis">
       
-        typing.Annotated / AnnotatedType
+        typing.Annotated and AnnotatedType
       
     </span>
   </a>
   
 </li>
-        
-      </ul>
-    </nav>
+      
+        <li class="md-nav__item">
+  <a href="#example-directives" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Example directives
+      
+    </span>
+  </a>
   
 </li>
       
@@ -735,22 +650,16 @@
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Convenience operations">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#apply_if" class="md-nav__link">
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#patterns-used-in-spytial-clrs" class="md-nav__link">
     <span class="md-ellipsis">
       
-        apply_if
+        Patterns used in spytial-clrs
       
     </span>
   </a>
-  
-</li>
-        
-      </ul>
-    </nav>
   
 </li>
       
@@ -758,6 +667,33 @@
   
 </nav>
       
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../usage/dataclass-builder/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Dataclass Builder
+  
+
+    
+  </span>
+  
+  
+
+      </a>
     </li>
   
 
@@ -777,6 +713,33 @@
     
   
     Custom Relationalizers
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../examples/spytial-clrs/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CLRS Examples
   
 
     
@@ -816,121 +779,6 @@
   
 
     
-      
-      
-  
-  
-  
-  
-    
-    
-    
-    
-      
-      
-    
-    
-    <li class="md-nav__item md-nav__item--nested">
-      
-        
-        
-          
-        
-        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_7" >
-        
-          
-          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="0">
-            
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Development
-  
-
-    
-  </span>
-  
-  
-
-            <span class="md-nav__icon md-icon"></span>
-          </label>
-        
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_7">
-            <span class="md-nav__icon md-icon"></span>
-            
-  
-    Development
-  
-
-          </label>
-          <ul class="md-nav__list" data-md-scrollfix>
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../pythonspecific/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Python Integration Notes
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../PERFORMANCE_METRICS/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Performance Metrics
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-          </ul>
-        </nav>
-      
-    </li>
-  
-
-    
   </ul>
 </nav>
                   </div>
@@ -958,10 +806,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#constraints-layout" class="md-nav__link">
+  <a href="#constraints" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Constraints (layout)
+        Constraints
       
     </span>
   </a>
@@ -969,10 +817,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#directives-drawing" class="md-nav__link">
+  <a href="#directives" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Directives (drawing)
+        Directives
       
     </span>
   </a>
@@ -980,80 +828,46 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#primary-attachment-class-decorators" class="md-nav__link">
+  <a href="#class-decorators" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Primary attachment: class decorators
+        Class decorators
       
     </span>
   </a>
-  
-    <nav class="md-nav" aria-label="Primary attachment: class decorators">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#using-the-tag-directive" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Using the tag directive
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#styling-edges" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Styling edges
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#other-attachment-methods" class="md-nav__link">
+  <a href="#object-level-annotations" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Other attachment methods
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Other attachment methods">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#object-annotations" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Object annotations
+        Object-level annotations
       
     </span>
   </a>
   
 </li>
-        
-          <li class="md-nav__item">
-  <a href="#typingannotated-annotatedtype" class="md-nav__link">
+      
+        <li class="md-nav__item">
+  <a href="#typingannotated-and-annotatedtype" class="md-nav__link">
     <span class="md-ellipsis">
       
-        typing.Annotated / AnnotatedType
+        typing.Annotated and AnnotatedType
       
     </span>
   </a>
   
 </li>
-        
-      </ul>
-    </nav>
+      
+        <li class="md-nav__item">
+  <a href="#example-directives" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Example directives
+      
+    </span>
+  </a>
   
 </li>
       
@@ -1066,22 +880,16 @@
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Convenience operations">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#apply_if" class="md-nav__link">
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#patterns-used-in-spytial-clrs" class="md-nav__link">
     <span class="md-ellipsis">
       
-        apply_if
+        Patterns used in spytial-clrs
       
     </span>
   </a>
-  
-</li>
-        
-      </ul>
-    </nav>
   
 </li>
       
@@ -1108,126 +916,101 @@
 <h1 id="operations">Operations</h1>
 <p>Operations define how sPyTial interprets and renders your data. They fall into two categories:</p>
 <ul>
-<li><strong>Constraints</strong>: describe how things should be laid out.</li>
-<li><strong>Directives</strong>: describe how things should be drawn.</li>
+<li><strong>Constraints</strong> describe layout.</li>
+<li><strong>Directives</strong> describe drawing and presentation.</li>
 </ul>
 <p>Most users attach operations to classes with decorators. You can also attach them to specific objects or supply them via <code>typing.Annotated</code> or <code>spytial.AnnotatedType</code>.</p>
-<h2 id="constraints-layout">Constraints (layout)</h2>
-<p>Constraints affect the structure and layout of the diagram. Think of them as statements about <strong>where boxes should go</strong> relative to each other.</p>
+<h2 id="constraints">Constraints</h2>
+<p>Constraints shape the geometry of the final diagram:</p>
 <ul>
-<li><strong>orientation</strong>: directional relationships between selected boxes (for example, <code>left</code> vs. <code>directlyLeft</code>). Use spelled-out directions like <code>left</code>/<code>right</code>/<code>above</code>/<code>below</code> (not <code>TB</code>/<code>LR</code>). The stricter forms imply alignment on the perpendicular axis.</li>
-<li><strong>align</strong>: force selected boxes to share a common axis (e.g., vertical alignment means they share the same top-left <code>x</code> coordinate).</li>
-<li><strong>cyclic</strong>: arrange a sequence of boxes in a polygonal pattern, derived from an adjacency relation, to reflect cycles or ordered chains.</li>
-<li><strong>group</strong>: introduce a bounding region that must contain selected boxes and exclude others (optionally with keyed subgroups).</li>
+<li><code>orientation</code>: directional relationships between selected boxes</li>
+<li><code>align</code>: force selected boxes to share an axis</li>
+<li><code>cyclic</code>: arrange selected boxes in a cycle</li>
+<li><code>group</code>: place selected boxes inside a labeled bounding region</li>
 </ul>
-<p>These constraints influence the geometry the solver must satisfy, so they directly shape layout.</p>
-<h2 id="directives-drawing">Directives (drawing)</h2>
-<p>Directives control rendering details. They <strong>do not change the underlying structure</strong>, but they alter how nodes and edges are drawn.</p>
+<h2 id="directives">Directives</h2>
+<p>Directives change what the diagram looks like without changing the structure:</p>
 <ul>
-<li><strong>atomColor</strong> / <strong>edgeColor</strong>: apply color to boxes or edges. <code>edgeColor</code> supports additional styling options:</li>
-<li><code>style</code>: line style (<code>solid</code>, <code>dashed</code>, <code>dotted</code>)</li>
-<li><code>weight</code>: line thickness (integer)</li>
-<li><code>showLabel</code>: control edge label visibility</li>
-<li><code>filter</code>: N-ary selector to filter which tuples to style</li>
-<li><code>hidden</code>: hide the edge entirely while keeping the relationship</li>
-<li><strong>attribute</strong>: replace outgoing edges with labels. Supports:</li>
-<li><code>selector</code>: filter by source atom</li>
-<li><code>filter</code>: N-ary selector to filter which tuples to include</li>
-<li><strong>tag</strong>: add computed attributes to nodes without removing edges. Unlike <code>attribute</code>, this keeps the edge visible while displaying the value as an attribute. Requires:</li>
-<li><code>toTag</code>: selector for atoms that receive this tag</li>
-<li><code>name</code>: attribute name to display</li>
-<li><code>value</code>: selector returning the attribute values</li>
-<li><strong>inferredEdge</strong>: add derived edges to expose implicit relationships. Supports:</li>
-<li><code>color</code>: edge color</li>
-<li><code>style</code>: line style (<code>solid</code>, <code>dashed</code>, <code>dotted</code>)</li>
-<li><code>weight</code>: line thickness</li>
-<li><strong>icon</strong>: attach a graphical icon (optionally alongside the label).</li>
-<li><strong>hideField</strong>: suppress drawing a field edge. Supports:</li>
-<li><code>selector</code>: filter by source atom</li>
-<li><code>filter</code>: N-ary selector to filter which tuples to hide</li>
+<li><code>atomColor</code> and <code>edgeColor</code></li>
+<li><code>attribute</code></li>
+<li><code>tag</code></li>
+<li><code>inferredEdge</code></li>
+<li><code>icon</code></li>
+<li><code>hideField</code> and <code>hideAtom</code></li>
+<li><code>size</code></li>
 </ul>
-<p>Two operations are often used alongside directives:</p>
-<ul>
-<li><strong>hideAtom</strong>: remove selected atoms from the realized layout entirely (prunes the diagram before solving).</li>
-<li><strong>size</strong>: set explicit width/height for selected boxes.</li>
-</ul>
-<p>The API Reference lists every operation and its arguments.</p>
-<h2 id="primary-attachment-class-decorators">Primary attachment: class decorators</h2>
+<p>The API Reference lists the full argument surface for each operation.</p>
+<h2 id="class-decorators">Class decorators</h2>
 <p>Attach operations to a class using decorators. This is the most common and reusable approach.</p>
 <div class="highlight"><pre><span></span><code><span class="kn">import</span><span class="w"> </span><span class="nn">spytial</span>
 
 <span class="nd">@spytial</span><span class="o">.</span><span class="n">orientation</span><span class="p">(</span><span class="n">selector</span><span class="o">=</span><span class="s2">&quot;children&quot;</span><span class="p">,</span> <span class="n">directions</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;below&quot;</span><span class="p">])</span>
-<span class="nd">@spytial</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="n">selector</span><span class="o">=</span><span class="s2">&quot;children&quot;</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">&quot;Cluster A&quot;</span><span class="p">)</span>
+<span class="nd">@spytial</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="n">selector</span><span class="o">=</span><span class="s2">&quot;children&quot;</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">&quot;subtree&quot;</span><span class="p">)</span>
 <span class="k">class</span><span class="w"> </span><span class="nc">Node</span><span class="p">:</span>
     <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="n">children</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">value</span> <span class="o">=</span> <span class="n">value</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">children</span> <span class="o">=</span> <span class="n">children</span> <span class="ow">or</span> <span class="p">[]</span>
 </code></pre></div>
-<h3 id="using-the-tag-directive">Using the tag directive</h3>
+<h2 id="object-level-annotations">Object-level annotations</h2>
+<p>Attach operations to a single instance without modifying the class:</p>
+<div class="highlight"><pre><span></span><code><span class="kn">import</span><span class="w"> </span><span class="nn">spytial</span>
+
+<span class="n">node</span> <span class="o">=</span> <span class="n">Node</span><span class="p">(</span><span class="s2">&quot;root&quot;</span><span class="p">)</span>
+<span class="n">spytial</span><span class="o">.</span><span class="n">annotate_group</span><span class="p">(</span><span class="n">node</span><span class="p">,</span> <span class="n">selector</span><span class="o">=</span><span class="s2">&quot;children&quot;</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">&quot;root children&quot;</span><span class="p">)</span>
+<span class="n">spytial</span><span class="o">.</span><span class="n">annotate_orientation</span><span class="p">(</span><span class="n">node</span><span class="p">,</span> <span class="n">selector</span><span class="o">=</span><span class="s2">&quot;children&quot;</span><span class="p">,</span> <span class="n">directions</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;below&quot;</span><span class="p">])</span>
+</code></pre></div>
+<h2 id="typingannotated-and-annotatedtype"><code>typing.Annotated</code> and <code>AnnotatedType</code></h2>
+<p>Use these when you want to annotate plain containers such as <code>dict</code> and <code>list</code> values.</p>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">List</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">spytial</span><span class="w"> </span><span class="kn">import</span> <span class="n">AnnotatedType</span><span class="p">,</span> <span class="n">InferredEdge</span><span class="p">,</span> <span class="n">Orientation</span>
+
+<span class="n">Graph</span> <span class="o">=</span> <span class="n">AnnotatedType</span><span class="p">(</span>
+    <span class="n">Dict</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">int</span><span class="p">]],</span>
+    <span class="n">InferredEdge</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;edge&quot;</span><span class="p">,</span> <span class="n">selector</span><span class="o">=</span><span class="s2">&quot;values&quot;</span><span class="p">),</span>
+    <span class="n">Orientation</span><span class="p">(</span><span class="n">selector</span><span class="o">=</span><span class="s2">&quot;values&quot;</span><span class="p">,</span> <span class="n">directions</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;right&quot;</span><span class="p">]),</span>
+<span class="p">)</span>
+
+<span class="n">spytial</span><span class="o">.</span><span class="n">diagram</span><span class="p">({</span><span class="mi">0</span><span class="p">:</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">]},</span> <span class="n">as_type</span><span class="o">=</span><span class="n">Graph</span><span class="p">)</span>
+</code></pre></div>
+<h2 id="example-directives">Example directives</h2>
 <p>The <code>tag</code> directive displays computed values as node attributes without removing the underlying edges:</p>
 <div class="highlight"><pre><span></span><code><span class="kn">import</span><span class="w"> </span><span class="nn">spytial</span>
 
 <span class="nd">@spytial</span><span class="o">.</span><span class="n">tag</span><span class="p">(</span><span class="n">toTag</span><span class="o">=</span><span class="s2">&quot;Person&quot;</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">&quot;age&quot;</span><span class="p">,</span> <span class="n">value</span><span class="o">=</span><span class="s2">&quot;age&quot;</span><span class="p">)</span>
-<span class="nd">@spytial</span><span class="o">.</span><span class="n">tag</span><span class="p">(</span><span class="n">toTag</span><span class="o">=</span><span class="s2">&quot;Student&quot;</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">&quot;grade&quot;</span><span class="p">,</span> <span class="n">value</span><span class="o">=</span><span class="s2">&quot;currentGrade&quot;</span><span class="p">)</span>
 <span class="k">class</span><span class="w"> </span><span class="nc">Person</span><span class="p">:</span>
     <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">age</span><span class="p">):</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="n">name</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">age</span> <span class="o">=</span> <span class="n">age</span>
-
-<span class="c1"># For ternary selectors, the tag shows as: score[Math]: 95</span>
-<span class="nd">@spytial</span><span class="o">.</span><span class="n">tag</span><span class="p">(</span><span class="n">toTag</span><span class="o">=</span><span class="s2">&quot;Student&quot;</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">&quot;score&quot;</span><span class="p">,</span> <span class="n">value</span><span class="o">=</span><span class="s2">&quot;grades&quot;</span><span class="p">)</span>
-<span class="k">class</span><span class="w"> </span><span class="nc">Student</span><span class="p">(</span><span class="n">Person</span><span class="p">):</span>
-    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">age</span><span class="p">,</span> <span class="n">grades</span><span class="p">):</span>
-        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">age</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">grades</span> <span class="o">=</span> <span class="n">grades</span>  <span class="c1"># e.g., {&quot;Math&quot;: 95, &quot;English&quot;: 87}</span>
 </code></pre></div>
-<h3 id="styling-edges">Styling edges</h3>
 <p>Edge appearance can be customized with color, style, weight, and visibility:</p>
 <div class="highlight"><pre><span></span><code><span class="kn">import</span><span class="w"> </span><span class="nn">spytial</span>
 
 <span class="nd">@spytial</span><span class="o">.</span><span class="n">edgeColor</span><span class="p">(</span><span class="n">field</span><span class="o">=</span><span class="s2">&quot;parent&quot;</span><span class="p">,</span> <span class="n">value</span><span class="o">=</span><span class="s2">&quot;blue&quot;</span><span class="p">,</span> <span class="n">style</span><span class="o">=</span><span class="s2">&quot;solid&quot;</span><span class="p">,</span> <span class="n">weight</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
-<span class="nd">@spytial</span><span class="o">.</span><span class="n">edgeColor</span><span class="p">(</span><span class="n">field</span><span class="o">=</span><span class="s2">&quot;sibling&quot;</span><span class="p">,</span> <span class="n">value</span><span class="o">=</span><span class="s2">&quot;gray&quot;</span><span class="p">,</span> <span class="n">style</span><span class="o">=</span><span class="s2">&quot;dashed&quot;</span><span class="p">,</span> <span class="n">hidden</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
-<span class="nd">@spytial</span><span class="o">.</span><span class="n">edgeColor</span><span class="p">(</span><span class="n">field</span><span class="o">=</span><span class="s2">&quot;internal&quot;</span><span class="p">,</span> <span class="n">value</span><span class="o">=</span><span class="s2">&quot;red&quot;</span><span class="p">,</span> <span class="n">hidden</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>  <span class="c1"># hide edge entirely</span>
+<span class="nd">@spytial</span><span class="o">.</span><span class="n">edgeColor</span><span class="p">(</span><span class="n">field</span><span class="o">=</span><span class="s2">&quot;sibling&quot;</span><span class="p">,</span> <span class="n">value</span><span class="o">=</span><span class="s2">&quot;gray&quot;</span><span class="p">,</span> <span class="n">style</span><span class="o">=</span><span class="s2">&quot;dashed&quot;</span><span class="p">)</span>
 <span class="k">class</span><span class="w"> </span><span class="nc">TreeNode</span><span class="p">:</span>
     <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="n">parent</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">value</span> <span class="o">=</span> <span class="n">value</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">parent</span> <span class="o">=</span> <span class="n">parent</span>
 </code></pre></div>
-<h2 id="other-attachment-methods">Other attachment methods</h2>
-<h3 id="object-annotations">Object annotations</h3>
-<p>Attach operations to a single instance without modifying the class:</p>
-<div class="highlight"><pre><span></span><code><span class="n">node</span> <span class="o">=</span> <span class="n">Node</span><span class="p">(</span><span class="s2">&quot;root&quot;</span><span class="p">)</span>
-<span class="n">spytial</span><span class="o">.</span><span class="n">annotate_orientation</span><span class="p">(</span><span class="n">node</span><span class="p">,</span> <span class="n">selector</span><span class="o">=</span><span class="s2">&quot;children&quot;</span><span class="p">,</span> <span class="n">directions</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;below&quot;</span><span class="p">])</span>
-<span class="n">spytial</span><span class="o">.</span><span class="n">annotate_group</span><span class="p">(</span><span class="n">node</span><span class="p">,</span> <span class="n">selector</span><span class="o">=</span><span class="s2">&quot;children&quot;</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">&quot;Root Group&quot;</span><span class="p">)</span>
-</code></pre></div>
-<h3 id="typingannotated-annotatedtype">typing.Annotated / AnnotatedType</h3>
-<p>Treat a plain value as an annotated type (useful for dict/list data):</p>
-<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Annotated</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">List</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">spytial</span><span class="w"> </span><span class="kn">import</span> <span class="n">InferredEdge</span><span class="p">,</span> <span class="n">Orientation</span>
-
-<span class="n">Graph</span> <span class="o">=</span> <span class="n">Annotated</span><span class="p">[</span>
-    <span class="n">Dict</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">int</span><span class="p">]],</span>
-    <span class="n">InferredEdge</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;edge&quot;</span><span class="p">,</span> <span class="n">selector</span><span class="o">=</span><span class="s2">&quot;values&quot;</span><span class="p">),</span>
-    <span class="n">Orientation</span><span class="p">(</span><span class="n">selector</span><span class="o">=</span><span class="s2">&quot;values&quot;</span><span class="p">,</span> <span class="n">directions</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;right&quot;</span><span class="p">]),</span>
-<span class="p">]</span>
-
-<span class="n">spytial</span><span class="o">.</span><span class="n">diagram</span><span class="p">({</span><span class="mi">0</span><span class="p">:</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">]},</span> <span class="n">as_type</span><span class="o">=</span><span class="n">Graph</span><span class="p">)</span>
-</code></pre></div>
 <h2 id="convenience-operations">Convenience operations</h2>
-<p>Some operations help you express common logic without repeating boilerplate.</p>
-<h3 id="apply_if"><code>apply_if</code></h3>
-<p>Use <code>apply_if</code> to conditionally apply operations. This is convenient when only some instances should carry a decorator or directive.</p>
+<p><code>apply_if</code> lets you conditionally attach operations:</p>
 <div class="highlight"><pre><span></span><code><span class="kn">import</span><span class="w"> </span><span class="nn">spytial</span>
 
-<span class="nd">@spytial</span><span class="o">.</span><span class="n">apply_if</span><span class="p">(</span><span class="k">lambda</span> <span class="bp">cls</span><span class="p">:</span> <span class="bp">cls</span><span class="o">.</span><span class="vm">__name__</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s2">&quot;Node&quot;</span><span class="p">),</span> <span class="n">spytial</span><span class="o">.</span><span class="n">icon</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;tree&quot;</span><span class="p">))</span>
+<span class="nd">@spytial</span><span class="o">.</span><span class="n">apply_if</span><span class="p">(</span>
+    <span class="k">lambda</span> <span class="bp">cls</span><span class="p">:</span> <span class="bp">cls</span><span class="o">.</span><span class="vm">__name__</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s2">&quot;Node&quot;</span><span class="p">),</span>
+    <span class="n">spytial</span><span class="o">.</span><span class="n">atomColor</span><span class="p">(</span><span class="n">selector</span><span class="o">=</span><span class="s2">&quot;self&quot;</span><span class="p">,</span> <span class="n">value</span><span class="o">=</span><span class="s2">&quot;lightblue&quot;</span><span class="p">),</span>
+<span class="p">)</span>
 <span class="k">class</span><span class="w"> </span><span class="nc">TreeNode</span><span class="p">:</span>
     <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">value</span> <span class="o">=</span> <span class="n">value</span>
 </code></pre></div>
-<div class="admonition note">
-<p class="admonition-title">Note</p>
-<p><code>apply_if</code> is a shorthand for conditionally attaching operations. If the predicate returns <code>False</code>, no operation is applied.</p>
-</div>
+<h2 id="patterns-used-in-spytial-clrs">Patterns used in <code>spytial-clrs</code></h2>
+<p>The CLRS notebooks are a good source of idiomatic operation usage:</p>
+<ul>
+<li>linked lists use <code>attribute(...)</code> to turn fields into compact labels</li>
+<li>heaps and matrix-style examples use <code>align(...)</code> to create readable rows or sibling levels</li>
+<li>disjoint sets, hash tables, and SCC views use <code>group(...)</code> to expose higher-level regions</li>
+</ul>
 
 
 
