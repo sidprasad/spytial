@@ -1,22 +1,21 @@
 site_name: sPyTial
-site_description: Spatial Python visualization with declarative constraints.
-repo_url: https://github.com/sidprasad/spytial
-repo_name: sidprasad/spytial
+site_description: Spatial Python visualization for structured data.
+site_url: https://sidprasad.github.io/cnd-py/
+repo_url: https://github.com/sidprasad/cnd-py
+repo_name: sidprasad/cnd-py
+edit_uri: edit/main/docs/
 site_dir: site
 
 nav:
   - Home: index.md
   - Getting Started: getting-started.md
-  - Usage:
-      - Diagramming: usage/diagramming.md
-      - Evaluator: usage/evaluator.md
-      - Dataclass Builder: usage/dataclass-builder.md
+  - Diagramming: usage/diagramming.md
+  - Evaluator: usage/evaluator.md
   - Operations: operations.md
+  - Dataclass Builder: usage/dataclass-builder.md
   - Custom Relationalizers: relationalizers.md
+  - CLRS Examples: examples/spytial-clrs.md
   - API Reference: reference/api.md
-  - Development:
-      - Python Integration Notes: pythonspecific.md
-      - Performance Metrics: PERFORMANCE_METRICS.md
 
 theme:
   name: material
@@ -47,3 +46,4 @@ markdown_extensions:
 
 watch:
   - spytial
+  - docs

@@ -22,6 +22,20 @@ example = {
 spytial.diagram(example)
 ```
 
+By default, sPyTial renders inline in notebooks and opens a browser tab everywhere else.
+
+## Inspect before you diagram
+
+If you want to confirm how an object is being serialized, use the evaluator first:
+
+```python
+import spytial
+
+spytial.evaluate(example)
+```
+
+This is useful when you are debugging a custom class, an annotation, or a relationalizer.
+
 ## Display methods
 
 `sPyTial` chooses a display method based on environment:
@@ -45,4 +59,8 @@ spytial.diagram(example, method="inline")    # force inline output
 | `evaluate()` | Inspecting serialized data | HTML evaluator view |
 | `dataclass_builder()` | Constructing dataclass instances | Interactive builder |
 
-Next, dive into **Usage** to learn about the diagram and evaluator workflows.
+## Next steps
+
+- Read [Diagramming](usage/diagramming.md) for the main rendering workflow.
+- Read [Operations](operations.md) to control layout and drawing.
+- Browse [CLRS Examples](examples/spytial-clrs.md) for richer data-structure examples.
