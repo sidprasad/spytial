@@ -12,6 +12,7 @@ import os
 from typing import Any, Dict, Optional, Union
 
 from .utils import is_notebook, default_method
+from .core_assets import get_template_asset_context
 
 try:
     from IPython.display import display, HTML
@@ -347,6 +348,7 @@ def _generate_visualizer_html(
         or "",  # Performance metrics endpoint path (empty string if None)
         perf_iterations=perf_iterations
         or 0,  # Number of iterations for benchmarking (0 = disabled)
+        **get_template_asset_context(),
     )
 
     return html_content

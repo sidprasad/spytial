@@ -1,3 +1,4 @@
+from ._version import __version__
 from .provider_system import (
     # New relationalizer system
     CnDDataInstanceBuilder,
@@ -85,6 +86,7 @@ CnDDataInstanceBuilder = CnDDataInstanceBuilder
 
 
 __all__ = [
+    "__version__",
     # Core functions
     "diagram",
     "evaluate",

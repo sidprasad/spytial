@@ -1,10 +1,10 @@
 [build-system]
-requires = ["setuptools>=45", "wheel"]
+requires = ["setuptools>=61", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "spytial_diagramming"
-version = "0.6.7"
+dynamic = ["version"]
 description = "sPyTial: Spatial Python visualization with declarative constraints"
 readme = "README.md"
 license = {text = "MIT"}
@@ -40,6 +40,9 @@ Repository = "https://github.com/sidprasad/cnd-py"
 Issues = "https://github.com/sidprasad/cnd-py/issues"
 
 [project.optional-dependencies]
+headless = [
+    "selenium>=4.0.0",
+]
 dev = [
     "pytest>=7.0.0",
     "flake8>=6.0.0",
@@ -53,6 +56,9 @@ docs = [
 
 [tool.setuptools.packages.find]
 include = ["spytial*"]
+
+[tool.setuptools.dynamic]
+version = {attr = "spytial._version.__version__"}
 
 [tool.setuptools.package-data]
 spytial = ["*.html"]

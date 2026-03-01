@@ -14,7 +14,7 @@
         .success { color: #b5cea8; }
         .error { color: #f48771; }
     </style>
-<script src="https://cdn.jsdelivr.net/npm/spytial-core@1.9.1/dist/browser/spytial-core-complete.global.min.js"></script></head>
+<script src="{{ spytial_core_browser_bundle_url }}"></script></head>
 <body>
     <div class="containe-fluidr">
         <div class="repl">
@@ -26,13 +26,18 @@
     <script>
         // Embedded data passed from the server
         const jsonData = {{ python_data | safe }};
+        const spytialCore = window.spytialcore || window.CndCore || window.CnDCore;
 
         // Initialize the evaluator
         let evaluator;
         try {
-            const dataInstance = new CndCore.JSONDataInstance(jsonData);
+            if (!spytialCore) {
+                throw new Error('spytial-core failed to load');
+            }
+
+            const dataInstance = new spytialCore.JSONDataInstance(jsonData);
             const evaluationContext = { sourceData: dataInstance };
-            evaluator = new CndCore.SGraphQueryEvaluator();
+            evaluator = new spytialCore.SGraphQueryEvaluator();
             evaluator.initialize(evaluationContext);
         } catch (error) {
             console.error('Failed to initialize evaluator:', error);
