@@ -161,13 +161,13 @@ pip install build twine
 
 ## 📦 Package Information
 
-**Package Name:** `spytial`  
-**Current Version:** `0.1.0`  
+**Package Name:** `spytial_diagramming`  
+**Current Version Source:** `spytial/_version.py`  
 **Repository:** `https://github.com/sidprasad/spytial`
 
 ### Installation (After Publishing)
 ```bash
-pip install spytial
+pip install spytial_diagramming
 ```
 
 ### Dependencies
@@ -196,7 +196,7 @@ pip install spytial
    - Tokens need "Entire account" scope for publishing
 
 4. **Build failures:**
-   - Check `pyproject.toml` and `setup.py` are consistent
+   - Check `pyproject.toml` is valid and `spytial/_version.py` contains the intended version
    - Ensure all required files are in `MANIFEST.in`
 
 ### Getting Help
@@ -210,9 +210,8 @@ pip install spytial
 
 ### Releasing New Versions
 
-1. **Update version numbers in:**
-   - `setup.py` (line with `version=`)
-   - `pyproject.toml` (line with `version =`)
+1. **Update the version in one place:**
+   - `spytial/_version.py` (`__version__ = "..."`)
 
 2. **Create and push tag:**
    ```bash
@@ -234,7 +233,7 @@ pip install spytial
 
 Users can install sPyTial with:
 ```bash
-pip install spytial
+pip install spytial_diagramming
 ```
 
 And use it immediately:
