@@ -84,11 +84,21 @@ class RelationalizerRegistry:
 class CnDDataInstanceBuilder:
     """Main builder that composes providers to build data instances."""
 
-    def __init__(self):
+    def __init__(
+        self,
+        preserve_object_ids: bool = False,
+        identity_resolver: Optional[Callable[[Any], Optional[str]]] = None,
+    ):
         self._seen = {}
         self._atoms = []
         self._rels = {}
         self._id_counter = 0
+        self._preserve_object_ids = preserve_object_ids
+        self._identity_resolver = identity_resolver
+        self._identity_prefix = "identity:"
+        self._build_identity_objects = {}
+        self._persistent_object_ids = {}
+        self._persistent_id_counter = 0
         self._collected_decorators = {"constraints": [], "directives": []}
         self._current_depth = 0  # Track current recursion depth
         # Extensibility mechanism: custom reifiers for specific types
@@ -110,6 +120,7 @@ class CnDDataInstanceBuilder:
         self._atoms.clear()
         self._rels.clear()
         self._id_counter = 0
+        self._build_identity_objects = {}
         self._collected_decorators = {"constraints": [], "directives": []}
         self._current_depth = 0  # Reset depth
         self._as_type = as_type  # Store for use during walk
@@ -157,6 +168,7 @@ class CnDDataInstanceBuilder:
         except Exception as e:
             print(f"Error during data instance building: {e}")
             print("Object:", obj)
+            raise
 
         # Convert relations to include types (matching IRelation interface)
         relations = []
@@ -255,6 +267,33 @@ class CnDDataInstanceBuilder:
                     return spytial_id
             except ImportError:
                 pass
+
+            if self._identity_resolver is not None:
+                identity_key = self._identity_resolver(obj)
+                if identity_key is not None:
+                    if not isinstance(identity_key, str):
+                        raise TypeError(
+                            "diagramSequence identity hook must return a string or None"
+                        )
+
+                    existing_oid = self._build_identity_objects.get(identity_key)
+                    if existing_oid is not None and existing_oid != oid:
+                        raise ValueError(
+                            f"Duplicate explicit identity {identity_key!r} for distinct objects in one snapshot"
+                        )
+
+                    self._build_identity_objects[identity_key] = oid
+                    self._seen[oid] = f"{self._identity_prefix}{identity_key}"
+                    return self._seen[oid]
+
+            if self._preserve_object_ids:
+                if oid not in self._persistent_object_ids:
+                    self._persistent_object_ids[oid] = (
+                        f"n{self._persistent_id_counter}"
+                    )
+                    self._persistent_id_counter += 1
+                self._seen[oid] = self._persistent_object_ids[oid]
+                return self._seen[oid]
 
             # Fall back to simple ID generation for objects
             # (This will be handled in the remainder of the method below)

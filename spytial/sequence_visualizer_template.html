@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ title | default("sPyTial Sequence Visualization") }}</title>
+
+    <script src="{{ spytial_core_browser_bundle_url }}"></script>
+    <script src="{{ spytial_core_components_bundle_url }}"></script>
+    <link rel="stylesheet" href="{{ spytial_core_components_css_url }}" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            margin: 0;
+            padding: 0;
+            background: transparent;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .container {
+            display: flex;
+            flex-direction: column;
+            flex: 1;
+            min-height: 100vh;
+            background: #ffffff;
+        }
+
+        .sequence-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            padding: 12px 16px;
+            border-bottom: 1px solid #e5e7eb;
+            background: #f8fafc;
+            flex-wrap: wrap;
+        }
+
+        .sequence-status {
+            display: flex;
+            align-items: baseline;
+            gap: 12px;
+            color: #111827;
+        }
+
+        .sequence-title {
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .sequence-policy {
+            font-size: 12px;
+            color: #4b5563;
+        }
+
+        .sequence-controls {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .sequence-button {
+            border: 1px solid #cbd5e1;
+            background: #ffffff;
+            color: #0f172a;
+            border-radius: 6px;
+            padding: 8px 12px;
+            font-size: 13px;
+            cursor: pointer;
+            transition: background-color 0.15s ease, border-color 0.15s ease;
+        }
+
+        .sequence-button:hover:not(:disabled) {
+            background: #eff6ff;
+            border-color: #93c5fd;
+        }
+
+        .sequence-button:disabled {
+            cursor: not-allowed;
+            opacity: 0.45;
+        }
+
+        .graph-wrapper {
+            position: relative;
+            flex: 1;
+            min-height: 400px;
+            display: flex;
+        }
+
+        #graph-container {
+            width: 100%;
+            height: 100%;
+            min-height: 400px;
+            display: block;
+            flex: 1;
+        }
+
+        #loading-indicator {
+            position: absolute;
+            top: 16px;
+            right: 16px;
+            background: rgba(15, 23, 42, 0.85);
+            color: #ffffff;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            z-index: 1000;
+            display: none;
+        }
+
+        #error-message {
+            margin: 12px 16px 0 16px;
+        }
+
+        .error-card {
+            color: #991b1b;
+            border: 1px solid #fecaca;
+            background: #fef2f2;
+            border-radius: 8px;
+            padding: 10px 12px;
+            font-size: 13px;
+        }
+
+        .toolbar-button {
+            background: #0366d6;
+            color: #ffffff;
+            border: none;
+            padding: 8px 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            cursor: pointer;
+            margin-left: 8px;
+        }
+
+        .toolbar-button:hover {
+            background: #0256cc;
+        }
+
+        @media (max-width: 640px) {
+            .sequence-header {
+                align-items: stretch;
+            }
+
+            .sequence-controls {
+                justify-content: space-between;
+            }
+
+            .sequence-button {
+                flex: 1;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="sequence-header">
+            <div class="sequence-status">
+                <span class="sequence-title" id="step-status">Step 1 of 1</span>
+                <span class="sequence-policy" id="policy-status"></span>
+            </div>
+            <div class="sequence-controls">
+                <button type="button" class="sequence-button" id="prev-step">Previous</button>
+                <button type="button" class="sequence-button" id="next-step">Next</button>
+            </div>
+        </div>
+
+        <div class="graph-wrapper">
+            <span id="loading-indicator">Loading step...</span>
+            <webcola-cnd-graph id="graph-container" width="{{ width }}" height="{{ height }}" layoutFormat="default"
+                aria-label="Interactive sequence graph visualization">
+            </webcola-cnd-graph>
+        </div>
+
+        <div id="error-message"></div>
+        <div id="error-core"></div>
+    </div>
+
+    <script>
+        const cndSpec = `{{ cnd_spec | safe }}`;
+        const sequenceData = {{ sequence_data | safe }};
+        const sequencePolicyName = `{{ sequence_policy }}`;
+
+        let graphElement = null;
+        let currentIndex = null;
+        let currentLayout = null;
+        let layoutSpecCache = null;
+        let toolbarInitialized = false;
+        let isRendering = false;
+        const stepCache = new Map();
+
+        function getSpytialCore() {
+            return window.spytialcore || window.CndCore || window.CnDCore;
+        }
+
+        function prettyPolicyName(policyName) {
+            const labels = {
+                ignore_history: "Ignore history",
+                stability: "Stability",
+                change_emphasis: "Change emphasis",
+                random_positioning: "Random positioning",
+            };
+            return labels[policyName] || policyName;
+        }
+
+        function showLoading(message) {
+            const indicator = document.getElementById("loading-indicator");
+            indicator.textContent = message;
+            indicator.style.display = "block";
+        }
+
+        function hideLoading() {
+            const indicator = document.getElementById("loading-indicator");
+            indicator.style.display = "none";
+        }
+
+        function showError(message) {
+            const errorDiv = document.getElementById("error-message");
+            errorDiv.innerHTML = `<div class="error-card">${message}</div>`;
+        }
+
+        function clearError() {
+            const errorDiv = document.getElementById("error-message");
+            errorDiv.innerHTML = "";
+        }
+
+        function scanDataForIssues(data) {
+            const issues = [];
+
+            if (data && data.atoms) {
+                const idCounts = {};
+                for (const atom of data.atoms) {
+                    idCounts[atom.id] = (idCounts[atom.id] || 0) + 1;
+                }
+
+                const duplicates = Object.entries(idCounts)
+                    .filter(([, count]) => count > 1)
+                    .map(([id, count]) => `${id} (${count}x)`);
+
+                if (duplicates.length > 0) {
+                    issues.push(`Duplicate atom IDs: ${duplicates.slice(0, 5).join(", ")}`);
+                }
+            }
+
+            return issues;
+        }
+
+        function validateDataStructure(data) {
+            if (!data || typeof data !== "object") {
+                throw new Error("Data must be an object");
+            }
+
+            if (data.atoms && !Array.isArray(data.atoms)) {
+                throw new Error("atoms must be an array");
+            }
+
+            if (data.relations && !Array.isArray(data.relations)) {
+                throw new Error("relations must be an array");
+            }
+        }
+
+        function updateNavigation() {
+            const prevButton = document.getElementById("prev-step");
+            const nextButton = document.getElementById("next-step");
+            const status = document.getElementById("step-status");
+            const totalSteps = sequenceData.length;
+            const displayIndex = currentIndex === null ? 0 : currentIndex;
+
+            status.textContent = `Step ${displayIndex + 1} of ${totalSteps}`;
+            prevButton.disabled = isRendering || displayIndex <= 0;
+            nextButton.disabled = isRendering || displayIndex >= totalSteps - 1;
+        }
+
+        function resolveSequencePolicy(core) {
+            if (typeof core.getSequencePolicy === "function") {
+                return core.getSequencePolicy(sequencePolicyName);
+            }
+
+            const fallbackPolicies = {
+                ignore_history: core.ignoreHistory,
+                stability: core.stability,
+                change_emphasis: core.changeEmphasis,
+                random_positioning: core.randomPositioning,
+            };
+            return fallbackPolicies[sequencePolicyName];
+        }
+
+        function getLayoutSpec(core) {
+            if (layoutSpecCache) {
+                return layoutSpecCache;
+            }
+
+            try {
+                layoutSpecCache = core.parseLayoutSpec(cndSpec);
+            } catch (parseError) {
+                console.error("Layout spec parse error:", parseError);
+                layoutSpecCache = core.parseLayoutSpec("");
+            }
+
+            return layoutSpecCache;
+        }
+
+        function getStepData(index) {
+            if (stepCache.has(index)) {
+                return stepCache.get(index);
+            }
+
+            const core = getSpytialCore();
+            const rawData = sequenceData[index];
+
+            validateDataStructure(rawData);
+
+            const issues = scanDataForIssues(rawData);
+            if (issues.length > 0) {
+                console.warn(`Data diagnostics for step ${index + 1}:`, issues);
+            }
+
+            const dataInstance = new core.JSONDataInstance(rawData);
+            const evaluator = new core.SGraphQueryEvaluator();
+            evaluator.initialize({ sourceData: dataInstance });
+
+            const layoutSpec = getLayoutSpec(core);
+            const layoutInstance = new core.LayoutInstance(layoutSpec, evaluator, index, true);
+            const layoutResult = layoutInstance.generateLayout(dataInstance);
+
+            const stepData = {
+                dataInstance,
+                layout: layoutResult.layout,
+                error: layoutResult.error,
+            };
+            stepCache.set(index, stepData);
+            return stepData;
+        }
+
+        async function resetLayout() {
+            if (graphElement && currentLayout) {
+                await graphElement.renderLayout(currentLayout);
+            }
+        }
+
+        async function saveScreenshot() {
+            try {
+                const container = document.querySelector(".container");
+                if (!container) {
+                    throw new Error("Container not found");
+                }
+
+                const canvas = await html2canvas(container, {
+                    backgroundColor: "#ffffff",
+                    scale: 2,
+                    useCORS: true,
+                    allowTaint: true,
+                    logging: false,
+                    imageTimeout: 10000,
+                });
+
+                canvas.toBlob(function (blob) {
+                    const url = URL.createObjectURL(blob);
+                    const link = document.createElement("a");
+                    const timestamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, -5);
+                    link.href = url;
+                    link.download = `spytial-sequence-${timestamp}.png`;
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    URL.revokeObjectURL(url);
+                });
+            } catch (error) {
+                showError(`Failed to save screenshot: ${error.message}`);
+            }
+        }
+
+        function addToolbarButtons() {
+            if (!graphElement || typeof graphElement.addToolbarControl !== "function" || toolbarInitialized) {
+                return;
+            }
+
+            const resetButton = document.createElement("button");
+            resetButton.className = "toolbar-button";
+            resetButton.textContent = "Reset";
+            resetButton.title = "Reset layout";
+            resetButton.onclick = resetLayout;
+            graphElement.addToolbarControl(resetButton);
+
+            const screenshotButton = document.createElement("button");
+            screenshotButton.className = "toolbar-button";
+            screenshotButton.textContent = "PNG";
+            screenshotButton.title = "Save visualization as PNG";
+            screenshotButton.onclick = saveScreenshot;
+            graphElement.addToolbarControl(screenshotButton);
+
+            toolbarInitialized = true;
+        }
+
+        async function renderStep(nextIndex) {
+            if (isRendering) {
+                return;
+            }
+
+            const core = getSpytialCore();
+            if (!core) {
+                showError("spytial-core failed to load. The visualization cannot be displayed.");
+                return;
+            }
+
+            isRendering = true;
+            updateNavigation();
+            showLoading(`Loading step ${nextIndex + 1}...`);
+
+            try {
+                const nextStep = getStepData(nextIndex);
+                clearError();
+
+                if (!nextStep.layout) {
+                    throw new Error("Layout generation did not produce a layout");
+                }
+
+                if (currentIndex === null) {
+                    await graphElement.renderLayout(nextStep.layout);
+                } else {
+                    const previousStep = getStepData(currentIndex);
+                    const policy = resolveSequencePolicy(core);
+
+                    if (policy && previousStep.dataInstance && nextStep.dataInstance) {
+                        await graphElement.renderLayout(nextStep.layout, {
+                            policy,
+                            prevInstance: previousStep.dataInstance,
+                            currInstance: nextStep.dataInstance,
+                        });
+                    } else {
+                        await graphElement.renderLayout(nextStep.layout);
+                    }
+                }
+
+                currentIndex = nextIndex;
+                currentLayout = nextStep.layout;
+                addToolbarButtons();
+
+                if (nextStep.error) {
+                    showError(`Layout generation reported an issue: ${nextStep.error.message}`);
+                }
+            } catch (error) {
+                console.error("Error rendering sequence step:", error);
+                showError(`Error rendering sequence step ${nextIndex + 1}: ${error.message}`);
+            } finally {
+                isRendering = false;
+                hideLoading();
+                updateNavigation();
+            }
+        }
+
+        async function navigate(delta) {
+            if (currentIndex === null) {
+                await renderStep(0);
+                return;
+            }
+
+            const nextIndex = currentIndex + delta;
+            if (nextIndex < 0 || nextIndex >= sequenceData.length) {
+                return;
+            }
+
+            await renderStep(nextIndex);
+        }
+
+        function bindNavigation() {
+            document.getElementById("prev-step").addEventListener("click", function () {
+                navigate(-1);
+            });
+
+            document.getElementById("next-step").addEventListener("click", function () {
+                navigate(1);
+            });
+
+            window.addEventListener("keydown", function (event) {
+                if (event.key === "ArrowLeft") {
+                    navigate(-1);
+                } else if (event.key === "ArrowRight") {
+                    navigate(1);
+                }
+            });
+        }
+
+        async function initializeSequenceViewer() {
+            if (!Array.isArray(sequenceData) || sequenceData.length === 0) {
+                showError("No sequence data was provided.");
+                return;
+            }
+
+            graphElement = document.getElementById("graph-container");
+            document.getElementById("policy-status").textContent =
+                `Policy: ${prettyPolicyName(sequencePolicyName)}`;
+
+            bindNavigation();
+            updateNavigation();
+            await renderStep(0);
+        }
+
+        window.addEventListener("load", initializeSequenceViewer);
+    </script>
+</body>
+
+</html>
