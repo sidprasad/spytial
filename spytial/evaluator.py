@@ -12,6 +12,7 @@ import os
 from typing import Any, Optional
 
 from .utils import is_notebook, default_method
+from .core_assets import get_template_asset_context
 
 try:
     from IPython.display import display, HTML
@@ -177,6 +178,7 @@ def _generate_evaluator_html(data_instance, width=800, height=600):
         python_data=json.dumps(data_instance),  # Properly serialize to JSON
         width=width,  # Container width
         height=height,  # Container height
+        **get_template_asset_context(),
     )
 
     return html_content

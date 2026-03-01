@@ -2,8 +2,8 @@
 
 1. Ensure metadata
    - Confirm distribution name in pyproject.toml: `[project].name = "spytial-diagramming"`
-   - If you have setup.py, make sure it does not override the distribution name (or update it).
-   - Bump the version in pyproject.toml (and setup.py if present).
+   - `setup.py` is a thin shim; package metadata lives in `pyproject.toml`.
+   - Bump the version in `spytial/_version.py`.
 
 2. Clean previous builds
 ```bash
@@ -49,7 +49,7 @@ python -m twine upload dist/*
 ls dist/
 python -m twine upload dist/spytial_diagramming-*.*
 ```
-   - Ensure pyproject.toml / setup.py are consistent and versioned.
+   - Ensure `pyproject.toml` still points to `spytial._version.__version__` and that `spytial/_version.py` has the intended release version.
    - Use TestPyPI to verify before publishing to production.
 
 That’s it — the minimal end-to-end flow: update metadata, clean, build, test on TestPyPI, then upload to PyPI.

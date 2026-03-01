@@ -10,6 +10,7 @@ import json
 import os
 import yaml
 from dataclasses import is_dataclass
+from pathlib import Path
 from typing import Any, Optional, TYPE_CHECKING, Union
 
 if TYPE_CHECKING:
@@ -17,6 +18,14 @@ if TYPE_CHECKING:
 
 from .provider_system import CnDDataInstanceBuilder
 from .annotations import collect_decorators
+from .core_assets import get_template_asset_context
+
+try:
+    from jinja2 import Environment, FileSystemLoader
+
+    HAS_JINJA2 = True
+except ImportError:
+    HAS_JINJA2 = False
 
 
 def _generate_cnd_spec(instance: Any) -> str:
@@ -86,22 +95,10 @@ def dataclass_builder(
     builder = CnDDataInstanceBuilder()
     initial_data = builder.build_instance(instance)
 
-    # Load HTML template
-    template_path = os.path.join(os.path.dirname(__file__), "input_template.html")
-    with open(template_path, "r") as f:
-        template_html = f.read()
-
-    # Replace template placeholders
-    html_content = template_html.replace(
-        '{{ title | default("sPyTial Visualization") }}',
-        f"{dataclass_type.__name__} Builder",
-    )
-    html_content = html_content.replace("{{ cnd_spec | safe }}", cnd_spec)
-    html_content = html_content.replace(
-        "{{ python_data | safe }}", json.dumps(initial_data)
-    )
-    html_content = html_content.replace(
-        "{{ dataclass_name | safe }}", dataclass_type.__name__
+    html_content = _generate_dataclass_builder_html(
+        initial_data=initial_data,
+        cnd_spec=cnd_spec,
+        dataclass_name=dataclass_type.__name__,
     )
 
     # Handle different output methods
@@ -147,3 +144,28 @@ def dataclass_builder(
         raise ValueError(
             f"Unknown method: {method}. Use 'browser', 'file', or 'inline'."
         )
+
+
+def _generate_dataclass_builder_html(initial_data, cnd_spec, dataclass_name):
+    """Generate HTML for the interactive dataclass builder."""
+
+    if not HAS_JINJA2:
+        raise ImportError(
+            "Jinja2 is required for HTML generation. Install with: pip install jinja2"
+        )
+
+    current_dir = Path(__file__).parent
+    env = Environment(loader=FileSystemLoader(current_dir))
+
+    try:
+        template = env.get_template("input_template.html")
+    except Exception as e:
+        raise FileNotFoundError(f"input_template.html not found in {current_dir}: {e}")
+
+    return template.render(
+        python_data=json.dumps(initial_data),
+        cnd_spec=cnd_spec,
+        dataclass_name=dataclass_name,
+        title=f"{dataclass_name} Builder",
+        **get_template_asset_context(),
+    )

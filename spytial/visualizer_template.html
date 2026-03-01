@@ -5,16 +5,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ title | default("sPyTial Visualization") }}</title>
-    
-    <script src="https://d3js.org/d3.v4.min.js"></script>
 
-    <!-- <script src="https://cdn.jsdelivr.net/npm/spytial-core@1.9.1/dist/browser/spytial-core-complete.global.js"></script>   -->
-    <script src="https://cdn.jsdelivr.net/npm/spytial-core@1.9.1/dist/browser/spytial-core-complete.global.min.js"></script>
-
-
-
-    <script src="https://cdn.jsdelivr.net/npm/spytial-core@1.9.1/dist/components/react-component-integration.global.js"></script>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/spytial-core@1.9.1/dist/components/react-component-integration.css" />
+    <script src="{{ spytial_core_browser_bundle_url }}"></script>
+    <script src="{{ spytial_core_components_bundle_url }}"></script>
+    <link rel="stylesheet" href="{{ spytial_core_components_css_url }}" />
     
     <!-- html2canvas for screenshot functionality -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script> 
@@ -125,6 +119,10 @@
         const jsonData = {{ python_data | safe }};
         const perfPath = `{{ perf_path | default("", true) }}`;  // Optional perf file path
         const perfIterations = parseInt('{{ perf_iterations }}') || 0;  // Optional number of iterations for benchmarking
+
+        function getSpytialCore() {
+            return window.spytialcore || window.CndCore || window.CnDCore;
+        }
 
         // Global variables for reset functionality
         let instanceLayout = null;
@@ -528,11 +526,12 @@
                 renderLayout: 0,
                 totalTime: 0
             };
+            let parsedData = null;
 
-            // Check if Spytial-Core Core is available
-            if (typeof CndCore === 'undefined') {
-                console.error('Spytial-Core Core library is not available');
-                showError('Spytial-Core Core library failed to load. The visualization cannot be displayed.');
+            const core = getSpytialCore();
+            if (!core) {
+                console.error('spytial-core library is not available');
+                showError('spytial-core failed to load. The visualization cannot be displayed.');
                 return null;
             }
 
@@ -543,7 +542,6 @@
 
             try {
                 // Use JSON data directly (now embedded as object, not string)
-                let parsedData;
                 let dataInstance;
                 try {
                     parsedData = jsonData;  // Already parsed from Jinja2 template
@@ -557,7 +555,7 @@
                 
                 // Create a data instance from the JSON data
                 try {
-                    dataInstance = new CndCore.JSONDataInstance(parsedData);
+                    dataInstance = new core.JSONDataInstance(parsedData);
                 } catch (instanceError) {
                     const diagnosticIssues = scanDataForIssues(parsedData);
                     const diagnosticHint = diagnosticIssues.length > 0 
@@ -572,7 +570,7 @@
 
                 // Initialize the evaluation context
                 let evaluationContext = { sourceData: dataInstance };
-                let sgqEvaluator = new CndCore.SGraphQueryEvaluator();
+                let sgqEvaluator = new core.SGraphQueryEvaluator();
                 sgqEvaluator.initialize(evaluationContext);
                 
                 if (!perfIterations) {
@@ -581,13 +579,13 @@
 
                 // Parse the Spytial-Core specification
                 const parseSpecStart = performance.now();
-                let layoutSpec = CndCore.parseLayoutSpec(cndSpec);
+                let layoutSpec = core.parseLayoutSpec(cndSpec);
                 iterationMetrics.parseSpec = performance.now() - parseSpecStart;
 
                 // Generate the layout with timing
                 const generateLayoutStart = performance.now();
-                let layoutInstance = new CndCore.LayoutInstance(layoutSpec, sgqEvaluator, 0, true);
-                let layoutResult = layoutInstance.generateLayout(dataInstance, {});
+                let layoutInstance = new core.LayoutInstance(layoutSpec, sgqEvaluator, 0, true);
+                let layoutResult = layoutInstance.generateLayout(dataInstance);
                 iterationMetrics.generateLayout = performance.now() - generateLayoutStart;
 
                 // Check for layout errors
