@@ -34,9 +34,10 @@ dependencies = [
 keywords = ["visualization", "diagrams", "spatial", "constraints", "data-structures"]
 
 [project.urls]
-Homepage = "https://github.com/sidprasad/spytial"
-Repository = "https://github.com/sidprasad/spytial"
-Issues = "https://github.com/sidprasad/spytial/issues"
+Homepage = "https://github.com/sidprasad/cnd-py"
+Documentation = "https://sidprasad.github.io/cnd-py/"
+Repository = "https://github.com/sidprasad/cnd-py"
+Issues = "https://github.com/sidprasad/cnd-py/issues"
 
 [project.optional-dependencies]
 dev = [

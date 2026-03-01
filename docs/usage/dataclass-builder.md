@@ -19,7 +19,11 @@ class TreeNode:
 spytial.dataclass_builder(TreeNode())
 ```
 
-## Methods
+## What it expects
+
+The builder requires a dataclass instance, not a class object. Pass `TreeNode()` rather than `TreeNode`.
+
+## Output methods
 
 ```python
 spytial.dataclass_builder(TreeNode(), method="browser")
@@ -27,9 +31,12 @@ spytial.dataclass_builder(TreeNode(), method="file")
 spytial.dataclass_builder(TreeNode(), method="inline")
 ```
 
-## Output
+## Typical workflow
 
-Use the **Export** button in the UI to copy the generated Python constructor code. Paste it back into your codebase to recreate the edited structure.
+1. Start with a minimal dataclass instance.
+2. Open the builder.
+3. Edit the structure in the UI.
+4. Use **Export** to copy the generated constructor code back into your Python code.
 
 !!! tip
     For large models, start with a minimal instance and build up visually before exporting the final constructor.

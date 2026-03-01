@@ -44,9 +44,15 @@ spytial.diagram(data, method='file')
 
 ## Documentation
 
-User-facing documentation is available at https://sidprasad.github.io/spytial/ and is generated with MkDocs from the codebase and Markdown guides.
+Documentation is published at https://sidprasad.github.io/cnd-py/ and is generated from this repository with MkDocs.
+
+The docs are split into:
+
+- usage docs for installation, diagramming, evaluation, annotations, and relationalizers
+- development docs for the Python integration, local workflow, and GitHub Pages deployment
+
+The sibling `spytial-clrs` repository is the companion example corpus for tutorials and data-structure demos.
 
 
 ## License
 This project is licensed under the MIT License. See the LICENSE file for details.
-

@@ -1,14 +1,6 @@
 # sPyTial
 
-sPyTial helps you turn Python objects into meaningful **box-and-arrow diagrams** using spatial layout rules. It focuses on the structure of your data rather than UI chrome, making it ideal for debugging, teaching, and research.
-
-## What you can do
-
-- **Diagram** any Python object in a browser tab or notebook.
-- **Evaluate** your data as a structured payload to validate serialization.
-- **Annotate** types or instances with spatial constraints (orientation, grouping, colors, icons, etc.).
-- **Build** dataclass instances with a visual, copy/pasteable builder.
-- **Extend** the serializer with custom relationalizers for domain objects.
+sPyTial turns Python objects into box-and-arrow diagrams backed by Spytial's layout engine. It is aimed at cases where the structure matters more than the UI: debugging recursive objects, teaching data structures, inspecting serialized state, or building small visual tools around Python models.
 
 ## Install
 
@@ -21,25 +13,30 @@ pip install spytial-diagramming
 ```python
 import spytial
 
-data = {
+tree = {
     "name": "root",
     "children": [
-        {"value": 1},
-        {"value": 2},
-        {"value": 3},
+        {"name": "left"},
+        {"name": "right"},
     ],
 }
 
-# Open a diagram in a browser or inline notebook view.
-spytial.diagram(data)
+spytial.diagram(tree)
 ```
 
-## Documentation layout
+## What lives in this site
 
-Use the sections in the navigation to explore:
+This documentation is split into two tracks:
 
-- **Getting Started** for installation and first steps.
-- **Usage** for diagramming, evaluation, and builder workflows.
-- **Annotations & Constraints** for spatial controls.
-- **Custom Relationalizers** to extend serialization for your own types.
-- **API Reference** for auto-generated docs from the codebase.
+- **Use sPyTial** covers installation, diagramming, evaluation, operations, the dataclass builder, and custom relationalizers.
+- **Develop sPyTial** explains how the Python package is organized, how it bridges to `spytial-core`, and how the docs site is built and deployed.
+
+## Using `spytial-clrs` as the examples repo
+
+The sibling [`spytial-clrs`](https://github.com/sidprasad/spytial-clrs) repository is the best source of worked examples for this package. It contains CLRS-style notebooks for linked lists, heaps, trees, graphs, disjoint sets, and memoization tables. In practice it serves three roles:
+
+- a tutorial gallery for user-facing docs
+- a source of screenshots and notebook snippets
+- a regression corpus for checking that common data-structure patterns still render cleanly
+
+Start with [Getting Started](getting-started.md) if you want to use the library, or [Develop sPyTial](development/index.md) if you want to work on the package itself.
