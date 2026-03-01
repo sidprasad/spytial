@@ -5,12 +5,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ title | default("sPyTial Visualization") }}</title>
-    
-    <script src="https://d3js.org/d3.v4.min.js"></script>
 
-    <script src="https://cdn.jsdelivr.net/npm/spytial-core@1.9.1/dist/browser/spytial-core-complete.global.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/spytial-core@1.9.1/dist/components/react-component-integration.global.js"></script>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/spytial-core@1.9.1/dist/components/react-component-integration.css" /> 
+    <script src="{{ spytial_core_browser_bundle_url }}"></script>
+    <script src="{{ spytial_core_components_bundle_url }}"></script>
+    <link rel="stylesheet" href="{{ spytial_core_components_css_url }}" /> 
     
     <style>
         body {
@@ -100,6 +98,10 @@
         const jsonData = {{ python_data | safe }};
         const cndSpec = `{{ cnd_spec | safe }}`;
         const dataclassName = `{{ dataclass_name | safe }}`;
+
+        function getSpytialCore() {
+            return window.spytialcore || window.CndCore || window.CnDCore;
+        }
         
         console.log('Loaded initial data:', jsonData);
 
@@ -361,8 +363,14 @@
             
             // If we can't get current data, use the tracked instance or fall back to initial data
             if (!dataToReset) {
-                dataToReset = currentDataInstance || new CndCore.JSONDataInstance(jsonData);
+                const core = getSpytialCore();
+                dataToReset = currentDataInstance || (core ? new core.JSONDataInstance(jsonData) : null);
                 console.log('⚠️ Using fallback data for reset');
+            }
+
+            if (!dataToReset) {
+                showError('Unable to reset because spytial-core is unavailable.');
+                return;
             }
             
             console.log('Resetting layout with current data instance');
@@ -517,21 +525,21 @@
                 return;
             }
 
-            // Check if Spytial-Core Core is available
-            if (typeof CndCore === 'undefined') {
-                console.error('Spytial-Core Core library is not available');
-                showError('Spytial-Core Core library failed to load. The visualization cannot be displayed.');
+            const core = getSpytialCore();
+            if (!core) {
+                console.error('spytial-core library is not available');
+                showError('spytial-core failed to load. The visualization cannot be displayed.');
                 
                 // Try to load the library again
-                console.log('Attempting to reload Spytial-Core library...');
+                console.log('Attempting to reload spytial-core...');
                 const script = document.createElement('script');
-                script.src = 'https://cdn.jsdelivr.net/npm/spytial-core@1.9.1/dist/browser/spytial-core-complete.global.js';
+                script.src = '{{ spytial_core_browser_bundle_url }}';
                 script.onload = function() {
-                    console.log('Spytial-Core library reloaded, retrying...');
+                    console.log('spytial-core reloaded, retrying...');
                     setTimeout(loadGraph, 500);
                 };
                 script.onerror = function() {
-                    showError('Failed to load Spytial-Core library even on retry');
+                    showError('Failed to load spytial-core even on retry');
                 };
                 document.head.appendChild(script);
                 return;
@@ -559,7 +567,7 @@
                     relations: parsedData.relations?.length,
                     types: parsedData.types?.length
                 });
-                const dataInstance = new CndCore.JSONDataInstance(parsedData);
+                const dataInstance = new core.JSONDataInstance(parsedData);
                 console.log('Data instance created:', dataInstance);
                 
                 // Store the initial data instance
@@ -628,8 +636,8 @@
                                 graphElement.removeAttribute('unsat');
                                 
                                 // Clear any error modal if layout is now SAT
-                                if (window.clearErrorModal) {
-                                    window.clearErrorModal();
+                                if (window.clearAllErrors) {
+                                    window.clearAllErrors();
                                 }
                             }
                         }
@@ -797,7 +805,7 @@
         // Auto-load when page loads
         window.addEventListener('load', function() {
             console.log('Page loaded, starting graph setup...');
-            console.log('CndCore available:', typeof CndCore !== 'undefined');
+            console.log('spytial-core available:', !!getSpytialCore());
             console.log('Graph element:', document.getElementById('structured-graph'));
             loadGraph();
         });

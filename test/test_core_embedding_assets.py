@@ -1,0 +1,42 @@
+from dataclasses import dataclass
+
+from spytial.core_assets import SPYTIAL_CORE_NPM_VERSION
+from spytial.dataclass_builder import _generate_dataclass_builder_html
+from spytial.evaluator import _generate_evaluator_html
+from spytial.visualizer import _generate_visualizer_html
+
+
+def test_visualizer_html_uses_current_core_bundle_urls():
+    html = _generate_visualizer_html({"atoms": [], "relations": []}, "constraints: []\n")
+
+    assert f"spytial-core@{SPYTIAL_CORE_NPM_VERSION}" in html
+    assert "spytial-core-complete.global.js" in html
+    assert "spytial-core-complete.global.min.js" not in html
+    assert "window.spytialcore || window.CndCore || window.CnDCore" in html
+
+
+def test_evaluator_html_uses_current_core_bundle_urls():
+    html = _generate_evaluator_html({"atoms": [], "relations": []})
+
+    assert f"spytial-core@{SPYTIAL_CORE_NPM_VERSION}" in html
+    assert "spytial-core-complete.global.js" in html
+    assert "spytial-core-complete.global.min.js" not in html
+    assert "window.spytialcore || window.CndCore || window.CnDCore" in html
+
+
+def test_dataclass_builder_html_uses_current_core_bundle_urls():
+    @dataclass
+    class SampleNode:
+        value: int = 1
+
+    html = _generate_dataclass_builder_html(
+        initial_data={"atoms": [], "relations": []},
+        cnd_spec="constraints: []\ndirectives: []\n",
+        dataclass_name=SampleNode.__name__,
+    )
+
+    assert f"spytial-core@{SPYTIAL_CORE_NPM_VERSION}" in html
+    assert "spytial-core-complete.global.js" in html
+    assert "spytial-core-complete.global.min.js" not in html
+    assert "window.spytialcore || window.CndCore || window.CnDCore" in html
+    assert "window.clearAllErrors" in html
