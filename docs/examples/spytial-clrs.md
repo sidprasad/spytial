@@ -2,17 +2,17 @@
 
 [`spytial-clrs`](https://github.com/sidprasad/spytial-clrs) is the companion examples repository for `spytial-py`. It contains notebooks based on CLRS data structures and is the best source of realistic diagrams for docs, demos, and screenshots.
 
-## Why it matters for this repo
+## Why it is useful
 
-For `spytial-py`, `spytial-clrs` is useful in three ways:
+If you want to see what sPyTial looks like on larger structures, `spytial-clrs` is the best place to start:
 
-- it provides user-facing examples that are more realistic than toy `dict` and `list` snippets
-- it shows which combinations of operations are expressive enough for classic data structures
-- it gives contributors a repeatable corpus to smoke-test when diagram output changes
+- it provides realistic examples that go beyond toy `dict` and `list` inputs
+- it shows how different layout operations help explain specific data structures
+- it gives you a gallery of end-to-end examples you can adapt for your own work
 
-## Suggested documentation map
+## Example guide
 
-Use the notebooks as the source material for different sections of the docs:
+Use the notebooks as a guide depending on what you want to visualize:
 
 | Notebook | Structures | Good docs topics |
 | --- | --- | --- |
@@ -25,21 +25,8 @@ Use the notebooks as the source material for different sections of the docs:
 | `disjoint-sets.ipynb` | disjoint set forests | group constraints and forest layouts |
 | `memoization.ipynb` | matrix-style DP tables | alignment constraints and grid-like layouts |
 
-## Recommended way to use it
+## How to use these examples
 
-If you keep extending the docs site, `spytial-clrs` should probably feed three kinds of pages:
-
-1. short, focused snippets in the main usage docs
-2. a visual gallery page with screenshots and notebook links
-3. regression-oriented smoke tests for major rendering changes
-
-## Local workflow
-
-From the `spytial-clrs` repo:
-
-```bash
-pip install -r src/requirements.txt
-jupyter notebook src/
-```
-
-If you want a browser-hosted notebook experience, that repo already contains a JupyterLite GitHub Pages deployment pipeline.
+- Start with `stacksqueues.ipynb` or `linked-lists.ipynb` if you are new to sPyTial.
+- Browse `trees.ipynb` and `graphs.ipynb` for richer layouts and more advanced operation combinations.
+- Use the notebook closest to your own data shape as a template for your first diagram.

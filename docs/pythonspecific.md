@@ -1,3 +1,8 @@
 # Python Integration Details
 
-This page has moved to [Develop sPyTial > Python Integration](development/python-integration.md).
+This page is no longer part of the published user documentation.
+
+For the public docs, use:
+
+- [Operations](operations.md)
+- [Custom Relationalizers](relationalizers.md)

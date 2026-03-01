@@ -9,19 +9,13 @@ site_dir: site
 nav:
   - Home: index.md
   - Getting Started: getting-started.md
-  - Use sPyTial:
-      - Diagramming: usage/diagramming.md
-      - Evaluator: usage/evaluator.md
-      - Operations: operations.md
-      - Dataclass Builder: usage/dataclass-builder.md
-      - Custom Relationalizers: relationalizers.md
-      - CLRS Examples: examples/spytial-clrs.md
-      - API Reference: reference/api.md
-  - Develop sPyTial:
-      - Overview: development/index.md
-      - Python Integration: development/python-integration.md
-      - Workflow: development/workflow.md
-      - Docs and GitHub Pages: development/docs-site.md
+  - Diagramming: usage/diagramming.md
+  - Evaluator: usage/evaluator.md
+  - Operations: operations.md
+  - Dataclass Builder: usage/dataclass-builder.md
+  - Custom Relationalizers: relationalizers.md
+  - CLRS Examples: examples/spytial-clrs.md
+  - API Reference: reference/api.md
 
 theme:
   name: material

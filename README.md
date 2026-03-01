@@ -46,12 +46,11 @@ spytial.diagram(data, method='file')
 
 Documentation is published at https://sidprasad.github.io/cnd-py/ and is generated from this repository with MkDocs.
 
-The docs are split into:
+The docs focus on user-facing material:
 
-- usage docs for installation, diagramming, evaluation, annotations, and relationalizers
-- development docs for the Python integration, local workflow, and GitHub Pages deployment
-
-The sibling `spytial-clrs` repository is the companion example corpus for tutorials and data-structure demos.
+- installation and first steps
+- diagramming, evaluation, annotations, and relationalizers
+- data-structure examples drawn from the `spytial-clrs` companion repo
 
 
 ## License

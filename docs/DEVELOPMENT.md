@@ -1,8 +1,9 @@
 # Development Guide
 
-This page has moved into the **Develop sPyTial** section.
+This page is no longer part of the published user documentation.
 
-- [Overview](development/index.md)
-- [Python Integration](development/python-integration.md)
-- [Workflow](development/workflow.md)
-- [Docs and GitHub Pages](development/docs-site.md)
+For public docs, use:
+
+- [Getting Started](getting-started.md)
+- [Diagramming](usage/diagramming.md)
+- [Operations](operations.md)
