@@ -533,6 +533,34 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#sequence-diagrams" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Sequence diagrams
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Sequence diagrams">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#when-to-use-identity" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        When to use identity
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#display-options" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -817,6 +845,34 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#sequence-diagrams" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Sequence diagrams
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Sequence diagrams">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#when-to-use-identity" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        When to use identity
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#display-options" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -920,10 +976,67 @@
 
 <span class="n">spytial</span><span class="o">.</span><span class="n">diagram</span><span class="p">({</span><span class="s2">&quot;a&quot;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span> <span class="s2">&quot;b&quot;</span><span class="p">:</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">]})</span>
 </code></pre></div>
+<h2 id="sequence-diagrams">Sequence diagrams</h2>
+<p>Use <code>spytial.diagramSequence()</code> when you want to step through multiple states with the temporal policies from <code>spytial-core</code>.</p>
+<div class="highlight"><pre><span></span><code><span class="kn">import</span><span class="w"> </span><span class="nn">spytial</span>
+
+<span class="n">states</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="p">{</span><span class="s2">&quot;count&quot;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span> <span class="s2">&quot;items&quot;</span><span class="p">:</span> <span class="p">[</span><span class="s2">&quot;a&quot;</span><span class="p">]},</span>
+    <span class="p">{</span><span class="s2">&quot;count&quot;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span> <span class="s2">&quot;items&quot;</span><span class="p">:</span> <span class="p">[</span><span class="s2">&quot;a&quot;</span><span class="p">,</span> <span class="s2">&quot;b&quot;</span><span class="p">]},</span>
+    <span class="p">{</span><span class="s2">&quot;count&quot;</span><span class="p">:</span> <span class="mi">2</span><span class="p">,</span> <span class="s2">&quot;items&quot;</span><span class="p">:</span> <span class="p">[</span><span class="s2">&quot;b&quot;</span><span class="p">]},</span>
+<span class="p">]</span>
+
+<span class="n">spytial</span><span class="o">.</span><span class="n">diagramSequence</span><span class="p">(</span><span class="n">states</span><span class="p">,</span> <span class="n">sequence_policy</span><span class="o">=</span><span class="s2">&quot;stability&quot;</span><span class="p">)</span>
+</code></pre></div>
+<p>Available sequence policies:</p>
+<ul>
+<li><code>ignore_history</code></li>
+<li><code>stability</code></li>
+<li><code>change_emphasis</code></li>
+<li><code>random_positioning</code></li>
+</ul>
+<h3 id="when-to-use-identity">When to use <code>identity</code></h3>
+<p>If each step reuses the same live Python objects and mutates them over time, <code>diagramSequence()</code> can usually preserve IDs without extra help.</p>
+<div class="highlight"><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">Node</span><span class="p">:</span>
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">node_id</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">id</span> <span class="o">=</span> <span class="n">node_id</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">value</span> <span class="o">=</span> <span class="n">value</span>
+
+<span class="n">node</span> <span class="o">=</span> <span class="n">Node</span><span class="p">(</span><span class="s2">&quot;A&quot;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+<span class="n">states</span> <span class="o">=</span> <span class="p">[</span><span class="n">node</span><span class="p">]</span>
+<span class="n">node</span><span class="o">.</span><span class="n">value</span> <span class="o">=</span> <span class="mi">2</span>
+<span class="n">states</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">node</span><span class="p">)</span>
+
+<span class="n">spytial</span><span class="o">.</span><span class="n">diagramSequence</span><span class="p">(</span><span class="n">states</span><span class="p">,</span> <span class="n">sequence_policy</span><span class="o">=</span><span class="s2">&quot;stability&quot;</span><span class="p">)</span>
+</code></pre></div>
+<p>If each step rebuilds fresh objects, pass <code>identity=</code> so the same conceptual entity gets the same atom ID across steps.</p>
+<div class="highlight"><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">Node</span><span class="p">:</span>
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">node_id</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">id</span> <span class="o">=</span> <span class="n">node_id</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">value</span> <span class="o">=</span> <span class="n">value</span>
+
+<span class="n">states</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="n">Node</span><span class="p">(</span><span class="s2">&quot;A&quot;</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span>
+    <span class="n">Node</span><span class="p">(</span><span class="s2">&quot;A&quot;</span><span class="p">,</span> <span class="mi">2</span><span class="p">),</span>
+<span class="p">]</span>
+
+<span class="n">spytial</span><span class="o">.</span><span class="n">diagramSequence</span><span class="p">(</span>
+    <span class="n">states</span><span class="p">,</span>
+    <span class="n">sequence_policy</span><span class="o">=</span><span class="s2">&quot;stability&quot;</span><span class="p">,</span>
+    <span class="n">identity</span><span class="o">=</span><span class="k">lambda</span> <span class="n">obj</span><span class="p">:</span> <span class="n">obj</span><span class="o">.</span><span class="n">id</span> <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="s2">&quot;id&quot;</span><span class="p">)</span> <span class="k">else</span> <span class="kc">None</span><span class="p">,</span>
+<span class="p">)</span>
+</code></pre></div>
+<p><code>identity</code> is only used by <code>diagramSequence()</code>. It is object-only, and it must return either:</p>
+<ul>
+<li>a string for objects that should keep the same identity across steps</li>
+<li><code>None</code> for everything else</li>
+</ul>
+<p>If two distinct objects in the same snapshot return the same identity string, <code>diagramSequence()</code> raises an error instead of guessing.</p>
 <h2 id="display-options">Display options</h2>
 <div class="highlight"><pre><span></span><code><span class="n">spytial</span><span class="o">.</span><span class="n">diagram</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="s2">&quot;browser&quot;</span><span class="p">)</span>  <span class="c1"># open a new tab</span>
 <span class="n">spytial</span><span class="o">.</span><span class="n">diagram</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="s2">&quot;file&quot;</span><span class="p">)</span>     <span class="c1"># save as spytial_visualization.html</span>
 <span class="n">spytial</span><span class="o">.</span><span class="n">diagram</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="s2">&quot;inline&quot;</span><span class="p">)</span>   <span class="c1"># force notebook output</span>
+<span class="n">spytial</span><span class="o">.</span><span class="n">diagramSequence</span><span class="p">(</span><span class="n">states</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="s2">&quot;file&quot;</span><span class="p">)</span>  <span class="c1"># save as spytial_sequence_visualization.html</span>
 </code></pre></div>
 <h2 id="sizing-and-title">Sizing and title</h2>
 <div class="highlight"><pre><span></span><code><span class="n">spytial</span><span class="o">.</span><span class="n">diagram</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">width</span><span class="o">=</span><span class="mi">900</span><span class="p">,</span> <span class="n">height</span><span class="o">=</span><span class="mi">600</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="s2">&quot;My Diagram&quot;</span><span class="p">)</span>
