@@ -9,9 +9,9 @@ import tempfile
 import webbrowser
 from pathlib import Path
 import os
-from typing import Any, Dict, Optional, Union
+from typing import Any, Callable, Dict, Optional, Sequence, Union
 
-from .utils import is_notebook, default_method
+from .utils import default_method
 from .core_assets import get_template_asset_context
 
 try:
@@ -27,6 +27,102 @@ try:
     HAS_JINJA2 = True
 except ImportError:
     HAS_JINJA2 = False
+
+
+SEQUENCE_POLICY_NAMES = {
+    "ignore_history",
+    "stability",
+    "change_emphasis",
+    "random_positioning",
+}
+
+
+def _normalize_as_type(as_type: Optional[Any]) -> Optional[Any]:
+    """Extract the underlying Annotated type when passed an AnnotatedType wrapper."""
+    from .utils import AnnotatedType
+
+    if isinstance(as_type, AnnotatedType):
+        return as_type._annotated
+    return as_type
+
+
+def _merge_decorator_registries(*registries: Dict[str, Any]) -> Dict[str, Any]:
+    """Merge multiple decorator registries while preserving stable order."""
+    from .annotations import _deduplicate_entries
+
+    merged = {"constraints": [], "directives": []}
+    for registry in registries:
+        merged["constraints"].extend(registry.get("constraints", []))
+        merged["directives"].extend(registry.get("directives", []))
+
+    merged["constraints"] = _deduplicate_entries(merged["constraints"])
+    merged["directives"] = _deduplicate_entries(merged["directives"])
+    return merged
+
+
+def _deliver_html_content(
+    html_content: str,
+    method: str,
+    auto_open: bool,
+    height: int,
+    output_filename: str,
+) -> Optional[str]:
+    """Display or persist already-rendered visualization HTML."""
+    if method == "inline":
+        if HAS_IPYTHON:
+            try:
+                import base64
+
+                encoded_html = base64.b64encode(html_content.encode("utf-8")).decode(
+                    "utf-8"
+                )
+
+                iframe_html = f"""
+                <div style="border: 2px solid #007acc; border-radius: 8px; overflow: hidden;">
+                    <iframe 
+                        src="data:text/html;base64,{encoded_html}" 
+                        width="100%" 
+                        height="{height}px" 
+                        frameborder="0"
+                        style="display: block;">
+                    </iframe>
+                </div>
+                """
+
+                display(HTML(iframe_html))
+                return None
+            except Exception as e:
+                print(f"Iframe display failed: {e}")
+
+        return _deliver_html_content(
+            html_content,
+            method="browser",
+            auto_open=auto_open,
+            height=height,
+            output_filename=output_filename,
+        )
+
+    if method == "browser":
+        with tempfile.NamedTemporaryFile(
+            mode="w", suffix=".html", delete=False, encoding="utf-8"
+        ) as f:
+            f.write(html_content)
+            temp_path = f.name
+
+        if auto_open:
+            webbrowser.open(f"file://{temp_path}")
+
+        return temp_path
+
+    if method == "file":
+        output_path = Path(output_filename)
+        with open(output_path, "w", encoding="utf-8") as f:
+            f.write(html_content)
+
+        print(f"Visualization saved to: {output_path.absolute()}")
+        return str(output_path.absolute())
+
+    raise ValueError(f"Unknown display method: {method}")
 
 
 def diagram(
@@ -79,11 +175,7 @@ def diagram(
         str: Path to the generated HTML file (if method="file", "browser", or "headless")
         dict: Performance metrics (if method="headless" and perf_iterations > 0)
     """
-    # Handle AnnotatedType - extract the underlying Annotated type
-    from .utils import AnnotatedType
-
-    if isinstance(as_type, AnnotatedType):
-        as_type = as_type._annotated
+    as_type = _normalize_as_type(as_type)
 
     # Override method if headless flag is set
     if headless:
@@ -98,11 +190,9 @@ def diagram(
         detected_width, detected_height = _detect_optimal_size(obj, method)
         width = width or detected_width
         height = height or detected_height
+
     from .provider_system import CnDDataInstanceBuilder
-    from .annotations import (
-        serialize_to_yaml_string,
-        extract_spytial_annotations,
-    )
+    from .annotations import serialize_to_yaml_string
 
     # Serialize the object using the provider system (which now also collects decorators)
     if headless and title:
@@ -131,77 +221,109 @@ def diagram(
         perf_iterations,
     )
 
-    if method == "inline":
-        # Display inline in Jupyter notebook using iframe
-        if HAS_IPYTHON:
-            try:
-                import base64
-
-                # Encode HTML as base64 for iframe
-                encoded_html = base64.b64encode(html_content.encode("utf-8")).decode(
-                    "utf-8"
-                )
-
-                # Create iframe HTML
-                iframe_html = f"""
-                <div style="border: 2px solid #007acc; border-radius: 8px; overflow: hidden;">
-                    <iframe 
-                        src="data:text/html;base64,{encoded_html}" 
-                        width="100%" 
-                        height="{height}px" 
-                        frameborder="0"
-                        style="display: block;">
-                    </iframe>
-                </div>
-                """
-
-                display(HTML(iframe_html))
-                return
-
-            except Exception as e:
-                print(f"Iframe display failed: {e}")
-                # Fall back to browser if iframe fails
-                return diagram(
-                    obj,
-                    method="browser",
-                    auto_open=auto_open,
-                    width=width,
-                    height=height,
-                )
-
-        # Fall back to browser if not in Jupyter
-        return diagram(
-            obj, method="browser", auto_open=auto_open, width=width, height=height
-        )
-
-    elif method == "browser":
-        # Open in browser
-        with tempfile.NamedTemporaryFile(
-            mode="w", suffix=".html", delete=False, encoding="utf-8"
-        ) as f:
-            f.write(html_content)
-            temp_path = f.name
-
-        if auto_open:
-            webbrowser.open(f"file://{temp_path}")
-
-        return temp_path
-
-    elif method == "file":
-        # Save to file
-        output_path = Path("spytial_visualization.html")
-        with open(output_path, "w", encoding="utf-8") as f:
-            f.write(html_content)
-
-        print(f"Visualization saved to: {output_path.absolute()}")
-        return str(output_path.absolute())
-
-    elif method == "headless":
+    if method == "headless":
         # Run in headless browser for testing/benchmarking
         return _run_headless(html_content, perf_path, perf_iterations, timeout, title)
 
-    else:
-        raise ValueError(f"Unknown display method: {method}")
+    return _deliver_html_content(
+        html_content,
+        method=method,
+        auto_open=auto_open,
+        height=height,
+        output_filename="spytial_visualization.html",
+    )
+
+
+def diagramSequence(
+    objects: Sequence[Any],
+    sequence_policy: str = "ignore_history",
+    method: Optional[str] = None,
+    auto_open: bool = True,
+    width: Optional[int] = None,
+    height: Optional[int] = None,
+    title: Optional[str] = None,
+    as_type: Optional[Any] = None,
+    identity: Optional[Callable[[Any], Optional[str]]] = None,
+) -> Optional[str]:
+    """
+    Display an ordered sequence of Python objects with temporal navigation.
+
+    Args:
+        objects: Ordered collection of Python objects to visualize as sequence steps.
+        sequence_policy: Sequence continuity policy passed to spytial-core.
+                         One of "ignore_history", "stability",
+                         "change_emphasis", or "random_positioning".
+        method: Display method - "inline" (Jupyter), "browser" (new tab),
+                or "file" (save to file). If None, auto-detects based on environment.
+        auto_open: Whether to automatically open the browser (for "browser" method).
+        width: Width of the visualization container in pixels.
+        height: Height of the visualization container in pixels.
+        title: Title for the browser tab/page.
+        as_type: Optional annotated type to treat every object in the sequence as.
+        identity: Optional callable used to assign stable conceptual identities
+                  to non-primitive objects across rebuilt snapshots. It must
+                  return a string or None.
+
+    Returns:
+        str: Path to the generated HTML file (if method="file" or "browser").
+    """
+    objects = list(objects)
+    if not objects:
+        raise ValueError("diagramSequence() requires at least one object")
+
+    if sequence_policy not in SEQUENCE_POLICY_NAMES:
+        allowed = ", ".join(sorted(SEQUENCE_POLICY_NAMES))
+        raise ValueError(
+            f"Unknown sequence_policy: {sequence_policy!r}. Expected one of: {allowed}"
+        )
+
+    as_type = _normalize_as_type(as_type)
+
+    if method is None:
+        method = default_method()
+
+    if method == "headless":
+        raise ValueError("diagramSequence() does not support headless mode")
+
+    if width is None or height is None:
+        detected_sizes = [_detect_optimal_size(obj, method) for obj in objects]
+        detected_width = max(size[0] for size in detected_sizes)
+        detected_height = max(size[1] for size in detected_sizes)
+        width = width or detected_width
+        height = height or detected_height
+
+    from .provider_system import CnDDataInstanceBuilder
+    from .annotations import serialize_to_yaml_string
+
+    builder = CnDDataInstanceBuilder(
+        preserve_object_ids=True, identity_resolver=identity
+    )
+    merged_decorators = {"constraints": [], "directives": []}
+    data_instances = []
+
+    for obj in objects:
+        data_instances.append(builder.build_instance(obj, as_type=as_type))
+        merged_decorators = _merge_decorator_registries(
+            merged_decorators, builder.get_collected_decorators()
+        )
+
+    spytial_spec = serialize_to_yaml_string(merged_decorators)
+    html_content = _generate_sequence_visualizer_html(
+        data_instances=data_instances,
+        spytial_spec=spytial_spec,
+        sequence_policy=sequence_policy,
+        width=width,
+        height=height,
+        title=title,
+    )
+
+    return _deliver_html_content(
+        html_content,
+        method=method,
+        auto_open=auto_open,
+        height=height,
+        output_filename="spytial_sequence_visualization.html",
+    )
 
 
 def _detect_optimal_size(obj, method):
@@ -348,6 +470,43 @@ def _generate_visualizer_html(
         or "",  # Performance metrics endpoint path (empty string if None)
         perf_iterations=perf_iterations
         or 0,  # Number of iterations for benchmarking (0 = disabled)
+        **get_template_asset_context(),
+    )
+
+    return html_content
+
+
+def _generate_sequence_visualizer_html(
+    data_instances,
+    spytial_spec,
+    sequence_policy,
+    width=800,
+    height=600,
+    title=None,
+):
+    """Generate HTML content for a sequence visualizer using Jinja2 templating."""
+    if not HAS_JINJA2:
+        raise ImportError(
+            "Jinja2 is required for HTML generation. Install with: pip install jinja2"
+        )
+
+    current_dir = Path(__file__).parent
+    env = Environment(loader=FileSystemLoader(current_dir))
+
+    try:
+        template = env.get_template("sequence_visualizer_template.html")
+    except Exception as e:
+        raise FileNotFoundError(
+            f"sequence_visualizer_template.html not found in {current_dir}: {e}"
+        )
+
+    html_content = template.render(
+        sequence_data=json.dumps(data_instances),
+        cnd_spec=spytial_spec,
+        sequence_policy=sequence_policy,
+        title=title,
+        width=width,
+        height=height,
         **get_template_asset_context(),
     )
 

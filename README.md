@@ -40,6 +40,26 @@ spytial.diagram(data)
 
 # Or save to file
 spytial.diagram(data, method='file')
+
+# Step through a sequence of states
+states = [
+    {'value': 0, 'next': 1},
+    {'value': 1, 'next': 2},
+]
+spytial.diagramSequence(states, sequence_policy='stability')
+
+# If each step rebuilds fresh objects, provide an identity hook
+class Node:
+    def __init__(self, node_id, value):
+        self.id = node_id
+        self.value = value
+
+states = [Node("A", 1), Node("A", 2)]
+spytial.diagramSequence(
+    states,
+    sequence_policy='stability',
+    identity=lambda obj: obj.id if hasattr(obj, "id") else None,
+)
 ```
 
 ## Documentation

@@ -3,11 +3,27 @@ from dataclasses import dataclass
 from spytial.core_assets import SPYTIAL_CORE_NPM_VERSION
 from spytial.dataclass_builder import _generate_dataclass_builder_html
 from spytial.evaluator import _generate_evaluator_html
-from spytial.visualizer import _generate_visualizer_html
+from spytial.visualizer import (
+    _generate_sequence_visualizer_html,
+    _generate_visualizer_html,
+)
 
 
 def test_visualizer_html_uses_current_core_bundle_urls():
     html = _generate_visualizer_html({"atoms": [], "relations": []}, "constraints: []\n")
+
+    assert f"spytial-core@{SPYTIAL_CORE_NPM_VERSION}" in html
+    assert "spytial-core-complete.global.js" in html
+    assert "spytial-core-complete.global.min.js" not in html
+    assert "window.spytialcore || window.CndCore || window.CnDCore" in html
+
+
+def test_sequence_visualizer_html_uses_current_core_bundle_urls():
+    html = _generate_sequence_visualizer_html(
+        data_instances=[{"atoms": [], "relations": []}],
+        spytial_spec="constraints: []\n",
+        sequence_policy="stability",
+    )
 
     assert f"spytial-core@{SPYTIAL_CORE_NPM_VERSION}" in html
     assert "spytial-core-complete.global.js" in html
