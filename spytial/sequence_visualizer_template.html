@@ -290,9 +290,18 @@
         function clearError() {
             const errorDiv = document.getElementById("error-message");
             errorDiv.innerHTML = "";
-            // Clear modal errors from spytial-core
-            if (window.clearErrorModal) {
-                window.clearErrorModal();
+            // Clear spytial-core error modal between steps
+            if (window.clearAllErrors) {
+                window.clearAllErrors();
+            }
+            // Nuke + re-mount the error-core container so stale DOM is removed
+            // but the modal is ready for the next step's errors (if any).
+            const errorCore = document.getElementById("error-core");
+            if (errorCore) {
+                errorCore.innerHTML = "";
+                if (window.mountErrorMessageModal) {
+                    window.mountErrorMessageModal('error-core');
+                }
             }
             if (graphElement) {
                 graphElement.removeAttribute('unsat');
