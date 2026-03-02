@@ -173,9 +173,17 @@ class CnDDataInstanceBuilder:
         # Convert relations to include types (matching IRelation interface)
         relations = []
         for rel_name, tuples in self._rels.items():
-            # For each tuple, get the types of the atoms involved
+            # Deduplicate tuples — the walker may reach the same
+            # (source, target) pair via multiple traversal paths
+            # (e.g. forward pointers and back-pointers through a
+            # shared sentinel whose parent was mutated).
+            seen_tuple_keys: set = set()
             typed_tuples = []
             for atom_tuple in tuples:
+                tuple_key = tuple(atom_tuple)
+                if tuple_key in seen_tuple_keys:
+                    continue
+                seen_tuple_keys.add(tuple_key)
                 # Handle all relations the same way (n-ary approach)
                 atom_ids = atom_tuple
                 atom_types = [self._get_atom_type(atom_id) for atom_id in atom_ids]
@@ -278,9 +286,15 @@ class CnDDataInstanceBuilder:
 
                     existing_oid = self._build_identity_objects.get(identity_key)
                     if existing_oid is not None and existing_oid != oid:
-                        raise ValueError(
-                            f"Duplicate explicit identity {identity_key!r} for distinct objects in one snapshot"
-                        )
+                        # A second distinct Python object claims the same conceptual
+                        # identity (e.g. a live node and a snapshot copy of the same
+                        # tree node, reached via back-pointers).  The identity resolver
+                        # is the authoritative source of conceptual identity, so we
+                        # alias this object to the already-registered canonical atom —
+                        # both Python objects collapse to the same atom in this frame.
+                        canonical_id = f"{self._identity_prefix}{identity_key}"
+                        self._seen[oid] = canonical_id
+                        return canonical_id
 
                     self._build_identity_objects[identity_key] = oid
                     self._seen[oid] = f"{self._identity_prefix}{identity_key}"
