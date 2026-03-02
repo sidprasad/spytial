@@ -121,7 +121,17 @@
         const perfIterations = parseInt('{{ perf_iterations }}') || 0;  // Optional number of iterations for benchmarking
 
         function getSpytialCore() {
-            return window.spytialcore || window.CndCore || window.CnDCore;
+            const candidates = [
+                window.spytialcore,
+                window.CndCore,
+                window.CnDCore,
+            ];
+
+            return candidates.find((candidate) =>
+                candidate &&
+                typeof candidate.JSONDataInstance === 'function' &&
+                typeof candidate.parseLayoutSpec === 'function'
+            );
         }
 
         // Global variables for reset functionality

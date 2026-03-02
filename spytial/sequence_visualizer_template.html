@@ -195,7 +195,17 @@
         const stepCache = new Map();
 
         function getSpytialCore() {
-            return window.spytialcore || window.CndCore || window.CnDCore;
+            const candidates = [
+                window.spytialcore,
+                window.CndCore,
+                window.CnDCore,
+            ];
+
+            return candidates.find((candidate) =>
+                candidate &&
+                typeof candidate.JSONDataInstance === "function" &&
+                typeof candidate.parseLayoutSpec === "function"
+            );
         }
 
         function prettyPolicyName(policyName) {

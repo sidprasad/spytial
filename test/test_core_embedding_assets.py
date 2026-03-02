@@ -15,7 +15,8 @@ def test_visualizer_html_uses_current_core_bundle_urls():
     assert f"spytial-core@{SPYTIAL_CORE_NPM_VERSION}" in html
     assert "spytial-core-complete.global.js" in html
     assert "spytial-core-complete.global.min.js" not in html
-    assert "window.spytialcore || window.CndCore || window.CnDCore" in html
+    assert "window.__spytialCoreBrowserBundle" not in html
+    assert "typeof candidate.JSONDataInstance === 'function'" in html
 
 
 def test_sequence_visualizer_html_uses_current_core_bundle_urls():
@@ -28,7 +29,8 @@ def test_sequence_visualizer_html_uses_current_core_bundle_urls():
     assert f"spytial-core@{SPYTIAL_CORE_NPM_VERSION}" in html
     assert "spytial-core-complete.global.js" in html
     assert "spytial-core-complete.global.min.js" not in html
-    assert "window.spytialcore || window.CndCore || window.CnDCore" in html
+    assert "window.__spytialCoreBrowserBundle" not in html
+    assert 'typeof candidate.JSONDataInstance === "function"' in html
 
 
 def test_evaluator_html_uses_current_core_bundle_urls():
@@ -54,5 +56,6 @@ def test_dataclass_builder_html_uses_current_core_bundle_urls():
     assert f"spytial-core@{SPYTIAL_CORE_NPM_VERSION}" in html
     assert "spytial-core-complete.global.js" in html
     assert "spytial-core-complete.global.min.js" not in html
-    assert "window.spytialcore || window.CndCore || window.CnDCore" in html
+    assert "window.__spytialCoreBrowserBundle" not in html
+    assert "typeof candidate.JSONDataInstance === 'function'" in html
     assert "window.clearAllErrors" in html
