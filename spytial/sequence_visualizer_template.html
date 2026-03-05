@@ -25,8 +25,8 @@
         .container {
             display: flex;
             flex-direction: column;
-            flex: 1;
-            min-height: 100vh;
+            height: 100vh;
+            overflow: hidden;
             background: #ffffff;
         }
 
@@ -61,7 +61,17 @@
         .sequence-controls {
             display: flex;
             align-items: center;
-            gap: 8px;
+            gap: 10px;
+            flex: 1;
+            min-width: 0;
+        }
+
+        .scrubber-wrap {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            flex: 1;
+            min-width: 0;
         }
 
         .sequence-button {
@@ -69,10 +79,12 @@
             background: #ffffff;
             color: #0f172a;
             border-radius: 6px;
-            padding: 8px 12px;
+            padding: 6px 8px;
             font-size: 13px;
             cursor: pointer;
             transition: background-color 0.15s ease, border-color 0.15s ease;
+            flex-shrink: 0;
+            line-height: 1;
         }
 
         .sequence-button:hover:not(:disabled) {
@@ -85,17 +97,58 @@
             opacity: 0.45;
         }
 
+        #step-scrubber {
+            -webkit-appearance: none;
+            appearance: none;
+            flex: 1;
+            height: 6px;
+            border-radius: 3px;
+            background: #e2e8f0;
+            outline: none;
+            cursor: pointer;
+            min-width: 80px;
+        }
+
+        #step-scrubber::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: #3b82f6;
+            border: 2px solid #ffffff;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.25);
+            cursor: pointer;
+        }
+
+        #step-scrubber::-moz-range-thumb {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: #3b82f6;
+            border: 2px solid #ffffff;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.25);
+            cursor: pointer;
+        }
+
+        #step-scrubber:disabled {
+            opacity: 0.45;
+            cursor: not-allowed;
+        }
+
+
+
         .graph-wrapper {
             position: relative;
             flex: 1;
-            min-height: 400px;
+            min-height: 0;
+            overflow: hidden;
             display: flex;
         }
 
         #graph-container {
             width: 100%;
             height: 100%;
-            min-height: 400px;
             display: block;
             flex: 1;
         }
@@ -143,15 +196,12 @@
 
         @media (max-width: 640px) {
             .sequence-header {
+                flex-direction: column;
                 align-items: stretch;
             }
 
             .sequence-controls {
-                justify-content: space-between;
-            }
-
-            .sequence-button {
-                flex: 1;
+                justify-content: stretch;
             }
         }
     </style>
@@ -165,8 +215,11 @@
                 <span class="sequence-policy" id="policy-status"></span>
             </div>
             <div class="sequence-controls">
-                <button type="button" class="sequence-button" id="prev-step">Previous</button>
-                <button type="button" class="sequence-button" id="next-step">Next</button>
+                <button type="button" class="sequence-button" id="prev-step" title="Previous (←)">◀</button>
+                <div class="scrubber-wrap">
+                    <input type="range" id="step-scrubber" min="0" max="0" value="0" step="1" />
+                </div>
+                <button type="button" class="sequence-button" id="next-step" title="Next (→)">▶</button>
             </div>
         </div>
 
@@ -237,6 +290,22 @@
         function clearError() {
             const errorDiv = document.getElementById("error-message");
             errorDiv.innerHTML = "";
+            // Clear spytial-core error modal between steps
+            if (window.clearAllErrors) {
+                window.clearAllErrors();
+            }
+            // Nuke + re-mount the error-core container so stale DOM is removed
+            // but the modal is ready for the next step's errors (if any).
+            const errorCore = document.getElementById("error-core");
+            if (errorCore) {
+                errorCore.innerHTML = "";
+                if (window.mountErrorMessageModal) {
+                    window.mountErrorMessageModal('error-core');
+                }
+            }
+            if (graphElement) {
+                graphElement.removeAttribute('unsat');
+            }
         }
 
         function scanDataForIssues(data) {
@@ -277,13 +346,17 @@
         function updateNavigation() {
             const prevButton = document.getElementById("prev-step");
             const nextButton = document.getElementById("next-step");
+            const scrubber = document.getElementById("step-scrubber");
             const status = document.getElementById("step-status");
             const totalSteps = sequenceData.length;
             const displayIndex = currentIndex === null ? 0 : currentIndex;
 
-            status.textContent = `Step ${displayIndex + 1} of ${totalSteps}`;
+            status.textContent = `Step ${displayIndex + 1} / ${totalSteps}`;
             prevButton.disabled = isRendering || displayIndex <= 0;
             nextButton.disabled = isRendering || displayIndex >= totalSteps - 1;
+            scrubber.max = String(totalSteps - 1);
+            scrubber.value = String(displayIndex);
+            scrubber.disabled = isRendering;
         }
 
         function resolveSequencePolicy(core) {
@@ -452,7 +525,29 @@
                 addToolbarButtons();
 
                 if (nextStep.error) {
-                    showError(`Layout generation reported an issue: ${nextStep.error.message}`);
+                    console.error("Layout generation error at step", nextIndex + 1, nextStep.error);
+
+                    if (nextStep.error.errorMessages) {
+                        if (window.showPositionalError) {
+                            window.showPositionalError(nextStep.error.errorMessages);
+                        } else {
+                            showError(`Positional constraint conflict: ${nextStep.error.message}`);
+                        }
+                    } else if (nextStep.error.overlappingNodes) {
+                        if (window.showGroupOverlapError) {
+                            window.showGroupOverlapError(nextStep.error.message);
+                        } else {
+                            showError(`Group overlap error: ${nextStep.error.message}`);
+                        }
+                    } else {
+                        if (window.showGeneralError) {
+                            window.showGeneralError(`Layout generation error: ${nextStep.error.message}`);
+                        } else {
+                            showError(`Layout generation error: ${nextStep.error.message}`);
+                        }
+                    }
+
+                    graphElement.setAttribute('unsat', '');
                 }
             } catch (error) {
                 console.error("Error rendering sequence step:", error);
@@ -487,6 +582,13 @@
                 navigate(1);
             });
 
+            document.getElementById("step-scrubber").addEventListener("input", function () {
+                const target = parseInt(this.value, 10);
+                if (!isNaN(target) && target !== currentIndex) {
+                    renderStep(target);
+                }
+            });
+
             window.addEventListener("keydown", function (event) {
                 if (event.key === "ArrowLeft") {
                     navigate(-1);
@@ -505,6 +607,11 @@
             graphElement = document.getElementById("graph-container");
             document.getElementById("policy-status").textContent =
                 `Policy: ${prettyPolicyName(sequencePolicyName)}`;
+
+            // Mount the spytial-core error modal (displays constraint/layout warnings)
+            if (window.mountErrorMessageModal) {
+                window.mountErrorMessageModal('error-core');
+            }
 
             bindNavigation();
             updateNavigation();
