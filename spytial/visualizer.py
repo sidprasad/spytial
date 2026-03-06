@@ -234,95 +234,203 @@ def diagram(
     )
 
 
-def diagramSequence(
-    objects: Sequence[Any],
-    sequence_policy: str = "ignore_history",
+class SequenceRecorder:
+    """Context manager for recording a sequence of object snapshots for visualization.
+
+    Uses a single shared builder across all :meth:`record` calls so that atom IDs
+    remain stable across frames.  This handles two common patterns:
+
+    - **In-place mutation** — the same Python objects are modified between frames.
+      Because ``id(obj)`` never changes, the persistent ID table keeps IDs stable
+      automatically with no extra configuration.
+
+    - **Snapshot / deepcopy** — a fresh copy of the data structure is created each
+      step (e.g. functional algorithms, undo-history).  Pass an ``identity``
+      callable that returns a stable string key for each object; atoms will then
+      receive an ``identity:<key>`` ID that stays constant across frames.
+
+    Example — in-place mutation::
+
+        with spytial.sequence() as seq:
+            seq.record(root)
+            insert(root, 42)
+            seq.record(root)
+            insert(root, 7)
+            seq.record(root)
+        seq.diagram()
+
+    Example — deepcopy snapshots with identity::
+
+        with spytial.sequence(identity=lambda n: str(n.id)) as seq:
+            for snap in snapshots:
+                seq.record(snap)
+        seq.diagram(method="file")
+    """
+
+    def __init__(
+        self,
+        identity: Optional[Callable[[Any], Optional[str]]] = None,
+        sequence_policy: str = "stability",
+        method: Optional[str] = None,
+        auto_open: bool = True,
+        width: Optional[int] = None,
+        height: Optional[int] = None,
+        title: Optional[str] = None,
+        as_type: Optional[Any] = None,
+    ):
+        from .provider_system import CnDDataInstanceBuilder
+
+        if sequence_policy not in SEQUENCE_POLICY_NAMES:
+            allowed = ", ".join(sorted(SEQUENCE_POLICY_NAMES))
+            raise ValueError(
+                f"Unknown sequence_policy: {sequence_policy!r}. Expected one of: {allowed}"
+            )
+
+        self._identity = identity
+        self._sequence_policy = sequence_policy
+        self._method = method
+        self._auto_open = auto_open
+        self._width = width
+        self._height = height
+        self._title = title
+        self._as_type = _normalize_as_type(as_type)
+
+        # A single shared builder preserves _persistent_object_ids across frames,
+        # giving stable atom IDs for in-place-mutated objects.
+        self._builder = CnDDataInstanceBuilder(
+            preserve_object_ids=True,
+            identity_resolver=identity,
+        )
+        self._data_instances = []
+        self._merged_decorators = {"constraints": [], "directives": []}
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        return False  # never suppress exceptions
+
+    def record(self, obj: Any) -> None:
+        """Capture a snapshot of *obj* as the next frame in the sequence."""
+        instance = self._builder.build_instance(obj, as_type=self._as_type)
+        self._data_instances.append(instance)
+        self._merged_decorators = _merge_decorator_registries(
+            self._merged_decorators,
+            self._builder.get_collected_decorators(),
+        )
+
+    def diagram(
+        self,
+        method: Optional[str] = None,
+        auto_open: Optional[bool] = None,
+        width: Optional[int] = None,
+        height: Optional[int] = None,
+        title: Optional[str] = None,
+        sequence_policy: Optional[str] = None,
+    ) -> Optional[str]:
+        """Render all recorded frames as an interactive sequence visualization.
+
+        Parameters override the values supplied to :func:`sequence` / the
+        constructor; omit them to use the constructor defaults.
+        """
+        if not self._data_instances:
+            raise ValueError(
+                "No frames recorded. Call .record() at least once before .diagram()."
+            )
+
+        _method = method if method is not None else self._method
+        _auto_open = auto_open if auto_open is not None else self._auto_open
+        _width = width if width is not None else self._width
+        _height = height if height is not None else self._height
+        _title = title if title is not None else self._title
+
+        if sequence_policy is not None and sequence_policy not in SEQUENCE_POLICY_NAMES:
+            allowed = ", ".join(sorted(SEQUENCE_POLICY_NAMES))
+            raise ValueError(
+                f"Unknown sequence_policy: {sequence_policy!r}. Expected one of: {allowed}"
+            )
+        _policy = sequence_policy if sequence_policy is not None else self._sequence_policy
+
+        if _method is None:
+            _method = default_method()
+
+        if _width is None or _height is None:
+            _width = _width or 1200
+            _height = _height or 800
+
+        from .annotations import serialize_to_yaml_string
+
+        spytial_spec = serialize_to_yaml_string(self._merged_decorators)
+        html_content = _generate_sequence_visualizer_html(
+            data_instances=self._data_instances,
+            spytial_spec=spytial_spec,
+            sequence_policy=_policy,
+            width=_width,
+            height=_height,
+            title=_title,
+        )
+
+        return _deliver_html_content(
+            html_content,
+            method=_method,
+            auto_open=_auto_open,
+            height=_height,
+            output_filename="spytial_sequence_visualization.html",
+        )
+
+
+def sequence(
+    identity: Optional[Callable[[Any], Optional[str]]] = None,
+    sequence_policy: str = "stability",
     method: Optional[str] = None,
     auto_open: bool = True,
     width: Optional[int] = None,
     height: Optional[int] = None,
     title: Optional[str] = None,
     as_type: Optional[Any] = None,
-    identity: Optional[Callable[[Any], Optional[str]]] = None,
-) -> Optional[str]:
-    """
-    Display an ordered sequence of Python objects with temporal navigation.
+) -> "SequenceRecorder":
+    """Create a :class:`SequenceRecorder` for capturing algorithm steps or temporal snapshots.
+
+    The recorder uses a **shared** builder so atom IDs are stable across every
+    :meth:`~SequenceRecorder.record` call within the same session.
 
     Args:
-        objects: Ordered collection of Python objects to visualize as sequence steps.
-        sequence_policy: Sequence continuity policy passed to spytial-core.
-                         One of "ignore_history", "stability",
-                         "change_emphasis", or "random_positioning".
-        method: Display method - "inline" (Jupyter), "browser" (new tab),
-                or "file" (save to file). If None, auto-detects based on environment.
-        auto_open: Whether to automatically open the browser (for "browser" method).
-        width: Width of the visualization container in pixels.
-        height: Height of the visualization container in pixels.
-        title: Title for the browser tab/page.
-        as_type: Optional annotated type to treat every object in the sequence as.
-        identity: Optional callable used to assign stable conceptual identities
-                  to non-primitive objects across rebuilt snapshots. It must
-                  return a string or None.
+        identity: Optional callable ``(obj) -> str | None``.  When provided, any
+            object for which it returns a non-``None`` string will receive an atom
+            ID of ``identity:<returned-string>``.  Use this for deepcopy / snapshot
+            workflows where Python's ``id()`` changes each frame but each node has a
+            stable semantic key (e.g. a node's ``.id`` field).
+        sequence_policy: Continuity policy for the frontend renderer.  One of
+            ``"stability"`` (default), ``"ignore_history"``, ``"change_emphasis"``,
+            or ``"random_positioning"``.
+        method: Display method — ``"inline"`` (Jupyter), ``"browser"``, or ``"file"``.
+            Defaults to auto-detection.
+        auto_open: Whether to open the browser automatically (``"browser"`` method).
+        width: Width of the visualization in pixels.
+        height: Height of the visualization in pixels.
+        title: Browser tab / page title.
+        as_type: Optional annotated type applied to every recorded object.
 
     Returns:
-        str: Path to the generated HTML file (if method="file" or "browser").
+        A :class:`SequenceRecorder` instance, usable as a context manager.
+
+    Example::
+
+        with spytial.sequence() as seq:
+            seq.record(data)
+            step(data)
+            seq.record(data)
+        seq.diagram()
     """
-    objects = list(objects)
-    if not objects:
-        raise ValueError("diagramSequence() requires at least one object")
-
-    if sequence_policy not in SEQUENCE_POLICY_NAMES:
-        allowed = ", ".join(sorted(SEQUENCE_POLICY_NAMES))
-        raise ValueError(
-            f"Unknown sequence_policy: {sequence_policy!r}. Expected one of: {allowed}"
-        )
-
-    as_type = _normalize_as_type(as_type)
-
-    if method is None:
-        method = default_method()
-
-    if method == "headless":
-        raise ValueError("diagramSequence() does not support headless mode")
-
-    if width is None or height is None:
-        detected_sizes = [_detect_optimal_size(obj, method) for obj in objects]
-        detected_width = max(size[0] for size in detected_sizes)
-        detected_height = max(size[1] for size in detected_sizes)
-        width = width or detected_width
-        height = height or detected_height
-
-    from .provider_system import CnDDataInstanceBuilder
-    from .annotations import serialize_to_yaml_string
-
-    builder = CnDDataInstanceBuilder(
-        preserve_object_ids=True, identity_resolver=identity
-    )
-    merged_decorators = {"constraints": [], "directives": []}
-    data_instances = []
-
-    for obj in objects:
-        data_instances.append(builder.build_instance(obj, as_type=as_type))
-        merged_decorators = _merge_decorator_registries(
-            merged_decorators, builder.get_collected_decorators()
-        )
-
-    spytial_spec = serialize_to_yaml_string(merged_decorators)
-    html_content = _generate_sequence_visualizer_html(
-        data_instances=data_instances,
-        spytial_spec=spytial_spec,
+    return SequenceRecorder(
+        identity=identity,
         sequence_policy=sequence_policy,
+        method=method,
+        auto_open=auto_open,
         width=width,
         height=height,
         title=title,
-    )
-
-    return _deliver_html_content(
-        html_content,
-        method=method,
-        auto_open=auto_open,
-        height=height,
-        output_filename="spytial_sequence_visualization.html",
+        as_type=as_type,
     )
 
 

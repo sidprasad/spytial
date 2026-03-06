@@ -8,7 +8,7 @@ from .provider_system import (
     Atom,
     Relation,
 )
-from .visualizer import diagram, diagramSequence
+from .visualizer import diagram, SequenceRecorder, sequence, SEQUENCE_POLICY_NAMES
 from .evaluator import evaluate
 from .dataclass_builder import dataclass_builder
 from .utils import AnnotatedType
@@ -89,7 +89,9 @@ __all__ = [
     "__version__",
     # Core functions
     "diagram",
-    "diagramSequence",
+    "sequence",
+    "SequenceRecorder",
+    "SEQUENCE_POLICY_NAMES",
     "evaluate",
     "dataclass_builder",
     # New relationalizer system

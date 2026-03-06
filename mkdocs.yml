@@ -10,6 +10,7 @@ nav:
   - Home: index.md
   - Getting Started: getting-started.md
   - Diagramming: usage/diagramming.md
+  - Sequences: usage/sequences.md
   - Evaluator: usage/evaluator.md
   - Operations: operations.md
   - Dataclass Builder: usage/dataclass-builder.md

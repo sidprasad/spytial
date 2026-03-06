@@ -10,81 +10,12 @@ import spytial
 spytial.diagram({"a": 1, "b": [1, 2, 3]})
 ```
 
-## Sequence diagrams
-
-Use `spytial.diagramSequence()` when you want to step through multiple states with the temporal policies from `spytial-core`.
-
-```python
-import spytial
-
-states = [
-    {"count": 0, "items": ["a"]},
-    {"count": 1, "items": ["a", "b"]},
-    {"count": 2, "items": ["b"]},
-]
-
-spytial.diagramSequence(states, sequence_policy="stability")
-```
-
-Available sequence policies:
-
-- `ignore_history`
-- `stability`
-- `change_emphasis`
-- `random_positioning`
-
-### When to use `identity`
-
-If each step reuses the same live Python objects and mutates them over time, `diagramSequence()` can usually preserve IDs without extra help.
-
-```python
-class Node:
-    def __init__(self, node_id, value):
-        self.id = node_id
-        self.value = value
-
-node = Node("A", 1)
-states = [node]
-node.value = 2
-states.append(node)
-
-spytial.diagramSequence(states, sequence_policy="stability")
-```
-
-If each step rebuilds fresh objects, pass `identity=` so the same conceptual entity gets the same atom ID across steps.
-
-```python
-class Node:
-    def __init__(self, node_id, value):
-        self.id = node_id
-        self.value = value
-
-states = [
-    Node("A", 1),
-    Node("A", 2),
-]
-
-spytial.diagramSequence(
-    states,
-    sequence_policy="stability",
-    identity=lambda obj: obj.id if hasattr(obj, "id") else None,
-)
-```
-
-`identity` is only used by `diagramSequence()`. It is object-only, and it must return either:
-
-- a string for objects that should keep the same identity across steps
-- `None` for everything else
-
-If two distinct objects in the same snapshot return the same identity string, `diagramSequence()` raises an error instead of guessing.
-
 ## Display options
 
 ```python
 spytial.diagram(data, method="browser")  # open a new tab
 spytial.diagram(data, method="file")     # save as spytial_visualization.html
 spytial.diagram(data, method="inline")   # force notebook output
-spytial.diagramSequence(states, method="file")  # save as spytial_sequence_visualization.html
 ```
 
 ## Sizing and title
