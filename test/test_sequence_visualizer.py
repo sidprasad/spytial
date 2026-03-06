@@ -88,15 +88,27 @@ def test_builder_supports_partial_identity_with_fallback_behavior():
     )["id"]
 
 
-def test_builder_rejects_duplicate_identity_keys_in_one_snapshot():
+def test_builder_deduplicates_identity_keys_in_one_snapshot():
+    """When two distinct Python objects share the same identity key within one
+    frame, the identity resolver is authoritative: both objects are aliased to
+    the same conceptual atom rather than raising an error.  This is the correct
+    semantic for trees/graphs where back-pointers or shared sentinels can
+    surface the 'same' node via multiple traversal paths in one snapshot."""
     builder = CnDDataInstanceBuilder(
         identity_resolver=lambda obj: obj.key if isinstance(obj, KeyedState) else None
     )
 
-    with pytest.raises(ValueError, match="Duplicate explicit identity"):
-        builder.build_instance(
-            Snapshot(KeyedState("dup", 1), KeyedState("dup", 2))
-        )
+    # Should NOT raise — second object is silently aliased to the first atom
+    data_instance = builder.build_instance(
+        Snapshot(KeyedState("dup", 1), KeyedState("dup", 2))
+    )
+
+    # Both objects must map to the same canonical atom ID
+    dup_atoms = [a for a in data_instance["atoms"] if a["id"].endswith("dup")]
+    assert len(dup_atoms) >= 1
+    assert len({a["id"] for a in dup_atoms}) == 1, (
+        "Both Python objects with identity key 'dup' should resolve to one atom ID"
+    )
 
 
 def test_builder_rejects_invalid_identity_hook_return_type():

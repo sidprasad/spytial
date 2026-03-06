@@ -82,7 +82,7 @@ def _deliver_html_content(
                     <iframe 
                         src="data:text/html;base64,{encoded_html}" 
                         width="100%" 
-                        height="{height}px" 
+                        height="{height + 50}px" 
                         frameborder="0"
                         style="display: block;">
                     </iframe>
