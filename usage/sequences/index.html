@@ -10,13 +10,13 @@
       
       
       
-        <link rel="canonical" href="https://sidprasad.github.io/cnd-py/usage/diagramming/">
+        <link rel="canonical" href="https://sidprasad.github.io/cnd-py/usage/sequences/">
       
       
-        <link rel="prev" href="../../getting-started/">
+        <link rel="prev" href="../diagramming/">
       
       
-        <link rel="next" href="../sequences/">
+        <link rel="next" href="../evaluator/">
       
       
         
@@ -27,7 +27,7 @@
     
     
       
-        <title>Diagramming - sPyTial</title>
+        <title>Sequences - sPyTial</title>
       
     
     
@@ -70,7 +70,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#diagramming" class="md-skip">
+        <a href="#sequences-of-diagrams" class="md-skip">
           Skip to content
         </a>
       
@@ -104,7 +104,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Diagramming
+              Sequences
             
           </span>
         </div>
@@ -225,11 +225,9 @@
   
   
   
-    
   
-  
-    <li class="md-tabs__item md-tabs__item--active">
-      <a href="./" class="md-tabs__link">
+    <li class="md-tabs__item">
+      <a href="../diagramming/" class="md-tabs__link">
         
   
   
@@ -246,9 +244,11 @@
   
   
   
+    
   
-    <li class="md-tabs__item">
-      <a href="../sequences/" class="md-tabs__link">
+  
+    <li class="md-tabs__item md-tabs__item--active">
+      <a href="./" class="md-tabs__link">
         
   
   
@@ -478,6 +478,33 @@
       
   
   
+  
+  
+    <li class="md-nav__item">
+      <a href="../diagramming/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Diagramming
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
     
   
   
@@ -497,7 +524,7 @@
   <span class="md-ellipsis">
     
   
-    Diagramming
+    Sequences
   
 
     
@@ -515,7 +542,7 @@
   <span class="md-ellipsis">
     
   
-    Diagramming
+    Sequences
   
 
     
@@ -552,6 +579,50 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#sequence-policies" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Sequence policies
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#in-place-mutation-most-common" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        In-place mutation (most common)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#snapshot-deepcopy-workflow" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Snapshot / deepcopy workflow
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#passing-as_type" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Passing as_type
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#display-options" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -563,65 +634,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#sizing-and-title" class="md-nav__link">
+  <a href="#using-without-a-context-manager" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Sizing and title
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#passing-annotations-with-as_type" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Passing annotations with as_type
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#common-workflow" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Common workflow
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#headless-benchmarking" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Headless benchmarking
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#return-values" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Return values
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#patterns-from-spytial-clrs" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Patterns from spytial-clrs
+        Using without a context manager
       
     </span>
   </a>
@@ -632,33 +648,6 @@
   
 </nav>
       
-    </li>
-  
-
-    
-      
-      
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../sequences/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Sequences
-  
-
-    
-  </span>
-  
-  
-
-      </a>
     </li>
   
 
@@ -863,6 +852,50 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#sequence-policies" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Sequence policies
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#in-place-mutation-most-common" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        In-place mutation (most common)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#snapshot-deepcopy-workflow" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Snapshot / deepcopy workflow
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#passing-as_type" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Passing as_type
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#display-options" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -874,65 +907,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#sizing-and-title" class="md-nav__link">
+  <a href="#using-without-a-context-manager" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Sizing and title
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#passing-annotations-with-as_type" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Passing annotations with as_type
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#common-workflow" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Common workflow
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#headless-benchmarking" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Headless benchmarking
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#return-values" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Return values
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#patterns-from-spytial-clrs" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Patterns from spytial-clrs
+        Using without a context manager
       
     </span>
   </a>
@@ -959,70 +937,106 @@
   
 
 
-<h1 id="diagramming">Diagramming</h1>
-<p><code>spytial.diagram()</code> turns Python objects into a spatial diagram. It works with built-in containers, dataclasses, custom classes, and graph-like structures.</p>
+<h1 id="sequences-of-diagrams">Sequences of Diagrams</h1>
+<p><code>spytial.sequence()</code> lets you record a series of snapshots of a data structure and play them back as an interactive step-by-step visualization. It is designed for two use cases:</p>
+<ul>
+<li><strong>Algorithm tracing</strong> — call <code>.record()</code> inside an algorithm as each step completes.</li>
+<li><strong>Temporal snapshots</strong> — record a structure at multiple points in time.</li>
+</ul>
 <h2 id="basic-usage">Basic usage</h2>
 <div class="highlight"><pre><span></span><code><span class="kn">import</span><span class="w"> </span><span class="nn">spytial</span>
 
-<span class="n">spytial</span><span class="o">.</span><span class="n">diagram</span><span class="p">({</span><span class="s2">&quot;a&quot;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span> <span class="s2">&quot;b&quot;</span><span class="p">:</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">]})</span>
+<span class="k">with</span> <span class="n">spytial</span><span class="o">.</span><span class="n">sequence</span><span class="p">(</span><span class="n">sequence_policy</span><span class="o">=</span><span class="s2">&quot;stability&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">seq</span><span class="p">:</span>
+    <span class="n">seq</span><span class="o">.</span><span class="n">record</span><span class="p">({</span><span class="s2">&quot;count&quot;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span> <span class="s2">&quot;items&quot;</span><span class="p">:</span> <span class="p">[</span><span class="s2">&quot;a&quot;</span><span class="p">]})</span>
+    <span class="n">seq</span><span class="o">.</span><span class="n">record</span><span class="p">({</span><span class="s2">&quot;count&quot;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span> <span class="s2">&quot;items&quot;</span><span class="p">:</span> <span class="p">[</span><span class="s2">&quot;a&quot;</span><span class="p">,</span> <span class="s2">&quot;b&quot;</span><span class="p">]})</span>
+    <span class="n">seq</span><span class="o">.</span><span class="n">record</span><span class="p">({</span><span class="s2">&quot;count&quot;</span><span class="p">:</span> <span class="mi">2</span><span class="p">,</span> <span class="s2">&quot;items&quot;</span><span class="p">:</span> <span class="p">[</span><span class="s2">&quot;b&quot;</span><span class="p">]})</span>
+<span class="n">seq</span><span class="o">.</span><span class="n">diagram</span><span class="p">()</span>
+</code></pre></div>
+<p><code>sequence()</code> returns a <code>SequenceRecorder</code>. Each <code>.record(obj)</code> call captures the current state of <code>obj</code> as the next frame. <code>.diagram()</code> renders all frames into an interactive viewer with Previous / Next navigation.</p>
+<h2 id="sequence-policies">Sequence policies</h2>
+<p>The <code>sequence_policy</code> controls how the frontend positions atoms across frames:</p>
+<table>
+<thead>
+<tr>
+<th>Policy</th>
+<th>Behaviour</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>stability</code></td>
+<td>Atoms stay anchored to their previous position (default for sequences)</td>
+</tr>
+<tr>
+<td><code>change_emphasis</code></td>
+<td>Changed atoms are visually highlighted</td>
+</tr>
+<tr>
+<td><code>ignore_history</code></td>
+<td>Each frame is laid out independently</td>
+</tr>
+<tr>
+<td><code>random_positioning</code></td>
+<td>Random placement each frame</td>
+</tr>
+</tbody>
+</table>
+<h2 id="in-place-mutation-most-common">In-place mutation (most common)</h2>
+<p>When the <strong>same Python objects</strong> are mutated between frames, atom IDs are stable automatically — no configuration needed. The recorder uses a single shared builder whose persistent ID table survives across <code>.record()</code> calls.</p>
+<div class="highlight"><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">Node</span><span class="p">:</span>
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">val</span><span class="p">,</span> <span class="n">left</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">right</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">val</span> <span class="o">=</span> <span class="n">val</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">left</span> <span class="o">=</span> <span class="n">left</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">right</span> <span class="o">=</span> <span class="n">right</span>
+
+<span class="n">root</span> <span class="o">=</span> <span class="n">Node</span><span class="p">(</span><span class="mi">5</span><span class="p">,</span> <span class="n">Node</span><span class="p">(</span><span class="mi">3</span><span class="p">),</span> <span class="n">Node</span><span class="p">(</span><span class="mi">7</span><span class="p">))</span>
+
+<span class="k">with</span> <span class="n">spytial</span><span class="o">.</span><span class="n">sequence</span><span class="p">(</span><span class="n">sequence_policy</span><span class="o">=</span><span class="s2">&quot;stability&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">seq</span><span class="p">:</span>
+    <span class="n">seq</span><span class="o">.</span><span class="n">record</span><span class="p">(</span><span class="n">root</span><span class="p">)</span>
+    <span class="n">root</span><span class="o">.</span><span class="n">val</span> <span class="o">=</span> <span class="mi">99</span>          <span class="c1"># mutate in place</span>
+    <span class="n">seq</span><span class="o">.</span><span class="n">record</span><span class="p">(</span><span class="n">root</span><span class="p">)</span>
+    <span class="n">root</span><span class="o">.</span><span class="n">left</span><span class="o">.</span><span class="n">val</span> <span class="o">=</span> <span class="mi">11</span>
+    <span class="n">seq</span><span class="o">.</span><span class="n">record</span><span class="p">(</span><span class="n">root</span><span class="p">)</span>
+<span class="n">seq</span><span class="o">.</span><span class="n">diagram</span><span class="p">()</span>
+</code></pre></div>
+<p>This pattern works well for BST insertion, sorting algorithms, graph BFS/DFS — any algorithm that operates on a shared mutable structure.</p>
+<h2 id="snapshot-deepcopy-workflow">Snapshot / deepcopy workflow</h2>
+<p>If each frame is a fresh object (e.g. <code>copy.deepcopy</code>), pass <code>identity=</code> so the recorder can match conceptually equivalent nodes across frames. The callable receives each object and should return a stable string key or <code>None</code>.</p>
+<div class="highlight"><pre><span></span><code><span class="kn">import</span><span class="w"> </span><span class="nn">copy</span><span class="o">,</span><span class="w"> </span><span class="nn">spytial</span>
+
+<span class="n">snapshots</span> <span class="o">=</span> <span class="p">[</span><span class="n">copy</span><span class="o">.</span><span class="n">deepcopy</span><span class="p">(</span><span class="n">root</span><span class="p">)</span> <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">3</span><span class="p">)]</span>
+
+<span class="k">with</span> <span class="n">spytial</span><span class="o">.</span><span class="n">sequence</span><span class="p">(</span>
+    <span class="n">identity</span><span class="o">=</span><span class="k">lambda</span> <span class="n">obj</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">obj</span><span class="o">.</span><span class="n">node_id</span><span class="p">)</span> <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="s2">&quot;node_id&quot;</span><span class="p">)</span> <span class="k">else</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">sequence_policy</span><span class="o">=</span><span class="s2">&quot;stability&quot;</span><span class="p">,</span>
+<span class="p">)</span> <span class="k">as</span> <span class="n">seq</span><span class="p">:</span>
+    <span class="k">for</span> <span class="n">snap</span> <span class="ow">in</span> <span class="n">snapshots</span><span class="p">:</span>
+        <span class="n">seq</span><span class="o">.</span><span class="n">record</span><span class="p">(</span><span class="n">snap</span><span class="p">)</span>
+<span class="n">seq</span><span class="o">.</span><span class="n">diagram</span><span class="p">()</span>
+</code></pre></div>
+<p><code>identity</code> must return a <code>str</code> or <code>None</code>. Objects that share the same key across frames are rendered as the same atom and animated smoothly between positions.</p>
+<h2 id="passing-as_type">Passing <code>as_type</code></h2>
+<p>You can apply class-level spatial annotations to every recorded object via <code>as_type</code>:</p>
+<div class="highlight"><pre><span></span><code><span class="n">seq</span> <span class="o">=</span> <span class="n">spytial</span><span class="o">.</span><span class="n">sequence</span><span class="p">(</span><span class="n">as_type</span><span class="o">=</span><span class="n">MyAnnotatedType</span><span class="p">,</span> <span class="n">sequence_policy</span><span class="o">=</span><span class="s2">&quot;stability&quot;</span><span class="p">)</span>
 </code></pre></div>
 <h2 id="display-options">Display options</h2>
-<div class="highlight"><pre><span></span><code><span class="n">spytial</span><span class="o">.</span><span class="n">diagram</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="s2">&quot;browser&quot;</span><span class="p">)</span>  <span class="c1"># open a new tab</span>
-<span class="n">spytial</span><span class="o">.</span><span class="n">diagram</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="s2">&quot;file&quot;</span><span class="p">)</span>     <span class="c1"># save as spytial_visualization.html</span>
-<span class="n">spytial</span><span class="o">.</span><span class="n">diagram</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="s2">&quot;inline&quot;</span><span class="p">)</span>   <span class="c1"># force notebook output</span>
+<div class="highlight"><pre><span></span><code><span class="n">seq</span><span class="o">.</span><span class="n">diagram</span><span class="p">()</span>                    <span class="c1"># auto-detect (inline in Jupyter, browser otherwise)</span>
+<span class="n">seq</span><span class="o">.</span><span class="n">diagram</span><span class="p">(</span><span class="n">method</span><span class="o">=</span><span class="s2">&quot;file&quot;</span><span class="p">)</span>       <span class="c1"># save as spytial_sequence_visualization.html</span>
+<span class="n">seq</span><span class="o">.</span><span class="n">diagram</span><span class="p">(</span><span class="n">method</span><span class="o">=</span><span class="s2">&quot;browser&quot;</span><span class="p">)</span>    <span class="c1"># open in a new browser tab</span>
+<span class="n">seq</span><span class="o">.</span><span class="n">diagram</span><span class="p">(</span><span class="n">method</span><span class="o">=</span><span class="s2">&quot;inline&quot;</span><span class="p">)</span>     <span class="c1"># force Jupyter inline output</span>
+<span class="n">seq</span><span class="o">.</span><span class="n">diagram</span><span class="p">(</span><span class="n">width</span><span class="o">=</span><span class="mi">1200</span><span class="p">,</span> <span class="n">height</span><span class="o">=</span><span class="mi">800</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="s2">&quot;My algorithm&quot;</span><span class="p">)</span>
 </code></pre></div>
-<h2 id="sizing-and-title">Sizing and title</h2>
-<div class="highlight"><pre><span></span><code><span class="n">spytial</span><span class="o">.</span><span class="n">diagram</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">width</span><span class="o">=</span><span class="mi">900</span><span class="p">,</span> <span class="n">height</span><span class="o">=</span><span class="mi">600</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="s2">&quot;My Diagram&quot;</span><span class="p">)</span>
+<p>You can also set defaults at construction time and override at render time:</p>
+<div class="highlight"><pre><span></span><code><span class="n">seq</span> <span class="o">=</span> <span class="n">spytial</span><span class="o">.</span><span class="n">sequence</span><span class="p">(</span><span class="n">method</span><span class="o">=</span><span class="s2">&quot;file&quot;</span><span class="p">,</span> <span class="n">auto_open</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+<span class="c1"># ... record frames ...</span>
+<span class="n">seq</span><span class="o">.</span><span class="n">diagram</span><span class="p">(</span><span class="n">title</span><span class="o">=</span><span class="s2">&quot;Final render&quot;</span><span class="p">)</span>
 </code></pre></div>
-<h2 id="passing-annotations-with-as_type">Passing annotations with <code>as_type</code></h2>
-<p>Use <code>AnnotatedType</code> or <code>typing.Annotated</code> to attach spatial constraints to a type you want the object treated as.</p>
-<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">List</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">spytial</span><span class="w"> </span><span class="kn">import</span> <span class="n">AnnotatedType</span><span class="p">,</span> <span class="n">InferredEdge</span><span class="p">,</span> <span class="n">Orientation</span><span class="p">,</span> <span class="n">Tag</span>
-
-<span class="n">Graph</span> <span class="o">=</span> <span class="n">AnnotatedType</span><span class="p">(</span>
-    <span class="n">Dict</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">int</span><span class="p">]],</span>
-    <span class="n">InferredEdge</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;edge&quot;</span><span class="p">,</span> <span class="n">selector</span><span class="o">=</span><span class="s2">&quot;values&quot;</span><span class="p">),</span>
-    <span class="n">Orientation</span><span class="p">(</span><span class="n">selector</span><span class="o">=</span><span class="s2">&quot;values&quot;</span><span class="p">,</span> <span class="n">directions</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;right&quot;</span><span class="p">]),</span>
-    <span class="n">Tag</span><span class="p">(</span><span class="n">toTag</span><span class="o">=</span><span class="s2">&quot;univ&quot;</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">&quot;count&quot;</span><span class="p">,</span> <span class="n">value</span><span class="o">=</span><span class="s2">&quot;values&quot;</span><span class="p">),</span>
-<span class="p">)</span>
-
-<span class="n">graph</span> <span class="o">=</span> <span class="p">{</span><span class="mi">0</span><span class="p">:</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">],</span> <span class="mi">1</span><span class="p">:</span> <span class="p">[</span><span class="mi">3</span><span class="p">]}</span>
-<span class="n">spytial</span><span class="o">.</span><span class="n">diagram</span><span class="p">(</span><span class="n">graph</span><span class="p">,</span> <span class="n">as_type</span><span class="o">=</span><span class="n">Graph</span><span class="p">)</span>
+<h2 id="using-without-a-context-manager">Using without a context manager</h2>
+<p><code>SequenceRecorder</code> does not require <code>with</code>. The context manager is purely a readability convention — <code>__exit__</code> does nothing special.</p>
+<div class="highlight"><pre><span></span><code><span class="n">seq</span> <span class="o">=</span> <span class="n">spytial</span><span class="o">.</span><span class="n">sequence</span><span class="p">(</span><span class="n">sequence_policy</span><span class="o">=</span><span class="s2">&quot;stability&quot;</span><span class="p">)</span>
+<span class="n">tree</span><span class="o">.</span><span class="n">insert</span><span class="p">(</span><span class="n">seq</span><span class="p">,</span> <span class="mi">42</span><span class="p">)</span>   <span class="c1"># tree passes seq around internally and calls seq.record()</span>
+<span class="n">seq</span><span class="o">.</span><span class="n">diagram</span><span class="p">()</span>
 </code></pre></div>
-<h2 id="common-workflow">Common workflow</h2>
-<p>For non-trivial objects, the usual workflow is:</p>
-<ol>
-<li><code>spytial.evaluate(obj)</code> to confirm the serialized atoms and relations.</li>
-<li><code>spytial.diagram(obj)</code> to see the layout.</li>
-<li>Add decorators or <code>AnnotatedType(...)</code> annotations if you want more control over layout or styling.</li>
-</ol>
-<h2 id="headless-benchmarking">Headless benchmarking</h2>
-<p>For large structures, you can render multiple times and save aggregated timing.</p>
-<div class="highlight"><pre><span></span><code><span class="kn">import</span><span class="w"> </span><span class="nn">spytial</span>
-
-<span class="n">metrics</span> <span class="o">=</span> <span class="n">spytial</span><span class="o">.</span><span class="n">diagram</span><span class="p">(</span>
-    <span class="n">data</span><span class="p">,</span>
-    <span class="n">headless</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-    <span class="n">perf_path</span><span class="o">=</span><span class="s2">&quot;perf.json&quot;</span><span class="p">,</span>
-    <span class="n">perf_iterations</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span>
-<span class="p">)</span>
-</code></pre></div>
-<div class="admonition note">
-<p class="admonition-title">Note</p>
-<p>Headless mode requires Selenium and a Chrome/Chromedriver installation. Use <code>pip install spytial_diagramming[headless]</code> and ensure the driver is on your PATH.</p>
-</div>
-<h2 id="return-values">Return values</h2>
-<ul>
-<li><code>method="browser"</code> and <code>method="file"</code> return the HTML file path.</li>
-<li><code>headless=True</code> returns performance metrics when <code>perf_iterations</code> is set.</li>
-</ul>
-<h2 id="patterns-from-spytial-clrs">Patterns from <code>spytial-clrs</code></h2>
-<p>If you want realistic examples instead of toy snippets, use the notebooks in <a href="https://github.com/sidprasad/spytial-clrs"><code>spytial-clrs</code></a>:</p>
-<ul>
-<li><code>linked-lists.ipynb</code> shows list-like structures and cyclic constraints.</li>
-<li><code>heaps.ipynb</code> and <code>trees.ipynb</code> show recursive structures with alignment and attributes.</li>
-<li><code>graphs.ipynb</code> and <code>disjoint-sets.ipynb</code> show grouping-heavy layouts.</li>
-</ul>
 
 
 
