@@ -17,7 +17,9 @@ class DataclassRelationalizer(RelationalizerBase):
 
         # Try to get caller namespace from the walker (builder) if available
         caller_namespace = getattr(walker_func, "_caller_namespace", None)
-        label = self._make_label_with_fallback(obj, typ, caller_namespace, obj_id)
+        label = self._make_label_with_fallback(
+            obj, typ, caller_namespace, obj_id, walker_func
+        )
 
         atom = Atom(id=obj_id, type=typ, label=label)
 

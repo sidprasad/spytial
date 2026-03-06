@@ -103,6 +103,7 @@ class CnDDataInstanceBuilder:
         self._current_depth = 0  # Track current recursion depth
         # Extensibility mechanism: custom reifiers for specific types
         self._custom_reifiers = {}
+        self._type_label_counters = {}  # Per-type counters for fallback labels
         self._caller_namespace = (
             None  # Store caller's namespace for variable name lookup
         )
@@ -123,6 +124,7 @@ class CnDDataInstanceBuilder:
         self._build_identity_objects = {}
         self._collected_decorators = {"constraints": [], "directives": []}
         self._current_depth = 0  # Reset depth
+        self._type_label_counters = {}  # Reset per-type counters
         self._as_type = as_type  # Store for use during walk
 
         # Extract annotations from as_type if provided
