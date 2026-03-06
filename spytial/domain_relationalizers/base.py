@@ -178,25 +178,33 @@ class RelationalizerBase(abc.ABC):
         typ: str,
         caller_namespace: Optional[Dict] = None,
         atom_id: Optional[str] = None,
+        walker_func: Any = None,
     ) -> str:
         """
-        Create a label with variable name if available, otherwise use atom ID.
+        Create a label with variable name if available, otherwise use Type(index).
 
-        Priority: variable name > atom_id
+        Priority: variable name > Type(index)
 
         Args:
             obj: The object to label
             typ: The type name to use in the label
             caller_namespace: Optional namespace dict from the original caller
-            atom_id: Optional atom ID to use as fallback label
+            atom_id: Optional atom ID to use as fallback (unused, kept for compat)
+            walker_func: The builder instance, used for per-type counters
 
         Returns:
-            A label string like "varname" or the atom ID
+            A label string like "varname" or "Node0"
         """
         # Try to get variable name
         var_name = self._try_get_variable_name(obj, caller_namespace)
         if var_name:
             return var_name
 
-        # Fallback: use the atom ID if provided, otherwise type name
-        return atom_id if atom_id else typ
+        # Fallback: use TypeIndex for a readable, distinguishable label
+        if walker_func is not None and hasattr(walker_func, "_type_label_counters"):
+            counters = walker_func._type_label_counters
+            idx = counters.get(typ, 0)
+            counters[typ] = idx + 1
+            return f"{typ}{idx}"
+
+        return typ
