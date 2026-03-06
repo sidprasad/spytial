@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from spytial import annotate_orientation, sequence, reset_object_ids
+from spytial import annotate_orientation, sequence, reset_object_ids, SEQUENCE_POLICY_NAMES
 from spytial.provider_system import CnDDataInstanceBuilder
 
 
@@ -175,3 +175,35 @@ def test_sequence_recorder_requires_at_least_one_record():
     seq = sequence(method="file", auto_open=False)
     with pytest.raises(ValueError, match="No frames recorded"):
         seq.diagram()
+
+
+@pytest.mark.parametrize("policy", sorted(SEQUENCE_POLICY_NAMES))
+def test_sequence_recorder_accepts_all_valid_policies(tmp_path, monkeypatch, policy):
+    monkeypatch.chdir(tmp_path)
+    seq = sequence(sequence_policy=policy, method="file", auto_open=False)
+    seq.record({"v": 1})
+    result = seq.diagram()
+    html = Path(result).read_text(encoding="utf-8")
+    assert f"const sequencePolicyName = `{policy}`" in html
+
+
+def test_sequence_recorder_rejects_invalid_policy_at_construction():
+    with pytest.raises(ValueError, match="Unknown sequence_policy"):
+        sequence(sequence_policy="nonexistent")
+
+
+def test_sequence_recorder_rejects_invalid_policy_override_at_diagram(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    seq = sequence(sequence_policy="stability", method="file", auto_open=False)
+    seq.record({"v": 1})
+    with pytest.raises(ValueError, match="Unknown sequence_policy"):
+        seq.diagram(sequence_policy="nonexistent")
+
+
+def test_sequence_recorder_policy_can_be_overridden_at_diagram(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    seq = sequence(sequence_policy="stability", method="file", auto_open=False)
+    seq.record({"v": 1})
+    result = seq.diagram(sequence_policy="change_emphasis")
+    html = Path(result).read_text(encoding="utf-8")
+    assert "const sequencePolicyName = `change_emphasis`" in html

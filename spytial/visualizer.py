@@ -280,6 +280,12 @@ class SequenceRecorder:
     ):
         from .provider_system import CnDDataInstanceBuilder
 
+        if sequence_policy not in SEQUENCE_POLICY_NAMES:
+            allowed = ", ".join(sorted(SEQUENCE_POLICY_NAMES))
+            raise ValueError(
+                f"Unknown sequence_policy: {sequence_policy!r}. Expected one of: {allowed}"
+            )
+
         self._identity = identity
         self._sequence_policy = sequence_policy
         self._method = method
@@ -334,19 +340,19 @@ class SequenceRecorder:
 
         _method = method if method is not None else self._method
         _auto_open = auto_open if auto_open is not None else self._auto_open
-        _policy = sequence_policy if sequence_policy is not None else self._sequence_policy
         _width = width if width is not None else self._width
         _height = height if height is not None else self._height
         _title = title if title is not None else self._title
 
-        if _method is None:
-            _method = default_method()
-
-        if _policy not in SEQUENCE_POLICY_NAMES:
+        if sequence_policy is not None and sequence_policy not in SEQUENCE_POLICY_NAMES:
             allowed = ", ".join(sorted(SEQUENCE_POLICY_NAMES))
             raise ValueError(
-                f"Unknown sequence_policy: {_policy!r}. Expected one of: {allowed}"
+                f"Unknown sequence_policy: {sequence_policy!r}. Expected one of: {allowed}"
             )
+        _policy = sequence_policy if sequence_policy is not None else self._sequence_policy
+
+        if _method is None:
+            _method = default_method()
 
         if _width is None or _height is None:
             _width = _width or 1200
