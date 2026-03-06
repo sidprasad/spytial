@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from spytial import annotate_orientation, diagramSequence, reset_object_ids
+from spytial import annotate_orientation, sequence, reset_object_ids
 from spytial.provider_system import CnDDataInstanceBuilder
 
 
@@ -133,16 +133,13 @@ def test_annotation_self_reference_ids_take_precedence_over_identity_hook():
     assert _find_primary_atom(data_instance, "CounterState")["id"].startswith("obj_")
 
 
-def test_diagram_sequence_writes_navigation_html(tmp_path, monkeypatch):
+def test_sequence_recorder_writes_navigation_html(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
 
-    result = diagramSequence(
-        [{"value": 1}, {"value": 2}],
-        sequence_policy="stability",
-        method="file",
-        auto_open=False,
-        title="Counter states",
-    )
+    seq = sequence(sequence_policy="stability", method="file", auto_open=False, title="Counter states")
+    seq.record({"value": 1})
+    seq.record({"value": 2})
+    result = seq.diagram()
 
     html_path = Path(result)
     html = html_path.read_text(encoding="utf-8")
@@ -156,24 +153,25 @@ def test_diagram_sequence_writes_navigation_html(tmp_path, monkeypatch):
     assert "currInstance" in html
 
 
-def test_diagram_sequence_accepts_identity_hook_and_embeds_stable_ids(
+def test_sequence_recorder_accepts_identity_hook_and_embeds_stable_ids(
     tmp_path, monkeypatch
 ):
     monkeypatch.chdir(tmp_path)
 
-    result = diagramSequence(
-        [KeyedState("shared", 1), KeyedState("shared", 2)],
+    seq = sequence(
+        identity=lambda obj: obj.key if isinstance(obj, KeyedState) else None,
         sequence_policy="stability",
         method="file",
         auto_open=False,
-        identity=lambda obj: obj.key if isinstance(obj, KeyedState) else None,
     )
-
-    html = Path(result).read_text(encoding="utf-8")
+    seq.record(KeyedState("shared", 1))
+    seq.record(KeyedState("shared", 2))
+    html = Path(seq.diagram()).read_text(encoding="utf-8")
 
     assert "identity:shared" in html
 
 
-def test_diagram_sequence_requires_at_least_one_object():
-    with pytest.raises(ValueError, match="requires at least one object"):
-        diagramSequence([], method="file", auto_open=False)
+def test_sequence_recorder_requires_at_least_one_record():
+    seq = sequence(method="file", auto_open=False)
+    with pytest.raises(ValueError, match="No frames recorded"):
+        seq.diagram()

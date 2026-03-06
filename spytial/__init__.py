@@ -8,7 +8,7 @@ from .provider_system import (
     Atom,
     Relation,
 )
-from .visualizer import diagram, diagramSequence, SequenceRecorder, sequence
+from .visualizer import diagram, SequenceRecorder, sequence
 from .evaluator import evaluate
 from .dataclass_builder import dataclass_builder
 from .utils import AnnotatedType
@@ -89,7 +89,6 @@ __all__ = [
     "__version__",
     # Core functions
     "diagram",
-    "diagramSequence",
     "sequence",
     "SequenceRecorder",
     "evaluate",
