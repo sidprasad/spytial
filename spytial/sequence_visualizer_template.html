@@ -9,7 +9,6 @@
     <script src="{{ spytial_core_browser_bundle_url }}"></script>
     <script src="{{ spytial_core_components_bundle_url }}"></script>
     <link rel="stylesheet" href="{{ spytial_core_components_css_url }}" />
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 
     <style>
         body {
@@ -179,21 +178,6 @@
             font-size: 13px;
         }
 
-        .toolbar-button {
-            background: #0366d6;
-            color: #ffffff;
-            border: none;
-            padding: 8px 10px;
-            border-radius: 4px;
-            font-size: 12px;
-            cursor: pointer;
-            margin-left: 8px;
-        }
-
-        .toolbar-button:hover {
-            background: #0256cc;
-        }
-
         @media (max-width: 640px) {
             .sequence-header {
                 flex-direction: column;
@@ -241,9 +225,7 @@
 
         let graphElement = null;
         let currentIndex = null;
-        let currentLayout = null;
         let layoutSpecCache = null;
-        let toolbarInitialized = false;
         let isRendering = false;
         const stepCache = new Map();
 
@@ -420,66 +402,6 @@
             return stepData;
         }
 
-        async function resetLayout() {
-            if (graphElement && currentLayout) {
-                await graphElement.renderLayout(currentLayout);
-            }
-        }
-
-        async function saveScreenshot() {
-            try {
-                const container = document.querySelector(".container");
-                if (!container) {
-                    throw new Error("Container not found");
-                }
-
-                const canvas = await html2canvas(container, {
-                    backgroundColor: "#ffffff",
-                    scale: 2,
-                    useCORS: true,
-                    allowTaint: true,
-                    logging: false,
-                    imageTimeout: 10000,
-                });
-
-                canvas.toBlob(function (blob) {
-                    const url = URL.createObjectURL(blob);
-                    const link = document.createElement("a");
-                    const timestamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, -5);
-                    link.href = url;
-                    link.download = `spytial-sequence-${timestamp}.png`;
-                    document.body.appendChild(link);
-                    link.click();
-                    document.body.removeChild(link);
-                    URL.revokeObjectURL(url);
-                });
-            } catch (error) {
-                showError(`Failed to save screenshot: ${error.message}`);
-            }
-        }
-
-        function addToolbarButtons() {
-            if (!graphElement || typeof graphElement.addToolbarControl !== "function" || toolbarInitialized) {
-                return;
-            }
-
-            const resetButton = document.createElement("button");
-            resetButton.className = "toolbar-button";
-            resetButton.textContent = "Reset";
-            resetButton.title = "Reset layout";
-            resetButton.onclick = resetLayout;
-            graphElement.addToolbarControl(resetButton);
-
-            const screenshotButton = document.createElement("button");
-            screenshotButton.className = "toolbar-button";
-            screenshotButton.textContent = "PNG";
-            screenshotButton.title = "Save visualization as PNG";
-            screenshotButton.onclick = saveScreenshot;
-            graphElement.addToolbarControl(screenshotButton);
-
-            toolbarInitialized = true;
-        }
-
         async function renderStep(nextIndex) {
             if (isRendering) {
                 return;
@@ -521,8 +443,6 @@
                 }
 
                 currentIndex = nextIndex;
-                currentLayout = nextStep.layout;
-                addToolbarButtons();
 
                 if (nextStep.error) {
                     console.error("Layout generation error at step", nextIndex + 1, nextStep.error);

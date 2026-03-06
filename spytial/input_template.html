@@ -115,10 +115,9 @@
         
         console.log('Loaded initial data:', jsonData);
 
-        // Global variables for reset functionality
+        // Global state
         let graphElement = null;
         let lastExportedData = null;
-        let currentDataInstance = null;  // Track the current data instance
         let isInitialized = false;  // Track if we've already set up event listeners
 
         /**
@@ -354,56 +353,7 @@
         }
 
         /**
-         * Reset the graph layout to current data instance (preserves user edits)
-         */
-        async function resetLayout() {
-            if (!graphElement) {
-                console.error('Graph element not available for reset');
-                return;
-            }
-            
-            console.log('🔄 Reset button clicked');
-            
-            // Get the current data instance from the graph (includes user edits)
-            let dataToReset = null;
-            if (graphElement.getDataInstance && typeof graphElement.getDataInstance === 'function') {
-                dataToReset = graphElement.getDataInstance();
-                console.log('📊 Data before reset:', JSON.stringify(dataToReset, null, 2));
-            }
-            
-            // If we can't get current data, use the tracked instance or fall back to initial data
-            if (!dataToReset) {
-                const core = getSpytialCore();
-                dataToReset = currentDataInstance || (core ? new core.JSONDataInstance(jsonData) : null);
-                console.log('⚠️ Using fallback data for reset');
-            }
-
-            if (!dataToReset) {
-                showError('Unable to reset because spytial-core is unavailable.');
-                return;
-            }
-            
-            console.log('Resetting layout with current data instance');
-            
-            // Reset the layout while preserving the data
-            if (graphElement.reset && typeof graphElement.reset === 'function') {
-                await graphElement.reset();
-                console.log('✅ Reset using graphElement.reset()');
-            } else {
-                // Fallback: re-render with current data
-                graphElement.setDataInstance(dataToReset);
-                console.log('✅ Reset using setDataInstance()');
-            }
-            
-            // Log data after reset
-            if (graphElement.getDataInstance) {
-                const dataAfterReset = graphElement.getDataInstance();
-                console.log('📊 Data after reset:', JSON.stringify(dataAfterReset, null, 2));
-            }
-        }
-
-        /**
-         * Create and add export buttons to the graph toolbar (only once)
+         * Create and add export button to the graph toolbar (only once)
          */
         function addExportControls() {
             // Only add controls once
@@ -420,15 +370,7 @@
                 exportButton.title = 'Export as Python code';
                 exportButton.onclick = exportDataToFile;
                 
-                // Reset button
-                const resetButton = document.createElement('button');
-                resetButton.className = 'reset-btn';
-                resetButton.innerHTML = '↻ Reset';
-                resetButton.title = 'Reset layout';
-                resetButton.onclick = resetLayout;
-                
                 graphElement.addToolbarControl(exportButton);
-                graphElement.addToolbarControl(resetButton);
                 
                 console.log('Export controls added');
             }
@@ -580,9 +522,6 @@
                 const dataInstance = new core.JSONDataInstance(parsedData);
                 console.log('Data instance created:', dataInstance);
                 
-                // Store the initial data instance
-                currentDataInstance = dataInstance;
-
                 // Set the Spytial-Core spec on the component
                 console.log('Setting Spytial-Core spec...');
                 graphElement.setCnDSpec(cndSpec);
