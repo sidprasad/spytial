@@ -5,10 +5,10 @@ from .base import RelationalizerBase, Atom, Relation
 
 
 class SetRelationalizer(RelationalizerBase):
-    """Handles set objects."""
+    """Handles set-like objects (set and frozenset)."""
 
     def can_handle(self, obj: Any) -> bool:
-        return isinstance(obj, set)
+        return isinstance(obj, (set, frozenset))
 
     def relationalize(self, obj: Any, walker_func) -> Tuple[List[Atom], List[Relation]]:
         obj_id = walker_func._get_id(obj)
