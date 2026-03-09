@@ -149,6 +149,22 @@ def test_built_in_relationalizers_work():
     assert result.endswith('.html')
 
 
+def test_frozenset_relationalizer_walks_elements():
+    builder = CnDDataInstanceBuilder()
+    data_instance = builder.build_instance(frozenset({1, 2, 3}))
+
+    assert any(atom["type"] == "frozenset" for atom in data_instance["atoms"])
+
+    contains = next(
+        (relation for relation in data_instance["relations"] if relation["name"] == "contains"),
+        None,
+    )
+    assert contains is not None
+
+    target_ids = {entry["atoms"][1] for entry in contains["tuples"]}
+    assert target_ids == {"1", "2", "3"}
+
+
 
 
 
