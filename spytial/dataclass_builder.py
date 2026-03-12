@@ -7,18 +7,15 @@ you can copy and paste.
 """
 
 import json
-import os
 import yaml
 from dataclasses import is_dataclass
 from pathlib import Path
-from typing import Any, Optional, TYPE_CHECKING, Union
-
-if TYPE_CHECKING:
-    from IPython.display import HTML as IPythonHTML
+from typing import Any, Optional
 
 from .provider_system import CnDDataInstanceBuilder
 from .annotations import collect_decorators
 from .core_assets import get_template_asset_context
+from .visualizer import _deliver_html_content
 
 try:
     from jinja2 import Environment, FileSystemLoader
@@ -46,8 +43,11 @@ def _generate_cnd_spec(instance: Any) -> str:
 
 
 def dataclass_builder(
-    instance: Any, method: str = "inline", auto_open: bool = True
-) -> Optional[Union[str, "IPythonHTML"]]:
+    instance: Any,
+    method: str = "inline",
+    auto_open: bool = True,
+    height: int = 600,
+) -> Optional[str]:
     """
     Create a visual builder interface for a dataclass instance using spytial-core.
 
@@ -58,10 +58,11 @@ def dataclass_builder(
         instance: A dataclass instance to start with (can be empty or pre-populated)
         method: 'browser' to open in browser, 'file' to save HTML file, 'inline' for notebook
         auto_open: Whether to automatically open the result (for 'browser' and 'file' methods)
+        height: Height of the visualization in pixels (default: 600)
 
     Returns:
         str: Path to the generated HTML file (for 'file' and 'browser' methods)
-        IPython.HTML: HTML widget for inline display ('inline' method)
+        None: For 'inline' method (displayed directly in notebook)
 
     Example:
         @dataclass
@@ -101,49 +102,13 @@ def dataclass_builder(
         dataclass_name=dataclass_type.__name__,
     )
 
-    # Handle different output methods
-    if method == "file":
-        # Save to file
-        output_file = "dataclass_builder.html"
-        with open(output_file, "w", encoding="utf-8") as f:
-            f.write(html_content)
-
-        if auto_open:
-            import webbrowser
-
-            webbrowser.open(f"file://{os.path.abspath(output_file)}")
-
-        return output_file
-
-    elif method == "browser":
-        # Save to temp file and open in browser
-        import tempfile
-
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".html", delete=False) as f:
-            f.write(html_content)
-            temp_path = f.name
-
-        if auto_open:
-            import webbrowser
-
-            webbrowser.open(f"file://{temp_path}")
-
-        return temp_path
-
-    elif method == "inline":
-        # For Jupyter notebooks - return an HTML widget
-        try:
-            from IPython.display import HTML as IPythonHTML
-
-            return IPythonHTML(html_content)
-        except ImportError:
-            print("IPython not available. Use method='browser' or 'file' instead.")
-            return None
-
-    else:
-        raise ValueError(
-            f"Unknown method: {method}. Use 'browser', 'file', or 'inline'."
-        )
+    return _deliver_html_content(
+        html_content,
+        method=method,
+        auto_open=auto_open,
+        height=height,
+        output_filename="dataclass_builder.html",
+    )
 
 
 def _generate_dataclass_builder_html(initial_data, cnd_spec, dataclass_name):
