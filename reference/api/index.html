@@ -21,7 +21,7 @@
       
       
       <link rel="icon" href="../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.4">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.5">
     
     
       
@@ -8702,7 +8702,7 @@ you can copy and paste.</p>
 
 
 <h3 id="spytial.dataclass_builder.dataclass_builder" class="doc doc-heading">
-<code class="doc-symbol doc-symbol-heading doc-symbol-function"></code>            <code class="highlight language-python"><span class="n">dataclass_builder</span><span class="p">(</span><span class="n">instance</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="s1">&#39;inline&#39;</span><span class="p">,</span> <span class="n">auto_open</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span></code>
+<code class="doc-symbol doc-symbol-heading doc-symbol-function"></code>            <code class="highlight language-python"><span class="n">dataclass_builder</span><span class="p">(</span><span class="n">instance</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="s1">&#39;inline&#39;</span><span class="p">,</span> <span class="n">auto_open</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">height</span><span class="o">=</span><span class="mi">600</span><span class="p">)</span></code>
 
 </h3>
 
@@ -8773,6 +8773,22 @@ Click "Export" to get Python constructor code to copy/paste.</p>
                   <code>True</code>
             </td>
           </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>height</code>
+            </td>
+            <td>
+                  <code><span title="int">int</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Height of the visualization in pixels (default: 600)</p>
+              </div>
+            </td>
+            <td>
+                  <code>600</code>
+            </td>
+          </tr>
       </tbody>
     </table>
 
@@ -8788,7 +8804,7 @@ Click "Export" to get Python constructor code to copy/paste.</p>
       <tbody>
           <tr class="doc-section-item">
 <td><code>str</code></td>            <td>
-                  <code><span title="typing.Optional">Optional</span>[<span title="typing.Union">Union</span>[<span title="str">str</span>, <span title="IPython.display.HTML">HTML</span>]]</code>
+                  <code><span title="typing.Optional">Optional</span>[<span title="str">str</span>]</code>
             </td>
             <td>
               <div class="doc-md-description">
@@ -8797,12 +8813,12 @@ Click "Export" to get Python constructor code to copy/paste.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-<td></td>            <td>
-                  <code><span title="typing.Optional">Optional</span>[<span title="typing.Union">Union</span>[<span title="str">str</span>, <span title="IPython.display.HTML">HTML</span>]]</code>
+<td><code>None</code></td>            <td>
+                  <code><span title="typing.Optional">Optional</span>[<span title="str">str</span>]</code>
             </td>
             <td>
               <div class="doc-md-description">
-                <p>IPython.HTML: HTML widget for inline display ('inline' method)</p>
+                <p>For 'inline' method (displayed directly in notebook)</p>
               </div>
             </td>
           </tr>
