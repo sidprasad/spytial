@@ -10,7 +10,7 @@ from .provider_system import (
 )
 from .visualizer import diagram, SequenceRecorder, sequence, SEQUENCE_POLICY_NAMES
 from .evaluator import evaluate
-from .dataclass_builder import dataclass_builder
+from .dataclass_builder import dataclass_builder, DataClassBuilder
 from .utils import AnnotatedType
 from .annotations import (
     # Class decorators (for decorating classes)
@@ -94,6 +94,7 @@ __all__ = [
     "SEQUENCE_POLICY_NAMES",
     "evaluate",
     "dataclass_builder",
+    "DataClassBuilder",
     # New relationalizer system
     "CnDDataInstanceBuilder",
     "RelationalizerBase",

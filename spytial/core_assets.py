@@ -2,7 +2,7 @@
 
 import os
 
-SPYTIAL_CORE_NPM_VERSION = os.environ.get("SPYTIAL_CORE_NPM_VERSION", "1.9.12")
+SPYTIAL_CORE_NPM_VERSION = os.environ.get("SPYTIAL_CORE_NPM_VERSION", "2.0.2")
 _CDN_BASE = f"https://cdn.jsdelivr.net/npm/spytial-core@{SPYTIAL_CORE_NPM_VERSION}"
 
 SPYTIAL_CORE_BROWSER_BUNDLE_URL = (
