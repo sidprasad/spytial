@@ -80,20 +80,16 @@ def evaluate(
         # Display inline in Jupyter notebook using iframe
         if HAS_IPYTHON:
             try:
-                import base64
+                import html as html_mod
 
-                # Encode HTML as base64 for iframe
-                encoded_html = base64.b64encode(html_content.encode("utf-8")).decode(
-                    "utf-8"
-                )
+                escaped = html_mod.escape(html_content, quote=True)
 
-                # Create iframe HTML
                 iframe_html = f"""
                 <div style="border: 2px solid #007acc; border-radius: 8px; overflow: hidden;">
-                    <iframe 
-                        src="data:text/html;base64,{encoded_html}" 
-                        width="100%" 
-                        height="{height}px" 
+                    <iframe
+                        srcdoc="{escaped}"
+                        width="100%"
+                        height="{height}px"
                         frameborder="0"
                         style="display: block;">
                     </iframe>

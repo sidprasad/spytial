@@ -5,6 +5,7 @@ include OBJECT_ANNOTATIONS.md
 include agents.md
 recursive-include spytial *.html
 recursive-include spytial *.txt
+recursive-include spytial/vendor *.js *.css VERSION
 recursive-include demos *.ipynb
 recursive-include demos *.md
 recursive-exclude test *

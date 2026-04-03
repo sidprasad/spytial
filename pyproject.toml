@@ -64,4 +64,4 @@ include = ["spytial*"]
 version = {attr = "spytial._version.__version__"}
 
 [tool.setuptools.package-data]
-spytial = ["*.html"]
+spytial = ["*.html", "vendor/*.js", "vendor/*.css", "vendor/VERSION"]

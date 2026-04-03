@@ -6,9 +6,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ title | default("sPyTial Visualization") }}</title>
 
-    <script src="{{ spytial_core_browser_bundle_url }}"></script>
-    <script src="{{ spytial_core_components_bundle_url }}"></script>
-    <link rel="stylesheet" href="{{ spytial_core_components_css_url }}" /> 
+    <script>{{ spytial_core_js }}</script>
+    <script>{{ spytial_components_js }}</script>
+    <style>{{ spytial_components_css }}</style> 
     
     <style>
         body {
@@ -486,18 +486,6 @@
                 console.error('spytial-core library is not available');
                 showError('spytial-core failed to load. The visualization cannot be displayed.');
                 
-                // Try to load the library again
-                console.log('Attempting to reload spytial-core...');
-                const script = document.createElement('script');
-                script.src = '{{ spytial_core_browser_bundle_url }}';
-                script.onload = function() {
-                    console.log('spytial-core reloaded, retrying...');
-                    setTimeout(loadGraph, 500);
-                };
-                script.onerror = function() {
-                    showError('Failed to load spytial-core even on retry');
-                };
-                document.head.appendChild(script);
                 return;
             }
 
