@@ -125,8 +125,13 @@ class Orientation(SpytialAnnotation):
     _annotation_type = "orientation"
     _is_constraint = True
 
-    def __init__(self, *, selector: str, directions: list):
-        super().__init__(selector=selector, directions=directions)
+    def __init__(self, *, selector: str, directions: list, hold: str = "always"):
+        if hold not in ("always", "never"):
+            raise ValueError(f"hold must be 'always' or 'never', got {hold!r}")
+        kwargs = dict(selector=selector, directions=directions)
+        if hold == "never":
+            kwargs["hold"] = hold
+        super().__init__(**kwargs)
 
 
 class Cyclic(SpytialAnnotation):
@@ -140,8 +145,13 @@ class Cyclic(SpytialAnnotation):
     _annotation_type = "cyclic"
     _is_constraint = True
 
-    def __init__(self, *, selector: str, direction: str):
-        super().__init__(selector=selector, direction=direction)
+    def __init__(self, *, selector: str, direction: str, hold: str = "always"):
+        if hold not in ("always", "never"):
+            raise ValueError(f"hold must be 'always' or 'never', got {hold!r}")
+        kwargs = dict(selector=selector, direction=direction)
+        if hold == "never":
+            kwargs["hold"] = hold
+        super().__init__(**kwargs)
 
 
 class Align(SpytialAnnotation):
@@ -155,8 +165,13 @@ class Align(SpytialAnnotation):
     _annotation_type = "align"
     _is_constraint = True
 
-    def __init__(self, *, selector: str, direction: str):
-        super().__init__(selector=selector, direction=direction)
+    def __init__(self, *, selector: str, direction: str, hold: str = "always"):
+        if hold not in ("always", "never"):
+            raise ValueError(f"hold must be 'always' or 'never', got {hold!r}")
+        kwargs = dict(selector=selector, direction=direction)
+        if hold == "never":
+            kwargs["hold"] = hold
+        super().__init__(**kwargs)
 
 
 class Group(SpytialAnnotation):
@@ -173,7 +188,11 @@ class Group(SpytialAnnotation):
     _annotation_type = "group"
     _is_constraint = True
 
-    def __init__(self, **kwargs):
+    def __init__(self, *, hold: str = "always", **kwargs):
+        if hold not in ("always", "never"):
+            raise ValueError(f"hold must be 'always' or 'never', got {hold!r}")
+        if hold == "never":
+            kwargs["hold"] = hold
         # Accept either field-based or selector-based parameters
         super().__init__(**kwargs)
 
