@@ -224,6 +224,10 @@ class CnDDataInstanceBuilder:
         # Build types from deduplicated atoms to avoid duplicate entries in type.atoms
         typs = self.build_types(deduplicated_atoms)
 
+        # Strip internal type_hierarchy field before sending to core
+        for atom in deduplicated_atoms:
+            atom.pop("type_hierarchy", None)
+
         return {"atoms": deduplicated_atoms, "relations": relations, "types": typs}
 
     def get_collected_decorators(self) -> Dict:
@@ -433,15 +437,14 @@ class CnDDataInstanceBuilder:
 
                 # Initialize the type entry
                 type_map[most_specific_type] = {
-                    "_": "type",
                     "id": most_specific_type,
                     "types": type_hierarchy,  # Full type hierarchy
                     "atoms": [],  # List of atoms of this type
-                    "meta": {"builtin": most_specific_type in BUILTINTYPES},
+                    "isBuiltin": most_specific_type in BUILTINTYPES,
                 }
             # Add the full atom details to the "atoms" list
             type_map[most_specific_type]["atoms"].append(
-                {"_": "atom", "id": atom["id"], "type": atom["type"]}
+                {"id": atom["id"], "type": atom["type"], "label": atom["label"]}
             )
 
         # Convert the type_map dictionary to a list of its values
