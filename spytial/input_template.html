@@ -446,18 +446,23 @@
                     if (!rel.id) {
                         throw new Error(`Relation at index ${i} missing 'id' field`);
                     }
-                    if (!rel.source) {
-                        throw new Error(`Relation '${rel.id}' missing 'source' field`);
+                    if (!rel.tuples || !Array.isArray(rel.tuples)) {
+                        throw new Error(`Relation '${rel.id}' missing 'tuples' array`);
                     }
-                    if (!rel.target) {
-                        throw new Error(`Relation '${rel.id}' missing 'target' field`);
-                    }
-                    // Validate that source and target refer to existing atoms
-                    if (atomIds.size > 0 && !atomIds.has(rel.source)) {
-                        console.warn(`Relation '${rel.id}' references unknown source atom '${rel.source}'`);
-                    }
-                    if (atomIds.size > 0 && !atomIds.has(rel.target)) {
-                        console.warn(`Relation '${rel.id}' references unknown target atom '${rel.target}'`);
+                    // Validate that tuple atom references exist
+                    if (atomIds.size > 0) {
+                        for (let j = 0; j < rel.tuples.length; j++) {
+                            const tuple = rel.tuples[j];
+                            if (!tuple.atoms || !Array.isArray(tuple.atoms)) {
+                                console.warn(`Relation '${rel.id}' tuple at index ${j} missing 'atoms' array`);
+                                continue;
+                            }
+                            for (const atomId of tuple.atoms) {
+                                if (!atomIds.has(atomId)) {
+                                    console.warn(`Relation '${rel.id}' references unknown atom '${atomId}'`);
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -671,17 +676,19 @@
                             
                             // Specifically check for duplicate edges
                             if (updatedData.relations) {
-                                const relationCounts = {};
+                                const tupleCounts = {};
                                 updatedData.relations.forEach(rel => {
-                                    const key = `${rel.label}:${rel.source}->${rel.target}`;
-                                    relationCounts[key] = (relationCounts[key] || 0) + 1;
+                                    for (const tuple of (rel.tuples || [])) {
+                                        const key = `${rel.name}:${(tuple.atoms || []).join('->')}`;
+                                        tupleCounts[key] = (tupleCounts[key] || 0) + 1;
+                                    }
                                 });
-                                
-                                const duplicates = Object.entries(relationCounts)
+
+                                const duplicates = Object.entries(tupleCounts)
                                     .filter(([_, count]) => count > 1);
-                                
+
                                 if (duplicates.length > 0) {
-                                    console.error('❌ Duplicate relations detected after reconnection:', duplicates);
+                                    console.error('❌ Duplicate relation tuples detected after reconnection:', duplicates);
                                 }
                             }
                         }
