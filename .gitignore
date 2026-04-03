@@ -52,6 +52,7 @@ htmlcov/
 
 # Generated visualization files
 spytial_visualization.html
+spytial_sequence_visualization.html
 
 # Erroneous version files from broken pip install commands
 =*.*.*
