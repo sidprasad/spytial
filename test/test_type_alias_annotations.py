@@ -171,5 +171,56 @@ class TestLegacyTypeAliasRegistry:
         assert spytial.get_type_alias_annotations(IntList) is None
 
 
+class TestConstraintHoldField:
+    """Tests for the hold field on constraint annotations."""
+
+    def test_orientation_hold_never(self):
+        ann = spytial.Orientation(selector="x", directions=["above"], hold="never")
+        entry = ann.to_entry()
+        assert entry["orientation"]["hold"] == "never"
+
+    def test_orientation_hold_always_omitted(self):
+        ann = spytial.Orientation(selector="x", directions=["above"], hold="always")
+        assert "hold" not in ann.to_entry()["orientation"]
+
+    def test_orientation_hold_default_omitted(self):
+        ann = spytial.Orientation(selector="x", directions=["above"])
+        assert "hold" not in ann.to_entry()["orientation"]
+
+    def test_cyclic_hold_never(self):
+        ann = spytial.Cyclic(selector="x", direction="clockwise", hold="never")
+        assert ann.to_entry()["cyclic"]["hold"] == "never"
+
+    def test_cyclic_hold_default_omitted(self):
+        ann = spytial.Cyclic(selector="x", direction="clockwise")
+        assert "hold" not in ann.to_entry()["cyclic"]
+
+    def test_align_hold_never(self):
+        ann = spytial.Align(selector="x", direction="horizontal", hold="never")
+        assert ann.to_entry()["align"]["hold"] == "never"
+
+    def test_align_hold_default_omitted(self):
+        ann = spytial.Align(selector="x", direction="horizontal")
+        assert "hold" not in ann.to_entry()["align"]
+
+    def test_group_hold_never(self):
+        ann = spytial.Group(selector="Alpha", hold="never")
+        assert ann.to_entry()["group"]["hold"] == "never"
+
+    def test_group_hold_default_omitted(self):
+        ann = spytial.Group(selector="Alpha")
+        assert "hold" not in ann.to_entry()["group"]
+
+    def test_invalid_hold_raises(self):
+        with pytest.raises(ValueError):
+            spytial.Orientation(selector="x", directions=["above"], hold="sometimes")
+        with pytest.raises(ValueError):
+            spytial.Cyclic(selector="x", direction="clockwise", hold="")
+        with pytest.raises(ValueError):
+            spytial.Align(selector="x", direction="horizontal", hold="true")
+        with pytest.raises(ValueError):
+            spytial.Group(selector="Alpha", hold="yes")
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
