@@ -9,10 +9,17 @@ HTML templates and anywidget ESM modules, eliminating CDN dependency
 and browser cache issues.
 """
 
-import os
 from pathlib import Path
 
-SPYTIAL_CORE_NPM_VERSION = os.environ.get("SPYTIAL_CORE_NPM_VERSION", "2.2.3")
+def _read_vendored_version() -> str:
+    """Read the version from the vendored VERSION file."""
+    version_file = _VENDOR_DIR / "VERSION"
+    if version_file.exists():
+        return version_file.read_text(encoding="utf-8").strip()
+    return "2.2.3"
+
+
+SPYTIAL_CORE_NPM_VERSION = _read_vendored_version()
 
 _VENDOR_DIR = Path(__file__).parent / "vendor"
 
