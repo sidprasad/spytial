@@ -1,9 +1,8 @@
 """Shared spytial-core browser asset definitions for HTML templates."""
 
-import os
+SPYTIAL_CORE_VERSION = "2.2.3"
 
-SPYTIAL_CORE_NPM_VERSION = os.environ.get("SPYTIAL_CORE_NPM_VERSION", "2.2.3")
-_CDN_BASE = f"https://cdn.jsdelivr.net/npm/spytial-core@{SPYTIAL_CORE_NPM_VERSION}"
+_CDN_BASE = f"https://cdn.jsdelivr.net/npm/spytial-core@{SPYTIAL_CORE_VERSION}"
 
 SPYTIAL_CORE_BROWSER_BUNDLE_URL = (
     f"{_CDN_BASE}/dist/browser/spytial-core-complete.global.js"
@@ -14,6 +13,11 @@ SPYTIAL_CORE_COMPONENTS_BUNDLE_URL = (
 SPYTIAL_CORE_COMPONENTS_CSS_URL = (
     f"{_CDN_BASE}/dist/components/react-component-integration.css"
 )
+
+
+def get_spytial_core_version() -> str:
+    """Return the version of spytial-core used by this package."""
+    return SPYTIAL_CORE_VERSION
 
 
 def get_template_asset_context():
