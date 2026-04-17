@@ -201,9 +201,10 @@ function getSpytialCore() {
 // ---- widget render ----
 
 export async function render({ model, el }) {
-    const coreBundleUrl     = model.get('_core_bundle_url');
+    const coreBundleUrl       = model.get('_core_bundle_url');
     const componentsBundleUrl = model.get('_components_bundle_url');
-    const componentsCssUrl  = model.get('_components_css_url');
+    const componentsCssUrl    = model.get('_components_css_url');
+    const height              = model.get('_height') || 550;
 
     // Load spytial-core browser bundles
     await loadScript(coreBundleUrl);
@@ -224,20 +225,20 @@ export async function render({ model, el }) {
         window.mountErrorMessageModal(errorDiv.id);
     }
 
-    // Container
-    const container = document.createElement('div');
-    container.style.cssText = `
-        width: 100%; min-height: 500px; position: relative;
-        border: 1px solid #e1e5e9; border-radius: 6px;
-        overflow: hidden; background: white; display: flex; flex-direction: column;
-    `;
-    el.appendChild(container);
+    // Outer wrapper with explicit pixel height — Jupyter cells have no
+    // inherent height, so flex children collapse without one.
+    const wrapper = document.createElement('div');
+    wrapper.style.cssText =
+        'border: 2px solid #007acc; border-radius: 8px; overflow: hidden;' +
+        'width: 100%; height: ' + height + 'px;' +
+        'display: flex; flex-direction: column; background: white;';
+    el.appendChild(wrapper);
 
-    // Create structured-input-graph web component
+    // Create structured-input-graph web component, sized to fill the wrapper.
     const graph = document.createElement('structured-input-graph');
     graph.setAttribute('show-export', 'true');
-    graph.style.cssText = 'width: 100%; flex: 1; min-height: 450px; display: block;';
-    container.appendChild(graph);
+    graph.style.cssText = 'width: 100%; height: 100%; flex: 1; min-height: 0;';
+    wrapper.appendChild(graph);
 
     // Wait for custom element registration
     if (customElements.get('structured-input-graph') === undefined) {
@@ -252,28 +253,34 @@ export async function render({ model, el }) {
     graph.setCnDSpec(cndSpec);
     graph.setDataInstance(dataInstance);
 
-    // Sync changes back to Python model
-    let syncing = false;
+    // ---- Sync: poll + event fast-path, dedupe by JSON content ----
+    // Events alone don't fire reliably for label/value edits, so we poll
+    // every 250 ms. The dedupe guard makes redundant fast-path event firings
+    // free.
+    const SYNC_INTERVAL_MS = 250;
+    let lastSyncedJSON = null;
+
     function syncToPython() {
-        if (syncing) return;
-        syncing = true;
+        if (typeof graph.getDataInstance !== 'function') return;
         try {
-            if (typeof graph.getDataInstance !== 'function') return;
             const currentData = graph.getDataInstance();
-            if (currentData) {
-                model.set('_data_instance', JSON.parse(JSON.stringify(currentData)));
-                model.save_changes();
-            }
-        } finally {
-            syncing = false;
-        }
+            if (!currentData) return;
+            const json = JSON.stringify(currentData);
+            if (json === lastSyncedJSON) return;
+            lastSyncedJSON = json;
+            model.set('_data_instance', JSON.parse(json));
+            model.save_changes();
+        } catch (e) { /* next poll retries */ }
     }
 
-    const dataEvents = [
-        'data-changed', 'atom-added', 'atom-removed', 'atom-updated',
+    const syncTimer = setInterval(syncToPython, SYNC_INTERVAL_MS);
+
+    const fastPathEvents = [
+        'atom-added', 'atom-removed', 'atom-updated',
         'edge-creation-requested', 'edge-removed', 'edge-reconnected',
+        'data-changed',
     ];
-    for (const evt of dataEvents) {
+    for (const evt of fastPathEvents) {
         graph.addEventListener(evt, syncToPython);
     }
 
@@ -299,6 +306,11 @@ export async function render({ model, el }) {
         }
         graph.setAttribute('unsat', '');
     });
+
+    // Cleanup on unmount (cell re-run, widget close)
+    return () => {
+        clearInterval(syncTimer);
+    };
 }
 """
 
@@ -359,12 +371,12 @@ if HAS_ANYWIDGET:
         # Synced traits
         _data_instance = traitlets.Dict({}).tag(sync=True)
         _cnd_spec = traitlets.Unicode("").tag(sync=True)
-        _dataclass_name = traitlets.Unicode("").tag(sync=True)
+        _height = traitlets.Int(550).tag(sync=True)
         _core_bundle_url = traitlets.Unicode("").tag(sync=True)
         _components_bundle_url = traitlets.Unicode("").tag(sync=True)
         _components_css_url = traitlets.Unicode("").tag(sync=True)
 
-        def __init__(self, instance: Any, **kwargs):
+        def __init__(self, instance: Any, *, height: int = 550, **kwargs):
             if not is_dataclass(instance):
                 raise ValueError(
                     f"{instance} is not a dataclass instance. "
@@ -383,7 +395,7 @@ if HAS_ANYWIDGET:
             super().__init__(
                 _data_instance=initial_data,
                 _cnd_spec=cnd_spec,
-                _dataclass_name=dc_type.__name__,
+                _height=height,
                 _core_bundle_url=SPYTIAL_CORE_BROWSER_BUNDLE_URL,
                 _components_bundle_url=SPYTIAL_CORE_COMPONENTS_BUNDLE_URL,
                 _components_css_url=SPYTIAL_CORE_COMPONENTS_CSS_URL,
