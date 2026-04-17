@@ -10920,7 +10920,7 @@ YAML spec contains each unique rule only once.</p>
 
 
 <h4 id="spytial.provider_system.CnDDataInstanceBuilder.reify" class="doc doc-heading">
-<code class="doc-symbol doc-symbol-heading doc-symbol-method"></code>            <code class="highlight language-python"><span class="n">reify</span><span class="p">(</span><span class="n">data_instance</span><span class="p">)</span></code>
+<code class="doc-symbol doc-symbol-heading doc-symbol-method"></code>            <code class="highlight language-python"><span class="n">reify</span><span class="p">(</span><span class="n">data_instance</span><span class="p">,</span> <span class="n">root_id</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
 
 </h4>
 
@@ -10952,12 +10952,30 @@ back into Python objects.</p>
             </td>
             <td>
               <div class="doc-md-description">
-                <p>Dictionary containing 'atoms', 'relations', and 'types'
-          as returned by build_instance()</p>
+                <p>Dictionary containing 'atoms', 'relations', and optionally
+'rootId' as returned by build_instance().</p>
               </div>
             </td>
             <td>
                 <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>root_id</code>
+            </td>
+            <td>
+                  <code><span title="typing.Optional">Optional</span>[<span title="str">str</span>]</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Optional atom id to use as the reconstruction root. Overrides any
+'rootId' present in data_instance. When neither is provided the root is
+inferred from the relation topology.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
             </td>
           </tr>
       </tbody>
