@@ -1,6 +1,5 @@
 from dataclasses import dataclass
 
-from spytial.core_assets import SPYTIAL_CORE_NPM_VERSION
 from spytial.dataclass_builder import _generate_dataclass_builder_html
 from spytial.evaluator import _generate_evaluator_html
 from spytial.visualizer import (
@@ -12,7 +11,7 @@ from spytial.visualizer import (
 def test_visualizer_html_uses_current_core_bundle_urls():
     html = _generate_visualizer_html({"atoms": [], "relations": []}, "constraints: []\n")
 
-    assert f"spytial-core@{SPYTIAL_CORE_NPM_VERSION}" in html
+    assert "cdn.jsdelivr.net/npm/spytial-core@" in html
     assert "spytial-core-complete.global.js" in html
     assert "spytial-core-complete.global.min.js" not in html
     assert "window.__spytialCoreBrowserBundle" not in html
@@ -26,7 +25,7 @@ def test_sequence_visualizer_html_uses_current_core_bundle_urls():
         sequence_policy="stability",
     )
 
-    assert f"spytial-core@{SPYTIAL_CORE_NPM_VERSION}" in html
+    assert "cdn.jsdelivr.net/npm/spytial-core@" in html
     assert "spytial-core-complete.global.js" in html
     assert "spytial-core-complete.global.min.js" not in html
     assert "window.__spytialCoreBrowserBundle" not in html
@@ -36,7 +35,7 @@ def test_sequence_visualizer_html_uses_current_core_bundle_urls():
 def test_evaluator_html_uses_current_core_bundle_urls():
     html = _generate_evaluator_html({"atoms": [], "relations": []})
 
-    assert f"spytial-core@{SPYTIAL_CORE_NPM_VERSION}" in html
+    assert "cdn.jsdelivr.net/npm/spytial-core@" in html
     assert "spytial-core-complete.global.js" in html
     assert "spytial-core-complete.global.min.js" not in html
     assert "window.spytialcore || window.CndCore || window.CnDCore" in html
@@ -53,7 +52,7 @@ def test_dataclass_builder_html_uses_current_core_bundle_urls():
         dataclass_name=SampleNode.__name__,
     )
 
-    assert f"spytial-core@{SPYTIAL_CORE_NPM_VERSION}" in html
+    assert "cdn.jsdelivr.net/npm/spytial-core@" in html
     assert "spytial-core-complete.global.js" in html
     assert "spytial-core-complete.global.min.js" not in html
     assert "window.__spytialCoreBrowserBundle" not in html

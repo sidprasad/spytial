@@ -12,6 +12,7 @@ from .visualizer import diagram, SequenceRecorder, sequence, SEQUENCE_POLICY_NAM
 from .evaluator import evaluate
 from .dataclass_builder import dataclass_builder, DataClassBuilder
 from .utils import AnnotatedType
+from .core_assets import get_spytial_core_version
 from .annotations import (
     # Class decorators (for decorating classes)
     orientation,
@@ -168,4 +169,6 @@ __all__ = [
     "serialize_to_yaml_string",
     "reset_object_ids",
     "apply_if",
+    # Core version
+    "get_spytial_core_version",
 ]
