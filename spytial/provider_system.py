@@ -12,6 +12,37 @@ from typing import Any, Callable, Dict, List, Optional, Tuple, Type
 from .domain_relationalizers.base import RelationalizerBase, Atom, Relation
 
 
+def _invoke_custom_reifier(fn, atom, relations, reify_atom, register):
+    """Call a user-registered reifier, passing ``register`` only if it accepts it.
+
+    Keeps backwards compatibility with the original 3-arg signature
+    ``(atom, relations, reify_atom)`` while enabling cycle-safe reifiers that
+    register a placeholder with ``(atom, relations, reify_atom, register)``.
+    """
+    try:
+        sig = inspect.signature(fn)
+    except (TypeError, ValueError):
+        return fn(atom, relations, reify_atom)
+
+    params = sig.parameters
+    if "register" in params:
+        return fn(atom, relations, reify_atom, register=register)
+    if any(p.kind == inspect.Parameter.VAR_KEYWORD for p in params.values()):
+        return fn(atom, relations, reify_atom, register=register)
+    positional = [
+        p
+        for p in params.values()
+        if p.kind
+        in (
+            inspect.Parameter.POSITIONAL_ONLY,
+            inspect.Parameter.POSITIONAL_OR_KEYWORD,
+        )
+    ]
+    if len(positional) >= 4:
+        return fn(atom, relations, reify_atom, register)
+    return fn(atom, relations, reify_atom)
+
+
 def relationalizer(cls: Type = None, *, priority: int = 0):
     """
     Decorator to register a class as a relationalizer.
@@ -108,6 +139,7 @@ class CnDDataInstanceBuilder:
             None  # Store caller's namespace for variable name lookup
         )
         self._as_type = None  # Store type for root object
+        self._last_root_id: Optional[str] = None  # Root atom from most recent build
 
     def build_instance(self, obj: Any, as_type: Optional[Any] = None) -> Dict:
         """Build a complete data instance from an object.
@@ -166,11 +198,16 @@ class CnDDataInstanceBuilder:
             self._caller_namespace = None
 
         try:
-            self._walk(obj)
+            root_atom_id = self._walk(obj)
         except Exception as e:
             print(f"Error during data instance building: {e}")
             print("Object:", obj)
             raise
+
+        # Cache the root so a later reify() call can reconstruct the same
+        # object even when the graph is cyclic (topology alone can't pick the
+        # root when every source also appears as a target).
+        self._last_root_id = root_atom_id
 
         # Convert relations to include types (matching IRelation interface)
         relations = []
@@ -228,7 +265,12 @@ class CnDDataInstanceBuilder:
         for atom in deduplicated_atoms:
             atom.pop("type_hierarchy", None)
 
-        return {"atoms": deduplicated_atoms, "relations": relations, "types": typs}
+        return {
+            "atoms": deduplicated_atoms,
+            "relations": relations,
+            "types": typs,
+            "rootId": root_atom_id,
+        }
 
     def get_collected_decorators(self) -> Dict:
         """Get all decorators collected during the build process, deduplicated.
@@ -450,7 +492,7 @@ class CnDDataInstanceBuilder:
         # Convert the type_map dictionary to a list of its values
         return list(type_map.values())
 
-    def reify(self, data_instance: Dict) -> Any:
+    def reify(self, data_instance: Dict, root_id: Optional[str] = None) -> Any:
         """
         Reconstruct Python objects from a Spytial-Core data instance.
 
@@ -458,8 +500,11 @@ class CnDDataInstanceBuilder:
         back into Python objects.
 
         Args:
-            data_instance: Dictionary containing 'atoms', 'relations', and 'types'
-                          as returned by build_instance()
+            data_instance: Dictionary containing 'atoms', 'relations', and optionally
+                'rootId' as returned by build_instance().
+            root_id: Optional atom id to use as the reconstruction root. Overrides any
+                'rootId' present in data_instance. When neither is provided the root is
+                inferred from the relation topology.
 
         Returns:
             The reconstructed Python object corresponding to the root atom
@@ -483,8 +528,15 @@ class CnDDataInstanceBuilder:
         # Build maps for efficient lookup
         atom_map = {atom["id"]: atom for atom in atoms}
 
-        # Build relation map: atom_id -> {relation_name: [target_atom_ids]}
-        relation_map = {}
+        # Two views of the relations keyed by source atom:
+        #   relation_map   — flat concatenation of every target across tuples.
+        #                    Kept for backwards compatibility with user-supplied
+        #                    custom reifiers registered via register_reifier().
+        #   relation_tuples — preserves the target tuple structure, which is
+        #                    required to reconstruct n-ary relations (notably
+        #                    the ternary ``kv`` used for dicts).
+        relation_map: Dict[str, Dict[str, List[str]]] = {}
+        relation_tuples: Dict[str, Dict[str, List[List[str]]]] = {}
         for relation in relations:
             rel_name = relation["name"]
             for tuple_info in relation["tuples"]:
@@ -493,15 +545,20 @@ class CnDDataInstanceBuilder:
 
                 if source_id not in relation_map:
                     relation_map[source_id] = {}
+                    relation_tuples[source_id] = {}
                 if rel_name not in relation_map[source_id]:
                     relation_map[source_id][rel_name] = []
+                    relation_tuples[source_id][rel_name] = []
                 relation_map[source_id][rel_name].extend(target_ids)
+                relation_tuples[source_id][rel_name].append(list(target_ids))
 
-        # Track reconstructed objects to handle circular references
-        reconstructed = {}
+        # Memoize reconstructed objects. For mutable containers we register an
+        # empty placeholder *before* recursing into their children so that any
+        # self- or back-reference resolves to the same object — this is what
+        # makes cyclic structures (self-loops, A↔B, A→B→C→A) reifiable.
+        reconstructed: Dict[str, Any] = {}
 
         def reify_atom(atom_id: str) -> Any:
-            """Recursively reconstruct an object from its atom ID."""
             if atom_id in reconstructed:
                 return reconstructed[atom_id]
 
@@ -512,64 +569,114 @@ class CnDDataInstanceBuilder:
             atom_type = atom["type"]
             atom_label = atom["label"]
 
-            # Handle primitive types
             if atom_type in {"str", "int", "float", "bool", "NoneType"}:
                 obj = self._reify_primitive(atom_type, atom_label)
                 reconstructed[atom_id] = obj
                 return obj
 
-            # Handle collections and complex types
             relations_for_atom = relation_map.get(atom_id, {})
 
-            # Check for custom reifier first
+            def register(placeholder: Any) -> Any:
+                reconstructed[atom_id] = placeholder
+                return placeholder
+
             if atom_type in self._custom_reifiers:
-                obj = self._custom_reifiers[atom_type](
-                    atom, relations_for_atom, reify_atom
+                obj = _invoke_custom_reifier(
+                    self._custom_reifiers[atom_type],
+                    atom,
+                    relations_for_atom,
+                    reify_atom,
+                    register,
                 )
             elif atom_type == "dict":
-                obj = self._reify_dict(atom_id, relations_for_atom, reify_atom)
+                obj = self._reify_dict(
+                    atom_id,
+                    relation_tuples.get(atom_id, {}),
+                    reify_atom,
+                    register,
+                )
             elif atom_type == "list":
-                obj = self._reify_list(atom_id, relations_for_atom, reify_atom)
+                obj = self._reify_list(
+                    atom_id,
+                    relation_tuples.get(atom_id, {}),
+                    reify_atom,
+                    register,
+                )
             elif atom_type == "tuple":
-                obj = self._reify_tuple(atom_id, relations_for_atom, reify_atom)
+                obj = self._reify_tuple(
+                    atom_id, relations_for_atom, reify_atom
+                )
             elif atom_type == "set":
-                obj = self._reify_set(atom_id, relations_for_atom, reify_atom)
+                obj = self._reify_set(
+                    atom_id, relations_for_atom, reify_atom, register
+                )
             else:
-                # Handle generic objects or custom types
-                obj = self._reify_generic_object(atom, relations_for_atom, reify_atom)
+                obj = self._reify_generic_object(
+                    atom, relations_for_atom, reify_atom, register
+                )
 
+            # Register the final value. For reifiers that already registered a
+            # mutable placeholder this is effectively a no-op (same object);
+            # for tuples and primitive-style reifiers it installs the result.
             reconstructed[atom_id] = obj
             return obj
 
-        # Find the root atom - it's the one that appears as source in relations
-        # but never appears as a target, OR if no relations exist, use the last atom
-        # (which is typically the root object processed by _walk)
+        root_atom_id = self._resolve_root_id(data_instance, atoms, relations, root_id)
+        return reify_atom(root_atom_id)
+
+    def _resolve_root_id(
+        self,
+        data_instance: Dict,
+        atoms: List[Dict],
+        relations: List[Dict],
+        explicit_root_id: Optional[str],
+    ) -> str:
+        """Pick the atom id to start reification from.
+
+        Precedence:
+          1. Explicit ``root_id`` argument to reify().
+          2. ``rootId`` field in the data instance (written by build_instance).
+          3. Topology — prefer sources that are never targets; then sources that
+             are only ever their own target (self-loops); else fall back to the
+             last atom.
+        """
+        known_ids = {atom["id"] for atom in atoms}
+
+        if explicit_root_id is not None and explicit_root_id in known_ids:
+            return explicit_root_id
+
+        stored_root = data_instance.get("rootId")
+        if isinstance(stored_root, str) and stored_root in known_ids:
+            return stored_root
 
         if not relations:
-            # No relations - use the only atom or the last one
-            root_atom_id = atoms[-1]["id"]
-        else:
-            # Find atoms that are sources but not targets
-            source_atoms = set()
-            target_atoms = set()
+            return atoms[-1]["id"]
 
-            for relation in relations:
-                for tuple_info in relation["tuples"]:
-                    atom_ids = tuple_info["atoms"]
-                    source_atoms.add(atom_ids[0])
-                    target_atoms.update(atom_ids[1:])
+        source_atoms: set = set()
+        # Targets from another atom (i.e. non-self-loop targets). Self-loops
+        # should not disqualify an atom from being a root.
+        non_self_targets: set = set()
+        all_targets: set = set()
 
-            # Root candidates are sources that are not targets
-            root_candidates = source_atoms - target_atoms
+        for relation in relations:
+            for tuple_info in relation["tuples"]:
+                atom_ids = tuple_info["atoms"]
+                src = atom_ids[0]
+                source_atoms.add(src)
+                for tgt in atom_ids[1:]:
+                    all_targets.add(tgt)
+                    if tgt != src:
+                        non_self_targets.add(tgt)
 
-            if root_candidates:
-                # Use the first root candidate
-                root_atom_id = next(iter(root_candidates))
-            else:
-                # Fallback: use the last atom (usually the root in our walk order)
-                root_atom_id = atoms[-1]["id"]
+        root_candidates = source_atoms - all_targets
+        if root_candidates:
+            return next(iter(root_candidates))
 
-        return reify_atom(root_atom_id)
+        root_candidates = source_atoms - non_self_targets
+        if root_candidates:
+            return next(iter(root_candidates))
+
+        return atoms[-1]["id"]
 
     def _reify_primitive(self, atom_type: str, atom_label: str) -> Any:
         """Reconstruct a primitive value from its type and label."""
@@ -586,100 +693,139 @@ class CnDDataInstanceBuilder:
         else:
             raise ValueError(f"Unknown primitive type: {atom_type}")
 
-    def _reify_dict(self, atom_id: str, relations: Dict, reify_atom) -> dict:
-        """Reconstruct a dictionary from its relations."""
-        result = {}
-        for rel_name, target_ids in relations.items():
-            # Dictionary relations use the key name as the relation name
-            for target_id in target_ids:
-                key = rel_name
-                value = reify_atom(target_id)
+    def _reify_dict(
+        self, atom_id: str, relation_tuples: Dict, reify_atom, register
+    ) -> dict:
+        """Reconstruct a dictionary from its relations.
+
+        Expects ``relation_tuples`` (source-grouped, tuple-preserving) because
+        DictRelationalizer emits a ternary ``kv(dict, key, value)`` relation.
+        Registers the empty dict before recursing so self- or back-references
+        to this dict see the same object.
+        """
+        result: dict = {}
+        register(result)
+
+        kv_tuples = relation_tuples.get("kv", [])
+        for targets in kv_tuples:
+            if len(targets) < 2:
+                continue
+            key = reify_atom(targets[0])
+            value = reify_atom(targets[1])
+            try:
                 result[key] = value
+            except TypeError:
+                # Unhashable key (e.g. a mutable object that the build side
+                # allowed through a synthetic key atom). Fall back to string.
+                result[str(key)] = value
+
+        # Back-compat path: earlier versions emitted per-key binary relations
+        # where the relation name itself was the dict key. Handle any leftover
+        # relations of that shape so older data instances still reify.
+        for rel_name, tuples in relation_tuples.items():
+            if rel_name == "kv":
+                continue
+            for targets in tuples:
+                if not targets:
+                    continue
+                result[rel_name] = reify_atom(targets[0])
         return result
 
-    def _reify_list(self, atom_id: str, relations: Dict, reify_atom) -> list:
-        """Reconstruct a list from its relations."""
-        result = []
-        # List relations use numeric indices as relation names
-        indexed_items = []
-        for rel_name, target_ids in relations.items():
-            try:
-                index = int(rel_name)
-                for target_id in target_ids:
-                    value = reify_atom(target_id)
-                    indexed_items.append((index, value))
-            except ValueError:
-                # Skip non-numeric relation names
-                continue
+    def _reify_list(
+        self, atom_id: str, relation_tuples: Dict, reify_atom, register
+    ) -> list:
+        """Reconstruct a list from its relations.
 
-        # Sort by index and build the list
+        Expects ``relation_tuples`` (tuple-preserving) because ListRelationalizer
+        emits a ternary ``idx(list, index_atom, value_atom)``. Registers the
+        empty list before recursing so self-references resolve to the same
+        object, then populates in place.
+        """
+        result: list = []
+        register(result)
+
+        indexed_items = []
+        for targets in relation_tuples.get("idx", []):
+            if len(targets) < 2:
+                continue
+            index_value = reify_atom(targets[0])
+            try:
+                index = int(index_value)
+            except (TypeError, ValueError):
+                continue
+            indexed_items.append((index, reify_atom(targets[1])))
+
         indexed_items.sort(key=lambda x: x[0])
-        result = [item[1] for item in indexed_items]
+        # Populate in place so the already-registered list instance is the one
+        # filled — preserves identity for back-references that resolved mid-flight.
+        result.extend(item[1] for item in indexed_items)
         return result
 
     def _reify_tuple(self, atom_id: str, relations: Dict, reify_atom) -> tuple:
-        """Reconstruct a tuple from its relations."""
-        # Tuples are reconstructed like lists, then converted
-        list_result = self._reify_list(atom_id, relations, reify_atom)
-        return tuple(list_result)
+        """Reconstruct a tuple from its relations.
 
-    def _reify_set(self, atom_id: str, relations: Dict, reify_atom) -> set:
+        TupleRelationalizer emits one binary relation per index named
+        ``t0``, ``t1``, … Tuples are immutable so we cannot register a
+        placeholder; a genuinely self-referential tuple is not representable
+        in Python. Non-self shared references still resolve via memoization.
+        """
+        indexed_items = []
+        for rel_name, target_ids in relations.items():
+            if not rel_name.startswith("t"):
+                continue
+            try:
+                index = int(rel_name[1:])
+            except ValueError:
+                continue
+            for target_id in target_ids:
+                indexed_items.append((index, reify_atom(target_id)))
+        indexed_items.sort(key=lambda x: x[0])
+        return tuple(item[1] for item in indexed_items)
+
+    def _reify_set(
+        self, atom_id: str, relations: Dict, reify_atom, register
+    ) -> set:
         """Reconstruct a set from its relations."""
-        result = set()
-        # Sets use "contains" relation name for elements
+        result: set = set()
+        register(result)
         if "contains" in relations:
             for target_id in relations["contains"]:
-                value = reify_atom(target_id)
-                result.add(value)
+                result.add(reify_atom(target_id))
         return result
 
-    def _reify_generic_object(self, atom: Dict, relations: Dict, reify_atom) -> Any:
-        """
-        Reconstruct a generic object from its atom and relations.
+    def _reify_generic_object(
+        self, atom: Dict, relations: Dict, reify_atom, register
+    ) -> Any:
+        """Reconstruct a generic object from its atom and relations.
 
-        This handles objects with __dict__ or custom classes.
-        For complex reconstruction scenarios, this method can be extended
-        or overridden to provide custom reification logic.
+        Allocates the attribute-bag instance and registers it *before*
+        recursing into relations so self-loops and back-pointers resolve to
+        the same instance.
         """
         atom_type = atom["type"]
 
-        # Try to get the class from built-in types first
-        try:
-            # For simple types, try to create an empty instance
-            if atom_type in {"dict", "list", "tuple", "set"}:
-                # These should have been handled by specific methods above
-                raise ValueError(
-                    f"Type {atom_type} should be handled by specific method"
-                )
+        if atom_type in {"dict", "list", "tuple", "set"}:
+            raise ValueError(f"Type {atom_type} should be handled by specific method")
 
-            # For other types, create a simple namespace object
-            # This is a fallback that creates an object with attributes set from relations
-            class ReconstructedObject:
-                def __init__(self):
-                    pass
+        class ReconstructedObject:
+            def __init__(self):
+                pass
 
-                def __repr__(self):
-                    attrs = [f"{k}={v!r}" for k, v in self.__dict__.items()]
-                    return f"{atom_type}({', '.join(attrs)})"
+            def __repr__(self):
+                attrs = [f"{k}={v!r}" for k, v in self.__dict__.items()]
+                return f"{atom_type}({', '.join(attrs)})"
 
-            obj = ReconstructedObject()
-            obj.__class__.__name__ = atom_type
+        obj = ReconstructedObject()
+        obj.__class__.__name__ = atom_type
+        register(obj)
 
-            # Set attributes from relations
-            for rel_name, target_ids in relations.items():
-                if len(target_ids) == 1:
-                    # Single value relation
-                    value = reify_atom(target_ids[0])
-                    setattr(obj, rel_name, value)
-                else:
-                    # Multiple value relation - create a list
-                    values = [reify_atom(tid) for tid in target_ids]
-                    setattr(obj, rel_name, values)
+        for rel_name, target_ids in relations.items():
+            if len(target_ids) == 1:
+                setattr(obj, rel_name, reify_atom(target_ids[0]))
+            else:
+                setattr(obj, rel_name, [reify_atom(tid) for tid in target_ids])
 
-            return obj
-
-        except Exception as e:
-            raise ValueError(f"Cannot reconstruct object of type {atom_type}: {e}")
+        return obj
 
     def can_reify(self, data_instance: Dict) -> bool:
         """
