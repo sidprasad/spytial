@@ -17,7 +17,7 @@ import json
 import tempfile
 import webbrowser
 import yaml
-from dataclasses import fields, is_dataclass
+from dataclasses import MISSING, fields, is_dataclass
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Set, Type, get_type_hints
 
@@ -99,16 +99,40 @@ def _collect_dataclass_types(
 
 
 def _make_dataclass_reifier(dc_type: Type):
-    """Create a reifier function that constructs an actual dataclass instance."""
+    """Create a reifier that reconstructs an instance of ``dc_type``.
 
-    def reifier(atom: Dict, relations: Dict, reify_atom):
-        kwargs = {}
+    Allocates the instance with ``object.__new__`` and populates fields
+    directly — this lets cyclic structures (self-loops, A↔B) reify by
+    registering the partially-constructed instance *before* recursing into
+    children, and also works for frozen dataclasses. Fields with no relation
+    in the data instance fall back to their declared default.
+
+    Note: ``__post_init__`` is intentionally not invoked (matches pickle's
+    behaviour). Post-init validation can't safely run against a half-built
+    cyclic instance; callers that need it can re-run it themselves.
+    """
+
+    field_defs = fields(dc_type)
+
+    def _apply_defaults(obj: Any) -> None:
+        for f in field_defs:
+            if f.default is not MISSING:
+                object.__setattr__(obj, f.name, f.default)
+            elif f.default_factory is not MISSING:  # type: ignore[misc]
+                object.__setattr__(obj, f.name, f.default_factory())
+
+    def reifier(atom: Dict, relations: Dict, reify_atom, register=None):
+        obj = object.__new__(dc_type)
+        if register is not None:
+            register(obj)
+        _apply_defaults(obj)
         for field_name, target_ids in relations.items():
             if len(target_ids) == 1:
-                kwargs[field_name] = reify_atom(target_ids[0])
+                value = reify_atom(target_ids[0])
             else:
-                kwargs[field_name] = [reify_atom(tid) for tid in target_ids]
-        return dc_type(**kwargs)
+                value = [reify_atom(tid) for tid in target_ids]
+            object.__setattr__(obj, field_name, value)
+        return obj
 
     return reifier
 
@@ -405,6 +429,10 @@ if HAS_ANYWIDGET:
             # Store type info for reification (not synced to frontend)
             self._dataclass_type: Type = dc_type
             self._dc_types: Set[Type] = _collect_dataclass_types(dc_type)
+            # Remember the root atom id from the initial build. spytial-core's
+            # JSONDataInstance strips extra keys on round-trip, so rootId does
+            # not survive frontend sync; we keep it Python-side as a fallback.
+            self._root_atom_id: Optional[str] = initial_data.get("rootId")
 
         @property
         def value(self) -> Any:
@@ -414,7 +442,7 @@ if HAS_ANYWIDGET:
                 reifier.register_reifier(
                     dc_type.__name__, _make_dataclass_reifier(dc_type)
                 )
-            return reifier.reify(self._data_instance)
+            return reifier.reify(self._data_instance, root_id=self._root_atom_id)
 
         @property
         def data_instance(self) -> Dict:
