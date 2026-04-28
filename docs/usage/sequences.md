@@ -19,6 +19,44 @@ seq.diagram()
 
 `sequence()` returns a `SequenceRecorder`. Each `.record(obj)` call captures the current state of `obj` as the next frame. `.diagram()` renders all frames into an interactive viewer with Previous / Next navigation.
 
+## Labelling steps
+
+`record()` accepts two optional keyword arguments that give frames semantic meaning in the viewer:
+
+- `label` — a short one-liner shown in the status bar (`Step 3 / 24 — rotate left at node 5`) and as the scrubber tooltip. Whitespace is stripped; truncated to 200 characters.
+- `note` — a longer description (multi-line OK) shown in a collapsible panel below the controls. Hidden on frames where no note was recorded.
+
+```python
+with spytial.sequence() as seq:
+    seq.record(tree, label="initial state")
+    rotate_left(tree, node)
+    seq.record(tree, label="left-rotate at root",
+               note="Promotes the right child so the new tree is height-balanced.")
+    seq.record(tree)  # no label / no note — viewer falls back to "Step 3 / 3"
+seq.diagram()
+```
+
+Both arguments are optional and independent — a frame can have a label, a note, both, or neither. The zero-kwarg form (`seq.record(obj)`) keeps working unchanged.
+
+This is the recommended way to narrate algorithms. A typical pattern is to wrap `record()` in a helper that takes the label as its first argument:
+
+```python
+class RBTree:
+    def __init__(self, seq):
+        self._seq = seq
+        self.root = NIL
+
+    def _snap(self, label):
+        self._seq.record(self.root, label=label)
+
+    def insert(self, key):
+        ...
+        self._snap(f"BST insert: {key} (color=RED)")
+        self._insert_fixup(z)
+```
+
+See [`demos/balancing.ipynb`](../../demos/balancing.ipynb) for a full Red-Black tree example with labelled fixup cases.
+
 ## Sequence policies
 
 The `sequence_policy` controls how the frontend positions atoms across frames:

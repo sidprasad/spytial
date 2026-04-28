@@ -207,3 +207,63 @@ def test_sequence_recorder_policy_can_be_overridden_at_diagram(tmp_path, monkeyp
     result = seq.diagram(sequence_policy="change_emphasis")
     html = Path(result).read_text(encoding="utf-8")
     assert "const sequencePolicyName = `change_emphasis`" in html
+
+
+def test_sequence_recorder_accepts_label_and_embeds_in_html(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    seq = sequence(method="file", auto_open=False)
+    seq.record({"value": 1}, label="rotate left at node 5")
+    seq.record({"value": 2}, label="recolor uncle")
+    html = Path(seq.diagram()).read_text(encoding="utf-8")
+    assert "rotate left at node 5" in html
+    assert "recolor uncle" in html
+    assert "const frameLabels = " in html
+
+
+def test_sequence_recorder_accepts_note_and_embeds_in_html(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    seq = sequence(method="file", auto_open=False)
+    seq.record({"v": 1}, note="This step rebalances the left subtree.")
+    html = Path(seq.diagram()).read_text(encoding="utf-8")
+    assert "rebalances the left subtree" in html
+    assert "const frameNotes = " in html
+
+
+def test_sequence_recorder_label_and_note_are_independent(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    seq = sequence(method="file", auto_open=False)
+    seq.record({"v": 1}, label="step one")
+    seq.record({"v": 2}, note="just a note")
+    seq.record({"v": 3})
+    html = Path(seq.diagram()).read_text(encoding="utf-8")
+    assert "step one" in html
+    assert "just a note" in html
+    assert seq._frame_labels == ["step one", None, None]
+    assert seq._frame_notes == [None, "just a note", None]
+
+
+def test_sequence_recorder_label_too_long_is_truncated():
+    seq = sequence(method="file", auto_open=False)
+    long = "x" * 500
+    seq.record({"v": 1}, label=long)
+    assert seq._frame_labels[0] is not None
+    assert len(seq._frame_labels[0]) == 200
+
+
+def test_sequence_recorder_empty_label_normalized_to_none():
+    seq = sequence(method="file", auto_open=False)
+    seq.record({"v": 1}, label="   ")
+    seq.record({"v": 2}, note="\n\t  ")
+    assert seq._frame_labels[0] is None
+    assert seq._frame_notes[1] is None
+
+
+def test_sequence_recorder_label_special_chars_safely_escaped(tmp_path, monkeypatch):
+    """Labels go through json.dumps so backticks, quotes, and </script> can't
+    break out of the embedded JS array."""
+    monkeypatch.chdir(tmp_path)
+    seq = sequence(method="file", auto_open=False)
+    seq.record({"v": 1}, label='backtick `inj` "quote" </script>')
+    html = Path(seq.diagram()).read_text(encoding="utf-8")
+    label_block = html.split("const frameLabels = ")[1].split(";")[0]
+    assert "</script>" not in label_block
