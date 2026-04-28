@@ -55,7 +55,7 @@ class RBTree:
         self._insert_fixup(z)
 ```
 
-See [`demos/balancing.ipynb`](../../demos/balancing.ipynb) for a full Red-Black tree example with labelled fixup cases.
+See [`demos/balancing.ipynb`](https://github.com/sidprasad/spytial/blob/main/demos/balancing.ipynb) for a full Red-Black tree example with labelled fixup cases.
 
 ## Sequence policies
 
