@@ -579,6 +579,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#labelling-steps" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Labelling steps
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#sequence-policies" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -852,6 +863,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#labelling-steps" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Labelling steps
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#sequence-policies" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -953,6 +975,36 @@
 <span class="n">seq</span><span class="o">.</span><span class="n">diagram</span><span class="p">()</span>
 </code></pre></div>
 <p><code>sequence()</code> returns a <code>SequenceRecorder</code>. Each <code>.record(obj)</code> call captures the current state of <code>obj</code> as the next frame. <code>.diagram()</code> renders all frames into an interactive viewer with Previous / Next navigation.</p>
+<h2 id="labelling-steps">Labelling steps</h2>
+<p><code>record()</code> accepts two optional keyword arguments that give frames semantic meaning in the viewer:</p>
+<ul>
+<li><code>label</code> — a short one-liner shown in the status bar (<code>Step 3 / 24 — rotate left at node 5</code>) and as the scrubber tooltip. Whitespace is stripped; truncated to 200 characters.</li>
+<li><code>note</code> — a longer description (multi-line OK) shown in a collapsible panel below the controls. Hidden on frames where no note was recorded.</li>
+</ul>
+<div class="highlight"><pre><span></span><code><span class="k">with</span> <span class="n">spytial</span><span class="o">.</span><span class="n">sequence</span><span class="p">()</span> <span class="k">as</span> <span class="n">seq</span><span class="p">:</span>
+    <span class="n">seq</span><span class="o">.</span><span class="n">record</span><span class="p">(</span><span class="n">tree</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s2">&quot;initial state&quot;</span><span class="p">)</span>
+    <span class="n">rotate_left</span><span class="p">(</span><span class="n">tree</span><span class="p">,</span> <span class="n">node</span><span class="p">)</span>
+    <span class="n">seq</span><span class="o">.</span><span class="n">record</span><span class="p">(</span><span class="n">tree</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s2">&quot;left-rotate at root&quot;</span><span class="p">,</span>
+               <span class="n">note</span><span class="o">=</span><span class="s2">&quot;Promotes the right child so the new tree is height-balanced.&quot;</span><span class="p">)</span>
+    <span class="n">seq</span><span class="o">.</span><span class="n">record</span><span class="p">(</span><span class="n">tree</span><span class="p">)</span>  <span class="c1"># no label / no note — viewer falls back to &quot;Step 3 / 3&quot;</span>
+<span class="n">seq</span><span class="o">.</span><span class="n">diagram</span><span class="p">()</span>
+</code></pre></div>
+<p>Both arguments are optional and independent — a frame can have a label, a note, both, or neither. The zero-kwarg form (<code>seq.record(obj)</code>) keeps working unchanged.</p>
+<p>This is the recommended way to narrate algorithms. A typical pattern is to wrap <code>record()</code> in a helper that takes the label as its first argument:</p>
+<div class="highlight"><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">RBTree</span><span class="p">:</span>
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">seq</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_seq</span> <span class="o">=</span> <span class="n">seq</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">root</span> <span class="o">=</span> <span class="n">NIL</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_snap</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">label</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_seq</span><span class="o">.</span><span class="n">record</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">root</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="n">label</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">insert</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">):</span>
+        <span class="o">...</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_snap</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;BST insert: </span><span class="si">{</span><span class="n">key</span><span class="si">}</span><span class="s2"> (color=RED)&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_insert_fixup</span><span class="p">(</span><span class="n">z</span><span class="p">)</span>
+</code></pre></div>
+<p>See <a href="https://github.com/sidprasad/spytial/blob/main/demos/balancing.ipynb"><code>demos/balancing.ipynb</code></a> for a full Red-Black tree example with labelled fixup cases.</p>
 <h2 id="sequence-policies">Sequence policies</h2>
 <p>The <code>sequence_policy</code> controls how the frontend positions atoms across frames:</p>
 <table>
