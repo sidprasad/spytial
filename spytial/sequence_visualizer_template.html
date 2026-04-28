@@ -165,6 +165,43 @@
             display: none;
         }
 
+        .note-panel {
+            background: #f1f5f9;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            padding: 8px 12px;
+            margin: 8px 16px 0 16px;
+            font-size: 13px;
+            line-height: 1.5;
+            color: #334155;
+        }
+
+        .note-panel[hidden] {
+            display: none;
+        }
+
+        .note-panel summary {
+            cursor: pointer;
+            font-weight: 500;
+            color: #475569;
+            user-select: none;
+        }
+
+        .note-panel #note-body {
+            margin-top: 6px;
+            white-space: pre-wrap;
+        }
+
+        .sequence-label {
+            font-weight: 500;
+            color: #1f2937;
+        }
+
+        .sequence-label-sep {
+            color: #9ca3af;
+            margin: 0 6px;
+        }
+
         #error-message {
             margin: 12px 16px 0 16px;
         }
@@ -207,6 +244,11 @@
             </div>
         </div>
 
+        <details id="note-panel" class="note-panel" hidden>
+            <summary>Note</summary>
+            <div id="note-body"></div>
+        </details>
+
         <div class="graph-wrapper">
             <span id="loading-indicator">Loading step...</span>
             <webcola-cnd-graph id="graph-container" width="{{ width }}" height="{{ height }}" layoutFormat="default"
@@ -221,6 +263,8 @@
     <script>
         const cndSpec = `{{ cnd_spec | safe }}`;
         const sequenceData = {{ sequence_data | safe }};
+        const frameLabels = {{ frame_labels | safe }};
+        const frameNotes = {{ frame_notes | safe }};
         const sequencePolicyName = `{{ sequence_policy }}`;
 
         let graphElement = null;
@@ -325,6 +369,29 @@
             }
         }
 
+        function getFrameLabel(index) {
+            return Array.isArray(frameLabels) ? frameLabels[index] : null;
+        }
+
+        function getFrameNote(index) {
+            return Array.isArray(frameNotes) ? frameNotes[index] : null;
+        }
+
+        function updateNotePanel(index) {
+            const panel = document.getElementById("note-panel");
+            const body = document.getElementById("note-body");
+            if (!panel || !body) return;
+            const note = getFrameNote(index);
+            if (note) {
+                body.textContent = note;
+                panel.hidden = false;
+            } else {
+                body.textContent = "";
+                panel.hidden = true;
+                panel.open = false;
+            }
+        }
+
         function updateNavigation() {
             const prevButton = document.getElementById("prev-step");
             const nextButton = document.getElementById("next-step");
@@ -332,13 +399,34 @@
             const status = document.getElementById("step-status");
             const totalSteps = sequenceData.length;
             const displayIndex = currentIndex === null ? 0 : currentIndex;
+            const label = getFrameLabel(displayIndex);
 
-            status.textContent = `Step ${displayIndex + 1} / ${totalSteps}`;
+            const baseStatus = `Step ${displayIndex + 1} / ${totalSteps}`;
+            if (label) {
+                status.textContent = "";
+                status.appendChild(document.createTextNode(baseStatus));
+                const sep = document.createElement("span");
+                sep.className = "sequence-label-sep";
+                sep.textContent = "—";
+                status.appendChild(sep);
+                const labelSpan = document.createElement("span");
+                labelSpan.className = "sequence-label";
+                labelSpan.textContent = label;
+                status.appendChild(labelSpan);
+            } else {
+                status.textContent = baseStatus;
+            }
+
             prevButton.disabled = isRendering || displayIndex <= 0;
             nextButton.disabled = isRendering || displayIndex >= totalSteps - 1;
             scrubber.max = String(totalSteps - 1);
             scrubber.value = String(displayIndex);
             scrubber.disabled = isRendering;
+            scrubber.title = label
+                ? `${displayIndex + 1}/${totalSteps}: ${label}`
+                : `Step ${displayIndex + 1}`;
+
+            updateNotePanel(displayIndex);
         }
 
         function resolveSequencePolicy(core) {

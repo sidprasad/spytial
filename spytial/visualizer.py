@@ -46,6 +46,39 @@ def _normalize_as_type(as_type: Optional[Any]) -> Optional[Any]:
     return as_type
 
 
+_LABEL_MAX_LEN = 200
+
+
+def _safe_json_for_script(value: Any) -> str:
+    """JSON-encode a value safely for embedding inside a <script> block.
+
+    `json.dumps` does not escape ``</``, so a string containing ``</script>``
+    would close the tag and allow markup injection. Escaping ``/`` after ``<``
+    is the standard mitigation; the result is still valid JSON.
+    """
+    return json.dumps(value).replace("</", "<\\/")
+
+
+def _normalize_label(label: Optional[str]) -> Optional[str]:
+    """Coerce, strip, and truncate a frame label; empty becomes None."""
+    if label is None:
+        return None
+    text = str(label).strip()
+    if not text:
+        return None
+    if len(text) > _LABEL_MAX_LEN:
+        text = text[:_LABEL_MAX_LEN]
+    return text
+
+
+def _normalize_note(note: Optional[str]) -> Optional[str]:
+    """Coerce and strip a frame note; empty becomes None. No length cap."""
+    if note is None:
+        return None
+    text = str(note).strip()
+    return text or None
+
+
 def _merge_decorator_registries(*registries: Dict[str, Any]) -> Dict[str, Any]:
     """Merge multiple decorator registries while preserving stable order."""
     from .annotations import _deduplicate_entries
@@ -302,6 +335,8 @@ class SequenceRecorder:
             identity_resolver=identity,
         )
         self._data_instances = []
+        self._frame_labels: list = []
+        self._frame_notes: list = []
         self._merged_decorators = {"constraints": [], "directives": []}
 
     def __enter__(self):
@@ -310,10 +345,27 @@ class SequenceRecorder:
     def __exit__(self, exc_type, exc_val, exc_tb):
         return False  # never suppress exceptions
 
-    def record(self, obj: Any) -> None:
-        """Capture a snapshot of *obj* as the next frame in the sequence."""
+    def record(
+        self,
+        obj: Any,
+        label: Optional[str] = None,
+        note: Optional[str] = None,
+    ) -> None:
+        """Capture a snapshot of *obj* as the next frame in the sequence.
+
+        Args:
+            obj: The object to snapshot.
+            label: Optional short label describing this step (e.g. "rotate left").
+                Shown in the status bar and as a scrubber tooltip. Whitespace is
+                stripped; empty results are treated as no label. Truncated to 200
+                characters because the header is one line.
+            note: Optional longer description, shown in a collapsible panel.
+                Multi-line text is fine; whitespace is stripped.
+        """
         instance = self._builder.build_instance(obj, as_type=self._as_type)
         self._data_instances.append(instance)
+        self._frame_labels.append(_normalize_label(label))
+        self._frame_notes.append(_normalize_note(note))
         self._merged_decorators = _merge_decorator_registries(
             self._merged_decorators,
             self._builder.get_collected_decorators(),
@@ -363,6 +415,8 @@ class SequenceRecorder:
         spytial_spec = serialize_to_yaml_string(self._merged_decorators)
         html_content = _generate_sequence_visualizer_html(
             data_instances=self._data_instances,
+            frame_labels=self._frame_labels,
+            frame_notes=self._frame_notes,
             spytial_spec=spytial_spec,
             sequence_policy=_policy,
             width=_width,
@@ -591,6 +645,8 @@ def _generate_sequence_visualizer_html(
     width=800,
     height=600,
     title=None,
+    frame_labels=None,
+    frame_notes=None,
 ):
     """Generate HTML content for a sequence visualizer using Jinja2 templating."""
     if not HAS_JINJA2:
@@ -608,8 +664,15 @@ def _generate_sequence_visualizer_html(
             f"sequence_visualizer_template.html not found in {current_dir}: {e}"
         )
 
+    if frame_labels is None:
+        frame_labels = [None] * len(data_instances)
+    if frame_notes is None:
+        frame_notes = [None] * len(data_instances)
+
     html_content = template.render(
         sequence_data=json.dumps(data_instances),
+        frame_labels=_safe_json_for_script(frame_labels),
+        frame_notes=_safe_json_for_script(frame_notes),
         cnd_spec=spytial_spec,
         sequence_policy=sequence_policy,
         title=title,
