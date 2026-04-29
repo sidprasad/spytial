@@ -57,6 +57,21 @@
             color: #4b5563;
         }
 
+        .sequence-policy-select {
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            padding: 4px 6px;
+            font-size: 12px;
+            background: #ffffff;
+            color: #1f2937;
+            cursor: pointer;
+        }
+
+        .sequence-policy-select:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
         .sequence-controls {
             display: flex;
             align-items: center;
@@ -233,7 +248,13 @@
         <div class="sequence-header">
             <div class="sequence-status">
                 <span class="sequence-title" id="step-status">Step 1 of 1</span>
-                <span class="sequence-policy" id="policy-status"></span>
+                <label class="sequence-policy" for="policy-select">Policy:</label>
+                <select id="policy-select" class="sequence-policy-select" aria-label="Sequence policy">
+                    <option value="stability">Stability</option>
+                    <option value="change_emphasis">Change emphasis</option>
+                    <option value="ignore_history">Ignore history</option>
+                    <option value="random_positioning">Random positioning</option>
+                </select>
             </div>
             <div class="sequence-controls">
                 <button type="button" class="sequence-button" id="prev-step" title="Previous (←)">◀</button>
@@ -265,7 +286,7 @@
         const sequenceData = {{ sequence_data | safe }};
         const frameLabels = {{ frame_labels | safe }};
         const frameNotes = {{ frame_notes | safe }};
-        const sequencePolicyName = `{{ sequence_policy }}`;
+        let sequencePolicyName = `{{ sequence_policy }}`;
 
         let graphElement = null;
         let currentIndex = null;
@@ -426,7 +447,27 @@
                 ? `${displayIndex + 1}/${totalSteps}: ${label}`
                 : `Step ${displayIndex + 1}`;
 
+            const policySelect = document.getElementById("policy-select");
+            if (policySelect) {
+                policySelect.disabled = isRendering;
+            }
+
             updateNotePanel(displayIndex);
+        }
+
+        async function onPolicyChange(newPolicy) {
+            if (newPolicy === sequencePolicyName) return;
+            sequencePolicyName = newPolicy;
+
+            // Step 0 has no transition to animate, so the policy has no
+            // visible effect until the user navigates.
+            if (currentIndex === null || currentIndex === 0 || isRendering) return;
+
+            // Re-apply the (N-1) → N transition with the new policy by
+            // rewinding currentIndex one step and re-rendering the same target.
+            const target = currentIndex;
+            currentIndex = target - 1;
+            await renderStep(target);
         }
 
         function resolveSequencePolicy(core) {
@@ -597,6 +638,13 @@
                 }
             });
 
+            const policySelect = document.getElementById("policy-select");
+            if (policySelect) {
+                policySelect.addEventListener("change", function () {
+                    onPolicyChange(this.value);
+                });
+            }
+
             window.addEventListener("keydown", function (event) {
                 if (event.key === "ArrowLeft") {
                     navigate(-1);
@@ -613,8 +661,10 @@
             }
 
             graphElement = document.getElementById("graph-container");
-            document.getElementById("policy-status").textContent =
-                `Policy: ${prettyPolicyName(sequencePolicyName)}`;
+            const policySelect = document.getElementById("policy-select");
+            if (policySelect && [...policySelect.options].some(o => o.value === sequencePolicyName)) {
+                policySelect.value = sequencePolicyName;
+            }
 
             // Mount the spytial-core error modal (displays constraint/layout warnings)
             if (window.mountErrorMessageModal) {

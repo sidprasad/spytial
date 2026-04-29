@@ -68,6 +68,8 @@ The `sequence_policy` controls how the frontend positions atoms across frames:
 | `ignore_history` | Each frame is laid out independently |
 | `random_positioning` | Random placement each frame |
 
+The `sequence_policy=` argument sets the **initial** policy, but viewers can switch on the fly using a dropdown in the header — useful for comparing how each policy presents the same algorithm. Switching mid-sequence re-applies the previous → current transition with the new policy; on step 0 (which has no transition) the change takes effect on the next navigation.
+
 ## In-place mutation (most common)
 
 When the **same Python objects** are mutated between frames, atom IDs are stable automatically — no configuration needed. The recorder uses a single shared builder whose persistent ID table survives across `.record()` calls.
