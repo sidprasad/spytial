@@ -1,0 +1,106 @@
+name: Publish to PyPI
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "spytial/_version.py"
+  workflow_dispatch:
+
+concurrency:
+  group: pypi-publish
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  detect:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.v.outputs.version }}
+      should_publish: ${{ steps.v.outputs.should_publish }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Read version and check PyPI
+        id: v
+        run: |
+          version=$(python -c "import re; print(re.search(r'\"([^\"]+)\"', open('spytial/_version.py').read()).group(1))")
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "Detected version: $version"
+          status=$(curl -s -o /dev/null -w '%{http_code}' "https://pypi.org/pypi/spytial-diagramming/$version/json")
+          echo "PyPI returned HTTP $status for version $version"
+          if [ "$status" = "404" ]; then
+            echo "should_publish=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "should_publish=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  test:
+    needs: detect
+    if: needs.detect.outputs.should_publish == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install ".[dev]"
+
+      - name: Run tests
+        run: python -m pytest
+
+  build:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Build sdist and wheel
+        run: |
+          python -m pip install --upgrade pip build
+          python -m build
+
+      - name: List artifacts
+        run: ls -la dist/
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+  publish:
+    needs: [detect, build]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+      - uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          password: ${{ secrets.PYPI_API_TOKEN }}
+
+  release:
+    needs: [detect, publish]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ needs.detect.outputs.version }}
+          name: v${{ needs.detect.outputs.version }}
+          generate_release_notes: true
