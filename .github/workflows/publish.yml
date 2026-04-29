@@ -26,7 +26,7 @@ jobs:
       - name: Read version and check PyPI
         id: v
         run: |
-          version=$(python -c "import re; print(re.search(r'\"([^\"]+)\"', open('spytial/_version.py').read()).group(1))")
+          version=$(python -c "import re; print(re.search(r'__version__\s*=\s*\"([^\"]+)\"', open('spytial/_version.py').read()).group(1))")
           echo "version=$version" >> "$GITHUB_OUTPUT"
           echo "Detected version: $version"
           status=$(curl -s -o /dev/null -w '%{http_code}' "https://pypi.org/pypi/spytial-diagramming/$version/json")
