@@ -148,7 +148,7 @@ def test_sequence_recorder_writes_navigation_html(tmp_path, monkeypatch):
     assert result.endswith("spytial_sequence_visualization.html")
     assert 'id="prev-step"' in html
     assert 'id="next-step"' in html
-    assert "const sequencePolicyName = `stability`;" in html
+    assert "let sequencePolicyName = `stability`;" in html
     assert "prevInstance" in html
     assert "currInstance" in html
 
@@ -184,7 +184,7 @@ def test_sequence_recorder_accepts_all_valid_policies(tmp_path, monkeypatch, pol
     seq.record({"v": 1})
     result = seq.diagram()
     html = Path(result).read_text(encoding="utf-8")
-    assert f"const sequencePolicyName = `{policy}`" in html
+    assert f"let sequencePolicyName = `{policy}`" in html
 
 
 def test_sequence_recorder_rejects_invalid_policy_at_construction():
@@ -206,7 +206,27 @@ def test_sequence_recorder_policy_can_be_overridden_at_diagram(tmp_path, monkeyp
     seq.record({"v": 1})
     result = seq.diagram(sequence_policy="change_emphasis")
     html = Path(result).read_text(encoding="utf-8")
-    assert "const sequencePolicyName = `change_emphasis`" in html
+    assert "let sequencePolicyName = `change_emphasis`" in html
+
+
+def test_sequence_recorder_renders_policy_select_in_html(tmp_path, monkeypatch):
+    """The viewer header includes a <select> dropdown listing all four policies."""
+    monkeypatch.chdir(tmp_path)
+    seq = sequence(method="file", auto_open=False)
+    seq.record({"v": 1})
+    html = Path(seq.diagram()).read_text(encoding="utf-8")
+    assert 'id="policy-select"' in html
+    for policy in SEQUENCE_POLICY_NAMES:
+        assert f'value="{policy}"' in html
+
+
+def test_sequence_recorder_initial_policy_matches_python_arg(tmp_path, monkeypatch):
+    """The Python-supplied sequence_policy is the initial value of the dropdown."""
+    monkeypatch.chdir(tmp_path)
+    seq = sequence(sequence_policy="change_emphasis", method="file", auto_open=False)
+    seq.record({"v": 1})
+    html = Path(seq.diagram()).read_text(encoding="utf-8")
+    assert "let sequencePolicyName = `change_emphasis`;" in html
 
 
 def test_sequence_recorder_accepts_label_and_embeds_in_html(tmp_path, monkeypatch):
