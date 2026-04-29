@@ -1,8 +1,8 @@
 site_name: sPyTial
 site_description: Spatial Python visualization for structured data.
-site_url: https://sidprasad.github.io/cnd-py/
-repo_url: https://github.com/sidprasad/cnd-py
-repo_name: sidprasad/cnd-py
+site_url: https://sidprasad.github.io/spytial/
+repo_url: https://github.com/sidprasad/spytial
+repo_name: sidprasad/spytial
 edit_uri: edit/main/docs/
 site_dir: site
 

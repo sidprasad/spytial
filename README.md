@@ -64,7 +64,7 @@ spytial.diagramSequence(
 
 ## Documentation
 
-Documentation is published at https://sidprasad.github.io/cnd-py/ and is generated from this repository with MkDocs.
+Documentation is published at https://sidprasad.github.io/spytial/ and is generated from this repository with MkDocs.
 
 The docs focus on user-facing material:
 
