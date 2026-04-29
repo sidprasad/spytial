@@ -1033,6 +1033,7 @@
 </tr>
 </tbody>
 </table>
+<p>The <code>sequence_policy=</code> argument sets the <strong>initial</strong> policy, but viewers can switch on the fly using a dropdown in the header — useful for comparing how each policy presents the same algorithm. Switching mid-sequence re-applies the previous → current transition with the new policy; on step 0 (which has no transition) the change takes effect on the next navigation.</p>
 <h2 id="in-place-mutation-most-common">In-place mutation (most common)</h2>
 <p>When the <strong>same Python objects</strong> are mutated between frames, atom IDs are stable automatically — no configuration needed. The recorder uses a single shared builder whose persistent ID table survives across <code>.record()</code> calls.</p>
 <div class="highlight"><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">Node</span><span class="p">:</span>
