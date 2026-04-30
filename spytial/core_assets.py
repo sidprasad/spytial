@@ -1,6 +1,6 @@
 """Shared spytial-core browser asset definitions for HTML templates."""
 
-SPYTIAL_CORE_VERSION = "2.5.0"
+SPYTIAL_CORE_VERSION = "2.5.1"
 
 _CDN_BASE = f"https://cdn.jsdelivr.net/npm/spytial-core@{SPYTIAL_CORE_VERSION}"
 
