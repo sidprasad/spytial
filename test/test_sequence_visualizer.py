@@ -339,6 +339,56 @@ def test_apply_label_persistence_locks_first_observation_across_builds():
     assert frame2["atoms"][1]["label"] == "DSUNode0"
 
 
+def test_persist_strategy_assigns_distinct_placeholders_to_distinct_atoms(
+    tmp_path, monkeypatch
+):
+    """Issue #94 regression: when several atoms appear across frames and none
+    has a resolvable variable name, each must get its own ``TypeN`` index
+    instead of all collapsing to ``Type0``.  This is what makes the persisted
+    placeholders useful as a stable identifier."""
+    monkeypatch.chdir(tmp_path)
+
+    class _Box:
+        def __init__(self, value):
+            self.value = value
+
+    class _Recorder:
+        def __init__(self, seq):
+            self._seq = seq
+            self._items = []
+
+        def add(self, value):
+            # Use ``node`` (in the internal-names skip list) so var-name
+            # lookup *fails* and we exercise the placeholder-counter path.
+            node = _Box(value)
+            self._items.append(node)
+            self._seq.record(self._items)
+            return node
+
+    seq = sequence(method="file", auto_open=False)
+    rec = _Recorder(seq)
+    rec.add(1)
+    rec.add(2)
+    rec.add(3)
+
+    final_frame = seq._data_instances[-1]
+    boxes = [a for a in final_frame["atoms"] if a["type"] == "_Box"]
+    labels = [a["label"] for a in boxes]
+    assert len(labels) == 3
+    assert len(set(labels)) == 3, (
+        f"Each atom should have a unique placeholder, got {labels!r}"
+    )
+
+    # And those labels must match what was recorded for that atom in earlier
+    # frames — locking, not regenerating.
+    for frame in seq._data_instances:
+        for atom in frame["atoms"]:
+            if atom["type"] != "_Box":
+                continue
+            expected = next(b["label"] for b in boxes if b["id"] == atom["id"])
+            assert atom["label"] == expected
+
+
 def test_apply_label_persistence_isolated_per_builder():
     """Two recorders must not share a label cache."""
     a = CnDDataInstanceBuilder(preserve_object_ids=True)

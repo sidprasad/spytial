@@ -160,7 +160,11 @@ class CnDDataInstanceBuilder:
         self._build_identity_objects = {}
         self._collected_decorators = {"constraints": [], "directives": []}
         self._current_depth = 0  # Reset depth
-        self._type_label_counters = {}  # Reset per-type counters
+        # Persist placeholder counters across builds when atom IDs are also
+        # being persisted — otherwise every frame's "first new atom of type X"
+        # gets index 0, collapsing distinct atoms onto the same TypeN label.
+        if not self._preserve_object_ids:
+            self._type_label_counters = {}
         self._as_type = as_type  # Store for use during walk
 
         # Extract annotations from as_type if provided
