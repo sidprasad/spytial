@@ -2,8 +2,15 @@ from pathlib import Path
 
 import pytest
 
-from spytial import annotate_orientation, sequence, reset_object_ids, SEQUENCE_POLICY_NAMES
+from spytial import (
+    annotate_orientation,
+    sequence,
+    reset_object_ids,
+    SEQUENCE_POLICY_NAMES,
+    LABEL_STRATEGY_NAMES,
+)
 from spytial.provider_system import CnDDataInstanceBuilder
+from spytial.visualizer import _back_construct_labels
 
 
 class CounterState:
@@ -287,3 +294,195 @@ def test_sequence_recorder_label_special_chars_safely_escaped(tmp_path, monkeypa
     html = Path(seq.diagram()).read_text(encoding="utf-8")
     label_block = html.split("const frameLabels = ")[1].split(";")[0]
     assert "</script>" not in label_block
+
+
+# --- label strategy tests (issue #94) ---------------------------------------
+
+
+def _make_dsu_frame(atoms):
+    """Build a minimal data instance with both top-level atoms and types
+    sub-atoms, matching the shape produced by ``build_instance``."""
+    return {
+        "atoms": [dict(a) for a in atoms],
+        "types": [
+            {
+                "id": "DSUNode",
+                "atoms": [dict(a) for a in atoms],
+            }
+        ],
+    }
+
+
+def test_apply_label_persistence_locks_first_observation_across_builds():
+    """Fix B: once an atom's label is recorded, subsequent builds inherit it
+    even if the relationalizer would have produced a different label."""
+    builder = CnDDataInstanceBuilder(preserve_object_ids=True)
+
+    frame1 = _make_dsu_frame(
+        [{"id": "n1", "type": "DSUNode", "label": "DSUNode0"}]
+    )
+    builder.apply_label_persistence(frame1)
+    assert frame1["atoms"][0]["label"] == "DSUNode0"
+
+    frame2 = _make_dsu_frame(
+        [
+            {"id": "n1", "type": "DSUNode", "label": "a"},
+            {"id": "n2", "type": "DSUNode", "label": "DSUNode0"},
+        ]
+    )
+    builder.apply_label_persistence(frame2)
+
+    # n1 had a prior cached label → keep it.
+    assert frame2["atoms"][0]["label"] == "DSUNode0"
+    assert frame2["types"][0]["atoms"][0]["label"] == "DSUNode0"
+    # n2 is new → cache its label as-is.
+    assert frame2["atoms"][1]["label"] == "DSUNode0"
+
+
+def test_apply_label_persistence_isolated_per_builder():
+    """Two recorders must not share a label cache."""
+    a = CnDDataInstanceBuilder(preserve_object_ids=True)
+    b = CnDDataInstanceBuilder(preserve_object_ids=True)
+
+    a.apply_label_persistence(
+        _make_dsu_frame([{"id": "n1", "type": "DSUNode", "label": "left"}])
+    )
+    target = _make_dsu_frame(
+        [{"id": "n1", "type": "DSUNode", "label": "right"}]
+    )
+    b.apply_label_persistence(target)
+    assert target["atoms"][0]["label"] == "right"
+
+
+def test_back_construct_labels_promotes_real_label_to_earlier_frames():
+    """Fix D: a real label discovered in frame 2 propagates back to frame 1
+    where the same atom only had a placeholder."""
+    instances = [
+        _make_dsu_frame(
+            [{"id": "n1", "type": "DSUNode", "label": "DSUNode0"}]
+        ),
+        _make_dsu_frame(
+            [
+                {"id": "n1", "type": "DSUNode", "label": "a"},
+                {"id": "n2", "type": "DSUNode", "label": "DSUNode0"},
+            ]
+        ),
+        _make_dsu_frame(
+            [
+                {"id": "n1", "type": "DSUNode", "label": "a"},
+                {"id": "n2", "type": "DSUNode", "label": "b"},
+                {"id": "n3", "type": "DSUNode", "label": "DSUNode0"},
+            ]
+        ),
+    ]
+
+    _back_construct_labels(instances)
+
+    assert instances[0]["atoms"][0]["label"] == "a"
+    assert instances[0]["types"][0]["atoms"][0]["label"] == "a"
+    assert [a["label"] for a in instances[1]["atoms"]] == ["a", "b"]
+    assert [a["label"] for a in instances[1]["types"][0]["atoms"]] == ["a", "b"]
+    # n3 only ever had the placeholder; it stays placeholder but stably so.
+    assert instances[2]["atoms"][2]["label"] == "DSUNode0"
+
+
+def test_back_construct_keeps_placeholder_when_no_real_label_seen():
+    instances = [
+        _make_dsu_frame(
+            [{"id": "n1", "type": "DSUNode", "label": "DSUNode0"}]
+        ),
+        _make_dsu_frame(
+            [{"id": "n1", "type": "DSUNode", "label": "DSUNode1"}]
+        ),
+    ]
+    _back_construct_labels(instances)
+    # Both labels were placeholders; picking either is fine, but it must be
+    # the same in every frame.
+    chosen = instances[0]["atoms"][0]["label"]
+    assert chosen in {"DSUNode0", "DSUNode1"}
+    assert instances[1]["atoms"][0]["label"] == chosen
+
+
+def test_sequence_recorder_default_label_strategy_is_persist():
+    seq = sequence(method="file", auto_open=False)
+    assert seq._label_strategy == "persist"
+
+
+def test_sequence_recorder_rejects_invalid_label_strategy():
+    with pytest.raises(ValueError, match="Unknown label_strategy"):
+        sequence(label_strategy="nonexistent")
+
+
+@pytest.mark.parametrize("strategy", sorted(LABEL_STRATEGY_NAMES))
+def test_sequence_recorder_accepts_all_valid_label_strategies(
+    tmp_path, monkeypatch, strategy
+):
+    monkeypatch.chdir(tmp_path)
+    seq = sequence(method="file", auto_open=False, label_strategy=strategy)
+    seq.record({"v": 1})
+    seq.record({"v": 2})
+    # Should produce HTML without raising.
+    Path(seq.diagram()).read_text(encoding="utf-8")
+
+
+def test_persist_strategy_freezes_labels_on_record(tmp_path, monkeypatch):
+    """End-to-end: with the default persist strategy, the *recorded* data
+    instances must use the first-observed label for each atom."""
+    monkeypatch.chdir(tmp_path)
+    seq = sequence(method="file", auto_open=False)
+    seq.record({"v": 1})
+
+    # Reach into the recorder and pretend a later frame produced a different
+    # label for the same atom (mirrors what would happen if the var-name
+    # lookup resolved to something different on a later snapshot).
+    snapshot_atom_ids = [a["id"] for a in seq._data_instances[0]["atoms"]]
+
+    forged = {
+        "atoms": [
+            {"id": aid, "type": "object", "label": "different-label"}
+            for aid in snapshot_atom_ids
+        ],
+        "types": [
+            {
+                "id": "object",
+                "atoms": [
+                    {"id": aid, "type": "object", "label": "different-label"}
+                    for aid in snapshot_atom_ids
+                ],
+            }
+        ],
+    }
+    seq._builder.apply_label_persistence(forged)
+
+    # Persistence locked in the original label; the forged one was overridden.
+    for atom in forged["atoms"]:
+        assert atom["label"] != "different-label"
+
+
+def test_back_construct_strategy_runs_post_pass_at_diagram(tmp_path, monkeypatch):
+    """End-to-end: back_construct mode must defer rewriting until diagram(),
+    and rewrite all frames in place."""
+    monkeypatch.chdir(tmp_path)
+    seq = sequence(
+        method="file", auto_open=False, label_strategy="back_construct"
+    )
+    seq.record({"v": 1})
+    seq.record({"v": 2})
+
+    # Manually inject a placeholder/real-label conflict to exercise the
+    # post-processing pass — the recorder doesn't pass through the
+    # snap-during-construction path in unit-test scope.
+    seq._data_instances[:] = [
+        _make_dsu_frame(
+            [{"id": "n1", "type": "DSUNode", "label": "DSUNode0"}]
+        ),
+        _make_dsu_frame(
+            [{"id": "n1", "type": "DSUNode", "label": "a"}]
+        ),
+    ]
+
+    seq.diagram()
+
+    # diagram() must have promoted "a" to frame 1 in place.
+    assert seq._data_instances[0]["atoms"][0]["label"] == "a"
+    assert seq._data_instances[0]["types"][0]["atoms"][0]["label"] == "a"

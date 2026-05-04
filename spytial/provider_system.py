@@ -130,6 +130,10 @@ class CnDDataInstanceBuilder:
         self._build_identity_objects = {}
         self._persistent_object_ids = {}
         self._persistent_id_counter = 0
+        # atom_id -> label, locked at first observation across build_instance
+        # calls.  Sequence recorders apply this via apply_label_persistence to
+        # keep an atom's displayed label stable from the frame it first appears.
+        self._persistent_atom_labels: Dict[str, str] = {}
         self._collected_decorators = {"constraints": [], "directives": []}
         self._current_depth = 0  # Track current recursion depth
         # Extensibility mechanism: custom reifiers for specific types
@@ -271,6 +275,37 @@ class CnDDataInstanceBuilder:
             "types": typs,
             "rootId": root_atom_id,
         }
+
+    def apply_label_persistence(self, instance: Dict) -> None:
+        """Lock atom labels at first observation across builds.
+
+        Mutates *instance* in place so that any atom whose ID was already
+        labelled in a prior build keeps that earlier label, and any new atom's
+        label is recorded for future builds.  Both the top-level ``atoms`` list
+        and each ``types[*].atoms`` sub-list are rewritten so the data instance
+        stays internally consistent.
+
+        Used by :class:`SequenceRecorder` when its label strategy is ``"persist"``
+        — the same atom ID across frames always renders with one label.
+        """
+        cache = self._persistent_atom_labels
+        for atom in instance.get("atoms", []):
+            aid = atom.get("id")
+            if aid is None:
+                continue
+            cached = cache.get(aid)
+            if cached is None:
+                cache[aid] = atom["label"]
+            else:
+                atom["label"] = cached
+        for type_def in instance.get("types", []):
+            for atom in type_def.get("atoms", []):
+                aid = atom.get("id")
+                if aid is None:
+                    continue
+                cached = cache.get(aid)
+                if cached is not None:
+                    atom["label"] = cached
 
     def get_collected_decorators(self) -> Dict:
         """Get all decorators collected during the build process, deduplicated.

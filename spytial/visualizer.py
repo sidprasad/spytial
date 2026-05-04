@@ -37,6 +37,84 @@ SEQUENCE_POLICY_NAMES = {
 }
 
 
+# How a SequenceRecorder picks an atom's displayed label across frames.
+#
+# - "persist" (default, fix B in issue #94): lock each atom's label at the
+#   first frame it appears.  Cheap, eager, and guarantees no label flicker —
+#   but if the first frame produced a placeholder (e.g. ``DSUNode0`` because
+#   the variable name wasn't bound yet), every later frame keeps that
+#   placeholder.
+# - "back_construct" (fix D in issue #94): defer label resolution to
+#   ``diagram()``.  Once every frame has been recorded, scan all frames and
+#   pick the most informative label for each atom (preferring anything that
+#   isn't a ``<type><digits>`` placeholder), then rewrite that label uniformly
+#   across the whole sequence.  Costs a post-processing pass but recovers the
+#   real name for atoms snapped before their caller binding completes.
+LABEL_STRATEGY_NAMES = {"persist", "back_construct"}
+
+
+_PLACEHOLDER_LABEL_RE_CACHE: Dict[str, "re.Pattern"] = {}
+
+
+def _is_placeholder_label(label: Optional[str], type_name: Optional[str]) -> bool:
+    """A label is a placeholder iff it matches ``^<type_name>\\d+$``.
+
+    The placeholder pattern is what ``_make_label_with_fallback`` emits when
+    no variable name is available.  We use it in back-construction to decide
+    whether a frame's label is "informative" or just a fallback.
+    """
+    import re
+
+    if not label or not type_name:
+        return False
+    pattern = _PLACEHOLDER_LABEL_RE_CACHE.get(type_name)
+    if pattern is None:
+        pattern = re.compile(rf"^{re.escape(type_name)}\d+$")
+        _PLACEHOLDER_LABEL_RE_CACHE[type_name] = pattern
+    return bool(pattern.fullmatch(label))
+
+
+def _back_construct_labels(data_instances: list) -> None:
+    """Resolve labels for the whole sequence in one pass, then rewrite frames.
+
+    For each persistent atom ID, walk every frame in order and pick the first
+    non-placeholder label seen; if every frame produced a placeholder, fall
+    back to the first label so the atom still has a stable name.  Then write
+    the chosen label into every occurrence of that atom across the sequence
+    (both the top-level ``atoms`` list and each ``types[*].atoms`` entry).
+
+    Mutates *data_instances* in place.
+    """
+    observed: Dict[str, list] = {}
+    for instance in data_instances:
+        for atom in instance.get("atoms", []):
+            aid = atom.get("id")
+            if aid is None:
+                continue
+            observed.setdefault(aid, []).append(
+                (atom.get("label"), atom.get("type"))
+            )
+
+    chosen: Dict[str, str] = {}
+    for aid, pairs in observed.items():
+        real = next(
+            (lbl for lbl, typ in pairs if not _is_placeholder_label(lbl, typ)),
+            None,
+        )
+        chosen[aid] = real if real is not None else pairs[0][0]
+
+    for instance in data_instances:
+        for atom in instance.get("atoms", []):
+            aid = atom.get("id")
+            if aid in chosen:
+                atom["label"] = chosen[aid]
+        for type_def in instance.get("types", []):
+            for atom in type_def.get("atoms", []):
+                aid = atom.get("id")
+                if aid in chosen:
+                    atom["label"] = chosen[aid]
+
+
 def _normalize_as_type(as_type: Optional[Any]) -> Optional[Any]:
     """Extract the underlying Annotated type when passed an AnnotatedType wrapper."""
     from .utils import AnnotatedType
@@ -298,6 +376,14 @@ class SequenceRecorder:
             for snap in snapshots:
                 seq.record(snap)
         seq.diagram(method="file")
+
+    Atom labels are kept stable across frames by ``label_strategy``.  By
+    default (``"persist"``) each atom's label is locked at the first frame
+    it appears.  Pass ``label_strategy="back_construct"`` to defer label
+    resolution until :meth:`diagram`, which then picks the most informative
+    label per atom across the whole sequence — useful when ``record()`` runs
+    inside the constructor that produces the object (e.g. a ``make_set()``
+    that snaps before its caller binding has completed; see issue #94).
     """
 
     def __init__(
@@ -310,6 +396,7 @@ class SequenceRecorder:
         height: Optional[int] = None,
         title: Optional[str] = None,
         as_type: Optional[Any] = None,
+        label_strategy: str = "persist",
     ):
         from .provider_system import CnDDataInstanceBuilder
 
@@ -317,6 +404,12 @@ class SequenceRecorder:
             allowed = ", ".join(sorted(SEQUENCE_POLICY_NAMES))
             raise ValueError(
                 f"Unknown sequence_policy: {sequence_policy!r}. Expected one of: {allowed}"
+            )
+
+        if label_strategy not in LABEL_STRATEGY_NAMES:
+            allowed = ", ".join(sorted(LABEL_STRATEGY_NAMES))
+            raise ValueError(
+                f"Unknown label_strategy: {label_strategy!r}. Expected one of: {allowed}"
             )
 
         self._identity = identity
@@ -327,6 +420,7 @@ class SequenceRecorder:
         self._height = height
         self._title = title
         self._as_type = _normalize_as_type(as_type)
+        self._label_strategy = label_strategy
 
         # A single shared builder preserves _persistent_object_ids across frames,
         # giving stable atom IDs for in-place-mutated objects.
@@ -363,6 +457,8 @@ class SequenceRecorder:
                 Multi-line text is fine; whitespace is stripped.
         """
         instance = self._builder.build_instance(obj, as_type=self._as_type)
+        if self._label_strategy == "persist":
+            self._builder.apply_label_persistence(instance)
         self._data_instances.append(instance)
         self._frame_labels.append(_normalize_label(label))
         self._frame_notes.append(_normalize_note(note))
@@ -410,6 +506,9 @@ class SequenceRecorder:
             _width = _width or 1200
             _height = _height or 800
 
+        if self._label_strategy == "back_construct":
+            _back_construct_labels(self._data_instances)
+
         from .annotations import serialize_to_yaml_string
 
         spytial_spec = serialize_to_yaml_string(self._merged_decorators)
@@ -442,6 +541,7 @@ def sequence(
     height: Optional[int] = None,
     title: Optional[str] = None,
     as_type: Optional[Any] = None,
+    label_strategy: str = "persist",
 ) -> "SequenceRecorder":
     """Create a :class:`SequenceRecorder` for capturing algorithm steps or temporal snapshots.
 
@@ -464,6 +564,14 @@ def sequence(
         height: Height of the visualization in pixels.
         title: Browser tab / page title.
         as_type: Optional annotated type applied to every recorded object.
+        label_strategy: How atom labels are kept consistent across frames.
+            ``"persist"`` (default) locks each atom's label at the first frame
+            it appears.  ``"back_construct"`` defers label resolution to
+            :meth:`~SequenceRecorder.diagram`, then picks the most informative
+            label for each atom (preferring real names over ``<type><digits>``
+            placeholders) and applies it uniformly across the sequence — this
+            recovers the real name for atoms snapshotted before their caller
+            binding completed (the ``_snap()``-during-construction pattern).
 
     Returns:
         A :class:`SequenceRecorder` instance, usable as a context manager.
@@ -485,6 +593,7 @@ def sequence(
         height=height,
         title=title,
         as_type=as_type,
+        label_strategy=label_strategy,
     )
 
 
