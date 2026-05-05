@@ -2572,6 +2572,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#spytial.provider_system.CnDDataInstanceBuilder.apply_label_persistence" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        apply_label_persistence
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#spytial.provider_system.CnDDataInstanceBuilder.get_collected_decorators" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -4659,6 +4670,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#spytial.provider_system.CnDDataInstanceBuilder.apply_label_persistence" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        apply_label_persistence
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#spytial.provider_system.CnDDataInstanceBuilder.get_collected_decorators" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -5365,6 +5387,13 @@ seq.diagram()
         seq.record(snap)
 seq.diagram(method=&quot;file&quot;)
 </code></pre></div>
+<p>Atom labels are kept stable across frames by <code>label_strategy</code>.  By
+default (<code>"persist"</code>) each atom's label is locked at the first frame
+it appears.  Pass <code>label_strategy="back_construct"</code> to defer label
+resolution until :meth:<code>diagram</code>, which then picks the most informative
+label per atom across the whole sequence — useful when <code>record()</code> runs
+inside the constructor that produces the object (e.g. a <code>make_set()</code>
+that snaps before its caller binding has completed; see issue #94).</p>
 
 
 
@@ -6945,7 +6974,7 @@ diagram(g, as_type=Graph)</p>
 
 
 <h3 id="spytial.sequence" class="doc doc-heading">
-<code class="doc-symbol doc-symbol-heading doc-symbol-function"></code>            <code class="highlight language-python"><span class="n">sequence</span><span class="p">(</span><span class="n">identity</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">sequence_policy</span><span class="o">=</span><span class="s1">&#39;stability&#39;</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">auto_open</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">width</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">height</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">as_type</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
+<code class="doc-symbol doc-symbol-heading doc-symbol-function"></code>            <code class="highlight language-python"><span class="n">sequence</span><span class="p">(</span><span class="n">identity</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">sequence_policy</span><span class="o">=</span><span class="s1">&#39;stability&#39;</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">auto_open</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">width</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">height</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">as_type</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">label_strategy</span><span class="o">=</span><span class="s1">&#39;persist&#39;</span><span class="p">)</span></code>
 
 </h3>
 
@@ -7101,6 +7130,29 @@ Defaults to auto-detection.</p>
             </td>
             <td>
                   <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>label_strategy</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>How atom labels are kept consistent across frames.
+<code>"persist"</code> (default) locks each atom's label at the first frame
+it appears.  <code>"back_construct"</code> defers label resolution to
+:meth:<code>~SequenceRecorder.diagram</code>, then picks the most informative
+label for each atom (preferring real names over <code>&lt;type&gt;&lt;digits&gt;</code>
+placeholders) and applies it uniformly across the sequence — this
+recovers the real name for atoms snapshotted before their caller
+binding completed (the <code>_snap()</code>-during-construction pattern).</p>
+              </div>
+            </td>
+            <td>
+                  <code>&#39;persist&#39;</code>
             </td>
           </tr>
       </tbody>
@@ -8023,6 +8075,13 @@ seq.diagram()
         seq.record(snap)
 seq.diagram(method=&quot;file&quot;)
 </code></pre></div>
+<p>Atom labels are kept stable across frames by <code>label_strategy</code>.  By
+default (<code>"persist"</code>) each atom's label is locked at the first frame
+it appears.  Pass <code>label_strategy="back_construct"</code> to defer label
+resolution until :meth:<code>diagram</code>, which then picks the most informative
+label per atom across the whole sequence — useful when <code>record()</code> runs
+inside the constructor that produces the object (e.g. a <code>make_set()</code>
+that snaps before its caller binding has completed; see issue #94).</p>
 
 
 
@@ -8422,7 +8481,7 @@ diagram(g, as_type=Graph)</p>
 
 
 <h3 id="spytial.visualizer.sequence" class="doc doc-heading">
-<code class="doc-symbol doc-symbol-heading doc-symbol-function"></code>            <code class="highlight language-python"><span class="n">sequence</span><span class="p">(</span><span class="n">identity</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">sequence_policy</span><span class="o">=</span><span class="s1">&#39;stability&#39;</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">auto_open</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">width</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">height</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">as_type</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
+<code class="doc-symbol doc-symbol-heading doc-symbol-function"></code>            <code class="highlight language-python"><span class="n">sequence</span><span class="p">(</span><span class="n">identity</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">sequence_policy</span><span class="o">=</span><span class="s1">&#39;stability&#39;</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">auto_open</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">width</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">height</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">as_type</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">label_strategy</span><span class="o">=</span><span class="s1">&#39;persist&#39;</span><span class="p">)</span></code>
 
 </h3>
 
@@ -8578,6 +8637,29 @@ Defaults to auto-detection.</p>
             </td>
             <td>
                   <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>label_strategy</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>How atom labels are kept consistent across frames.
+<code>"persist"</code> (default) locks each atom's label at the first frame
+it appears.  <code>"back_construct"</code> defers label resolution to
+:meth:<code>~SequenceRecorder.diagram</code>, then picks the most informative
+label for each atom (preferring real names over <code>&lt;type&gt;&lt;digits&gt;</code>
+placeholders) and applies it uniformly across the sequence — this
+recovers the real name for atoms snapshotted before their caller
+binding completed (the <code>_snap()</code>-during-construction pattern).</p>
+              </div>
+            </td>
+            <td>
+                  <code>&#39;persist&#39;</code>
             </td>
           </tr>
       </tbody>
@@ -10933,6 +11015,31 @@ into CnD-compatible atom/relation representations using relationalizers.</p>
           </tr>
       </tbody>
     </table>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h4 id="spytial.provider_system.CnDDataInstanceBuilder.apply_label_persistence" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-method"></code>            <code class="highlight language-python"><span class="n">apply_label_persistence</span><span class="p">(</span><span class="n">instance</span><span class="p">)</span></code>
+
+</h4>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Lock atom labels at first observation across builds.</p>
+<p>Mutates <em>instance</em> in place so that any atom whose ID was already
+labelled in a prior build keeps that earlier label, and any new atom's
+label is recorded for future builds.  Both the top-level <code>atoms</code> list
+and each <code>types[*].atoms</code> sub-list are rewritten so the data instance
+stays internally consistent.</p>
+<p>Used by :class:<code>SequenceRecorder</code> when its label strategy is <code>"persist"</code>
+— the same atom ID across frames always renders with one label.</p>
 
 
     </div>
