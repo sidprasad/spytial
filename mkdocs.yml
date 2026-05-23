@@ -9,13 +9,14 @@ site_dir: site
 nav:
   - Home: index.md
   - Getting Started: getting-started.md
+  - How It Works: how-it-works.md
   - Diagramming: usage/diagramming.md
   - Sequences: usage/sequences.md
   - Evaluator: usage/evaluator.md
   - Operations: operations.md
   - Dataclass Builder: usage/dataclass-builder.md
   - Custom Relationalizers: relationalizers.md
-  - CLRS Examples: examples/spytial-clrs.md
+  - CLRS Notebook Examples: examples/spytial-clrs.md
   - API Reference: reference/api.md
 
 theme:

@@ -117,10 +117,12 @@ class TreeNode:
         self.value = value
 ```
 
-## Patterns used in `spytial-clrs`
+## Patterns used in the CLRS notebooks
 
-The CLRS notebooks are a good source of idiomatic operation usage:
+[`spytial-clrs`](https://github.com/sidprasad/spytial-clrs) — a notebook collection implementing CLRS-textbook data structures with sPyTial — is a good source of idiomatic operation usage:
 
 - linked lists use `attribute(...)` to turn fields into compact labels
 - heaps and matrix-style examples use `align(...)` to create readable rows or sibling levels
 - disjoint sets, hash tables, and SCC views use `group(...)` to expose higher-level regions
+
+See [CLRS Notebook Examples](examples/spytial-clrs.md) for the full guide.

@@ -74,10 +74,12 @@ metrics = spytial.diagram(
 - `method="browser"` and `method="file"` return the HTML file path.
 - `headless=True` returns performance metrics when `perf_iterations` is set.
 
-## Patterns from `spytial-clrs`
+## Patterns from the CLRS notebooks
 
-If you want realistic examples instead of toy snippets, use the notebooks in [`spytial-clrs`](https://github.com/sidprasad/spytial-clrs):
+For realistic examples instead of toy snippets, use [`spytial-clrs`](https://github.com/sidprasad/spytial-clrs) — a notebook collection that implements CLRS-textbook data structures with sPyTial:
 
 - `linked-lists.ipynb` shows list-like structures and cyclic constraints.
 - `heaps.ipynb` and `trees.ipynb` show recursive structures with alignment and attributes.
 - `graphs.ipynb` and `disjoint-sets.ipynb` show grouping-heavy layouts.
+
+See [CLRS Notebook Examples](../examples/spytial-clrs.md) for the full guide.
