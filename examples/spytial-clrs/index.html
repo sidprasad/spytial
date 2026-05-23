@@ -27,7 +27,7 @@
     
     
       
-        <title>CLRS Examples - sPyTial</title>
+        <title>CLRS Notebook Examples - sPyTial</title>
       
     
     
@@ -70,7 +70,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#spytial-clrs-examples" class="md-skip">
+        <a href="#clrs-notebook-examples" class="md-skip">
           Skip to content
         </a>
       
@@ -104,7 +104,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              CLRS Examples
+              CLRS Notebook Examples
             
           </span>
         </div>
@@ -215,6 +215,25 @@
     
   
   Getting Started
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../how-it-works/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  How It Works
 
       </a>
     </li>
@@ -349,7 +368,7 @@
   
     
   
-  CLRS Examples
+  CLRS Notebook Examples
 
       </a>
     </li>
@@ -462,6 +481,33 @@
     
   
     Getting Started
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-it-works/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    How It Works
   
 
     
@@ -659,7 +705,7 @@
   <span class="md-ellipsis">
     
   
-    CLRS Examples
+    CLRS Notebook Examples
   
 
     
@@ -677,7 +723,7 @@
   <span class="md-ellipsis">
     
   
-    CLRS Examples
+    CLRS Notebook Examples
   
 
     
@@ -703,10 +749,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#why-it-is-useful" class="md-nav__link">
+  <a href="#whats-in-it" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Why it is useful
+        What's in it
       
     </span>
   </a>
@@ -714,10 +760,21 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#example-guide" class="md-nav__link">
+  <a href="#run-the-notebooks" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Example guide
+        Run the notebooks
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#reading-guide" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Reading guide
       
     </span>
   </a>
@@ -797,10 +854,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#why-it-is-useful" class="md-nav__link">
+  <a href="#whats-in-it" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Why it is useful
+        What's in it
       
     </span>
   </a>
@@ -808,10 +865,21 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#example-guide" class="md-nav__link">
+  <a href="#run-the-notebooks" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Example guide
+        Run the notebooks
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#reading-guide" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Reading guide
       
     </span>
   </a>
@@ -849,16 +917,81 @@
   
 
 
-<h1 id="spytial-clrs-examples"><code>spytial-clrs</code> Examples</h1>
-<p><a href="https://github.com/sidprasad/spytial-clrs"><code>spytial-clrs</code></a> is the companion examples repository for <code>spytial-py</code>. It contains notebooks based on CLRS data structures and is the best source of realistic diagrams for docs, demos, and screenshots.</p>
-<h2 id="why-it-is-useful">Why it is useful</h2>
-<p>If you want to see what sPyTial looks like on larger structures, <code>spytial-clrs</code> is the best place to start:</p>
-<ul>
-<li>it provides realistic examples that go beyond toy <code>dict</code> and <code>list</code> inputs</li>
-<li>it shows how different layout operations help explain specific data structures</li>
-<li>it gives you a gallery of end-to-end examples you can adapt for your own work</li>
-</ul>
-<h2 id="example-guide">Example guide</h2>
+<h1 id="clrs-notebook-examples">CLRS Notebook Examples</h1>
+<p><a href="https://github.com/sidprasad/spytial-clrs"><code>spytial-clrs</code></a> is a Jupyter notebook collection that implements the data structures from the <strong>CLRS algorithms textbook</strong> (Cormen, Leiserson, Rivest, Stein) using sPyTial. Each notebook is organized by CLRS chapter and walks through one or more textbook structures, declaring the spatial constraints that make their structure legible.</p>
+<h2 id="whats-in-it">What's in it</h2>
+<table>
+<thead>
+<tr>
+<th>Chapter</th>
+<th>Structures</th>
+<th>Notebook</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>6, 19</td>
+<td>Max heap, Fibonacci heap</td>
+<td><code>heaps.ipynb</code></td>
+</tr>
+<tr>
+<td>10</td>
+<td>Stacks, queues</td>
+<td><code>stacksqueues.ipynb</code></td>
+</tr>
+<tr>
+<td>10.2</td>
+<td>Singly, doubly, circular linked lists</td>
+<td><code>linked-lists.ipynb</code></td>
+</tr>
+<tr>
+<td>11</td>
+<td>Direct-address and chained hash tables</td>
+<td><code>hash-tables.ipynb</code></td>
+</tr>
+<tr>
+<td>12, 13, 14, 14.3, 18, 20</td>
+<td>BST, red-black, order statistic, interval, B-tree, van Emde Boas</td>
+<td><code>trees.ipynb</code></td>
+</tr>
+<tr>
+<td>15.2</td>
+<td>Matrix-chain memoization tables</td>
+<td><code>memoization.ipynb</code></td>
+</tr>
+<tr>
+<td>16.3</td>
+<td>Huffman codes</td>
+<td><code>huffman.ipynb</code></td>
+</tr>
+<tr>
+<td>21.3</td>
+<td>Disjoint-set forests (forest and set views)</td>
+<td><code>disjoint-sets.ipynb</code></td>
+</tr>
+<tr>
+<td>22, 22.4, 22.5, 23</td>
+<td>Graphs, topological sort, strongly connected components, MST</td>
+<td><code>graphs.ipynb</code></td>
+</tr>
+</tbody>
+</table>
+<p>Bonus: BDDs in <code>simple-bdd.ipynb</code>.</p>
+<h2 id="run-the-notebooks">Run the notebooks</h2>
+<p>There are three ways to use the collection without installing anything locally beyond the notebooks themselves.</p>
+<p><strong>Docker</strong> (zero local setup):</p>
+<div class="highlight"><pre><span></span><code>docker<span class="w"> </span>pull<span class="w"> </span>sidprasad/spytial-clrs:latest
+docker<span class="w"> </span>run<span class="w"> </span>-p<span class="w"> </span><span class="m">8888</span>:8888<span class="w"> </span>sidprasad/spytial-clrs
+<span class="c1"># open http://localhost:8888</span>
+</code></pre></div>
+<p><strong>JupyterLite</strong> (in-browser, no install): see the <a href="https://github.com/sidprasad/spytial-clrs"><code>spytial-clrs</code> README</a> for the deployed link.</p>
+<p><strong>Local clone</strong>:</p>
+<div class="highlight"><pre><span></span><code>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/sidprasad/spytial-clrs
+<span class="nb">cd</span><span class="w"> </span>spytial-clrs
+pip<span class="w"> </span>install<span class="w"> </span>-r<span class="w"> </span>requirements.txt
+jupyter<span class="w"> </span>notebook<span class="w"> </span>src/
+</code></pre></div>
+<h2 id="reading-guide">Reading guide</h2>
 <p>Use the notebooks as a guide depending on what you want to visualize:</p>
 <table>
 <thead>

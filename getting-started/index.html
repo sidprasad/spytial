@@ -16,7 +16,7 @@
         <link rel="prev" href="..">
       
       
-        <link rel="next" href="../usage/diagramming/">
+        <link rel="next" href="../how-it-works/">
       
       
         
@@ -229,6 +229,25 @@
   
   
     <li class="md-tabs__item">
+      <a href="../how-it-works/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  How It Works
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
       <a href="../usage/diagramming/" class="md-tabs__link">
         
   
@@ -349,7 +368,7 @@
   
     
   
-  CLRS Examples
+  CLRS Notebook Examples
 
       </a>
     </li>
@@ -525,6 +544,28 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#optional-extras" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Optional extras
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#environment" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Environment
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#first-diagram" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -583,6 +624,33 @@
   
 </nav>
       
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../how-it-works/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    How It Works
+  
+
+    
+  </span>
+  
+  
+
+      </a>
     </li>
   
 
@@ -763,7 +831,7 @@
   <span class="md-ellipsis">
     
   
-    CLRS Examples
+    CLRS Notebook Examples
   
 
     
@@ -834,6 +902,28 @@
     <span class="md-ellipsis">
       
         Install
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#optional-extras" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Optional extras
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#environment" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Environment
       
     </span>
   </a>
@@ -916,9 +1006,54 @@
 
 
 <h1 id="getting-started">Getting Started</h1>
+<p><a href="https://pypi.org/project/spytial-diagramming/"><img alt="PyPI version" src="https://img.shields.io/pypi/v/spytial-diagramming.svg" /></a>
+<a href="https://pypi.org/project/spytial-diagramming/"><img alt="Python versions" src="https://img.shields.io/pypi/pyversions/spytial-diagramming.svg" /></a>
+<a href="https://github.com/sidprasad/spytial/blob/main/LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-blue.svg" /></a>
+<a href="https://github.com/sidprasad/spytial/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/sidprasad/spytial/actions/workflows/ci.yml/badge.svg" /></a>
+<a href="https://sidprasad.github.io/spytial/"><img alt="Docs" src="https://img.shields.io/badge/docs-mkdocs--material-blue.svg" /></a></p>
 <h2 id="install">Install</h2>
 <div class="highlight"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span>spytial-diagramming
 </code></pre></div>
+<ul>
+<li><strong>PyPI:</strong> <a href="https://pypi.org/project/spytial-diagramming/">pypi.org/project/spytial-diagramming</a></li>
+<li><strong>Source:</strong> <a href="https://github.com/sidprasad/spytial">github.com/sidprasad/spytial</a></li>
+<li><strong>Supported Python:</strong> 3.8 – 3.12</li>
+</ul>
+<h2 id="optional-extras">Optional extras</h2>
+<p>Most users do not need these. Install them only if you hit one of the listed cases.</p>
+<div class="highlight"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;spytial-diagramming[widget]&quot;</span><span class="w">     </span><span class="c1"># anywidget-based Jupyter widget mode</span>
+pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;spytial-diagramming[headless]&quot;</span><span class="w">   </span><span class="c1"># Selenium-driven headless rendering for benchmarking</span>
+pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;spytial-diagramming[dev]&quot;</span><span class="w">        </span><span class="c1"># pytest, flake8, black (contributors)</span>
+pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;spytial-diagramming[docs]&quot;</span><span class="w">       </span><span class="c1"># mkdocs + plugins (contributors)</span>
+</code></pre></div>
+<ul>
+<li><code>[headless]</code> also requires a Chrome / Chromedriver installation on <code>PATH</code>. See <a href="../usage/diagramming/#headless-benchmarking">Diagramming → Headless benchmarking</a>.</li>
+</ul>
+<h2 id="environment">Environment</h2>
+<p><code>sPyTial</code> works in three places without configuration:</p>
+<table>
+<thead>
+<tr>
+<th>Where you run it</th>
+<th>Default output</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Jupyter / IPython notebook</td>
+<td>Inline HTML</td>
+</tr>
+<tr>
+<td>Script / REPL</td>
+<td>Opens a new browser tab</td>
+</tr>
+<tr>
+<td>Anywhere, on demand</td>
+<td>Writes an HTML file</td>
+</tr>
+</tbody>
+</table>
+<p>Rendering itself is done in the browser by <a href="../how-it-works/"><code>spytial-core</code></a>, which is loaded from a CDN the first time you render. There is nothing extra to install; the bundle is cached by the browser after first load. See <a href="../how-it-works/">How It Works</a> for the pipeline and for offline / pinning guidance.</p>
 <h2 id="first-diagram">First diagram</h2>
 <div class="highlight"><pre><span></span><code><span class="kn">import</span><span class="w"> </span><span class="nn">spytial</span>
 
@@ -932,7 +1067,6 @@
 
 <span class="n">spytial</span><span class="o">.</span><span class="n">diagram</span><span class="p">(</span><span class="n">example</span><span class="p">)</span>
 </code></pre></div>
-<p>By default, sPyTial renders inline in notebooks and opens a browser tab everywhere else.</p>
 <h2 id="inspect-before-you-diagram">Inspect before you diagram</h2>
 <p>If you want to confirm how an object is being serialized, use the evaluator first:</p>
 <div class="highlight"><pre><span></span><code><span class="kn">import</span><span class="w"> </span><span class="nn">spytial</span>
@@ -941,12 +1075,7 @@
 </code></pre></div>
 <p>This is useful when you are debugging a custom class, an annotation, or a relationalizer.</p>
 <h2 id="display-methods">Display methods</h2>
-<p><code>sPyTial</code> chooses a display method based on environment:</p>
-<ul>
-<li><strong>Notebook:</strong> renders inline.</li>
-<li><strong>Anywhere else:</strong> opens a browser tab.</li>
-</ul>
-<p>You can override this explicitly:</p>
+<p><code>sPyTial</code> chooses a display method based on environment. You can override it explicitly:</p>
 <div class="highlight"><pre><span></span><code><span class="n">spytial</span><span class="o">.</span><span class="n">diagram</span><span class="p">(</span><span class="n">example</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="s2">&quot;browser&quot;</span><span class="p">)</span>   <span class="c1"># open a new tab</span>
 <span class="n">spytial</span><span class="o">.</span><span class="n">diagram</span><span class="p">(</span><span class="n">example</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="s2">&quot;file&quot;</span><span class="p">)</span>      <span class="c1"># write an HTML file</span>
 <span class="n">spytial</span><span class="o">.</span><span class="n">diagram</span><span class="p">(</span><span class="n">example</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="s2">&quot;inline&quot;</span><span class="p">)</span>    <span class="c1"># force inline output</span>
@@ -982,7 +1111,8 @@
 <ul>
 <li>Read <a href="../usage/diagramming/">Diagramming</a> for the main rendering workflow.</li>
 <li>Read <a href="../operations/">Operations</a> to control layout and drawing.</li>
-<li>Browse <a href="../examples/spytial-clrs/">CLRS Examples</a> for richer data-structure examples.</li>
+<li>Read <a href="../how-it-works/">How It Works</a> to understand the Python → browser pipeline.</li>
+<li>Browse <a href="../examples/spytial-clrs/">CLRS Notebook Examples</a> for worked examples on classic data structures (heaps, trees, graphs, hash tables, disjoint-set forests, and more).</li>
 </ul>
 
 
