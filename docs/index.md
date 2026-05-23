@@ -1,14 +1,14 @@
 # sPyTial
 
-sPyTial turns Python objects into box-and-arrow diagrams backed by Spytial's layout engine. It is aimed at cases where the structure matters more than the UI: debugging recursive objects, teaching data structures, inspecting serialized state, or building small visual tools around Python models.
+**Spatial diagrams of Python objects.** sPyTial turns structured Python data into box-and-arrow diagrams whose layout is driven by declarative spatial constraints. It is aimed at cases where the structure matters more than the UI: debugging recursive objects, teaching data structures, inspecting serialized state, or building small visual tools around Python models.
 
-## Install
+## What you can do with it
 
-```bash
-pip install spytial-diagramming
-```
+- Render any Python object — `dict`, `list`, dataclass, custom class, graph — as a box-and-arrow diagram.
+- Control layout declaratively with constraints (`orientation`, `align`, `cyclic`, `group`) and directives (`atomColor`, `attribute`, `tag`, `inferredEdge`, …).
+- Step through sequences of states to visualize how a data structure evolves.
 
-## Quick start
+## Hello, sPyTial
 
 ```python
 import spytial
@@ -24,21 +24,20 @@ tree = {
 spytial.diagram(tree)
 ```
 
-## What lives in this site
+**→ [Install and run your first diagram (Getting Started)](getting-started.md)**
 
-This site focuses on using sPyTial:
+## The sPyTial ecosystem
 
-- installation and first steps
-- diagramming and evaluation
-- operations and custom relationalizers
-- worked examples drawn from classic data structures
+sPyTial is part of a small family of projects. Most users only need the first.
 
-## Using `spytial-clrs` as the examples repo
+- **`spytial-py`** (this package) — the Python host. Install with `pip install spytial-diagramming`. Exposes `diagram()`, `evaluate()`, decorators and types for annotating layouts, and a relationalizer plug-in system.
+- **[`spytial-core`](https://github.com/sidprasad/spytial-core)** — the browser-side rendering engine (TypeScript). Loaded automatically from a CDN; you do not install it yourself. The same engine is used by every sPyTial language host (Python, Rust, Pyret, Lean). See [How It Works](how-it-works.md) for the pipeline.
+- **[`spytial-clrs`](https://github.com/sidprasad/spytial-clrs)** — a Jupyter notebook collection that implements the data structures from the **CLRS algorithms textbook** (Cormen, Leiserson, Rivest, Stein) using sPyTial: heaps, stacks, queues, linked lists, hash tables, BST / red-black / B / van Emde Boas / interval trees, Huffman codes, disjoint-set forests, graphs with MST and SCC views. It is the best place to see the package on realistic structures. Ships with a Docker image and a JupyterLite deployment for zero-install browsing.
 
-The sibling [`spytial-clrs`](https://github.com/sidprasad/spytial-clrs) repository is the best source of worked examples for this package. It contains CLRS-style notebooks for linked lists, heaps, trees, graphs, disjoint sets, and memoization tables.
+## Where to go next
 
-- It gives you larger, more realistic examples than small `dict` and `list` snippets.
-- It shows how sPyTial can be used to explain common data structures visually.
-- It is a good place to browse if you want inspiration for your own diagrams.
-
-Start with [Getting Started](getting-started.md), then move to [Diagramming](usage/diagramming.md) or [CLRS Examples](examples/spytial-clrs.md).
+- [Getting Started](getting-started.md) — install, badges, first diagram.
+- [Diagramming](usage/diagramming.md) — the main rendering workflow.
+- [Operations](operations.md) — constraints and directives.
+- [How It Works](how-it-works.md) — the Python → browser pipeline and `spytial-core`.
+- [CLRS Notebook Examples](examples/spytial-clrs.md) — worked examples on classic data structures.
