@@ -26,8 +26,14 @@ def is_notebook() -> bool:
         ipython = get_ipython()
         if ipython is None:
             return False
-        # Check if we're in a notebook (IPython kernel has 'IPKernelApp')
-        return "IPKernelApp" in ipython.config
+        # Standard Jupyter (ipykernel) exposes an IPKernelApp config section.
+        if "IPKernelApp" in ipython.config:
+            return True
+        # JupyterLite / Pyodide runs a plain InteractiveShell subclass
+        # ("Interpreter") that has no IPKernelApp; Google Colab uses its own
+        # shell too. Treat any interactive shell that isn't the plain terminal
+        # REPL as a notebook so diagram() defaults to inline rendering there.
+        return type(ipython).__name__ != "TerminalInteractiveShell"
     except Exception:
         return False
 
