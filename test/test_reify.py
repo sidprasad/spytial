@@ -168,8 +168,10 @@ def test_reify_generic_object_self_loop():
     di = CnDDataInstanceBuilder().build_instance(b)
     out = CnDDataInstanceBuilder().reify(di)
 
-    # _reify_generic_object produces an attribute-bag, not the original class,
-    # but the self-reference should still resolve to the same object.
+    # The atom carries Bag's module + qualname, so reify rebuilds the REAL
+    # class (object.__new__ + setattr), not an attribute-bag proxy — and the
+    # self-reference still resolves to the same object.
+    assert type(out) is Bag
     assert getattr(out, "self_ref") is out
     assert getattr(out, "tag") == "hello"
 
@@ -281,3 +283,84 @@ def test_dataclass_reifier_backcompat_3arg_signature():
     di = CnDDataInstanceBuilder().build_instance(Simple(x=42))
     out = r.reify(di)
     assert out == Simple(x=42)
+
+
+# ---------------------------------------------------------------------------
+# Rebuilding the REAL object (object.__new__ via module/qualname) + replit
+# ---------------------------------------------------------------------------
+
+
+class Vec:
+    """Plain (non-dataclass) class with a non-structural custom __repr__."""
+
+    def __init__(self, x, y):
+        self.x = x
+        self.y = y
+
+    def __repr__(self):
+        return f"Vec<{self.x},{self.y}>"
+
+
+def test_reify_rebuilds_real_class_with_custom_repr():
+    v = Vec(1, 2)
+    di = CnDDataInstanceBuilder().build_instance(v)
+    out = CnDDataInstanceBuilder().reify(di)
+    # The genuine class — so the real (custom, non-structural) __repr__ runs,
+    # something an attribute-bag proxy could never reproduce.
+    assert type(out) is Vec
+    assert repr(out) == repr(v) == "Vec<1,2>"
+
+
+def test_replit_matches_repr_for_custom_class():
+    v = Vec(3, 4)
+    di = CnDDataInstanceBuilder().build_instance(v)
+    assert CnDDataInstanceBuilder().replit(di) == repr(v)
+
+
+def test_replit_matches_repr_for_nested_builtins():
+    value = {"nums": [1, 2, 3], "tag": "hi"}
+    di = CnDDataInstanceBuilder().build_instance(value)
+    assert CnDDataInstanceBuilder().replit(di) == repr(value)
+
+
+# ---------------------------------------------------------------------------
+# Property setters that reject the restored value (sidprasad/spytial#101 review)
+# ---------------------------------------------------------------------------
+
+
+class Account:
+    """A validated setter that can reject the value the getter would report.
+
+    The relationalizer records the public ``balance`` @property, so reify writes
+    it back *through the setter* — which here refuses negative balances even
+    though an overdrawn account reads one. Reconstruction must skip the rejected
+    field, not abort.
+    """
+
+    def __init__(self, balance):
+        self._balance = balance
+
+    @property
+    def balance(self):
+        return self._balance
+
+    @balance.setter
+    def balance(self, value):
+        if value < 0:
+            raise ValueError("cannot set a negative balance")
+        self._balance = value
+
+    def __repr__(self):
+        return f"Account({self._balance})"
+
+
+def test_reify_skips_property_setter_that_rejects_value():
+    a = Account(-50)  # overdrawn: balance reads -50, but the setter rejects -50
+    di = CnDDataInstanceBuilder().build_instance(a)
+    # 'balance' is recorded via the public @property, so reify routes it back
+    # through the validating setter, which raises ValueError on -50.
+    assert any(r["name"] == "balance" for r in di["relations"])
+    # The raising setter must be skipped — reify still returns the real class
+    # rather than aborting the whole reconstruction.
+    out = CnDDataInstanceBuilder().reify(di)
+    assert type(out) is Account

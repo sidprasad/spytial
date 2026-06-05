@@ -5,6 +5,7 @@ This module provides a pluggable system for converting Python objects
 into CnD-compatible atom/relation representations using relationalizers.
 """
 
+import importlib
 import inspect
 from typing import Any, Callable, Dict, List, Optional, Tuple, Type
 
@@ -41,6 +42,30 @@ def _invoke_custom_reifier(fn, atom, relations, reify_atom, register):
     if len(positional) >= 4:
         return fn(atom, relations, reify_atom, register)
     return fn(atom, relations, reify_atom)
+
+
+def _resolve_class(module_name: Optional[str], qualname: Optional[str]) -> Optional[type]:
+    """Resolve a class object from its module + qualified name.
+
+    Returns ``None`` when the class can't be located — defined in a closure or
+    comprehension (``<locals>`` in the qualname), module not importable, or the
+    dotted path doesn't resolve to a class. Callers fall back to a structural
+    proxy in that case. In the same-process / round-trip-to-host setting the
+    class is always importable (including ``__main__`` for REPL/script code).
+    """
+    if not module_name or not qualname or "<locals>" in qualname:
+        return None
+    try:
+        module = importlib.import_module(module_name)
+    except Exception:
+        return None
+    obj: Any = module
+    for part in qualname.split("."):
+        try:
+            obj = getattr(obj, part)
+        except AttributeError:
+            return None
+    return obj if isinstance(obj, type) else None
 
 
 def relationalizer(cls: Type = None, *, priority: int = 0):
@@ -462,6 +487,16 @@ class CnDDataInstanceBuilder:
                 else:
                     # Even if relationalizer provided a different type, add the hierarchy
                     atom["type_hierarchy"] = [atom["type"]] + type_hierarchy
+                # Record the class's importable identity so reify() can rebuild
+                # the REAL object (object.__new__ + setattr) rather than a
+                # structural proxy. Only for non-builtins — primitives and
+                # containers have dedicated reify paths. Survives build_instance
+                # (only type_hierarchy is stripped); spytial-core ignores the
+                # extra keys for visualization.
+                obj_cls = type(obj)
+                if obj_cls.__module__ != "builtins":
+                    atom["__module__"] = obj_cls.__module__
+                    atom["__qualname__"] = obj_cls.__qualname__
                 primary_atom_id = atom["id"]
             else:
                 # Secondary atoms (e.g., list elements) - keep their relationalizer-provided type
@@ -663,6 +698,18 @@ class CnDDataInstanceBuilder:
         root_atom_id = self._resolve_root_id(data_instance, atoms, relations, root_id)
         return reify_atom(root_atom_id)
 
+    def replit(self, data_instance: Dict, root_id: Optional[str] = None) -> str:
+        """Reproduce the host REPL's output for a data instance.
+
+        Equivalent to ``repr(self.reify(data_instance, root_id))`` — rebuild the
+        object, then let Python's own ``repr`` render it. Matches ``repr(v)``
+        exactly for any importable, ordinarily-constructed value (custom
+        ``__repr__`` and cycle handling included, since it delegates to Python);
+        values that fall back to a structural proxy render as
+        ``TypeName(field=value)``.
+        """
+        return repr(self.reify(data_instance, root_id))
+
     def _resolve_root_id(
         self,
         data_instance: Dict,
@@ -835,17 +882,59 @@ class CnDDataInstanceBuilder:
     def _reify_generic_object(
         self, atom: Dict, relations: Dict, reify_atom, register
     ) -> Any:
-        """Reconstruct a generic object from its atom and relations.
+        """Reconstruct an object from its atom and relations.
 
-        Allocates the attribute-bag instance and registers it *before*
-        recursing into relations so self-loops and back-pointers resolve to
-        the same instance.
+        Prefers rebuilding the **real** instance: when the atom carries the
+        class's importable identity (``__module__`` + ``__qualname__``, recorded
+        by _walk for non-builtins) and that class resolves, allocate it with
+        ``object.__new__`` and populate fields directly — pickle's discipline.
+        This yields a genuine ``cls`` instance, so ``repr`` runs the real
+        ``__repr__`` and ``isinstance`` holds; registering the empty instance
+        *before* recursing keeps self-loops and back-pointers intact.
+
+        Falls back to a structural attribute-bag proxy when the class can't be
+        resolved (closure/dynamic class, module not importable) or can't be
+        allocated this way (custom ``__new__`` / C-level state — enums, numpy,
+        ``int``/``str`` subclasses). The proxy preserves attributes and cycles
+        but reprs as ``TypeName(field=value)``.
         """
         atom_type = atom["type"]
 
         if atom_type in {"dict", "list", "tuple", "set"}:
             raise ValueError(f"Type {atom_type} should be handled by specific method")
 
+        def _populate(obj: Any) -> Any:
+            for rel_name, target_ids in relations.items():
+                if len(target_ids) == 1:
+                    value = reify_atom(target_ids[0])
+                else:
+                    value = [reify_atom(tid) for tid in target_ids]
+                try:
+                    object.__setattr__(obj, rel_name, value)
+                except Exception:
+                    # Skip on any setattr failure and keep the real instance.
+                    # The relationalizer records public @property values, so
+                    # writing them back here routes through the descriptor's
+                    # setter; besides __slots__ gaps and read-only attributes
+                    # (AttributeError/TypeError), a validated setter may reject
+                    # the restored value with ValueError or similar. Best-effort,
+                    # like the rest of generic reconstruction: a single rejected
+                    # field must not abort rebuilding the object.
+                    pass
+            return obj
+
+        # Preferred path: rebuild the genuine class instance.
+        cls = _resolve_class(atom.get("__module__"), atom.get("__qualname__"))
+        if cls is not None:
+            try:
+                obj = object.__new__(cls)
+            except TypeError:
+                obj = None  # custom/unsafe __new__ — fall back to the proxy
+            if obj is not None:
+                register(obj)
+                return _populate(obj)
+
+        # Fallback: structural attribute-bag proxy.
         class ReconstructedObject:
             def __init__(self):
                 pass
@@ -857,14 +946,7 @@ class CnDDataInstanceBuilder:
         obj = ReconstructedObject()
         obj.__class__.__name__ = atom_type
         register(obj)
-
-        for rel_name, target_ids in relations.items():
-            if len(target_ids) == 1:
-                setattr(obj, rel_name, reify_atom(target_ids[0]))
-            else:
-                setattr(obj, rel_name, [reify_atom(tid) for tid in target_ids])
-
-        return obj
+        return _populate(obj)
 
     def can_reify(self, data_instance: Dict) -> bool:
         """
