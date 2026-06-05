@@ -145,12 +145,18 @@ def test_reify_object_dict_key():
     assert out[out_key] == "here"
 
 
-def test_reify_frozenset_dict_key_preserves_elements():
+def test_reify_frozenset_value():
+    fs = frozenset({"a", "b"})
+    out = CnDDataInstanceBuilder().reify(CnDDataInstanceBuilder().build_instance(fs))
+    assert type(out) is frozenset
+    assert out == fs
+
+
+def test_reify_frozenset_dict_key():
     # The fix walks a frozenset key like any value, so its elements survive the
     # round-trip instead of collapsing to the empty shell the bug produced for
-    # complex keys. A frozenset still reifies to an attribute-bag proxy rather
-    # than a real frozenset — a separate, documented reify limitation — so
-    # recover the elements in a way that holds for either form.
+    # complex keys — and a frozenset now reifies to a real frozenset, so the key
+    # is genuinely usable for lookup with an equal frozenset.
     fs = frozenset({"a", "b"})
     out = CnDDataInstanceBuilder().reify(
         CnDDataInstanceBuilder().build_instance({fs: 1})
@@ -158,9 +164,9 @@ def test_reify_frozenset_dict_key_preserves_elements():
 
     assert isinstance(out, dict) and len(out) == 1
     key = next(iter(out))
-    elements = set(key) if isinstance(key, frozenset) else set(key.contains)
-    assert elements == {"a", "b"}  # contents preserved, not an empty shell
-    assert out[key] == 1
+    assert isinstance(key, frozenset)
+    assert key == {"a", "b"}  # contents preserved, not an empty shell
+    assert out[frozenset({"a", "b"})] == 1
 
 
 # ---------------------------------------------------------------------------
