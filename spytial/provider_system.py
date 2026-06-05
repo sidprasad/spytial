@@ -911,9 +911,15 @@ class CnDDataInstanceBuilder:
                     value = [reify_atom(tid) for tid in target_ids]
                 try:
                     object.__setattr__(obj, rel_name, value)
-                except (AttributeError, TypeError):
-                    # e.g. __slots__ without this name, or read-only — skip,
-                    # best-effort like the rest of generic reconstruction.
+                except Exception:
+                    # Skip on any setattr failure and keep the real instance.
+                    # The relationalizer records public @property values, so
+                    # writing them back here routes through the descriptor's
+                    # setter; besides __slots__ gaps and read-only attributes
+                    # (AttributeError/TypeError), a validated setter may reject
+                    # the restored value with ValueError or similar. Best-effort,
+                    # like the rest of generic reconstruction: a single rejected
+                    # field must not abort rebuilding the object.
                     pass
             return obj
 

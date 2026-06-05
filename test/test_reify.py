@@ -321,3 +321,46 @@ def test_replit_matches_repr_for_nested_builtins():
     value = {"nums": [1, 2, 3], "tag": "hi"}
     di = CnDDataInstanceBuilder().build_instance(value)
     assert CnDDataInstanceBuilder().replit(di) == repr(value)
+
+
+# ---------------------------------------------------------------------------
+# Property setters that reject the restored value (sidprasad/spytial#101 review)
+# ---------------------------------------------------------------------------
+
+
+class Account:
+    """A validated setter that can reject the value the getter would report.
+
+    The relationalizer records the public ``balance`` @property, so reify writes
+    it back *through the setter* — which here refuses negative balances even
+    though an overdrawn account reads one. Reconstruction must skip the rejected
+    field, not abort.
+    """
+
+    def __init__(self, balance):
+        self._balance = balance
+
+    @property
+    def balance(self):
+        return self._balance
+
+    @balance.setter
+    def balance(self, value):
+        if value < 0:
+            raise ValueError("cannot set a negative balance")
+        self._balance = value
+
+    def __repr__(self):
+        return f"Account({self._balance})"
+
+
+def test_reify_skips_property_setter_that_rejects_value():
+    a = Account(-50)  # overdrawn: balance reads -50, but the setter rejects -50
+    di = CnDDataInstanceBuilder().build_instance(a)
+    # 'balance' is recorded via the public @property, so reify routes it back
+    # through the validating setter, which raises ValueError on -50.
+    assert any(r["name"] == "balance" for r in di["relations"])
+    # The raising setter must be skipped — reify still returns the real class
+    # rather than aborting the whole reconstruction.
+    out = CnDDataInstanceBuilder().reify(di)
+    assert type(out) is Account
