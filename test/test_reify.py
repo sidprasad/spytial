@@ -12,8 +12,6 @@ These cover the regression reported as sidprasad/spytial#90:
 from dataclasses import dataclass, field
 from typing import List, Optional
 
-import pytest
-
 from spytial.provider_system import CnDDataInstanceBuilder
 from spytial.dataclass_builder import _make_dataclass_reifier
 
@@ -107,6 +105,44 @@ def test_reify_dict_self_loop():
     assert isinstance(out, dict)
     assert out["a"] == 1
     assert out["self"] is out
+
+
+# ---------------------------------------------------------------------------
+# Complex (non-primitive) dict keys are walked, so they keep their contents
+# ---------------------------------------------------------------------------
+
+
+def test_reify_tuple_dict_key():
+    # Regression: a tuple key used to get a synthetic, un-walked key atom and
+    # reified to an empty tuple ({('a', 'b'): 1} -> {(): 1}).
+    d = {("a", "b"): 1, ("c",): 2}
+    di = CnDDataInstanceBuilder().build_instance(d)
+    out = CnDDataInstanceBuilder().reify(di)
+
+    assert isinstance(out, dict)
+    assert out[("a", "b")] == 1
+    assert out[("c",)] == 2
+    assert repr(out) == repr(d)
+
+
+def test_reify_nested_tuple_dict_key():
+    d = {("a",): {("b",): [1, 2]}}
+    out = CnDDataInstanceBuilder().reify(CnDDataInstanceBuilder().build_instance(d))
+    assert out[("a",)][("b",)] == [1, 2]
+    assert repr(out) == repr(d)
+
+
+def test_reify_object_dict_key():
+    # A custom, importable object as a dict key rebuilds the real class (Vec
+    # hashes by identity, so look the value up via the reconstructed key).
+    d = {Vec(1, 2): "here"}
+    out = CnDDataInstanceBuilder().reify(CnDDataInstanceBuilder().build_instance(d))
+
+    assert isinstance(out, dict) and len(out) == 1
+    out_key = next(iter(out))
+    assert type(out_key) is Vec
+    assert repr(out_key) == "Vec<1,2>"
+    assert out[out_key] == "here"
 
 
 # ---------------------------------------------------------------------------

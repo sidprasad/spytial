@@ -17,21 +17,20 @@ Scope of the generated values (what the round-trip is *designed* to recover):
 
 * Leaves: ``None``, ``bool``, ``int``, ``float`` (incl. ``nan``/``inf``), ``str``.
 * Order-stable containers: ``list``, ``tuple``, and ``dict`` (insertion-ordered).
-* ``dict`` keys are restricted to primitives + ``None``: ``DictRelationalizer``
-  walks those structurally, whereas a *complex* key (tuple/frozenset/object)
-  gets a synthetic, un-walked key atom and reifies to an empty shell — a
-  build-side limitation pinned by ``test_complex_dict_key_is_known_limitation``.
+* ``dict`` keys: primitives, ``None``, and **tuples of those** all round-trip —
+  ``DictRelationalizer`` walks every key structurally, so a complex key keeps
+  its contents (``{('a', 'b'): 1}`` reifies back to ``{('a', 'b'): 1}``).
 * ``set`` is covered separately: a set's ``repr`` order is not a function of its
   elements (the hash-table layout depends on insertion/resize history), so for
   sets we assert element recovery rather than ``repr``-string equality.
 * ``bytes``/``frozenset`` and the documented long tail (enums, ``int``/``str``
   subclasses, numpy) are out of scope — they fall back to the attribute-bag
-  proxy and are intentionally not generated here.
+  proxy and are intentionally not generated here. (A ``frozenset`` *key* is
+  therefore still out of scope, like a ``frozenset`` value.)
 """
 
 from collections import Counter
 
-import pytest
 from hypothesis import given, settings, strategies as st
 
 from spytial.provider_system import CnDDataInstanceBuilder
@@ -57,19 +56,23 @@ atoms = st.one_of(
     st.text(),
 )
 
-# Hashable leaves usable as dict keys and set elements: the primitives the
-# DictRelationalizer records structurally (str/int/float/bool) plus None (which
-# reify reconstructs from the atom type alone). nan is excluded on purpose — as
-# a key it is unlookupable, and because the datum memoizes equal atoms a dict or
-# set holding several *distinct* nan objects cannot round-trip its entry count
-# (two `nan` keys ── repr ── '{nan, nan}' collapse to one shared atom). inf is
-# kept: inf == inf, so it behaves like any ordinary key.
-hashable_atoms = st.one_of(
-    st.none(),
-    st.booleans(),
-    st.integers(),
-    st.floats(allow_nan=False, allow_infinity=True),
-    st.text(),
+# Hashable values usable as dict keys and set elements: primitives, None, and
+# tuples nested arbitrarily over those — DictRelationalizer walks every key, so
+# tuple keys keep their contents. nan is excluded on purpose: as a key it is
+# unlookupable, and because the datum memoizes equal atoms a dict or set holding
+# several *distinct* nan objects cannot round-trip its entry count (two `nan`
+# keys ── repr ── '{nan, nan}' collapse to one shared atom). inf is kept:
+# inf == inf, so it behaves like any ordinary key.
+hashable_atoms = st.recursive(
+    st.one_of(
+        st.none(),
+        st.booleans(),
+        st.integers(),
+        st.floats(allow_nan=False, allow_infinity=True),
+        st.text(),
+    ),
+    lambda children: st.lists(children).map(tuple),
+    max_leaves=8,
 )
 
 # Recursive structures whose repr is order-stable: lists, tuples (as values),
@@ -172,16 +175,13 @@ def test_nested_custom_object_repr_roundtrip(a, b, c):
 
 
 # ---------------------------------------------------------------------------
-# Known limitation (tracked): complex dict keys aren't walked on the build side
+# Complex dict keys: now walked structurally, so they keep their contents
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="DictRelationalizer emits a synthetic, un-walked key atom for "
-    "non-primitive dict keys (tuple/frozenset/object), so they reify to empty "
-    "shells. Build-side limitation; flip this test green when it's fixed.",
-)
-def test_complex_dict_key_is_known_limitation():
-    value = {("a", "b"): 1}
+def test_complex_dict_key_roundtrip():
+    # Regression for the build-side bug where a non-primitive dict key got a
+    # synthetic, un-walked key atom and reified to an empty shell ({('a','b'): 1}
+    # came back as {(): 1}). DictRelationalizer now walks every key.
+    value = {("a", "b"): 1, ("c",): 2}
     assert repr(_roundtrip(value)) == repr(value)

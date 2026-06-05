@@ -21,17 +21,15 @@ class DictRelationalizer(RelationalizerBase):
         atoms = [Atom(id=obj_id, type=typ, label=label)]
         relations = []
         for k, v in obj.items():
-            # For primitive keys (str, int, float, bool), walk them properly
-            # so they get proper primitive IDs instead of synthetic key IDs
-            if isinstance(k, (str, int, float, bool)):
-                # Walk the key as a primitive - this will give it a proper ID
-                key_id = walker_func._walk(k)
-            else:
-                # For complex keys, create a synthetic key atom
-                key_id = f"{obj_id}_key_{len(relations)}"
-                key_str = f"key_{len(relations)}"
-                key_atom = Atom(id=key_id, type=type(k).__name__, label=key_str)
-                atoms.append(key_atom)
+            # Walk every key through the normal pipeline — primitives *and*
+            # complex keys (tuples, objects, …). _walk records the key's own
+            # atom plus, for containers/objects, its nested structure and class
+            # identity, which reify needs to rebuild the real key. A previous
+            # shortcut emitted a synthetic, un-walked atom for non-primitive
+            # keys, so they reified to empty shells (e.g. {('a','b'): 1} came
+            # back as {(): 1}). Memoization also means a key object that appears
+            # elsewhere now shares one atom instead of being duplicated.
+            key_id = walker_func._walk(k)
 
             # Get the value ID
             vid = walker_func._walk(v)
