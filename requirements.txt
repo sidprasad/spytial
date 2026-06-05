@@ -9,6 +9,7 @@ ipython>=8.0.0 # For Jupyter notebook integration
 
 # Development and testing dependencies
 pytest>=7.0.0  # For testing
+hypothesis>=6.0.0  # For property-based testing
 flake8>=6.0.0  # For linting
 black>=23.0.0  # For code formatting
 
