@@ -2673,6 +2673,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#spytial.provider_system.CnDDataInstanceBuilder.replit" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        replit
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#spytial.provider_system.CnDDataInstanceBuilder.can_reify" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -4764,6 +4775,17 @@
     <span class="md-ellipsis">
       
         reify
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#spytial.provider_system.CnDDataInstanceBuilder.replit" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        replit
       
     </span>
   </a>
@@ -11313,6 +11335,30 @@ inferred from the relation topology.</p>
           </tr>
       </tbody>
     </table>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h4 id="spytial.provider_system.CnDDataInstanceBuilder.replit" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-method"></code>            <code class="highlight language-python"><span class="n">replit</span><span class="p">(</span><span class="n">data_instance</span><span class="p">,</span> <span class="n">root_id</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
+
+</h4>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Reproduce the host REPL's output for a data instance.</p>
+<p>Equivalent to <code>repr(self.reify(data_instance, root_id))</code> — rebuild the
+object, then let Python's own <code>repr</code> render it. Matches <code>repr(v)</code>
+exactly for any importable, ordinarily-constructed value (custom
+<code>__repr__</code> and cycle handling included, since it delegates to Python);
+values that fall back to a structural proxy render as
+<code>TypeName(field=value)</code>.</p>
 
 
     </div>
