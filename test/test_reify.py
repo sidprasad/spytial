@@ -145,12 +145,18 @@ def test_reify_object_dict_key():
     assert out[out_key] == "here"
 
 
-def test_reify_frozenset_dict_key_preserves_elements():
+def test_reify_frozenset_value():
+    fs = frozenset({"a", "b"})
+    out = CnDDataInstanceBuilder().reify(CnDDataInstanceBuilder().build_instance(fs))
+    assert type(out) is frozenset
+    assert out == fs
+
+
+def test_reify_frozenset_dict_key():
     # The fix walks a frozenset key like any value, so its elements survive the
     # round-trip instead of collapsing to the empty shell the bug produced for
-    # complex keys. A frozenset still reifies to an attribute-bag proxy rather
-    # than a real frozenset — a separate, documented reify limitation — so
-    # recover the elements in a way that holds for either form.
+    # complex keys — and a frozenset now reifies to a real frozenset, so the key
+    # is genuinely usable for lookup with an equal frozenset.
     fs = frozenset({"a", "b"})
     out = CnDDataInstanceBuilder().reify(
         CnDDataInstanceBuilder().build_instance({fs: 1})
@@ -158,9 +164,40 @@ def test_reify_frozenset_dict_key_preserves_elements():
 
     assert isinstance(out, dict) and len(out) == 1
     key = next(iter(out))
-    elements = set(key) if isinstance(key, frozenset) else set(key.contains)
-    assert elements == {"a", "b"}  # contents preserved, not an empty shell
-    assert out[key] == 1
+    assert isinstance(key, frozenset)
+    assert key == {"a", "b"}  # contents preserved, not an empty shell
+    assert out[frozenset({"a", "b"})] == 1
+
+
+def test_reify_frozenset_member_cycle_rebuilds_real_frozenset():
+    # A frozenset whose member refers back to it (fs -> bag -> fs). A frozenset
+    # is immutable, so it cannot be registered before its members exist; entered
+    # via the frozenset, the member is built first and its back-reference rebuilds
+    # a second, equal frozenset. Identity is not preserved here — this matches
+    # copy.deepcopy (only pickle's deferred memo keeps it). Assert the real type
+    # and structural equality, not `is`.
+    bag = Bag()
+    fs = frozenset({bag})
+    bag.ref = fs
+
+    out = CnDDataInstanceBuilder().reify(CnDDataInstanceBuilder().build_instance(fs))
+    member = next(iter(out))
+    assert type(out) is frozenset
+    assert type(member) is Bag
+    assert type(member.ref) is frozenset
+    assert member.ref == out
+
+
+def test_reify_frozenset_member_cycle_closes_via_member_entry():
+    # Entering via the back-referencing member registers it before the frozenset
+    # is built, so this path does close the cycle on a single object.
+    bag = Bag()
+    bag.ref = frozenset({bag})
+
+    out = CnDDataInstanceBuilder().reify(CnDDataInstanceBuilder().build_instance(bag))
+    assert type(out) is Bag
+    assert type(out.ref) is frozenset
+    assert next(iter(out.ref)) is out
 
 
 # ---------------------------------------------------------------------------

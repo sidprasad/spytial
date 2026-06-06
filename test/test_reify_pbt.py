@@ -20,13 +20,14 @@ Scope of the generated values (what the round-trip is *designed* to recover):
 * ``dict`` keys: primitives, ``None``, and **tuples of those** all round-trip —
   ``DictRelationalizer`` walks every key structurally, so a complex key keeps
   its contents (``{('a', 'b'): 1}`` reifies back to ``{('a', 'b'): 1}``).
-* ``set`` is covered separately: a set's ``repr`` order is not a function of its
-  elements (the hash-table layout depends on insertion/resize history), so for
-  sets we assert element recovery rather than ``repr``-string equality.
-* ``bytes``/``frozenset`` and the documented long tail (enums, ``int``/``str``
-  subclasses, numpy) are out of scope — they fall back to the attribute-bag
-  proxy and are intentionally not generated here. (A ``frozenset`` *key* is
-  therefore still out of scope, like a ``frozenset`` value.)
+* ``set`` (and ``frozenset``) round-trip to the real type, but a set's ``repr``
+  order is not a function of its elements (the hash-table layout depends on
+  insertion/resize history), so they are kept out of the ``repr``-stable
+  generator and covered by element recovery instead (see the set property and
+  ``test_reify.py`` for frozensets), not ``repr``-string equality.
+* ``bytes`` and the documented long tail (enums, ``int``/``str`` subclasses,
+  numpy) are out of scope — they fall back to the attribute-bag proxy and are
+  intentionally not generated here.
 """
 
 from collections import Counter

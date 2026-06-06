@@ -680,9 +680,13 @@ class CnDDataInstanceBuilder:
                 obj = self._reify_tuple(
                     atom_id, relations_for_atom, reify_atom
                 )
-            elif atom_type == "set":
+            elif atom_type in ("set", "frozenset"):
                 obj = self._reify_set(
-                    atom_id, relations_for_atom, reify_atom, register
+                    atom_id,
+                    relations_for_atom,
+                    reify_atom,
+                    register,
+                    frozen=(atom_type == "frozenset"),
                 )
             else:
                 obj = self._reify_generic_object(
@@ -869,14 +873,33 @@ class CnDDataInstanceBuilder:
         return tuple(item[1] for item in indexed_items)
 
     def _reify_set(
-        self, atom_id: str, relations: Dict, reify_atom, register
-    ) -> set:
-        """Reconstruct a set from its relations."""
+        self, atom_id: str, relations: Dict, reify_atom, register, frozen: bool = False
+    ):
+        """Reconstruct a ``set`` (or ``frozenset`` when ``frozen``) from relations.
+
+        A mutable ``set`` is registered empty *before* recursing, so a member
+        that refers back to the set resolves to the same object. A ``frozenset``
+        is immutable: it can't be created empty and filled, so its members must
+        exist before it does and there is no placeholder to register — build the
+        members first, then freeze. Sharing of one frozenset across the graph is
+        still handled by ``reify_atom``'s post-build memoization.
+
+        Limitation: a cycle routed *back through a member* (a hashable object in
+        the frozenset that references the frozenset) can't preserve object
+        identity when the frozenset is reconstructed before that member — the
+        member is built first, so its back-reference rebuilds a second, equal
+        frozenset. This mirrors ``copy.deepcopy`` (only ``pickle``'s deferred
+        protocol keeps identity here); the rebuilt frozensets are still ``==``.
+        Entering instead via the referencing member registers it first, so that
+        path does close the cycle on one object.
+        """
+        contains = relations.get("contains", [])
+        if frozen:
+            return frozenset(reify_atom(target_id) for target_id in contains)
         result: set = set()
         register(result)
-        if "contains" in relations:
-            for target_id in relations["contains"]:
-                result.add(reify_atom(target_id))
+        for target_id in contains:
+            result.add(reify_atom(target_id))
         return result
 
     def _reify_generic_object(
