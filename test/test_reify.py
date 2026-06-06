@@ -169,6 +169,37 @@ def test_reify_frozenset_dict_key():
     assert out[frozenset({"a", "b"})] == 1
 
 
+def test_reify_frozenset_member_cycle_rebuilds_real_frozenset():
+    # A frozenset whose member refers back to it (fs -> bag -> fs). A frozenset
+    # is immutable, so it cannot be registered before its members exist; entered
+    # via the frozenset, the member is built first and its back-reference rebuilds
+    # a second, equal frozenset. Identity is not preserved here — this matches
+    # copy.deepcopy (only pickle's deferred memo keeps it). Assert the real type
+    # and structural equality, not `is`.
+    bag = Bag()
+    fs = frozenset({bag})
+    bag.ref = fs
+
+    out = CnDDataInstanceBuilder().reify(CnDDataInstanceBuilder().build_instance(fs))
+    member = next(iter(out))
+    assert type(out) is frozenset
+    assert type(member) is Bag
+    assert type(member.ref) is frozenset
+    assert member.ref == out
+
+
+def test_reify_frozenset_member_cycle_closes_via_member_entry():
+    # Entering via the back-referencing member registers it before the frozenset
+    # is built, so this path does close the cycle on a single object.
+    bag = Bag()
+    bag.ref = frozenset({bag})
+
+    out = CnDDataInstanceBuilder().reify(CnDDataInstanceBuilder().build_instance(bag))
+    assert type(out) is Bag
+    assert type(out.ref) is frozenset
+    assert next(iter(out.ref)) is out
+
+
 # ---------------------------------------------------------------------------
 # Multi-node cycles
 # ---------------------------------------------------------------------------
