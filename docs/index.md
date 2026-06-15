@@ -5,26 +5,66 @@
 ## What you can do with it
 
 - Render any Python object — `dict`, `list`, dataclass, custom class, graph — as a box-and-arrow diagram.
-- Control layout declaratively with constraints (`orientation`, `align`, `cyclic`, `group`) and directives (`atomColor`, `attribute`, `tag`, `inferredEdge`, …).
+- Control layout declaratively with constraints (`orientation`, `align`, `cyclic`, `group`) and directives (`atomColor`, `attribute`, `hideAtom`, `tag`, `inferredEdge`, …).
 - Step through sequences of states to visualize how a data structure evolves.
+
+!!! tip "Try it now, no install"
+    The [**Playground**](playground.md) loads this exact binary search tree in an
+    in-browser editor — open it to tweak the code and watch the diagram update live.
 
 ## Hello, sPyTial
 
+A complete, copy-paste-runnable example — the binary search tree from the
+[`spytial-clrs`](https://github.com/sidprasad/spytial-clrs) notebooks. The
+decorators *are* the "sPyTial layout": they turn the default box-and-arrow graph
+into the tree shape you have in mind.
+
+<!-- canonical example — keep in sync with docs/getting-started.md and the BST playground preset -->
 ```python
-import spytial
+from spytial import attribute, orientation, hideAtom, hideField, diagram
 
-tree = {
-    "name": "root",
-    "children": [
-        {"name": "left"},
-        {"name": "right"},
-    ],
-}
+@attribute(field="key")                                          # show `key` inside the node
+@orientation(selector='left & (BSTNode -> (BSTNode - NoneType.~key))',
+             directions=['below', 'left'])                       # real left child: below-left
+@orientation(selector='right & (BSTNode -> (BSTNode - NoneType.~key))',
+             directions=['below', 'right'])                      # real right child: below-right
+class BSTNode:
+    def __init__(self, key=None, left=None, right=None, parent=None):
+        self.key = key
+        self.left = left
+        self.right = right
+        self.parent = parent
 
-spytial.diagram(tree)
+BST_NIL = BSTNode(key=None)                                      # shared NIL sentinel
+BST_NIL.left = BST_NIL.right = BST_NIL.parent = BST_NIL
+
+@hideAtom(selector='{ x : BSTNode | (x.key in NoneType) } + BSTree + int + NoneType')
+@hideField(field='parent')
+class BSTree:
+    def __init__(self):
+        self.root = BST_NIL
+
+    def insert(self, k):                                         # CLRS TREE-INSERT
+        z = BSTNode(key=k, left=BST_NIL, right=BST_NIL, parent=None)
+        y, x = BST_NIL, self.root
+        while x is not BST_NIL:
+            y = x
+            x = x.left if z.key < x.key else x.right
+        z.parent = y
+        if y is BST_NIL:    self.root = z
+        elif z.key < y.key: y.left = z
+        else:               y.right = z
+        return z
+
+t = BSTree()
+for k in [15, 6, 18, 17, 20, 3, 7, 13, 9, 2, 4]:
+    t.insert(k)
+
+diagram(t)
 ```
 
-**→ [Install and run your first diagram (Getting Started)](getting-started.md)**
+**→ [Install and walk through this example, line by line (Getting Started)](getting-started.md)**
+&nbsp;·&nbsp; **[Run it in your browser (Playground)](playground.md)**
 
 ## The sPyTial ecosystem
 
@@ -36,7 +76,8 @@ sPyTial is part of a small family of projects. Most users only need the first.
 
 ## Where to go next
 
-- [Getting Started](getting-started.md) — install, badges, first diagram.
+- [Playground](playground.md) — edit and run sPyTial in your browser, no install.
+- [Getting Started](getting-started.md) — install, then a line-by-line walkthrough of the example above.
 - [Diagramming](usage/diagramming.md) — the main rendering workflow.
 - [Operations](operations.md) — constraints and directives.
 - [How It Works](how-it-works.md) — the Python → browser pipeline and `spytial-core`.

@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>sPyTial Playground</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css" />
+<style>
+  :root {
+    --bg: #ffffff;
+    --fg: #1c2733;
+    --muted: #5c6b7a;
+    --border: #d9e0e7;
+    --accent: #2f6feb;
+    --accent-fg: #ffffff;
+    --panel: #f6f8fa;
+    --error-bg: #fff2f0;
+    --error-fg: #b3261e;
+    font-synthesis: none;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: var(--bg);
+    color: var(--fg);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    font-size: 15px;
+  }
+  .wrap { padding: 12px; max-width: 1200px; margin: 0 auto; }
+  .toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+    margin-bottom: 10px;
+  }
+  button {
+    font: inherit;
+    font-size: 14px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 6px 12px;
+    background: var(--bg);
+    color: var(--fg);
+    cursor: pointer;
+  }
+  button.primary {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: var(--accent-fg);
+    font-weight: 600;
+  }
+  button.primary:disabled {
+    background: #9bb6f0;
+    border-color: #9bb6f0;
+    cursor: progress;
+  }
+  button:disabled { opacity: 0.7; cursor: not-allowed; }
+  .title { font-weight: 600; color: var(--fg); }
+  .status {
+    margin-left: auto;
+    font-size: 13px;
+    color: var(--muted);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .dot {
+    width: 9px; height: 9px; border-radius: 50%;
+    background: #d0a020; flex: none;
+  }
+  .dot.ready { background: #1f9d55; }
+  .dot.busy { background: #d0a020; animation: pulse 1s infinite; }
+  .dot.error { background: var(--error-fg); }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
+  .grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+  @media (max-width: 820px) { .grid { grid-template-columns: 1fr; } }
+  .panel {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+    background: var(--bg);
+    display: flex;
+    flex-direction: column;
+    min-height: 460px;
+  }
+  .panel > .head {
+    background: var(--panel);
+    border-bottom: 1px solid var(--border);
+    padding: 6px 12px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  textarea#code {
+    flex: 1;
+    width: 100%;
+    border: 0;
+    resize: none;
+    padding: 12px;
+    font-family: "SFMono-Regular", ui-monospace, Menlo, Consolas, monospace;
+    font-size: 13px;
+    line-height: 1.5;
+    color: var(--fg);
+    outline: none;
+  }
+  .CodeMirror { flex: 1; height: auto; font-size: 13px; }
+  #resultFrame { flex: 1; width: 100%; border: 0; background: #fff; }
+  .placeholder {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--muted);
+    font-size: 14px;
+    text-align: center;
+    padding: 24px;
+  }
+  pre#console {
+    margin: 0;
+    padding: 10px 12px;
+    border-top: 1px solid var(--border);
+    background: var(--panel);
+    font-family: "SFMono-Regular", ui-monospace, Menlo, Consolas, monospace;
+    font-size: 12px;
+    white-space: pre-wrap;
+    word-break: break-word;
+    max-height: 140px;
+    overflow: auto;
+    color: var(--muted);
+    display: none;
+  }
+  pre#console.show { display: block; }
+  pre#console.error { background: var(--error-bg); color: var(--error-fg); }
+  .hint { font-size: 12px; color: var(--muted); margin: 8px 2px 0; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="toolbar">
+    <span class="title">Binary search tree</span>
+    <button id="run" class="primary" disabled>Run ▶</button>
+    <button id="reset" disabled>Reset</button>
+    <span class="status"><span id="dot" class="dot busy"></span><span id="statusText">Starting…</span></span>
+  </div>
+
+  <div class="grid">
+    <div class="panel">
+      <div class="head">Python</div>
+      <textarea id="code" spellcheck="false"></textarea>
+      <pre id="console"></pre>
+    </div>
+    <div class="panel">
+      <div class="head">Diagram</div>
+      <div id="placeholder" class="placeholder">Your diagram will appear here.</div>
+      <iframe id="resultFrame" title="sPyTial diagram" style="display:none"></iframe>
+    </div>
+  </div>
+  <p class="hint">Runs entirely in your browser via <a href="https://pyodide.org" target="_blank" rel="noopener">Pyodide</a> — nothing is sent to a server. The first run downloads the Python runtime and <code>spytial</code> (a few seconds).</p>
+</div>
+
+<script src="https://cdn.jsdelivr.net/pyodide/v0.26.2/full/pyodide.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/python/python.min.js"></script>
+<script>
+(function () {
+  "use strict";
+
+  // Starter example — the binary search tree from spytial-clrs.
+  // Keep in sync with docs/index.md and docs/getting-started.md.
+  var STARTER_CODE = [
+    "from spytial import attribute, orientation, hideAtom, hideField, diagram",
+    "",
+    "# The layout: how a tree node is drawn.",
+    "@attribute(field=\"key\")                                          # show `key` inside the node",
+    "@orientation(selector='left & (BSTNode -> (BSTNode - NoneType.~key))',",
+    "             directions=['below', 'left'])                       # real left child: below-left",
+    "@orientation(selector='right & (BSTNode -> (BSTNode - NoneType.~key))',",
+    "             directions=['below', 'right'])                      # real right child: below-right",
+    "class BSTNode:",
+    "    def __init__(self, key=None, left=None, right=None, parent=None):",
+    "        self.key = key",
+    "        self.left = left",
+    "        self.right = right",
+    "        self.parent = parent",
+    "",
+    "# A single shared NIL sentinel that every empty child points to.",
+    "BST_NIL = BSTNode(key=None)",
+    "BST_NIL.left = BST_NIL.right = BST_NIL.parent = BST_NIL",
+    "",
+    "@hideAtom(selector='{ x : BSTNode | (x.key in NoneType) } + BSTree + int + NoneType')",
+    "@hideField(field='parent')",
+    "class BSTree:",
+    "    def __init__(self):",
+    "        self.root = BST_NIL",
+    "",
+    "    def insert(self, k):                                         # CLRS TREE-INSERT",
+    "        z = BSTNode(key=k, left=BST_NIL, right=BST_NIL, parent=None)",
+    "        y, x = BST_NIL, self.root",
+    "        while x is not BST_NIL:",
+    "            y = x",
+    "            x = x.left if z.key < x.key else x.right",
+    "        z.parent = y",
+    "        if y is BST_NIL:    self.root = z",
+    "        elif z.key < y.key: y.left = z",
+    "        else:               y.right = z",
+    "        return z",
+    "",
+    "t = BSTree()",
+    "for k in [15, 6, 18, 17, 20, 3, 7, 13, 9, 2, 4]:",
+    "    t.insert(k)",
+    "",
+    "diagram(t)"
+  ].join("\n");
+
+  // ---- DOM ----
+  var $ = function (id) { return document.getElementById(id); };
+  var runBtn = $("run"), resetBtn = $("reset");
+  var dot = $("dot"), statusText = $("statusText");
+  var textarea = $("code"), consoleEl = $("console");
+  var resultFrame = $("resultFrame"), placeholder = $("placeholder");
+
+  // ---- Editor (CodeMirror with graceful fallback to <textarea>) ----
+  var cm = null;
+  function initEditor(initial) {
+    textarea.value = initial;
+    try {
+      if (window.CodeMirror) {
+        cm = window.CodeMirror.fromTextArea(textarea, {
+          mode: "python",
+          lineNumbers: true,
+          indentUnit: 4,
+          tabSize: 4,
+          indentWithTabs: false,
+          viewportMargin: Infinity
+        });
+        cm.setSize("100%", "100%");
+      }
+    } catch (e) {
+      cm = null; // fall back to the plain textarea
+    }
+  }
+  function getCode() { return cm ? cm.getValue() : textarea.value; }
+  function setCode(v) { if (cm) { cm.setValue(v); } else { textarea.value = v; } }
+
+  function setStatus(text, state) {
+    statusText.textContent = text;
+    dot.className = "dot " + (state || "busy");
+  }
+  function showConsole(text, isError) {
+    if (!text) { consoleEl.className = ""; consoleEl.textContent = ""; return; }
+    consoleEl.textContent = text;
+    consoleEl.className = "show" + (isError ? " error" : "");
+  }
+
+  // Encode HTML as a base64 data URI (handles unicode + large strings).
+  function toDataUri(html) {
+    var bytes = new TextEncoder().encode(html);
+    var bin = "", chunk = 0x8000;
+    for (var i = 0; i < bytes.length; i += chunk) {
+      bin += String.fromCharCode.apply(null, bytes.subarray(i, i + chunk));
+    }
+    return "data:text/html;base64," + btoa(bin);
+  }
+
+  function renderDiagram(html) {
+    placeholder.style.display = "none";
+    resultFrame.style.display = "block";
+    resultFrame.src = toDataUri(html);
+  }
+
+  // ---- Pyodide ----
+  var pyodide = null, runHarness = null, booting = true;
+
+  // Runs in Python after install: captures the HTML diagram() would have shown,
+  // plus stdout/stderr and any traceback, and returns it all as JSON.
+  var HARNESS = [
+    "import json, sys, io, traceback",
+    "import spytial",
+    "import spytial.visualizer as _spytial_vis",
+    "_PG = {'html': None}",
+    "def _spytial_capture(html_content, *args, **kwargs):",
+    "    _PG['html'] = html_content",
+    "    return None",
+    "_spytial_vis._deliver_html_content = _spytial_capture",
+    "def __spytial_run(src):",
+    "    _PG['html'] = None",
+    "    buf = io.StringIO()",
+    "    _out, _err = sys.stdout, sys.stderr",
+    "    sys.stdout = sys.stderr = buf",
+    "    error = None",
+    "    try:",
+    "        exec(src, {'__name__': '__main__'})",
+    "    except Exception:",
+    "        error = traceback.format_exc()",
+    "    finally:",
+    "        sys.stdout, sys.stderr = _out, _err",
+    "    return json.dumps({'html': _PG['html'], 'stdout': buf.getvalue(), 'error': error})"
+  ].join("\n");
+
+  function setRunning(isBusy) {
+    runBtn.disabled = isBusy || booting;
+    resetBtn.disabled = booting;
+  }
+
+  async function boot() {
+    try {
+      setStatus("Loading Python runtime…", "busy");
+      pyodide = await loadPyodide({ indexURL: "https://cdn.jsdelivr.net/pyodide/v0.26.2/full/" });
+      setStatus("Installing sPyTial…", "busy");
+      await pyodide.loadPackage("micropip");
+      await pyodide.runPythonAsync(
+        "import micropip\nawait micropip.install('spytial_diagramming')"
+      );
+      await pyodide.runPythonAsync(HARNESS);
+      runHarness = pyodide.globals.get("__spytial_run");
+      booting = false;
+      setStatus("Ready", "ready");
+      setRunning(false);
+      run(); // auto-run the example
+    } catch (e) {
+      booting = false;
+      setStatus("Failed to load", "error");
+      showConsole("Could not start the playground:\n" + (e && e.message ? e.message : e) +
+        "\n\nThis playground needs internet access to download the Python runtime. " +
+        "You can still copy the code and run it locally after `pip install spytial-diagramming`.", true);
+    }
+  }
+
+  function run() {
+    if (booting || !runHarness) return;
+    setStatus("Running…", "busy");
+    setRunning(true);
+    showConsole("");
+    // Let the UI paint the "Running…" state before the (sync) exec blocks.
+    setTimeout(function () {
+      try {
+        var raw = runHarness(getCode());
+        var res = JSON.parse(raw);
+        if (res.error) {
+          showConsole(res.error, true);
+          setStatus("Error", "error");
+        } else {
+          if (res.html) {
+            renderDiagram(res.html);
+          }
+          if (res.stdout && res.stdout.trim()) {
+            showConsole(res.stdout, false);
+          }
+          if (!res.html) {
+            showConsole((res.stdout || "") +
+              "\n(No diagram was produced — call diagram(...) in your code.)", false);
+          }
+          setStatus("Ready", "ready");
+        }
+      } catch (e) {
+        showConsole(String(e && e.message ? e.message : e), true);
+        setStatus("Error", "error");
+      } finally {
+        setRunning(false);
+      }
+    }, 16);
+  }
+
+  // ---- Wire up controls ----
+  resetBtn.addEventListener("click", function () { setCode(STARTER_CODE); });
+  runBtn.addEventListener("click", run);
+
+  // Ctrl/Cmd + Enter to run.
+  document.addEventListener("keydown", function (e) {
+    if ((e.ctrlKey || e.metaKey) && e.key === "Enter") { e.preventDefault(); run(); }
+  });
+
+  // ---- Go ----
+  initEditor(STARTER_CODE);
+  boot();
+})();
+</script>
+</body>
+</html>
