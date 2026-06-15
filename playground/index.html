@@ -1,917 +1,322 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>sPyTial Playground</title>
+<meta name="description" content="Run sPyTial entirely in your browser — edit Python, see the spatial diagram live." />
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css" />
+<style>
+  :root {
+    --bg: #ffffff;
+    --fg: #1c2733;
+    --muted: #5c6b7a;
+    --border: #d9e0e7;
+    --accent: #2f6feb;
+    --accent-fg: #ffffff;
+    --panel: #f6f8fa;
+    --header: #0f1b2d;
+    --header-fg: #e9eef5;
+    --error-bg: #fff2f0;
+    --error-fg: #b3261e;
+    font-synthesis: none;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; height: 100%; }
+  body {
+    background: var(--bg);
+    color: var(--fg);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    font-size: 15px;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  /* ---- top bar ---- */
+  header.bar {
+    flex: none;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 0 16px;
+    height: 50px;
+    background: var(--header);
+    color: var(--header-fg);
+  }
+  header.bar .brand { font-weight: 700; font-size: 16px; letter-spacing: 0.02em; }
+  header.bar .brand .tail { color: #8fb3f5; font-weight: 600; }
+  header.bar nav { margin-left: auto; display: flex; gap: 16px; align-items: center; }
+  header.bar nav a { color: var(--header-fg); text-decoration: none; font-size: 13px; opacity: 0.85; }
+  header.bar nav a:hover { opacity: 1; text-decoration: underline; }
+  /* ---- toolbar ---- */
+  .toolbar {
+    flex: none;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+    padding: 8px 16px;
+    border-bottom: 1px solid var(--border);
+    background: var(--panel);
+  }
+  .toolbar .title { font-weight: 600; }
+  button {
+    font: inherit; font-size: 14px;
+    border: 1px solid var(--border); border-radius: 6px;
+    padding: 6px 14px; background: var(--bg); color: var(--fg); cursor: pointer;
+  }
+  button.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-fg); font-weight: 600; }
+  button.primary:disabled { background: #9bb6f0; border-color: #9bb6f0; cursor: progress; }
+  button:disabled { opacity: 0.7; cursor: not-allowed; }
+  .status { margin-left: auto; font-size: 13px; color: var(--muted); display: flex; align-items: center; gap: 6px; }
+  .dot { width: 9px; height: 9px; border-radius: 50%; background: #d0a020; flex: none; }
+  .dot.ready { background: #1f9d55; }
+  .dot.busy { background: #d0a020; animation: pulse 1s infinite; }
+  .dot.error { background: var(--error-fg); }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
+  kbd { background: #fff; border: 1px solid var(--border); border-bottom-width: 2px; border-radius: 4px; padding: 0 4px; font-size: 11px; color: var(--muted); }
+  /* ---- main split ---- */
+  main {
+    flex: 1;
+    min-height: 0;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+  @media (max-width: 820px) { main { grid-template-columns: 1fr; grid-template-rows: 1fr 1fr; } }
+  .pane { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+  .pane + .pane { border-left: 1px solid var(--border); }
+  @media (max-width: 820px) { .pane + .pane { border-left: 0; border-top: 1px solid var(--border); } }
+  .pane > .head {
+    flex: none;
+    background: var(--panel);
+    border-bottom: 1px solid var(--border);
+    padding: 5px 16px;
+    font-size: 11px; font-weight: 600; color: var(--muted);
+    text-transform: uppercase; letter-spacing: 0.05em;
+  }
+  textarea#code {
+    flex: 1; width: 100%; border: 0; resize: none; padding: 12px 16px;
+    font-family: "SFMono-Regular", ui-monospace, Menlo, Consolas, monospace;
+    font-size: 13px; line-height: 1.55; color: var(--fg); outline: none;
+  }
+  .CodeMirror { flex: 1; height: auto; font-size: 13px; }
+  .editor-host { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+  #resultFrame { flex: 1; width: 100%; border: 0; background: #fff; }
+  .placeholder { flex: 1; display: flex; align-items: center; justify-content: center; color: var(--muted); font-size: 14px; text-align: center; padding: 24px; }
+  pre#console {
+    flex: none; margin: 0; padding: 10px 16px; border-top: 1px solid var(--border);
+    background: var(--panel);
+    font-family: "SFMono-Regular", ui-monospace, Menlo, Consolas, monospace;
+    font-size: 12px; white-space: pre-wrap; word-break: break-word;
+    max-height: 30%; overflow: auto; color: var(--muted); display: none;
+  }
+  pre#console.show { display: block; }
+  pre#console.error { background: var(--error-bg); color: var(--error-fg); }
+</style>
+</head>
+<body>
+  <header class="bar">
+    <span class="brand">sPyTial <span class="tail">Playground</span></span>
+    <nav>
+      <a href="../getting-started/">Getting Started</a>
+      <a href="../operations/">Operations</a>
+      <a href="../">Docs</a>
+      <a href="https://github.com/sidprasad/spytial" target="_blank" rel="noopener">GitHub</a>
+    </nav>
+  </header>
 
-<!doctype html>
-<html lang="en" class="no-js">
-  <head>
-    
-      <meta charset="utf-8">
-      <meta name="viewport" content="width=device-width,initial-scale=1">
-      
-        <meta name="description" content="Spatial Python visualization for structured data.">
-      
-      
-      
-        <link rel="canonical" href="https://sidprasad.github.io/spytial/playground/">
-      
-      
-        <link rel="prev" href="../getting-started/">
-      
-      
-        <link rel="next" href="../how-it-works/">
-      
-      
-        
-      
-      
-      <link rel="icon" href="../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
-    
-    
-      
-        <title>Playground - sPyTial</title>
-      
-    
-    
-      <link rel="stylesheet" href="../assets/stylesheets/main.484c7ddc.min.css">
-      
-      
-
-
-    
-    
-      
-    
-    
-      
-        
-        
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
-        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
-      
-    
-    
-      <link rel="stylesheet" href="../assets/_mkdocstrings.css">
-    
-    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
-    
-      
-
-    
-    
-  </head>
-  
-  
-    <body dir="ltr">
-  
-    
-    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
-    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
-    <label class="md-overlay" for="__drawer"></label>
-    <div data-md-component="skip">
-      
-        
-        <a href="#playground" class="md-skip">
-          Skip to content
-        </a>
-      
-    </div>
-    <div data-md-component="announce">
-      
-    </div>
-    
-    
-      
-
-<header class="md-header" data-md-component="header">
-  <nav class="md-header__inner md-grid" aria-label="Header">
-    <a href=".." title="sPyTial" class="md-header__button md-logo" aria-label="sPyTial" data-md-component="logo">
-      
-  
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
-
-    </a>
-    <label class="md-header__button md-icon" for="__drawer">
-      
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
-    </label>
-    <div class="md-header__title" data-md-component="header-title">
-      <div class="md-header__ellipsis">
-        <div class="md-header__topic">
-          <span class="md-ellipsis">
-            sPyTial
-          </span>
-        </div>
-        <div class="md-header__topic" data-md-component="header-topic">
-          <span class="md-ellipsis">
-            
-              Playground
-            
-          </span>
-        </div>
-      </div>
-    </div>
-    
-    
-      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
-    
-    
-    
-      
-      
-        <label class="md-header__button md-icon" for="__search">
-          
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
-        </label>
-        <div class="md-search" data-md-component="search" role="dialog">
-  <label class="md-search__overlay" for="__search"></label>
-  <div class="md-search__inner" role="search">
-    <form class="md-search__form" name="search">
-      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
-      <label class="md-search__icon md-icon" for="__search">
-        
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
-        
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
-      </label>
-      <nav class="md-search__options" aria-label="Search">
-        
-        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
-          
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
-        </button>
-      </nav>
-      
-    </form>
-    <div class="md-search__output">
-      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
-        <div class="md-search-result" data-md-component="search-result">
-          <div class="md-search-result__meta">
-            Initializing search
-          </div>
-          <ol class="md-search-result__list" role="presentation"></ol>
-        </div>
-      </div>
-    </div>
+  <div class="toolbar">
+    <span class="title">Binary tree</span>
+    <button id="run" class="primary" disabled>Run ▶</button>
+    <button id="reset" disabled>Reset</button>
+    <span class="status"><span id="dot" class="dot busy"></span><span id="statusText">Starting…</span></span>
   </div>
-</div>
-      
-    
-    
-      <div class="md-header__source">
-        <a href="https://github.com/sidprasad/spytial" title="Go to repository" class="md-source" data-md-component="source">
-  <div class="md-source__icon md-icon">
-    
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
-  </div>
-  <div class="md-source__repository">
-    sidprasad/spytial
-  </div>
-</a>
-      </div>
-    
-  </nav>
-  
-</header>
-    
-    <div class="md-container" data-md-component="container">
-      
-      
-        
-          
-            
-<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
-  <div class="md-grid">
-    <ul class="md-tabs__list">
-      
-        
-  
-  
-  
-  
-    <li class="md-tabs__item">
-      <a href=".." class="md-tabs__link">
-        
-  
-  
-    
-  
-  Home
 
-      </a>
-    </li>
-  
-
-      
-        
-  
-  
-  
-  
-    <li class="md-tabs__item">
-      <a href="../getting-started/" class="md-tabs__link">
-        
-  
-  
-    
-  
-  Getting Started
-
-      </a>
-    </li>
-  
-
-      
-        
-  
-  
-  
-    
-  
-  
-    <li class="md-tabs__item md-tabs__item--active">
-      <a href="./" class="md-tabs__link">
-        
-  
-  
-    
-  
-  Playground
-
-      </a>
-    </li>
-  
-
-      
-        
-  
-  
-  
-  
-    <li class="md-tabs__item">
-      <a href="../how-it-works/" class="md-tabs__link">
-        
-  
-  
-    
-  
-  How It Works
-
-      </a>
-    </li>
-  
-
-      
-        
-  
-  
-  
-  
-    <li class="md-tabs__item">
-      <a href="../usage/diagramming/" class="md-tabs__link">
-        
-  
-  
-    
-  
-  Diagramming
-
-      </a>
-    </li>
-  
-
-      
-        
-  
-  
-  
-  
-    <li class="md-tabs__item">
-      <a href="../usage/sequences/" class="md-tabs__link">
-        
-  
-  
-    
-  
-  Sequences
-
-      </a>
-    </li>
-  
-
-      
-        
-  
-  
-  
-  
-    <li class="md-tabs__item">
-      <a href="../usage/evaluator/" class="md-tabs__link">
-        
-  
-  
-    
-  
-  Evaluator
-
-      </a>
-    </li>
-  
-
-      
-        
-  
-  
-  
-  
-    <li class="md-tabs__item">
-      <a href="../operations/" class="md-tabs__link">
-        
-  
-  
-    
-  
-  Operations
-
-      </a>
-    </li>
-  
-
-      
-        
-  
-  
-  
-  
-    <li class="md-tabs__item">
-      <a href="../usage/dataclass-builder/" class="md-tabs__link">
-        
-  
-  
-    
-  
-  Dataclass Builder
-
-      </a>
-    </li>
-  
-
-      
-        
-  
-  
-  
-  
-    <li class="md-tabs__item">
-      <a href="../relationalizers/" class="md-tabs__link">
-        
-  
-  
-    
-  
-  Custom Relationalizers
-
-      </a>
-    </li>
-  
-
-      
-        
-  
-  
-  
-  
-    <li class="md-tabs__item">
-      <a href="../examples/spytial-clrs/" class="md-tabs__link">
-        
-  
-  
-    
-  
-  CLRS Notebook Examples
-
-      </a>
-    </li>
-  
-
-      
-        
-  
-  
-  
-  
-    <li class="md-tabs__item">
-      <a href="../reference/api/" class="md-tabs__link">
-        
-  
-  
-    
-  
-  API Reference
-
-      </a>
-    </li>
-  
-
-      
-    </ul>
-  </div>
-</nav>
-          
-        
-      
-      <main class="md-main" data-md-component="main">
-        <div class="md-main__inner md-grid">
-          
-            
-              
-              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
-                <div class="md-sidebar__scrollwrap">
-                  <div class="md-sidebar__inner">
-                    
-
-
-  
-
-
-<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
-  <label class="md-nav__title" for="__drawer">
-    <a href=".." title="sPyTial" class="md-nav__button md-logo" aria-label="sPyTial" data-md-component="logo">
-      
-  
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
-
-    </a>
-    sPyTial
-  </label>
-  
-    <div class="md-nav__source">
-      <a href="https://github.com/sidprasad/spytial" title="Go to repository" class="md-source" data-md-component="source">
-  <div class="md-source__icon md-icon">
-    
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
-  </div>
-  <div class="md-source__repository">
-    sidprasad/spytial
-  </div>
-</a>
-    </div>
-  
-  <ul class="md-nav__list" data-md-scrollfix>
-    
-      
-      
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href=".." class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Home
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-    
-      
-      
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../getting-started/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Getting Started
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-    
-      
-      
-  
-  
-    
-  
-  
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-      <a href="./" class="md-nav__link md-nav__link--active">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Playground
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-      
-    </li>
-  
-
-    
-      
-      
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../how-it-works/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    How It Works
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-    
-      
-      
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../usage/diagramming/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Diagramming
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-    
-      
-      
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../usage/sequences/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Sequences
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-    
-      
-      
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../usage/evaluator/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Evaluator
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-    
-      
-      
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../operations/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Operations
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-    
-      
-      
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../usage/dataclass-builder/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Dataclass Builder
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-    
-      
-      
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../relationalizers/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Custom Relationalizers
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-    
-      
-      
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../examples/spytial-clrs/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    CLRS Notebook Examples
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-    
-      
-      
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../reference/api/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    API Reference
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-    
-  </ul>
-</nav>
-                  </div>
-                </div>
-              </div>
-            
-            
-              
-              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
-                <div class="md-sidebar__scrollwrap">
-                  <div class="md-sidebar__inner">
-                    
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-</nav>
-                  </div>
-                </div>
-              </div>
-            
-          
-          
-            <div class="md-content" data-md-component="content">
-              
-              <article class="md-content__inner md-typeset">
-                
-                  
-
-
-  
-  
-
-
-<h1 id="playground">Playground</h1>
-<p>Try sPyTial without installing anything. The editor below runs <strong>entirely in your
-browser</strong> (via <a href="https://pyodide.org">Pyodide</a>) — <code>pip install</code> happens in a sandbox,
-your code never leaves the page, and the diagram renders live.</p>
-<p>Edit the code and press <strong>Run ▶</strong> (or <kbd>Ctrl</kbd>/<kbd>⌘</kbd> +
-<kbd>Enter</kbd>). The first run takes a few seconds while the Python runtime
-downloads; after that it is instant.</p>
-<p><iframe
-  src="../assets/playground.html"
-  title="sPyTial playground"
-  loading="lazy"
-  style="width: 100%; height: 760px; border: 1px solid var(--md-default-fg-color--lightest, #d9e0e7); border-radius: 8px;">
-  The playground needs JavaScript and network access to download the Python
-  runtime. If it doesn't load, follow <a href="../getting-started/">Getting
-  Started</a> to <code>pip install spytial-diagramming</code> and run the
-  examples locally.
-</iframe>
-</p>
-<div class="admonition tip">
-<p class="admonition-title">Same code, your machine</p>
-<p>Everything in the playground is ordinary sPyTial. Copy any example into a
-<code>.py</code> file or a notebook, <code>pip install spytial-diagramming</code>, and it runs the
-same way — opening the diagram in a browser tab (script) or inline (notebook).</p>
-</div>
-<p>Want to understand what each decorator does? See
-<a href="../getting-started/">Getting Started</a> for the annotated walkthrough and
-<a href="../operations/">Operations</a> for the full list of layout constraints and drawing
-directives.</p>
-
-
-
-
-
-
-
-
-
-
-
-
-                
-              </article>
-            </div>
-          
-          
-<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
-        </div>
-        
-      </main>
-      
-        <footer class="md-footer">
-  
-  <div class="md-footer-meta md-typeset">
-    <div class="md-footer-meta__inner md-grid">
-      <div class="md-copyright">
-  
-  
-    Made with
-    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
-      Material for MkDocs
-    </a>
-  
-</div>
-      
-    </div>
-  </div>
-</footer>
-      
-    </div>
-    <div class="md-dialog" data-md-component="dialog">
-      <div class="md-dialog__inner md-typeset"></div>
-    </div>
-    
-    
-    
-      
-      
-      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.tabs", "navigation.expand", "content.code.copy"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
-    
-    
-      <script src="../assets/javascripts/bundle.79ae519e.min.js"></script>
-      
-    
-  </body>
+  <main>
+    <section class="pane">
+      <div class="head">Python — edit me, then Run (<kbd>Ctrl</kbd>/<kbd>⌘</kbd>+<kbd>Enter</kbd>)</div>
+      <div class="editor-host"><textarea id="code" spellcheck="false"></textarea></div>
+      <pre id="console"></pre>
+    </section>
+    <section class="pane">
+      <div class="head">Diagram</div>
+      <div id="placeholder" class="placeholder">Your diagram will appear here.</div>
+      <iframe id="resultFrame" title="sPyTial diagram" style="display:none"></iframe>
+    </section>
+  </main>
+
+<script src="https://cdn.jsdelivr.net/pyodide/v0.26.2/full/pyodide.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/python/python.min.js"></script>
+<script>
+(function () {
+  "use strict";
+
+  // Starter example — a simple binary tree.
+  // Keep in sync with docs/index.md and docs/getting-started.md.
+  var STARTER_CODE = [
+    "import spytial",
+    "",
+    "# Each decorator below is one rule for how the tree is drawn.",
+    "# Try commenting one out and re-running to see what it does.",
+    "@spytial.orientation(selector=\"left\",  directions=[\"below\", \"left\"])   # `left` child goes below-left",
+    "@spytial.orientation(selector=\"right\", directions=[\"below\", \"right\"])  # `right` child goes below-right",
+    "@spytial.attribute(field=\"value\")                                      # show `value` as a label inside the node",
+    "@spytial.hideAtom(selector=\"NoneType\")                                 # hide the empty (None) leaves",
+    "class Node:",
+    "    def __init__(self, value, left=None, right=None):",
+    "        self.value = value",
+    "        self.left = left",
+    "        self.right = right",
+    "",
+    "# A small binary tree, built by hand.",
+    "root = Node(4,",
+    "            Node(2, Node(1), Node(3)),",
+    "            Node(6, Node(5), Node(7)))",
+    "",
+    "spytial.diagram(root)"
+  ].join("\n");
+
+  var $ = function (id) { return document.getElementById(id); };
+  var runBtn = $("run"), resetBtn = $("reset");
+  var dot = $("dot"), statusText = $("statusText");
+  var textarea = $("code"), consoleEl = $("console");
+  var resultFrame = $("resultFrame"), placeholder = $("placeholder");
+
+  // ---- Editor (CodeMirror with graceful fallback to <textarea>) ----
+  var cm = null;
+  function initEditor(initial) {
+    textarea.value = initial;
+    try {
+      if (window.CodeMirror) {
+        cm = window.CodeMirror.fromTextArea(textarea, {
+          mode: "python",
+          lineNumbers: true,
+          indentUnit: 4,
+          tabSize: 4,
+          indentWithTabs: false,
+          viewportMargin: Infinity
+        });
+        cm.setSize("100%", "100%");
+      }
+    } catch (e) { cm = null; }
+  }
+  function getCode() { return cm ? cm.getValue() : textarea.value; }
+  function setCode(v) { if (cm) { cm.setValue(v); } else { textarea.value = v; } }
+
+  function setStatus(text, state) { statusText.textContent = text; dot.className = "dot " + (state || "busy"); }
+  function showConsole(text, isError) {
+    if (!text) { consoleEl.className = ""; consoleEl.textContent = ""; return; }
+    consoleEl.textContent = text;
+    consoleEl.className = "show" + (isError ? " error" : "");
+  }
+
+  // Encode HTML as a base64 data URI (handles unicode + large strings).
+  function toDataUri(html) {
+    var bytes = new TextEncoder().encode(html);
+    var bin = "", chunk = 0x8000;
+    for (var i = 0; i < bytes.length; i += chunk) {
+      bin += String.fromCharCode.apply(null, bytes.subarray(i, i + chunk));
+    }
+    return "data:text/html;base64," + btoa(bin);
+  }
+
+  function renderDiagram(html) {
+    placeholder.style.display = "none";
+    resultFrame.style.display = "block";
+    resultFrame.src = toDataUri(html);
+  }
+
+  var pyodide = null, runHarness = null, booting = true;
+
+  // Captures the HTML diagram() would have shown, plus stdout/stderr and any
+  // traceback, and returns it all as JSON.
+  var HARNESS = [
+    "import json, sys, io, traceback",
+    "import spytial",
+    "import spytial.visualizer as _spytial_vis",
+    "_PG = {'html': None}",
+    "def _spytial_capture(html_content, *args, **kwargs):",
+    "    _PG['html'] = html_content",
+    "    return None",
+    "_spytial_vis._deliver_html_content = _spytial_capture",
+    "def __spytial_run(src):",
+    "    _PG['html'] = None",
+    "    buf = io.StringIO()",
+    "    _out, _err = sys.stdout, sys.stderr",
+    "    sys.stdout = sys.stderr = buf",
+    "    error = None",
+    "    try:",
+    "        exec(src, {'__name__': '__main__'})",
+    "    except Exception:",
+    "        error = traceback.format_exc()",
+    "    finally:",
+    "        sys.stdout, sys.stderr = _out, _err",
+    "    return json.dumps({'html': _PG['html'], 'stdout': buf.getvalue(), 'error': error})"
+  ].join("\n");
+
+  function setRunning(isBusy) { runBtn.disabled = isBusy || booting; resetBtn.disabled = booting; }
+
+  async function boot() {
+    try {
+      setStatus("Loading Python runtime…", "busy");
+      pyodide = await loadPyodide({ indexURL: "https://cdn.jsdelivr.net/pyodide/v0.26.2/full/" });
+      setStatus("Installing sPyTial…", "busy");
+      await pyodide.loadPackage("micropip");
+      await pyodide.runPythonAsync("import micropip\nawait micropip.install('spytial_diagramming')");
+      await pyodide.runPythonAsync(HARNESS);
+      runHarness = pyodide.globals.get("__spytial_run");
+      booting = false;
+      setStatus("Ready", "ready");
+      setRunning(false);
+      run();
+    } catch (e) {
+      booting = false;
+      setStatus("Failed to load", "error");
+      showConsole("Could not start the playground:\n" + (e && e.message ? e.message : e) +
+        "\n\nThis playground needs internet access to download the Python runtime. " +
+        "You can still copy the code and run it locally after `pip install spytial-diagramming`.", true);
+    }
+  }
+
+  function run() {
+    if (booting || !runHarness) return;
+    setStatus("Running…", "busy");
+    setRunning(true);
+    showConsole("");
+    setTimeout(function () {
+      try {
+        var res = JSON.parse(runHarness(getCode()));
+        if (res.error) {
+          showConsole(res.error, true);
+          setStatus("Error", "error");
+        } else {
+          if (res.html) { renderDiagram(res.html); }
+          if (res.stdout && res.stdout.trim()) { showConsole(res.stdout, false); }
+          if (!res.html) {
+            showConsole((res.stdout || "") + "\n(No diagram was produced — call spytial.diagram(...) in your code.)", false);
+          }
+          setStatus("Ready", "ready");
+        }
+      } catch (e) {
+        showConsole(String(e && e.message ? e.message : e), true);
+        setStatus("Error", "error");
+      } finally {
+        setRunning(false);
+      }
+    }, 16);
+  }
+
+  resetBtn.addEventListener("click", function () { setCode(STARTER_CODE); });
+  runBtn.addEventListener("click", run);
+  document.addEventListener("keydown", function (e) {
+    if ((e.ctrlKey || e.metaKey) && e.key === "Enter") { e.preventDefault(); run(); }
+  });
+
+  initEditor(STARTER_CODE);
+  boot();
+})();
+</script>
+</body>
 </html>
