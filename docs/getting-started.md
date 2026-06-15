@@ -16,7 +16,7 @@ That's it — no browser extension, no separate renderer, no config. Supported o
 Python 3.8 – 3.12.
 
 !!! tip "Don't want to install yet?"
-    The [**Playground**](playground.md) runs this exact example in your browser.
+    The [**Playground**](playground/index.html) runs this exact example in your browser.
     Come back here when you want to run it locally.
 
 ## Your first diagram: a binary tree, step by step
@@ -127,7 +127,7 @@ children fanning out beneath them.
 
 !!! note "Start small, then annotate"
     A good workflow is: call `diagram(obj)` first to see the raw structure, then add
-    one decorator at a time. The [Playground](playground.md) is the fastest place to
+    one decorator at a time. The [Playground](playground/index.html) is the fastest place to
     do this — edit, run, repeat.
 
 ## Where the diagram shows up
@@ -183,7 +183,7 @@ pip install "spytial-diagramming[docs]"       # mkdocs + plugins (contributors)
 
 ## Next steps
 
-- Try the [Playground](playground.md) — edit and run examples in your browser.
+- Try the [Playground](playground/index.html) — edit and run examples in your browser.
 - Read [Diagramming](usage/diagramming.md) for the main rendering workflow.
 - Read [Operations](operations.md) for every layout constraint and drawing directive.
 - Read the [Evaluator](usage/evaluator.md) guide for inspecting serialized data.

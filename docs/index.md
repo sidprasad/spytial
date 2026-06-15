@@ -9,7 +9,7 @@
 - Step through sequences of states to visualize how a data structure evolves.
 
 !!! tip "Try it now, no install"
-    The [**Playground**](playground.md) loads this exact binary tree in an
+    The [**Playground**](playground/index.html) loads this exact binary tree in an
     in-browser editor — open it to tweak the code and watch the diagram update live.
 
 ## Hello, sPyTial
@@ -41,7 +41,7 @@ spytial.diagram(root)
 ```
 
 **→ [Walk through this example one annotation at a time (Getting Started)](getting-started.md)**
-&nbsp;·&nbsp; **[Run it in your browser (Playground)](playground.md)**
+&nbsp;·&nbsp; **[Run it in your browser (Playground)](playground/index.html)**
 
 ## The sPyTial ecosystem
 
@@ -53,7 +53,7 @@ sPyTial is part of a small family of projects. Most users only need the first.
 
 ## Where to go next
 
-- [Playground](playground.md) — edit and run sPyTial in your browser, no install.
+- [Playground](playground/index.html) — edit and run sPyTial in your browser, no install.
 - [Getting Started](getting-started.md) — install, then a line-by-line walkthrough of the example above.
 - [Diagramming](usage/diagramming.md) — the main rendering workflow.
 - [Operations](operations.md) — constraints and directives.
