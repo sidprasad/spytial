@@ -5,26 +5,43 @@
 ## What you can do with it
 
 - Render any Python object — `dict`, `list`, dataclass, custom class, graph — as a box-and-arrow diagram.
-- Control layout declaratively with constraints (`orientation`, `align`, `cyclic`, `group`) and directives (`atomColor`, `attribute`, `tag`, `inferredEdge`, …).
+- Control layout declaratively with constraints (`orientation`, `align`, `cyclic`, `group`) and directives (`atomColor`, `attribute`, `hideAtom`, `tag`, `inferredEdge`, …).
 - Step through sequences of states to visualize how a data structure evolves.
+
+!!! tip "Try it now, no install"
+    The [**Playground**](playground.md) loads this exact binary tree in an
+    in-browser editor — open it to tweak the code and watch the diagram update live.
 
 ## Hello, sPyTial
 
+A complete, copy-paste-runnable example: define a binary tree, describe how it
+should be laid out, and draw an instance. The four decorators *are* the "sPyTial
+layout" — each is one rule that turns the default box-and-arrow graph into a tree.
+
+<!-- canonical example — keep in sync with docs/getting-started.md and the playground preset -->
 ```python
 import spytial
 
-tree = {
-    "name": "root",
-    "children": [
-        {"name": "left"},
-        {"name": "right"},
-    ],
-}
+@spytial.orientation(selector="left",  directions=["below", "left"])   # place the `left` child below-left
+@spytial.orientation(selector="right", directions=["below", "right"])  # place the `right` child below-right
+@spytial.attribute(field="value")                                      # show `value` as a label inside the node
+@spytial.hideAtom(selector="NoneType")                                 # hide the empty (None) leaves
+class Node:
+    def __init__(self, value, left=None, right=None):
+        self.value = value
+        self.left = left
+        self.right = right
 
-spytial.diagram(tree)
+# A small binary tree, built by hand.
+root = Node(4,
+            Node(2, Node(1), Node(3)),
+            Node(6, Node(5), Node(7)))
+
+spytial.diagram(root)
 ```
 
-**→ [Install and run your first diagram (Getting Started)](getting-started.md)**
+**→ [Walk through this example one annotation at a time (Getting Started)](getting-started.md)**
+&nbsp;·&nbsp; **[Run it in your browser (Playground)](playground.md)**
 
 ## The sPyTial ecosystem
 
@@ -36,7 +53,8 @@ sPyTial is part of a small family of projects. Most users only need the first.
 
 ## Where to go next
 
-- [Getting Started](getting-started.md) — install, badges, first diagram.
+- [Playground](playground.md) — edit and run sPyTial in your browser, no install.
+- [Getting Started](getting-started.md) — install, then a line-by-line walkthrough of the example above.
 - [Diagramming](usage/diagramming.md) — the main rendering workflow.
 - [Operations](operations.md) — constraints and directives.
 - [How It Works](how-it-works.md) — the Python → browser pipeline and `spytial-core`.
