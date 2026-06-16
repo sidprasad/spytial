@@ -204,6 +204,27 @@ D.neighbors = [A]   # a cycle back to A
 diagram(A)
 `,
     },
+    matrix: {
+      label: "Adjacency matrix → graph",
+      code: `from spytial import inferredEdge, hideAtom, diagram
+
+# An adjacency matrix: adj[i][j] == 1 means there is an edge  i -> j.
+adj = [[0, 1, 0, 1, 0, 0],
+       [0, 0, 0, 0, 1, 0],
+       [0, 0, 0, 0, 1, 1],
+       [0, 1, 0, 0, 0, 0],
+       [0, 0, 0, 1, 0, 0],
+       [0, 0, 0, 0, 0, 1]]
+
+# A selector turns the raw matrix into edges: i -> j wherever the cell is 1.
+EDGES = "{ i, j : int | 1 in (list.idx[i]).idx[j] }"
+
+graph = inferredEdge(selector=EDGES, name="")(adj)   # no class needed
+graph = hideAtom(selector="list")(graph)             # hide the list scaffolding
+
+diagram(graph)
+`,
+    },
   };
   var DEFAULT_EXAMPLE = "tree";
 
