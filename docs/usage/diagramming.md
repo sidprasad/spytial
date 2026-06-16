@@ -76,7 +76,7 @@ metrics = spytial.diagram(
 
 ## Patterns from the CLRS notebooks
 
-For realistic examples instead of toy snippets, use [`spytial-clrs`](https://github.com/sidprasad/spytial-clrs) — a notebook collection that implements CLRS-textbook data structures with sPyTial:
+For realistic examples instead of toy snippets, use [`spytial-clrs`](https://github.com/sidprasad/spytial-clrs) — a notebook collection that implements CLRS-textbook data structures with Spytial:
 
 - `linked-lists.ipynb` shows list-like structures and cyclic constraints.
 - `heaps.ipynb` and `trees.ipynb` show recursive structures with alignment and attributes.

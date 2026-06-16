@@ -1,4 +1,4 @@
-# sPyTial
+# Spytial
 
 <p class="sp-tagline"><strong>Spatial diagrams of Python objects.</strong> Turn any dict, dataclass, tree, or graph into a box-and-arrow diagram — and shape the layout with a few declarative decorators.</p>
 
@@ -35,7 +35,7 @@ diagram(root)
 </div>
 
 <div class="sp-viz">
-  <iframe src="assets/hero-tree.html" title="A binary tree rendered by sPyTial" loading="lazy"></iframe>
+  <iframe src="assets/hero-tree.html" title="A binary tree rendered by Spytial" loading="lazy"></iframe>
   <div class="sp-cap">↑ The real, live output of the code above — drag to explore, scroll to zoom</div>
 </div>
 
@@ -89,8 +89,8 @@ Full details and arguments are in [Operations](operations.md).
 
 ## More
 
-- [Playground](playground/index.html) — edit and run sPyTial in your browser.
+- [Playground](playground/index.html) — edit and run Spytial in your browser.
 - [Getting Started](getting-started.md) — install and a walkthrough.
 - [Operations](operations.md) — every constraint and directive.
 - [How It Works](how-it-works.md) — the Python → browser pipeline.
-- [`spytial-clrs`](https://github.com/sidprasad/spytial-clrs) — more examples: CLRS data structures rendered with sPyTial.
+- [`spytial-clrs`](https://github.com/sidprasad/spytial-clrs) — more examples: CLRS data structures rendered with Spytial.

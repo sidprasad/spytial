@@ -1,13 +1,13 @@
 # Selectors
 
-Most sPyTial operations take a `selector`: a small expression for **which atoms or
-edges a rule applies to**. It is a pattern match over the *value graph* sPyTial
+Most Spytial operations take a `selector`: a small expression for **which atoms or
+edges a rule applies to**. It is a pattern match over the *value graph* Spytial
 builds from your object, so it matches across instances — not just one. The selector
 language is a subset of [Alloy](https://alloytools.org).
 
 ## The value graph: atoms, relations, types
 
-Before laying anything out, sPyTial turns your object into a graph:
+Before laying anything out, Spytial turns your object into a graph:
 
 - An **atom** is one object or value — a node, an `int`, a `str`, `None`.
 - A **relation** is a field. `node.left` becomes a relation named `left`: the set of

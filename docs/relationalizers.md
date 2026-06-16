@@ -1,6 +1,6 @@
 # Custom Relationalizers
 
-Relationalizers are plug-ins that teach sPyTial how to serialize your custom objects into atoms and relations.
+Relationalizers are plug-ins that teach Spytial how to serialize your custom objects into atoms and relations.
 
 ## When to use a relationalizer
 

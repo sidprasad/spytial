@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>sPyTial Playground</title>
-<meta name="description" content="Run sPyTial entirely in your browser — edit Python, see the spatial diagram live." />
+<title>Spytial Playground</title>
+<meta name="description" content="Run Spytial entirely in your browser — edit Python, see the spatial diagram live." />
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css" />
 <style>
   :root {
@@ -76,7 +76,7 @@
 </head>
 <body>
   <header class="bar">
-    <span class="brand">sPyTial <span class="tail">Playground</span></span>
+    <span class="brand">Spytial <span class="tail">Playground</span></span>
     <nav>
       <a href="../getting-started/">Getting Started</a>
       <a href="../selectors/">Selectors</a>
@@ -103,7 +103,7 @@
     <section class="pane">
       <div class="head">Diagram</div>
       <div id="placeholder" class="placeholder">Your diagram will appear here.</div>
-      <iframe id="resultFrame" title="sPyTial diagram" style="display:none"></iframe>
+      <iframe id="resultFrame" title="Spytial diagram" style="display:none"></iframe>
     </section>
   </main>
 
@@ -289,7 +289,7 @@ diagram(graph)
     try {
       setStatus("Loading Python runtime…", "busy");
       pyodide = await loadPyodide({ indexURL: "https://cdn.jsdelivr.net/pyodide/v0.26.2/full/" });
-      setStatus("Installing sPyTial…", "busy");
+      setStatus("Installing Spytial…", "busy");
       await pyodide.loadPackage("micropip");
       await pyodide.runPythonAsync("import micropip\nawait micropip.install('spytial_diagramming')");
       await pyodide.runPythonAsync(HARNESS);

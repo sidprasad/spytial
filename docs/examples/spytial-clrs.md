@@ -1,6 +1,6 @@
 # CLRS Notebook Examples
 
-[`spytial-clrs`](https://github.com/sidprasad/spytial-clrs) is a Jupyter notebook collection that implements the data structures from the **CLRS algorithms textbook** (Cormen, Leiserson, Rivest, Stein) using sPyTial. Each notebook is organized by CLRS chapter and walks through one or more textbook structures, declaring the spatial constraints that make their structure legible.
+[`spytial-clrs`](https://github.com/sidprasad/spytial-clrs) is a Jupyter notebook collection that implements the data structures from the **CLRS algorithms textbook** (Cormen, Leiserson, Rivest, Stein) using Spytial. Each notebook is organized by CLRS chapter and walks through one or more textbook structures, declaring the spatial constraints that make their structure legible.
 
 ## What's in it
 
@@ -58,6 +58,6 @@ Use the notebooks as a guide depending on what you want to visualize:
 
 ## How to use these examples
 
-- Start with `stacksqueues.ipynb` or `linked-lists.ipynb` if you are new to sPyTial.
+- Start with `stacksqueues.ipynb` or `linked-lists.ipynb` if you are new to Spytial.
 - Browse `trees.ipynb` and `graphs.ipynb` for richer layouts and more advanced operation combinations.
 - Use the notebook closest to your own data shape as a template for your first diagram.

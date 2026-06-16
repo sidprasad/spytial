@@ -52,7 +52,7 @@ below-right, and their children beneath them.
 
 ### What each decorator does
 
-The decorators *are* the sPyTial layout — each is one rule. Reading top to bottom:
+The decorators *are* the Spytial layout — each is one rule. Reading top to bottom:
 
 | Decorator | What it does |
 | --- | --- |
@@ -62,7 +62,7 @@ The decorators *are* the sPyTial layout — each is one rule. Reading top to bot
 | `@hideAtom(selector='NoneType')` | Hide the empty `None` leaves. |
 | `@flag(name="hideDisconnected")` | Drop any atom left with no edges, keeping the picture tidy. |
 
-The `selector` strings are sPyTial's **relational query language**. The
+The `selector` strings are Spytial's **relational query language**. The
 `{ x : T, y : T | … }` form matches *pairs* of atoms (here, parent-and-child edges);
 see [Selectors](selectors.md) for a Python-oriented guide to the syntax.
 
@@ -74,7 +74,7 @@ see [Selectors](selectors.md) for a Python-oriented guide to the syntax.
 
 ## Where the diagram shows up
 
-`sPyTial` works in three places without any configuration:
+`Spytial` works in three places without any configuration:
 
 | Where you run it | Default output |
 | --- | --- |
@@ -125,7 +125,7 @@ pip install "spytial-diagramming[docs]"       # mkdocs + plugins (contributors)
 
 ## Next steps
 
-- Try the [Playground](playground/index.html) — edit and run sPyTial in your browser.
+- Try the [Playground](playground/index.html) — edit and run Spytial in your browser.
 - Read [Diagramming](usage/diagramming.md) for the main rendering workflow.
 - Read [Operations](operations.md) for every layout constraint and drawing directive.
 - Read the [Evaluator](usage/evaluator.md) guide for inspecting serialized data.

@@ -1,6 +1,6 @@
 # How It Works
 
-`sPyTial` is a thin Python layer over a shared browser-side rendering engine. Understanding the split helps when you want to pin a version, work offline, or build your own host.
+`Spytial` is a thin Python layer over a shared browser-side rendering engine. Understanding the split helps when you want to pin a version, work offline, or build your own host.
 
 ## The pipeline
 
@@ -18,7 +18,7 @@ The Python package handles steps 1–3: it walks your object, hands it to the ma
 
 ## What `spytial-core` is
 
-[`spytial-core`](https://github.com/sidprasad/spytial-core) is the host-agnostic browser engine (TypeScript) that all sPyTial language bindings share:
+[`spytial-core`](https://github.com/sidprasad/spytial-core) is the host-agnostic browser engine (TypeScript) that all Spytial language bindings share:
 
 - [`spytial-py`](https://github.com/sidprasad/spytial) — Python (this package)
 - [`caraspace`](https://github.com/sidprasad/caraspace) — Rust
@@ -42,7 +42,7 @@ from spytial.core_assets import get_spytial_core_version
 print(get_spytial_core_version())
 ```
 
-When `spytial-core` is upgraded, that constant is bumped and a new sPyTial release is cut.
+When `spytial-core` is upgraded, that constant is bumped and a new Spytial release is cut.
 
 ## What this means for you
 
