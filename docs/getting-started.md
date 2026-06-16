@@ -52,7 +52,7 @@ below-right, and their children beneath them.
 
 ### What each decorator does
 
-The decorators *are* the sPyTial layout — each is one rule. Reading top to bottom:
+The decorators *are* the Spytial layout — each is one rule. Reading top to bottom:
 
 | Decorator | What it does |
 | --- | --- |
@@ -62,7 +62,7 @@ The decorators *are* the sPyTial layout — each is one rule. Reading top to bot
 | `@hideAtom(selector='NoneType')` | Hide the empty `None` leaves. |
 | `@flag(name="hideDisconnected")` | Drop any atom left with no edges, keeping the picture tidy. |
 
-The `selector` strings are sPyTial's **relational query language**. The
+The `selector` strings are Spytial's **relational query language**. The
 `{ x : T, y : T | … }` form matches *pairs* of atoms (here, parent-and-child edges);
 see [Selectors](selectors.md) for a Python-oriented guide to the syntax.
 
@@ -74,7 +74,7 @@ see [Selectors](selectors.md) for a Python-oriented guide to the syntax.
 
 ## Where the diagram shows up
 
-`sPyTial` works in three places without any configuration:
+`Spytial` works in three places without any configuration:
 
 | Where you run it | Default output |
 | --- | --- |
@@ -93,9 +93,9 @@ spytial.diagram(t, method="inline")    # force inline (notebook) output
 ```
 
 The actual rendering is done in the browser by
-[`spytial-core`](how-it-works.md), loaded from a CDN the first time you render.
-There is nothing extra to install; the bundle is cached after first load. See
-[How It Works](how-it-works.md) for the pipeline and offline/pinning guidance.
+[`spytial-core`](https://github.com/sidprasad/spytial-core), loaded from a CDN the
+first time you render. There is nothing extra to install; the bundle is cached
+after first load.
 
 ## Inspect before you diagram
 
@@ -109,27 +109,13 @@ import spytial
 spytial.evaluate(t)
 ```
 
-## Optional extras
-
-Most users do not need these. Install them only if you hit one of the listed cases.
-
-```bash
-pip install "spytial-diagramming[widget]"     # anywidget-based Jupyter widget mode
-pip install "spytial-diagramming[headless]"   # Selenium-driven headless rendering for benchmarking
-pip install "spytial-diagramming[dev]"        # pytest, flake8, black (contributors)
-pip install "spytial-diagramming[docs]"       # mkdocs + plugins (contributors)
-```
-
-- `[headless]` also requires a Chrome / Chromedriver installation on `PATH`. See
-  [Diagramming → Headless benchmarking](usage/diagramming.md#headless-benchmarking).
 
 ## Next steps
 
-- Try the [Playground](playground/index.html) — edit and run sPyTial in your browser.
+- Try the [Playground](playground/index.html) — edit and run Spytial in your browser.
 - Read [Diagramming](usage/diagramming.md) for the main rendering workflow.
 - Read [Operations](operations.md) for every layout constraint and drawing directive.
 - Read the [Evaluator](usage/evaluator.md) guide for inspecting serialized data.
-- Read [How It Works](how-it-works.md) to understand the Python → browser pipeline.
 - Browse [CLRS Notebook Examples](examples/spytial-clrs.md) for worked examples on
   classic data structures (heaps, trees, graphs, hash tables, disjoint-set forests).
 

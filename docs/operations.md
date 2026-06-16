@@ -3,7 +3,7 @@
 Operations are the rules that shape a diagram. Each is one **constraint** or
 **directive** you attach to a class (or an object). They are declarative and
 order-independent — every rule narrows the set of acceptable layouts, turning the
-raw [value graph](how-it-works.md) into the picture you want.
+raw value graph into the picture you want.
 
 - **Constraints** shape the geometry — *where* things go.
 - **Directives** change the drawing — *how* things look.

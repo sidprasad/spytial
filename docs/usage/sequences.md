@@ -1,5 +1,9 @@
 # Sequences of Diagrams
 
+```
+Sequence functionality is very much experimental.
+```
+
 `spytial.sequence()` lets you record a series of snapshots of a data structure and play them back as an interactive step-by-step visualization. It is designed for two use cases:
 
 - **Algorithm tracing** — call `.record()` inside an algorithm as each step completes.

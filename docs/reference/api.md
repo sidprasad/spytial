@@ -1,6 +1,6 @@
 # API Reference
 
-This section is generated directly from the sPyTial source code using `mkdocstrings`.
+This section is generated directly from the Spytial source code using `mkdocstrings`.
 
 ## Public package
 
