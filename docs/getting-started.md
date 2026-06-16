@@ -12,86 +12,59 @@
 pip install spytial-diagramming
 ```
 
-That's it — no browser extension, no separate renderer, no config. Supported on
-Python 3.8 – 3.12.
-
 !!! tip "Don't want to install yet?"
     The [**Playground**](playground/index.html) runs this exact example in your
     browser. Come back here when you want to run it locally.
 
-## Your first diagram — a binary search tree
+## Your first diagram — a binary tree
 
-This is the binary search tree from the
-[`spytial-clrs`](https://github.com/sidprasad/spytial-clrs) notebooks. Copy the
-whole block into a `.py` file or a notebook cell and run it — it builds a BST and
-draws it as a box-and-arrow diagram. We walk through what each decorator does just
-below.
+Copy this whole block into a `.py` file or a notebook cell and run it. It defines a
+binary tree, says how it should be laid out, and draws an instance. We walk through
+what each decorator does just below.
 
-<!-- canonical example — keep in sync with docs/index.md and the playground preset -->
+<!-- canonical example — keep in sync with docs/index.md and the playground -->
 ```python
-from spytial import attribute, orientation, hideAtom, hideField, diagram
+from spytial import orientation, attribute, hideAtom, flag, diagram
 
-@attribute(field="key")                      # show `key` inside each node
-@orientation(selector='left & (BSTNode -> (BSTNode - NoneType.~key))',
-             directions=['below', 'left'])    # real left child: below-left
-@orientation(selector='right & (BSTNode -> (BSTNode - NoneType.~key))',
-             directions=['below', 'right'])   # real right child: below-right
-class BSTNode:
-    def __init__(self, key=None, left=None, right=None, parent=None):
-        self.key = key
+@orientation(selector='{ x : TreeNode, y : TreeNode | x.left = y }', directions=['below', 'left'])
+@orientation(selector='{ x : TreeNode, y : TreeNode | x.right = y }', directions=['below', 'right'])
+@attribute(field='value')
+@hideAtom(selector='NoneType')
+@flag(name="hideDisconnected")
+class TreeNode:
+    def __init__(self, value, left=None, right=None):
+        self.value = value
         self.left = left
         self.right = right
-        self.parent = parent
 
-BST_NIL = BSTNode(key=None)                   # one shared NIL sentinel
-BST_NIL.left = BST_NIL.right = BST_NIL.parent = BST_NIL
+root = TreeNode(
+    value=10,
+    left=TreeNode(value=5, left=TreeNode(3), right=TreeNode(7)),
+    right=TreeNode(value=15, left=TreeNode(12), right=TreeNode(18)),
+)
 
-@hideAtom(selector='{ x : BSTNode | (x.key in NoneType) } + BSTree + int + NoneType')
-@hideField(field='parent')                    # don't draw parent back-pointers
-class BSTree:
-    def __init__(self):
-        self.root = BST_NIL
-
-    def insert(self, k):                       # CLRS TREE-INSERT
-        z = BSTNode(key=k, left=BST_NIL, right=BST_NIL, parent=None)
-        y, x = BST_NIL, self.root
-        while x is not BST_NIL:
-            y = x
-            x = x.left if z.key < x.key else x.right
-        z.parent = y
-        if y is BST_NIL:    self.root = z
-        elif z.key < y.key: y.left = z
-        else:               y.right = z
-        return z
-
-t = BSTree()
-for k in [15, 6, 18, 17, 20, 3, 7, 13, 9, 2, 4]:
-    t.insert(k)
-
-diagram(t)
+diagram(root)
 ```
 
 Running a script opens the diagram in a new browser tab; running it in a notebook
-renders it inline. You'll see `15` at the root, smaller keys branching down-left
-and larger keys down-right.
+renders it inline. You'll see `10` at the root, `5` below-left and `15`
+below-right, and their children beneath them.
 
 ### What each decorator does
 
-The decorators on the two classes *are* the sPyTial layout — each is one rule.
-Reading top to bottom:
+The decorators *are* the sPyTial layout — each is one rule. Reading top to bottom:
 
 | Decorator | What it does |
 | --- | --- |
-| `@attribute(field="key")` | Render `node.key` as text **inside** the node, instead of as a separate box with an arrow. |
-| `@orientation(selector='left & (BSTNode -> (BSTNode - NoneType.~key))', directions=['below','left'])` | Place each node's **real** left child below-and-left of it. The selector reads as "the `left` edges that point to an actual `BSTNode`, *not* the shared `NIL` sentinel," so empty leaves don't get dragged around. |
-| `@orientation(selector='right & …', directions=['below','right'])` | The mirror image, for the right child. |
-| `@hideField(field='parent')` | Don't draw the `parent` back-pointers — they'd clutter the tree. |
-| `@hideAtom(selector='{ x : BSTNode \| (x.key in NoneType) } + BSTree + int + NoneType')` | Hide the shared `NIL` sentinel, the `BSTree` wrapper, and the bare `int`/`None` atoms, so only the keyed nodes show. |
+| `@orientation(selector='{ x : TreeNode, y : TreeNode \| x.left = y }', directions=['below','left'])` | Place each node's left child **below and to the left**. The selector matches the pairs `(x, y)` where `y` is `x`'s left child — i.e. the left-child edges. |
+| `@orientation(selector='{ x : TreeNode, y : TreeNode \| x.right = y }', directions=['below','right'])` | The mirror image, for the right child. |
+| `@attribute(field='value')` | Render `node.value` as text **inside** the node, instead of as a separate box with an arrow. |
+| `@hideAtom(selector='NoneType')` | Hide the empty `None` leaves. |
+| `@flag(name="hideDisconnected")` | Drop any atom left with no edges, keeping the picture tidy. |
 
-Those `selector` strings are sPyTial's **relational query language** — the same
-language across every sPyTial host. You don't need it for simple objects, but it
-lets you target exactly the right atoms and edges (here: "real children, not the
-sentinel"). See [Operations](operations.md) for the full syntax.
+The `selector` strings are sPyTial's **relational query language**. The
+`{ x : T, y : T | … }` form matches *pairs* of atoms (here, parent-and-child edges);
+see [Selectors](selectors.md) for a Python-oriented guide to the syntax.
 
 !!! note "Build it up incrementally"
     A good workflow is to call `diagram(obj)` first with **no** decorators to see

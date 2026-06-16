@@ -10,53 +10,33 @@
 <div class="sp-code" markdown="1">
 
 ```python
-from spytial import attribute, orientation, hideAtom, hideField, diagram
+from spytial import orientation, attribute, hideAtom, flag, diagram
 
-@attribute(field="key")                      # show `key` inside each node
-@orientation(selector='left & (BSTNode -> (BSTNode - NoneType.~key))',
-             directions=['below', 'left'])    # real left child: below-left
-@orientation(selector='right & (BSTNode -> (BSTNode - NoneType.~key))',
-             directions=['below', 'right'])   # real right child: below-right
-class BSTNode:
-    def __init__(self, key=None, left=None, right=None, parent=None):
-        self.key = key
+@orientation(selector='{ x : TreeNode, y : TreeNode | x.left = y }', directions=['below', 'left'])
+@orientation(selector='{ x : TreeNode, y : TreeNode | x.right = y }', directions=['below', 'right'])
+@attribute(field='value')
+@hideAtom(selector='NoneType')
+@flag(name="hideDisconnected")
+class TreeNode:
+    def __init__(self, value, left=None, right=None):
+        self.value = value
         self.left = left
         self.right = right
-        self.parent = parent
 
-BST_NIL = BSTNode(key=None)                   # one shared NIL sentinel
-BST_NIL.left = BST_NIL.right = BST_NIL.parent = BST_NIL
+root = TreeNode(
+    value=10,
+    left=TreeNode(value=5, left=TreeNode(3), right=TreeNode(7)),
+    right=TreeNode(value=15, left=TreeNode(12), right=TreeNode(18)),
+)
 
-@hideAtom(selector='{ x : BSTNode | (x.key in NoneType) } + BSTree + int + NoneType')
-@hideField(field='parent')                    # don't draw parent back-pointers
-class BSTree:
-    def __init__(self):
-        self.root = BST_NIL
-
-    def insert(self, k):                       # CLRS TREE-INSERT
-        z = BSTNode(key=k, left=BST_NIL, right=BST_NIL, parent=None)
-        y, x = BST_NIL, self.root
-        while x is not BST_NIL:
-            y = x
-            x = x.left if z.key < x.key else x.right
-        z.parent = y
-        if y is BST_NIL:    self.root = z
-        elif z.key < y.key: y.left = z
-        else:               y.right = z
-        return z
-
-t = BSTree()
-for k in [15, 6, 18, 17, 20, 3, 7, 13, 9, 2, 4]:
-    t.insert(k)
-
-diagram(t)
+diagram(root)
 ```
 
 </div>
 
 <div class="sp-viz">
   <iframe src="assets/hero-tree.html" title="A binary tree rendered by sPyTial" loading="lazy"></iframe>
-  <div class="sp-cap">↑ The real, live output of the code above (a binary search tree) — drag to explore, scroll to zoom</div>
+  <div class="sp-cap">↑ The real, live output of the code above — drag to explore, scroll to zoom</div>
 </div>
 
 </div>
@@ -107,25 +87,10 @@ Full details and arguments are in [Operations](operations.md).
 
 </div>
 
-## What it's good for
+## More
 
-- **Debugging** recursive or linked structures — see the shape, not a `repr`.
-- **Teaching** data structures — trees, heaps, graphs, hash tables.
-- **Inspecting** serialized state, ORM objects, protobufs, nested config.
-- **Stepping through** how a structure evolves, with [sequences](usage/sequences.md).
-
-## The sPyTial ecosystem
-
-Most users only need the first.
-
-- **`spytial-diagramming`** (this package) — the Python host: `diagram()`, `evaluate()`, the decorators, and a relationalizer plug-in system.
-- **[`spytial-core`](https://github.com/sidprasad/spytial-core)** — the browser-side rendering engine (TypeScript), loaded from a CDN. The same engine powers every sPyTial host (Python, Rust, Pyret, Lean). See [How It Works](how-it-works.md).
-- **[`spytial-clrs`](https://github.com/sidprasad/spytial-clrs)** — Jupyter notebooks implementing CLRS-textbook data structures with sPyTial: heaps, trees, hash tables, disjoint sets, graphs, and more. The best place to see it on realistic structures.
-
-## Where to go next
-
-- [Playground](playground/index.html) — edit and run sPyTial in your browser, no install.
-- [Getting Started](getting-started.md) — install, then a line-by-line walkthrough.
-- [Operations](operations.md) — every layout constraint and drawing directive.
+- [Playground](playground/index.html) — edit and run sPyTial in your browser.
+- [Getting Started](getting-started.md) — install and a walkthrough.
+- [Operations](operations.md) — every constraint and directive.
 - [How It Works](how-it-works.md) — the Python → browser pipeline.
-- [CLRS Notebook Examples](examples/spytial-clrs.md) — worked examples on classic data structures.
+- [`spytial-clrs`](https://github.com/sidprasad/spytial-clrs) — more examples: CLRS data structures rendered with sPyTial.
