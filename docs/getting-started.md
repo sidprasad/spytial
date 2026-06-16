@@ -12,9 +12,6 @@
 pip install spytial-diagramming
 ```
 
-That's it — no browser extension, no separate renderer, no config. Supported on
-Python 3.8 – 3.12.
-
 !!! tip "Don't want to install yet?"
     The [**Playground**](playground/index.html) runs this exact example in your
     browser. Come back here when you want to run it locally.
@@ -91,7 +88,7 @@ Reading top to bottom:
 Those `selector` strings are sPyTial's **relational query language** — the same
 language across every sPyTial host. You don't need it for simple objects, but it
 lets you target exactly the right atoms and edges (here: "real children, not the
-sentinel"). See [Operations](operations.md) for the full syntax.
+sentinel"). See [Selectors](selectors.md) for a Python-oriented guide to the syntax.
 
 !!! note "Build it up incrementally"
     A good workflow is to call `diagram(obj)` first with **no** decorators to see

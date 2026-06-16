@@ -1,128 +1,134 @@
 # Operations
 
-Operations define how sPyTial interprets and renders your data. They fall into two categories:
+Operations are the rules that shape a diagram. Each is one **constraint** or
+**directive** you attach to a class (or an object). They are declarative and
+order-independent — every rule narrows the set of acceptable layouts, turning the
+raw [value graph](how-it-works.md) into the picture you want.
 
-- **Constraints** describe layout.
-- **Directives** describe drawing and presentation.
+- **Constraints** shape the geometry — *where* things go.
+- **Directives** change the drawing — *how* things look.
 
-Most users attach operations to classes with decorators. You can also attach them to specific objects or supply them via `typing.Annotated` or `spytial.AnnotatedType`.
+Almost every operation is built from a **`selector`** — which atoms or edges it
+applies to (see [Selectors](selectors.md)) — plus a few operation-specific
+arguments. The sections below break each one into its parts.
 
 ## Constraints
 
-Constraints shape the geometry of the final diagram:
+### `orientation` — place a target in a direction
 
-- `orientation`: directional relationships between selected boxes
-- `align`: force selected boxes to share an axis
-- `cyclic`: arrange selected boxes in a cycle
-- `group`: place selected boxes inside a labeled bounding region
+1. **`selector`** — the edges to orient.
+2. **`directions`** — where the target sits relative to its source, as a list
+   (e.g. `['below', 'left']`). Common values: `above`, `below`, `left`, `right`,
+   and the adjacency variants `directlyLeft` / `directlyRight`.
+
+```python
+@spytial.orientation(
+    selector='{ x : TreeNode, y : TreeNode | x.left = y }',  # which edges
+    directions=['below', 'left'],                            # where the child goes
+)
+```
+
+### `align` — line atoms up on a shared axis
+
+1. **`selector`** — the atoms to align.
+2. **`direction`** — the axis to share.
+
+### `cyclic` — arrange atoms in a ring
+
+1. **`selector`** — the atoms/edges forming the cycle.
+2. **`direction`** — which way the ring runs.
+
+### `group` — enclose atoms in a labelled region
+
+1. **`selector`** — the relation (or atoms) whose members are grouped.
+2. **`name`** — the label drawn on the bounding box.
 
 ## Directives
 
-Directives change what the diagram looks like without changing the structure:
+### `attribute` — show a field as inline text
 
-- `atomColor` and `edgeColor`
-- `attribute`
-- `tag`
-- `inferredEdge`
-- `icon`
-- `hideField` and `hideAtom`
-- `size`
+1. **`field`** — the field to fold into the node as a label (instead of a separate
+   box and arrow).
 
-The API Reference lists the full argument surface for each operation.
+```python
+@spytial.attribute(field='value')
+```
 
-## Class decorators
+### `atomColor` / `edgeColor` — color
 
-Attach operations to a class using decorators. This is the most common and reusable approach.
+- `atomColor`: **`selector`** (which atoms) + **`value`** (the color).
+- `edgeColor`: **`field`** (which relation) + **`value`** (the color), plus optional
+  `style`, `weight`, `filter`.
+
+### `hideAtom` / `hideField` — remove things from the picture
+
+- `hideAtom`: **`selector`** (the atoms to hide).
+- `hideField`: **`field`** (the relation to hide).
+
+### `inferredEdge` — draw a derived edge
+
+1. **`selector`** — the pairs to connect.
+2. **`name`** — the label for the new edge.
+
+```python
+@spytial.inferredEdge(
+    selector='{ x : Vertex, y : Vertex | y in x.neighbors }',  # which pairs
+    name='edge',                                               # edge label
+)
+```
+
+### `tag` — attach a computed label
+
+1. **`toTag`** — the type to tag.
+2. **`name`** — the label name.
+3. **`value`** — the field/expression to show.
+
+### `size` / `icon` — adjust drawing
+
+- `size`: **`selector`** + **`height`** + **`width`**.
+- `icon`: **`selector`** + **`path`** (+ `showLabels`).
+
+### `flag` — a rendering switch
+
+1. **`name`** — e.g. `'hideDisconnected'` to drop atoms with no edges.
+
+## Attaching operations
+
+The same operations can be attached three ways.
+
+**As class decorators** (most common):
 
 ```python
 import spytial
 
-@spytial.orientation(selector="children", directions=["below"])
-@spytial.group(selector="children", name="subtree")
+@spytial.orientation(selector='children', directions=['below'])
+@spytial.attribute(field='value')
 class Node:
     def __init__(self, value, children=None):
         self.value = value
         self.children = children or []
 ```
 
-## Object-level annotations
-
-Attach operations to a single instance without modifying the class:
+**On a single object**, without touching the class:
 
 ```python
-import spytial
-
-node = Node("root")
-spytial.annotate_group(node, selector="children", name="root children")
-spytial.annotate_orientation(node, selector="children", directions=["below"])
+node = Node('root')
+spytial.annotate_orientation(node, selector='children', directions=['below'])
 ```
 
-## `typing.Annotated` and `AnnotatedType`
-
-Use these when you want to annotate plain containers such as `dict` and `list` values.
+**Conditionally**, with `apply_if`:
 
 ```python
-from typing import Dict, List
-from spytial import AnnotatedType, InferredEdge, Orientation
-
-Graph = AnnotatedType(
-    Dict[int, List[int]],
-    InferredEdge(name="edge", selector="values"),
-    Orientation(selector="values", directions=["right"]),
-)
-
-spytial.diagram({0: [1, 2]}, as_type=Graph)
-```
-
-## Example directives
-
-The `tag` directive displays computed values as node attributes without removing the underlying edges:
-
-```python
-import spytial
-
-@spytial.tag(toTag="Person", name="age", value="age")
-class Person:
-    def __init__(self, name, age):
-        self.name = name
-        self.age = age
-```
-
-Edge appearance can be customized with color, style, weight, and visibility:
-
-```python
-import spytial
-
-@spytial.edgeColor(field="parent", value="blue", style="solid", weight=2)
-@spytial.edgeColor(field="sibling", value="gray", style="dashed")
-class TreeNode:
-    def __init__(self, value, parent=None):
-        self.value = value
-        self.parent = parent
-```
-
-## Convenience operations
-
-`apply_if` lets you conditionally attach operations:
-
-```python
-import spytial
-
 @spytial.apply_if(
-    lambda cls: cls.__name__.endswith("Node"),
-    spytial.atomColor(selector="self", value="lightblue"),
+    lambda cls: cls.__name__.endswith('Node'),
+    spytial.atomColor(selector='self', value='lightblue'),
 )
-class TreeNode:
-    def __init__(self, value):
-        self.value = value
+class Node:
+    ...
 ```
 
-## Patterns used in the CLRS notebooks
+## See it in action
 
-[`spytial-clrs`](https://github.com/sidprasad/spytial-clrs) — a notebook collection implementing CLRS-textbook data structures with sPyTial — is a good source of idiomatic operation usage:
-
-- linked lists use `attribute(...)` to turn fields into compact labels
-- heaps and matrix-style examples use `align(...)` to create readable rows or sibling levels
-- disjoint sets, hash tables, and SCC views use `group(...)` to expose higher-level regions
-
-See [CLRS Notebook Examples](examples/spytial-clrs.md) for the full guide.
+Try these on real data structures in the [Playground](playground/index.html), or
+browse the [`spytial-clrs`](https://github.com/sidprasad/spytial-clrs) notebooks
+for idiomatic usage on heaps, trees, hash tables, disjoint sets, and graphs.

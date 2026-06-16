@@ -107,25 +107,10 @@ Full details and arguments are in [Operations](operations.md).
 
 </div>
 
-## What it's good for
+## More
 
-- **Debugging** recursive or linked structures — see the shape, not a `repr`.
-- **Teaching** data structures — trees, heaps, graphs, hash tables.
-- **Inspecting** serialized state, ORM objects, protobufs, nested config.
-- **Stepping through** how a structure evolves, with [sequences](usage/sequences.md).
-
-## The sPyTial ecosystem
-
-Most users only need the first.
-
-- **`spytial-diagramming`** (this package) — the Python host: `diagram()`, `evaluate()`, the decorators, and a relationalizer plug-in system.
-- **[`spytial-core`](https://github.com/sidprasad/spytial-core)** — the browser-side rendering engine (TypeScript), loaded from a CDN. The same engine powers every sPyTial host (Python, Rust, Pyret, Lean). See [How It Works](how-it-works.md).
-- **[`spytial-clrs`](https://github.com/sidprasad/spytial-clrs)** — Jupyter notebooks implementing CLRS-textbook data structures with sPyTial: heaps, trees, hash tables, disjoint sets, graphs, and more. The best place to see it on realistic structures.
-
-## Where to go next
-
-- [Playground](playground/index.html) — edit and run sPyTial in your browser, no install.
-- [Getting Started](getting-started.md) — install, then a line-by-line walkthrough.
-- [Operations](operations.md) — every layout constraint and drawing directive.
+- [Playground](playground/index.html) — edit and run sPyTial in your browser.
+- [Getting Started](getting-started.md) — install and a walkthrough.
+- [Operations](operations.md) — every constraint and directive.
 - [How It Works](how-it-works.md) — the Python → browser pipeline.
-- [CLRS Notebook Examples](examples/spytial-clrs.md) — worked examples on classic data structures.
+- [`spytial-clrs`](https://github.com/sidprasad/spytial-clrs) — more examples: CLRS data structures rendered with sPyTial.

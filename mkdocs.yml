@@ -15,6 +15,7 @@ nav:
   - Sequences: usage/sequences.md
   - Evaluator: usage/evaluator.md
   - Operations: operations.md
+  - Selectors: selectors.md
   - Dataclass Builder: usage/dataclass-builder.md
   - Custom Relationalizers: relationalizers.md
   - CLRS Notebook Examples: examples/spytial-clrs.md
