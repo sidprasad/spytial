@@ -182,28 +182,6 @@ b.next = c; c.prev = b
 diagram(a)
 `,
     },
-    graph: {
-      label: "Directed graph",
-      code: `from spytial import attribute, inferredEdge, hideAtom, flag, diagram
-
-@attribute(field='name')
-@inferredEdge(selector='{ x : Vertex, y : Vertex | y in x.neighbors }', name='edge')
-@hideAtom(selector='list')
-@flag(name="hideDisconnected")
-class Vertex:
-    def __init__(self, name):
-        self.name = name
-        self.neighbors = []
-
-A, B, C, D = Vertex('A'), Vertex('B'), Vertex('C'), Vertex('D')
-A.neighbors = [B, C]
-B.neighbors = [D]
-C.neighbors = [D]
-D.neighbors = [A]   # a cycle back to A
-
-diagram(A)
-`,
-    },
     matrix: {
       label: "Adjacency matrix → graph",
       code: `from spytial import inferredEdge, hideAtom, diagram

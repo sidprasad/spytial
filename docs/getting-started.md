@@ -57,7 +57,7 @@ The decorators *are* the sPyTial layout — each is one rule. Reading top to bot
 | Decorator | What it does |
 | --- | --- |
 | `@orientation(selector='{ x : TreeNode, y : TreeNode \| x.left = y }', directions=['below','left'])` | Place each node's left child **below and to the left**. The selector matches the pairs `(x, y)` where `y` is `x`'s left child — i.e. the left-child edges. |
-| `@orientation(selector='{ x, y : TreeNode \| x.right = y }', directions=['below','right'])` | The mirror image, for the right child. |
+| `@orientation(selector='{ x : TreeNode, y : TreeNode \| x.right = y }', directions=['below','right'])` | The mirror image, for the right child. |
 | `@attribute(field='value')` | Render `node.value` as text **inside** the node, instead of as a separate box with an arrow. |
 | `@hideAtom(selector='NoneType')` | Hide the empty `None` leaves. |
 | `@flag(name="hideDisconnected")` | Drop any atom left with no edges, keeping the picture tidy. |
