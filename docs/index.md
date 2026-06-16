@@ -10,29 +10,53 @@
 <div class="sp-code" markdown="1">
 
 ```python
-import spytial
+from spytial import attribute, orientation, hideAtom, hideField, diagram
 
-@spytial.orientation(selector="left",  directions=["below", "left"])
-@spytial.orientation(selector="right", directions=["below", "right"])
-@spytial.attribute(field="value")
-@spytial.hideAtom(selector="NoneType")
-class Node:
-    def __init__(self, value, left=None, right=None):
-        self.value = value
+@attribute(field="key")                      # show `key` inside each node
+@orientation(selector='left & (BSTNode -> (BSTNode - NoneType.~key))',
+             directions=['below', 'left'])    # real left child: below-left
+@orientation(selector='right & (BSTNode -> (BSTNode - NoneType.~key))',
+             directions=['below', 'right'])   # real right child: below-right
+class BSTNode:
+    def __init__(self, key=None, left=None, right=None, parent=None):
+        self.key = key
         self.left = left
         self.right = right
+        self.parent = parent
 
-root = Node(4, Node(2, Node(1), Node(3)),
-               Node(6, Node(5), Node(7)))
+BST_NIL = BSTNode(key=None)                   # one shared NIL sentinel
+BST_NIL.left = BST_NIL.right = BST_NIL.parent = BST_NIL
 
-spytial.diagram(root)
+@hideAtom(selector='{ x : BSTNode | (x.key in NoneType) } + BSTree + int + NoneType')
+@hideField(field='parent')                    # don't draw parent back-pointers
+class BSTree:
+    def __init__(self):
+        self.root = BST_NIL
+
+    def insert(self, k):                       # CLRS TREE-INSERT
+        z = BSTNode(key=k, left=BST_NIL, right=BST_NIL, parent=None)
+        y, x = BST_NIL, self.root
+        while x is not BST_NIL:
+            y = x
+            x = x.left if z.key < x.key else x.right
+        z.parent = y
+        if y is BST_NIL:    self.root = z
+        elif z.key < y.key: y.left = z
+        else:               y.right = z
+        return z
+
+t = BSTree()
+for k in [15, 6, 18, 17, 20, 3, 7, 13, 9, 2, 4]:
+    t.insert(k)
+
+diagram(t)
 ```
 
 </div>
 
 <div class="sp-viz">
   <iframe src="assets/hero-tree.html" title="A binary tree rendered by sPyTial" loading="lazy"></iframe>
-  <div class="sp-cap">↑ The real, live output of the code above — drag to explore, scroll to zoom</div>
+  <div class="sp-cap">↑ The real, live output of the code above (a binary search tree) — drag to explore, scroll to zoom</div>
 </div>
 
 </div>
