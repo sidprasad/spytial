@@ -1,0 +1,642 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>sPyTial</title>
+
+    <script src="https://cdn.jsdelivr.net/npm/spytial-core@2.9.0/dist/browser/spytial-core-complete.global.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/spytial-core@2.9.0/dist/components/react-component-integration.global.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/spytial-core@2.9.0/dist/components/react-component-integration.css" />
+    
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 0;
+            padding: 0;
+            background: transparent;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .container {
+            position: relative;
+            border: 1px solid #e1e5e9;
+            border-radius: 6px;
+            overflow: hidden;
+            background: white;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .graph-wrapper {
+            position: relative;
+            min-height: 400px; /* Ensure minimum height */
+            flex: 1;
+            display: flex;
+        }
+        
+        #graph-container {
+            width: 100%;
+            height: 100%;
+            min-height: 400px;
+            display: block;
+            flex: 1;
+        }
+        
+        .footer {
+            text-align: center;
+            padding: 6px;
+            background: #f8f9fa;
+            border-top: 1px solid #e1e5e9;
+            font-size: 11px;
+            color: #6a737d;
+        }
+        
+        #perf-indicator {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(0, 0, 0, 0.75);
+            color: white;
+            padding: 8px 12px;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 14px;
+            z-index: 1000;
+            display: none;
+        }
+    </style>
+
+
+
+<body>
+    <div class="container">
+        <div class="graph-wrapper">
+            <span id="perf-indicator"></span>
+            <!-- WebCola sPyTial Graph Element -->
+            <webcola-cnd-graph 
+                id="graph-container"
+                width="700" 
+                height="400"
+                layoutFormat="default"
+                aria-label="Interactive graph visualization">
+            </webcola-cnd-graph>
+        </div>
+        
+    </div>
+    
+    <div id="error-message"></div>
+    <div id="error-core"></div>
+
+
+    <script>
+        // Embedded data passed from the server
+        const cndSpec = `constraints:
+- orientation:
+    directions:
+    - below
+    - right
+    selector: right
+- orientation:
+    directions:
+    - below
+    - left
+    selector: left
+directives:
+- hideAtom:
+    selector: NoneType
+- attribute:
+    field: value
+`;
+        const jsonData = {"atoms": [{"id": "None", "type": "NoneType", "label": "None"}, {"id": "1", "type": "int", "label": "1"}, {"id": "n2", "type": "Node", "label": "Node1", "__module__": "__main__", "__qualname__": "Node"}, {"id": "3", "type": "int", "label": "3"}, {"id": "n3", "type": "Node", "label": "Node2", "__module__": "__main__", "__qualname__": "Node"}, {"id": "2", "type": "int", "label": "2"}, {"id": "n1", "type": "Node", "label": "Node0", "__module__": "__main__", "__qualname__": "Node"}, {"id": "5", "type": "int", "label": "5"}, {"id": "n5", "type": "Node", "label": "Node4", "__module__": "__main__", "__qualname__": "Node"}, {"id": "7", "type": "int", "label": "7"}, {"id": "n6", "type": "Node", "label": "Node5", "__module__": "__main__", "__qualname__": "Node"}, {"id": "6", "type": "int", "label": "6"}, {"id": "n4", "type": "Node", "label": "Node3", "__module__": "__main__", "__qualname__": "Node"}, {"id": "4", "type": "int", "label": "4"}, {"id": "n0", "type": "Node", "label": "root", "__module__": "__main__", "__qualname__": "Node"}], "relations": [{"id": "left", "name": "left", "types": ["object", "object"], "tuples": [{"atoms": ["n2", "None"], "types": ["Node", "NoneType"]}, {"atoms": ["n3", "None"], "types": ["Node", "NoneType"]}, {"atoms": ["n1", "n2"], "types": ["Node", "Node"]}, {"atoms": ["n5", "None"], "types": ["Node", "NoneType"]}, {"atoms": ["n6", "None"], "types": ["Node", "NoneType"]}, {"atoms": ["n4", "n5"], "types": ["Node", "Node"]}, {"atoms": ["n0", "n1"], "types": ["Node", "Node"]}]}, {"id": "right", "name": "right", "types": ["object", "object"], "tuples": [{"atoms": ["n2", "None"], "types": ["Node", "NoneType"]}, {"atoms": ["n3", "None"], "types": ["Node", "NoneType"]}, {"atoms": ["n1", "n3"], "types": ["Node", "Node"]}, {"atoms": ["n5", "None"], "types": ["Node", "NoneType"]}, {"atoms": ["n6", "None"], "types": ["Node", "NoneType"]}, {"atoms": ["n4", "n6"], "types": ["Node", "Node"]}, {"atoms": ["n0", "n4"], "types": ["Node", "Node"]}]}, {"id": "value", "name": "value", "types": ["object", "object"], "tuples": [{"atoms": ["n2", "1"], "types": ["Node", "int"]}, {"atoms": ["n3", "3"], "types": ["Node", "int"]}, {"atoms": ["n1", "2"], "types": ["Node", "int"]}, {"atoms": ["n5", "5"], "types": ["Node", "int"]}, {"atoms": ["n6", "7"], "types": ["Node", "int"]}, {"atoms": ["n4", "6"], "types": ["Node", "int"]}, {"atoms": ["n0", "4"], "types": ["Node", "int"]}]}], "types": [{"id": "NoneType", "types": ["NoneType", "object"], "atoms": [{"id": "None", "type": "NoneType", "label": "None"}], "isBuiltin": true}, {"id": "int", "types": ["int", "object"], "atoms": [{"id": "1", "type": "int", "label": "1"}, {"id": "3", "type": "int", "label": "3"}, {"id": "2", "type": "int", "label": "2"}, {"id": "5", "type": "int", "label": "5"}, {"id": "7", "type": "int", "label": "7"}, {"id": "6", "type": "int", "label": "6"}, {"id": "4", "type": "int", "label": "4"}], "isBuiltin": true}, {"id": "Node", "types": ["Node", "object"], "atoms": [{"id": "n2", "type": "Node", "label": "Node1"}, {"id": "n3", "type": "Node", "label": "Node2"}, {"id": "n1", "type": "Node", "label": "Node0"}, {"id": "n5", "type": "Node", "label": "Node4"}, {"id": "n6", "type": "Node", "label": "Node5"}, {"id": "n4", "type": "Node", "label": "Node3"}, {"id": "n0", "type": "Node", "label": "root"}], "isBuiltin": false}], "rootId": "n0"};
+        const perfPath = ``;  // Optional perf file path
+        const perfIterations = parseInt('0') || 0;  // Optional number of iterations for benchmarking
+
+        function getSpytialCore() {
+            const candidates = [
+                window.spytialcore,
+                window.CndCore,
+                window.CnDCore,
+            ];
+
+            return candidates.find((candidate) =>
+                candidate &&
+                typeof candidate.JSONDataInstance === 'function' &&
+                typeof candidate.parseLayoutSpec === 'function'
+            );
+        }
+
+        // Global variables for rendering
+        let graphElement = null;
+        
+        // Performance metrics tracking
+        const performanceMetrics = {
+            parseSpec: 0,
+            generateLayout: 0,
+            renderLayout: 0,
+            totalTime: 0,
+            timestamp: new Date().toISOString(),
+            iterations: perfIterations || 1  // Track number of iterations
+        };
+
+        /**
+         * Save performance metrics to browser storage and console
+         */
+        function savePerformanceMetrics() {
+            // Only log if NOT benchmarking
+            // if (!perfIterations) {
+            //     console.log('=== Performance Metrics ===');
+            //     console.log(`Parse Spec: ${performanceMetrics.parseSpec.avg.toFixed(2)}ms (min: ${performanceMetrics.parseSpec.min.toFixed(2)}, max: ${performanceMetrics.parseSpec.max.toFixed(2)})`);
+            //     console.log(`Generate Layout: ${performanceMetrics.generateLayout.avg.toFixed(2)}ms (min: ${performanceMetrics.generateLayout.min.toFixed(2)}, max: ${performanceMetrics.generateLayout.max.toFixed(2)})`);
+            //     console.log(`Render Layout: ${performanceMetrics.renderLayout.avg.toFixed(2)}ms (min: ${performanceMetrics.renderLayout.min.toFixed(2)}, max: ${performanceMetrics.renderLayout.max.toFixed(2)})`);
+            //     console.log(`Total Time: ${performanceMetrics.totalTime.avg.toFixed(2)}ms (min: ${performanceMetrics.totalTime.min.toFixed(2)}, max: ${performanceMetrics.totalTime.max.toFixed(2)})`);
+            //     console.log(`Timestamp: ${performanceMetrics.timestamp}`);
+            //     console.log('==========================');
+            // }
+            
+            // Save to server if perf_path is provided
+            if (perfPath) {
+                saveMetricsToServer(performanceMetrics);
+            }
+        }
+
+        /**
+         * Save metrics to a file with custom path/name
+         * Since we can't write to arbitrary filesystem locations from browser,
+         * we download the file with the specified name
+         */
+        function saveMetricsToServer(metrics) {
+            try {
+                const json = JSON.stringify(metrics, null, 2);
+                const blob = new Blob([json], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                
+                // Use perfPath as the download filename
+                // The browser will prompt user or use their default download location
+                link.href = url;
+                link.download = perfPath;  // Use the provided path as filename
+                link.style.display = 'none';
+                
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                URL.revokeObjectURL(url);
+            } catch (error) {
+                console.warn('Error downloading metrics file:', error);
+                // Fallback to default file download
+                saveMetricsToFile(metrics);
+            }
+        }
+
+        /**
+         * Scan data for common issues and provide diagnostics
+         */
+        function scanDataForIssues(data) {
+            const issues = [];
+            
+            if (data && data.atoms) {
+                // Check for duplicate atom IDs
+                const idCounts = {};
+                for (const atom of data.atoms) {
+                    idCounts[atom.id] = (idCounts[atom.id] || 0) + 1;
+                }
+                
+                const duplicates = Object.entries(idCounts)
+                    .filter(([_, count]) => count > 1)
+                    .map(([id, count]) => `${id} (${count}x)`);
+                
+                if (duplicates.length > 0) {
+                    issues.push(`Duplicate atom IDs: ${duplicates.slice(0, 5).join(', ')}${duplicates.length > 5 ? '...' : ''}`);
+                }
+                
+                // Check for missing type/label
+                for (let i = 0; i < Math.min(data.atoms.length, 5); i++) {
+                    const atom = data.atoms[i];
+                    if (!atom.type || !atom.label) {
+                        issues.push(`Atom ${atom.id} missing type or label`);
+                    }
+                }
+            }
+            
+            return issues;
+        }
+
+        /**
+         * Validate the data structure for common issues
+         */
+        function validateDataStructure(data) {
+            if (!data || typeof data !== 'object') {
+                throw new Error('Data must be an object');
+            }
+
+            // Check atoms
+            if (data.atoms) {
+                if (!Array.isArray(data.atoms)) {
+                    throw new Error('atoms must be an array');
+                }
+
+                // Track (id, type, label) tuples to detect race conditions
+                // Multiple atoms with same ID are OK if they have same type and label (same primitive value)
+                // But if same ID has different types/labels, that's a race condition
+                const atomsByIdMap = {};  // id -> array of {type, label}
+
+                for (let i = 0; i < data.atoms.length; i++) {
+                    const atom = data.atoms[i];
+                    if (!atom.id) {
+                        throw new Error(`Atom at index ${i} missing 'id' field`);
+                    }
+
+                    if (!atomsByIdMap[atom.id]) {
+                        atomsByIdMap[atom.id] = [];
+                    }
+                    atomsByIdMap[atom.id].push({ type: atom.type, label: atom.label });
+                }
+
+                // Check for race condition: same ID with different type or label
+                const raceConditionIds = [];
+                for (const [id, atoms] of Object.entries(atomsByIdMap)) {
+                    // Check if all atoms with this ID have same type and label
+                    const firstAtom = atoms[0];
+                    const inconsistent = atoms.some(a => 
+                        a.type !== firstAtom.type || a.label !== firstAtom.label
+                    );
+                    if (inconsistent) {
+                        raceConditionIds.push(id);
+                    }
+                }
+
+                if (raceConditionIds.length > 0) {
+                    const raceList = raceConditionIds.slice(0, 5).join(', ');
+                    const moreCount = raceConditionIds.length > 5 ? ` and ${raceConditionIds.length - 5} more` : '';
+                    throw new Error(
+                        `Primitive ID race condition detected: ${raceList}${moreCount}. ` +
+                        `These IDs have conflicting type or label information, indicating inconsistent ID generation. ` +
+                        `Make sure all primitive values (int, str, bool) are generated with consistent value-based IDs.`
+                    );
+                }
+            }
+
+            // Check relations
+            if (data.relations) {
+                if (!Array.isArray(data.relations)) {
+                    throw new Error('relations must be an array');
+                }
+
+                const atomIds = new Set();
+                if (data.atoms) {
+                    data.atoms.forEach(a => atomIds.add(a.id));
+                }
+
+                for (let i = 0; i < data.relations.length; i++) {
+                    const rel = data.relations[i];
+                    if (!rel.id) {
+                        throw new Error(`Relation at index ${i} missing 'id' field`);
+                    }
+                    if (!rel.tuples || !Array.isArray(rel.tuples)) {
+                        throw new Error(`Relation '${rel.id}' missing 'tuples' array`);
+                    }
+
+                    // Check that tuple atom references exist
+                    if (atomIds.size > 0) {
+                        for (let j = 0; j < rel.tuples.length; j++) {
+                            const tuple = rel.tuples[j];
+                            if (!tuple.atoms || !Array.isArray(tuple.atoms)) {
+                                throw new Error(`Relation '${rel.id}' tuple at index ${j} missing 'atoms' array`);
+                            }
+                            for (const atomId of tuple.atoms) {
+                                if (!atomIds.has(atomId)) {
+                                    throw new Error(
+                                        `Relation '${rel.id}' references unknown atom '${atomId}'. ` +
+                                        `Available atoms: ${Array.from(atomIds).slice(0, 5).join(', ')}`
+                                    );
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Check types
+            if (data.types) {
+                if (!Array.isArray(data.types)) {
+                    throw new Error('types must be an array');
+                }
+            }
+        }
+
+        /**
+         * Load and render the graph using the webcola-cnd-graph custom element
+         */
+        async function loadGraph() {
+            const startTime = performance.now();
+            graphElement = document.getElementById('graph-container');
+
+            // If performing multiple iterations, run them sequentially and collect metrics
+            if (perfIterations > 1) {
+                // Safety check: warn if too many iterations (risk of OOM)
+                const MAX_SAFE_ITERATIONS = 100;
+                if (perfIterations > MAX_SAFE_ITERATIONS) {
+                    console.warn(`Warning: ${perfIterations} iterations may cause out-of-memory errors. Consider reducing to ${MAX_SAFE_ITERATIONS} or fewer.`);
+                }
+                
+                // Show performance indicator
+                const perfIndicator = document.getElementById('perf-indicator');
+                perfIndicator.style.display = 'block';
+                
+                const allMetrics = [];
+                
+                for (let i = 1; i <= perfIterations; i++) {
+                    // Update indicator
+                    perfIndicator.textContent = `Iteration ${i}/${perfIterations}`;
+                    
+                    const iterationMetrics = await renderOnce();
+                    if (iterationMetrics) {
+                        allMetrics.push(iterationMetrics);
+                    }
+                    
+                    // Clean up between iterations to prevent memory leaks
+                    if (i < perfIterations) {
+                        await cleanupIteration();
+                    }
+                }
+                
+                // Hide indicator after completion
+                perfIndicator.style.display = 'none';
+                
+                // Aggregate metrics (save without logging to preserve benchmark accuracy)
+                if (allMetrics.length > 0) {
+                    const aggregatedMetrics = aggregateMetrics(allMetrics);
+                    performanceMetrics.parseSpec = aggregatedMetrics.parseSpec;
+                    performanceMetrics.generateLayout = aggregatedMetrics.generateLayout;
+                    performanceMetrics.renderLayout = aggregatedMetrics.renderLayout;
+                    performanceMetrics.totalTime = aggregatedMetrics.totalTime;
+                    performanceMetrics.iterations = perfIterations;
+                    performanceMetrics.completed = true;  // Signal completion for headless mode
+                    
+                    // Expose to window for external access
+                    window.performanceMetrics = performanceMetrics;
+                    
+                    // Save final aggregated metrics without verbose logging
+                    savePerformanceMetrics();
+                }
+                return;
+            }
+            
+            // Single iteration (normal rendering)
+            await renderOnce();
+        }
+
+        /**
+         * Clean up resources between performance iterations to prevent memory leaks
+         */
+        async function cleanupIteration() {
+            try {
+                // Clear the graph element's internal state and DOM
+                if (graphElement) {
+                    // Try to clear using the element's built-in clear method
+                    if (typeof graphElement.clear === 'function') {
+                        graphElement.clear();
+                    }
+                    
+                    // Clear shadow DOM if present
+                    if (graphElement.shadowRoot) {
+                        // Don't remove shadow root, but clear its content
+                        const svg = graphElement.shadowRoot.querySelector('svg');
+                        if (svg) {
+                            // Remove all child elements from SVG
+                            while (svg.firstChild) {
+                                svg.removeChild(svg.firstChild);
+                            }
+                        }
+                    }
+                }
+                
+                // Force garbage collection hint (if available in headless Chrome)
+                if (window.gc) {
+                    try {
+                        window.gc();
+                    } catch (e) {
+                        // gc() not available
+                    }
+                }
+                
+                // Longer delay to allow browser to clean up, especially for large visualizations
+                // This gives the JS engine time to run garbage collection
+                await new Promise(resolve => setTimeout(resolve, 100));
+            } catch (error) {
+                // Silent cleanup - errors here shouldn't break benchmarking
+            }
+        }
+
+        /**
+         * Render the graph once and return metrics
+         */
+        async function renderOnce() {
+            const iterationStartTime = performance.now();
+            const iterationMetrics = {
+                parseSpec: 0,
+                generateLayout: 0,
+                renderLayout: 0,
+                totalTime: 0
+            };
+            let parsedData = null;
+
+            const core = getSpytialCore();
+            if (!core) {
+                console.error('spytial-core library is not available');
+                showError('spytial-core failed to load. The visualization cannot be displayed.');
+                return null;
+            }
+
+            // Step 1: Mount error message modal if available
+            if (window.mountErrorMessageModal && !perfIterations) {
+                window.mountErrorMessageModal('error-core');
+            }
+
+            try {
+                // Use JSON data directly (now embedded as object, not string)
+                let dataInstance;
+                try {
+                    parsedData = jsonData;  // Already parsed from Jinja2 template
+                } catch (parseError) {
+                    const diagnosticIssues = scanDataForIssues(jsonData);
+                    const diagnosticHint = diagnosticIssues.length > 0 
+                        ? `\n\nData issues detected:\n- ${diagnosticIssues.join('\n- ')}`
+                        : '';
+                    throw new Error(`Failed to parse JSON data: ${parseError.message}${diagnosticHint}`);
+                }
+                
+                // Create a data instance from the JSON data
+                try {
+                    dataInstance = new core.JSONDataInstance(parsedData);
+                } catch (instanceError) {
+                    const diagnosticIssues = scanDataForIssues(parsedData);
+                    const diagnosticHint = diagnosticIssues.length > 0 
+                        ? `\n\nData issues detected:\n- ${diagnosticIssues.join('\n- ')}`
+                        : '';
+                    throw new Error(`Failed to create data instance: ${instanceError.message}${diagnosticHint}`);
+                }
+                
+                if (!perfIterations) {
+                    window.dataInstance = dataInstance; // Expose for debugging
+                }
+
+                // Initialize the evaluation context
+                let evaluationContext = { sourceData: dataInstance };
+                let sgqEvaluator = new core.SGraphQueryEvaluator();
+                sgqEvaluator.initialize(evaluationContext);
+                
+                if (!perfIterations) {
+                    window.evaluator = sgqEvaluator; // Expose evaluator for debugging
+                }
+
+                // Parse the Spytial-Core specification
+                const parseSpecStart = performance.now();
+                let layoutSpec = core.parseLayoutSpec(cndSpec);
+                iterationMetrics.parseSpec = performance.now() - parseSpecStart;
+
+                // Generate the layout with timing
+                const generateLayoutStart = performance.now();
+                let layoutInstance = new core.LayoutInstance(layoutSpec, sgqEvaluator, 0, true);
+                let layoutResult = layoutInstance.generateLayout(dataInstance);
+                iterationMetrics.generateLayout = performance.now() - generateLayoutStart;
+
+                // Check for layout errors
+                if (layoutResult.error) {
+                    console.error('Layout generation error:', layoutResult.error);
+
+                    if (!perfIterations) {
+                        // Check if this is a constraint conflict error
+                        if (layoutResult.error.errorMessages) {
+                            if (window.showPositionalError) {
+                                window.showPositionalError(layoutResult.error.errorMessages);
+                            } else {
+                                showError(`Positional constraint conflict: ${layoutResult.error.message}`);
+                            }
+                        } else if (layoutResult.error.overlappingNodes) {
+                            if (window.showGroupOverlapError) {
+                                window.showGroupOverlapError(layoutResult.error.message);
+                            } else {
+                                showError(`Group overlap error: ${layoutResult.error.message}`);
+                            }
+                        } else {
+                            if (window.showGeneralError) {
+                                window.showGeneralError(`Layout generation error: ${layoutResult.error.message}`);
+                            } else {
+                                showError(`Layout generation error: ${layoutResult.error.message}`);
+                            }
+                        }
+
+                        // Set the webcola-cnd-graph element to indicate unsat state
+                        const webcolaGraphElement = document.getElementById('graph-container');
+                        webcolaGraphElement.setAttribute('unsat', "");
+                    }
+                }  
+
+                // Render the graph with timing (even if there's an error, render what we have)
+                const renderLayoutStart = performance.now();
+                await graphElement.renderLayout(layoutResult.layout);
+                iterationMetrics.renderLayout = performance.now() - renderLayoutStart;
+                
+                // Calculate total time
+                iterationMetrics.totalTime = performance.now() - iterationStartTime;
+                
+                if (!perfIterations) {
+                    performanceMetrics.parseSpec = iterationMetrics.parseSpec;
+                    performanceMetrics.generateLayout = iterationMetrics.generateLayout;
+                    performanceMetrics.renderLayout = iterationMetrics.renderLayout;
+                    performanceMetrics.totalTime = iterationMetrics.totalTime;
+                    // Don't save for single renders
+                } else {
+                    // For performance iterations, aggressively clean up to prevent memory leaks
+                    // Null out all large objects to help GC
+                    dataInstance = null;
+                    layoutInstance = null;
+                    layoutResult = null;
+                    layoutSpec = null;
+                    sgqEvaluator = null;
+                    evaluationContext.sourceData = null;
+                }
+                
+                return iterationMetrics;
+                
+            } catch (error) {
+                console.error('Error rendering graph:', error);
+                const diagnosticIssues = parsedData ? scanDataForIssues(parsedData) : [];
+                const diagnosticHint = diagnosticIssues.length > 0 
+                    ? `\n\nData issues detected:\n- ${diagnosticIssues.join('\n- ')}`
+                    : '';
+                if (!perfIterations) {
+                    if (window.showGeneralError) {
+                        window.showGeneralError(`Layout generation failed: ${error.message}${diagnosticHint}`);
+                    } else {
+                        showError(`Error rendering graph: ${error.message}${diagnosticHint}`);
+                    }
+                }
+                return null;
+            }
+        }
+
+        /**
+         * Aggregate metrics from multiple iterations
+         */
+        function aggregateMetrics(allMetrics) {
+            const aggregated = {};
+            const keys = ['parseSpec', 'generateLayout', 'renderLayout', 'totalTime'];
+            
+            for (const key of keys) {
+                const values = allMetrics.map(m => m[key]);
+                const mean = values.reduce((a, b) => a + b, 0) / values.length;
+                
+                // Calculate standard deviation
+                const variance = values.reduce((sum, val) => sum + Math.pow(val - mean, 2), 0) / values.length;
+                const stdDev = Math.sqrt(variance);
+                
+                // Sort for percentiles and median
+                const sorted = [...values].sort((a, b) => a - b);
+                
+                aggregated[key] = {
+                    min: Math.min(...values),
+                    max: Math.max(...values),
+                    avg: mean,
+                    median: sorted[Math.floor(sorted.length / 2)],
+                    stdDev: stdDev,
+                    p95: sorted[Math.floor(sorted.length * 0.95)],
+                    p99: sorted[Math.floor(sorted.length * 0.99)]
+                };
+            }
+            
+            return aggregated;
+        }
+
+        /**
+         * Display an error message in the error-message div.
+         * @param {string} message - The error message to display.
+         */
+        function showError(message) {
+            const errorDiv = document.getElementById('error-message');
+            if (errorDiv) {
+                errorDiv.innerHTML = `
+                    <div style="color: red; padding: 10px; border: 1px solid red; background-color: #ffe6e6; margin-top: 10px;">
+                        <h3>Error</h3>
+                        <p>${message}</p>
+                    </div>
+                `;
+            } else {
+                console.error('Error div not found. Error message:', message);
+            }
+        }
+
+
+
+        // Auto-load when page loads
+        window.addEventListener('load', loadGraph);
+    </script>
+</body>
+
+</html>
