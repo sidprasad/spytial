@@ -343,6 +343,25 @@
   
   
     <li class="md-tabs__item">
+      <a href="selectors/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Selectors
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
       <a href="usage/dataclass-builder/" class="md-tabs__link">
         
   
@@ -547,32 +566,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#what-its-good-for" class="md-nav__link">
+  <a href="#more" class="md-nav__link">
     <span class="md-ellipsis">
       
-        What it's good for
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#the-spytial-ecosystem" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        The sPyTial ecosystem
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#where-to-go-next" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Where to go next
+        More
       
     </span>
   </a>
@@ -783,6 +780,33 @@
   
   
     <li class="md-nav__item">
+      <a href="selectors/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Selectors
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="usage/dataclass-builder/" class="md-nav__link">
         
   
@@ -933,32 +957,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#what-its-good-for" class="md-nav__link">
+  <a href="#more" class="md-nav__link">
     <span class="md-ellipsis">
       
-        What it's good for
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#the-spytial-ecosystem" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        The sPyTial ecosystem
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#where-to-go-next" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Where to go next
+        More
       
     </span>
   </a>
@@ -992,51 +994,31 @@
 <a class="md-button" href="playground/">Try it in your browser</a></p>
 <div class="sp-hero">
 <div class="sp-code">
-<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">spytial</span><span class="w"> </span><span class="kn">import</span> <span class="n">attribute</span><span class="p">,</span> <span class="n">orientation</span><span class="p">,</span> <span class="n">hideAtom</span><span class="p">,</span> <span class="n">hideField</span><span class="p">,</span> <span class="n">diagram</span>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">spytial</span><span class="w"> </span><span class="kn">import</span> <span class="n">orientation</span><span class="p">,</span> <span class="n">attribute</span><span class="p">,</span> <span class="n">hideAtom</span><span class="p">,</span> <span class="n">flag</span><span class="p">,</span> <span class="n">diagram</span>
 
-<span class="nd">@attribute</span><span class="p">(</span><span class="n">field</span><span class="o">=</span><span class="s2">&quot;key&quot;</span><span class="p">)</span>                      <span class="c1"># show `key` inside each node</span>
-<span class="nd">@orientation</span><span class="p">(</span><span class="n">selector</span><span class="o">=</span><span class="s1">&#39;left &amp; (BSTNode -&gt; (BSTNode - NoneType.~key))&#39;</span><span class="p">,</span>
-             <span class="n">directions</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;below&#39;</span><span class="p">,</span> <span class="s1">&#39;left&#39;</span><span class="p">])</span>    <span class="c1"># real left child: below-left</span>
-<span class="nd">@orientation</span><span class="p">(</span><span class="n">selector</span><span class="o">=</span><span class="s1">&#39;right &amp; (BSTNode -&gt; (BSTNode - NoneType.~key))&#39;</span><span class="p">,</span>
-             <span class="n">directions</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;below&#39;</span><span class="p">,</span> <span class="s1">&#39;right&#39;</span><span class="p">])</span>   <span class="c1"># real right child: below-right</span>
-<span class="k">class</span><span class="w"> </span><span class="nc">BSTNode</span><span class="p">:</span>
-    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">left</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">right</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">parent</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">key</span> <span class="o">=</span> <span class="n">key</span>
+<span class="nd">@orientation</span><span class="p">(</span><span class="n">selector</span><span class="o">=</span><span class="s1">&#39;{ x : TreeNode, y : TreeNode | x.left = y }&#39;</span><span class="p">,</span> <span class="n">directions</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;below&#39;</span><span class="p">,</span> <span class="s1">&#39;left&#39;</span><span class="p">])</span>
+<span class="nd">@orientation</span><span class="p">(</span><span class="n">selector</span><span class="o">=</span><span class="s1">&#39;{ x : TreeNode, y : TreeNode | x.right = y }&#39;</span><span class="p">,</span> <span class="n">directions</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;below&#39;</span><span class="p">,</span> <span class="s1">&#39;right&#39;</span><span class="p">])</span>
+<span class="nd">@attribute</span><span class="p">(</span><span class="n">field</span><span class="o">=</span><span class="s1">&#39;value&#39;</span><span class="p">)</span>
+<span class="nd">@hideAtom</span><span class="p">(</span><span class="n">selector</span><span class="o">=</span><span class="s1">&#39;NoneType&#39;</span><span class="p">)</span>
+<span class="nd">@flag</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;hideDisconnected&quot;</span><span class="p">)</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">TreeNode</span><span class="p">:</span>
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="n">left</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">right</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">value</span> <span class="o">=</span> <span class="n">value</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">left</span> <span class="o">=</span> <span class="n">left</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">right</span> <span class="o">=</span> <span class="n">right</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">parent</span> <span class="o">=</span> <span class="n">parent</span>
 
-<span class="n">BST_NIL</span> <span class="o">=</span> <span class="n">BSTNode</span><span class="p">(</span><span class="n">key</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>                   <span class="c1"># one shared NIL sentinel</span>
-<span class="n">BST_NIL</span><span class="o">.</span><span class="n">left</span> <span class="o">=</span> <span class="n">BST_NIL</span><span class="o">.</span><span class="n">right</span> <span class="o">=</span> <span class="n">BST_NIL</span><span class="o">.</span><span class="n">parent</span> <span class="o">=</span> <span class="n">BST_NIL</span>
+<span class="n">root</span> <span class="o">=</span> <span class="n">TreeNode</span><span class="p">(</span>
+    <span class="n">value</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span>
+    <span class="n">left</span><span class="o">=</span><span class="n">TreeNode</span><span class="p">(</span><span class="n">value</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span> <span class="n">left</span><span class="o">=</span><span class="n">TreeNode</span><span class="p">(</span><span class="mi">3</span><span class="p">),</span> <span class="n">right</span><span class="o">=</span><span class="n">TreeNode</span><span class="p">(</span><span class="mi">7</span><span class="p">)),</span>
+    <span class="n">right</span><span class="o">=</span><span class="n">TreeNode</span><span class="p">(</span><span class="n">value</span><span class="o">=</span><span class="mi">15</span><span class="p">,</span> <span class="n">left</span><span class="o">=</span><span class="n">TreeNode</span><span class="p">(</span><span class="mi">12</span><span class="p">),</span> <span class="n">right</span><span class="o">=</span><span class="n">TreeNode</span><span class="p">(</span><span class="mi">18</span><span class="p">)),</span>
+<span class="p">)</span>
 
-<span class="nd">@hideAtom</span><span class="p">(</span><span class="n">selector</span><span class="o">=</span><span class="s1">&#39;{ x : BSTNode | (x.key in NoneType) } + BSTree + int + NoneType&#39;</span><span class="p">)</span>
-<span class="nd">@hideField</span><span class="p">(</span><span class="n">field</span><span class="o">=</span><span class="s1">&#39;parent&#39;</span><span class="p">)</span>                    <span class="c1"># don&#39;t draw parent back-pointers</span>
-<span class="k">class</span><span class="w"> </span><span class="nc">BSTree</span><span class="p">:</span>
-    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">root</span> <span class="o">=</span> <span class="n">BST_NIL</span>
-
-    <span class="k">def</span><span class="w"> </span><span class="nf">insert</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">k</span><span class="p">):</span>                       <span class="c1"># CLRS TREE-INSERT</span>
-        <span class="n">z</span> <span class="o">=</span> <span class="n">BSTNode</span><span class="p">(</span><span class="n">key</span><span class="o">=</span><span class="n">k</span><span class="p">,</span> <span class="n">left</span><span class="o">=</span><span class="n">BST_NIL</span><span class="p">,</span> <span class="n">right</span><span class="o">=</span><span class="n">BST_NIL</span><span class="p">,</span> <span class="n">parent</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
-        <span class="n">y</span><span class="p">,</span> <span class="n">x</span> <span class="o">=</span> <span class="n">BST_NIL</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">root</span>
-        <span class="k">while</span> <span class="n">x</span> <span class="ow">is</span> <span class="ow">not</span> <span class="n">BST_NIL</span><span class="p">:</span>
-            <span class="n">y</span> <span class="o">=</span> <span class="n">x</span>
-            <span class="n">x</span> <span class="o">=</span> <span class="n">x</span><span class="o">.</span><span class="n">left</span> <span class="k">if</span> <span class="n">z</span><span class="o">.</span><span class="n">key</span> <span class="o">&lt;</span> <span class="n">x</span><span class="o">.</span><span class="n">key</span> <span class="k">else</span> <span class="n">x</span><span class="o">.</span><span class="n">right</span>
-        <span class="n">z</span><span class="o">.</span><span class="n">parent</span> <span class="o">=</span> <span class="n">y</span>
-        <span class="k">if</span> <span class="n">y</span> <span class="ow">is</span> <span class="n">BST_NIL</span><span class="p">:</span>    <span class="bp">self</span><span class="o">.</span><span class="n">root</span> <span class="o">=</span> <span class="n">z</span>
-        <span class="k">elif</span> <span class="n">z</span><span class="o">.</span><span class="n">key</span> <span class="o">&lt;</span> <span class="n">y</span><span class="o">.</span><span class="n">key</span><span class="p">:</span> <span class="n">y</span><span class="o">.</span><span class="n">left</span> <span class="o">=</span> <span class="n">z</span>
-        <span class="k">else</span><span class="p">:</span>               <span class="n">y</span><span class="o">.</span><span class="n">right</span> <span class="o">=</span> <span class="n">z</span>
-        <span class="k">return</span> <span class="n">z</span>
-
-<span class="n">t</span> <span class="o">=</span> <span class="n">BSTree</span><span class="p">()</span>
-<span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="p">[</span><span class="mi">15</span><span class="p">,</span> <span class="mi">6</span><span class="p">,</span> <span class="mi">18</span><span class="p">,</span> <span class="mi">17</span><span class="p">,</span> <span class="mi">20</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">7</span><span class="p">,</span> <span class="mi">13</span><span class="p">,</span> <span class="mi">9</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">4</span><span class="p">]:</span>
-    <span class="n">t</span><span class="o">.</span><span class="n">insert</span><span class="p">(</span><span class="n">k</span><span class="p">)</span>
-
-<span class="n">diagram</span><span class="p">(</span><span class="n">t</span><span class="p">)</span>
+<span class="n">diagram</span><span class="p">(</span><span class="n">root</span><span class="p">)</span>
 </code></pre></div>
 </div>
 <div class="sp-viz">
 <iframe loading="lazy" src="assets/hero-tree.html" title="A binary tree rendered by sPyTial"></iframe>
-<div class="sp-cap">↑ The real, live output of the code above (a binary search tree) — drag to explore, scroll to zoom</div>
+<div class="sp-cap">↑ The real, live output of the code above — drag to explore, scroll to zoom</div>
 </div>
 </div>
 <h2 id="get-started-in-three-steps">Get started in three steps</h2>
@@ -1118,27 +1100,13 @@ Full details and arguments are in <a href="operations/">Operations</a>.</p>
 </table>
 </div>
 </div>
-<h2 id="what-its-good-for">What it's good for</h2>
+<h2 id="more">More</h2>
 <ul>
-<li><strong>Debugging</strong> recursive or linked structures — see the shape, not a <code>repr</code>.</li>
-<li><strong>Teaching</strong> data structures — trees, heaps, graphs, hash tables.</li>
-<li><strong>Inspecting</strong> serialized state, ORM objects, protobufs, nested config.</li>
-<li><strong>Stepping through</strong> how a structure evolves, with <a href="usage/sequences/">sequences</a>.</li>
-</ul>
-<h2 id="the-spytial-ecosystem">The sPyTial ecosystem</h2>
-<p>Most users only need the first.</p>
-<ul>
-<li><strong><code>spytial-diagramming</code></strong> (this package) — the Python host: <code>diagram()</code>, <code>evaluate()</code>, the decorators, and a relationalizer plug-in system.</li>
-<li><strong><a href="https://github.com/sidprasad/spytial-core"><code>spytial-core</code></a></strong> — the browser-side rendering engine (TypeScript), loaded from a CDN. The same engine powers every sPyTial host (Python, Rust, Pyret, Lean). See <a href="how-it-works/">How It Works</a>.</li>
-<li><strong><a href="https://github.com/sidprasad/spytial-clrs"><code>spytial-clrs</code></a></strong> — Jupyter notebooks implementing CLRS-textbook data structures with sPyTial: heaps, trees, hash tables, disjoint sets, graphs, and more. The best place to see it on realistic structures.</li>
-</ul>
-<h2 id="where-to-go-next">Where to go next</h2>
-<ul>
-<li><a href="playground/">Playground</a> — edit and run sPyTial in your browser, no install.</li>
-<li><a href="getting-started/">Getting Started</a> — install, then a line-by-line walkthrough.</li>
-<li><a href="operations/">Operations</a> — every layout constraint and drawing directive.</li>
+<li><a href="playground/">Playground</a> — edit and run sPyTial in your browser.</li>
+<li><a href="getting-started/">Getting Started</a> — install and a walkthrough.</li>
+<li><a href="operations/">Operations</a> — every constraint and directive.</li>
 <li><a href="how-it-works/">How It Works</a> — the Python → browser pipeline.</li>
-<li><a href="examples/spytial-clrs/">CLRS Notebook Examples</a> — worked examples on classic data structures.</li>
+<li><a href="https://github.com/sidprasad/spytial-clrs"><code>spytial-clrs</code></a> — more examples: CLRS data structures rendered with sPyTial.</li>
 </ul>
 
 

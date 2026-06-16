@@ -345,6 +345,25 @@
   
   
     <li class="md-tabs__item">
+      <a href="../selectors/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Selectors
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
       <a href="../usage/dataclass-builder/" class="md-tabs__link">
         
   
@@ -565,15 +584,15 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#your-first-diagram-a-binary-search-tree" class="md-nav__link">
+  <a href="#your-first-diagram-a-binary-tree" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Your first diagram — a binary search tree
+        Your first diagram — a binary tree
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Your first diagram — a binary search tree">
+    <nav class="md-nav" aria-label="Your first diagram — a binary tree">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
@@ -813,6 +832,33 @@
   
   
     <li class="md-nav__item">
+      <a href="../selectors/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Selectors
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../usage/dataclass-builder/" class="md-nav__link">
         
   
@@ -952,15 +998,15 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#your-first-diagram-a-binary-search-tree" class="md-nav__link">
+  <a href="#your-first-diagram-a-binary-tree" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Your first diagram — a binary search tree
+        Your first diagram — a binary tree
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Your first diagram — a binary search tree">
+    <nav class="md-nav" aria-label="Your first diagram — a binary tree">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
@@ -1052,67 +1098,42 @@
 <h2 id="install">Install</h2>
 <div class="highlight"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span>spytial-diagramming
 </code></pre></div>
-<p>That's it — no browser extension, no separate renderer, no config. Supported on
-Python 3.8 – 3.12.</p>
 <div class="admonition tip">
 <p class="admonition-title">Don't want to install yet?</p>
 <p>The <a href="../playground/"><strong>Playground</strong></a> runs this exact example in your
 browser. Come back here when you want to run it locally.</p>
 </div>
-<h2 id="your-first-diagram-a-binary-search-tree">Your first diagram — a binary search tree</h2>
-<p>This is the binary search tree from the
-<a href="https://github.com/sidprasad/spytial-clrs"><code>spytial-clrs</code></a> notebooks. Copy the
-whole block into a <code>.py</code> file or a notebook cell and run it — it builds a BST and
-draws it as a box-and-arrow diagram. We walk through what each decorator does just
-below.</p>
-<!-- canonical example — keep in sync with docs/index.md and the playground preset -->
-<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">spytial</span><span class="w"> </span><span class="kn">import</span> <span class="n">attribute</span><span class="p">,</span> <span class="n">orientation</span><span class="p">,</span> <span class="n">hideAtom</span><span class="p">,</span> <span class="n">hideField</span><span class="p">,</span> <span class="n">diagram</span>
+<h2 id="your-first-diagram-a-binary-tree">Your first diagram — a binary tree</h2>
+<p>Copy this whole block into a <code>.py</code> file or a notebook cell and run it. It defines a
+binary tree, says how it should be laid out, and draws an instance. We walk through
+what each decorator does just below.</p>
+<!-- canonical example — keep in sync with docs/index.md and the playground -->
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">spytial</span><span class="w"> </span><span class="kn">import</span> <span class="n">orientation</span><span class="p">,</span> <span class="n">attribute</span><span class="p">,</span> <span class="n">hideAtom</span><span class="p">,</span> <span class="n">flag</span><span class="p">,</span> <span class="n">diagram</span>
 
-<span class="nd">@attribute</span><span class="p">(</span><span class="n">field</span><span class="o">=</span><span class="s2">&quot;key&quot;</span><span class="p">)</span>                      <span class="c1"># show `key` inside each node</span>
-<span class="nd">@orientation</span><span class="p">(</span><span class="n">selector</span><span class="o">=</span><span class="s1">&#39;left &amp; (BSTNode -&gt; (BSTNode - NoneType.~key))&#39;</span><span class="p">,</span>
-             <span class="n">directions</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;below&#39;</span><span class="p">,</span> <span class="s1">&#39;left&#39;</span><span class="p">])</span>    <span class="c1"># real left child: below-left</span>
-<span class="nd">@orientation</span><span class="p">(</span><span class="n">selector</span><span class="o">=</span><span class="s1">&#39;right &amp; (BSTNode -&gt; (BSTNode - NoneType.~key))&#39;</span><span class="p">,</span>
-             <span class="n">directions</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;below&#39;</span><span class="p">,</span> <span class="s1">&#39;right&#39;</span><span class="p">])</span>   <span class="c1"># real right child: below-right</span>
-<span class="k">class</span><span class="w"> </span><span class="nc">BSTNode</span><span class="p">:</span>
-    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">left</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">right</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">parent</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">key</span> <span class="o">=</span> <span class="n">key</span>
+<span class="nd">@orientation</span><span class="p">(</span><span class="n">selector</span><span class="o">=</span><span class="s1">&#39;{ x : TreeNode, y : TreeNode | x.left = y }&#39;</span><span class="p">,</span> <span class="n">directions</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;below&#39;</span><span class="p">,</span> <span class="s1">&#39;left&#39;</span><span class="p">])</span>
+<span class="nd">@orientation</span><span class="p">(</span><span class="n">selector</span><span class="o">=</span><span class="s1">&#39;{ x : TreeNode, y : TreeNode | x.right = y }&#39;</span><span class="p">,</span> <span class="n">directions</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;below&#39;</span><span class="p">,</span> <span class="s1">&#39;right&#39;</span><span class="p">])</span>
+<span class="nd">@attribute</span><span class="p">(</span><span class="n">field</span><span class="o">=</span><span class="s1">&#39;value&#39;</span><span class="p">)</span>
+<span class="nd">@hideAtom</span><span class="p">(</span><span class="n">selector</span><span class="o">=</span><span class="s1">&#39;NoneType&#39;</span><span class="p">)</span>
+<span class="nd">@flag</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;hideDisconnected&quot;</span><span class="p">)</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">TreeNode</span><span class="p">:</span>
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="n">left</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">right</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">value</span> <span class="o">=</span> <span class="n">value</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">left</span> <span class="o">=</span> <span class="n">left</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">right</span> <span class="o">=</span> <span class="n">right</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">parent</span> <span class="o">=</span> <span class="n">parent</span>
 
-<span class="n">BST_NIL</span> <span class="o">=</span> <span class="n">BSTNode</span><span class="p">(</span><span class="n">key</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>                   <span class="c1"># one shared NIL sentinel</span>
-<span class="n">BST_NIL</span><span class="o">.</span><span class="n">left</span> <span class="o">=</span> <span class="n">BST_NIL</span><span class="o">.</span><span class="n">right</span> <span class="o">=</span> <span class="n">BST_NIL</span><span class="o">.</span><span class="n">parent</span> <span class="o">=</span> <span class="n">BST_NIL</span>
+<span class="n">root</span> <span class="o">=</span> <span class="n">TreeNode</span><span class="p">(</span>
+    <span class="n">value</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span>
+    <span class="n">left</span><span class="o">=</span><span class="n">TreeNode</span><span class="p">(</span><span class="n">value</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span> <span class="n">left</span><span class="o">=</span><span class="n">TreeNode</span><span class="p">(</span><span class="mi">3</span><span class="p">),</span> <span class="n">right</span><span class="o">=</span><span class="n">TreeNode</span><span class="p">(</span><span class="mi">7</span><span class="p">)),</span>
+    <span class="n">right</span><span class="o">=</span><span class="n">TreeNode</span><span class="p">(</span><span class="n">value</span><span class="o">=</span><span class="mi">15</span><span class="p">,</span> <span class="n">left</span><span class="o">=</span><span class="n">TreeNode</span><span class="p">(</span><span class="mi">12</span><span class="p">),</span> <span class="n">right</span><span class="o">=</span><span class="n">TreeNode</span><span class="p">(</span><span class="mi">18</span><span class="p">)),</span>
+<span class="p">)</span>
 
-<span class="nd">@hideAtom</span><span class="p">(</span><span class="n">selector</span><span class="o">=</span><span class="s1">&#39;{ x : BSTNode | (x.key in NoneType) } + BSTree + int + NoneType&#39;</span><span class="p">)</span>
-<span class="nd">@hideField</span><span class="p">(</span><span class="n">field</span><span class="o">=</span><span class="s1">&#39;parent&#39;</span><span class="p">)</span>                    <span class="c1"># don&#39;t draw parent back-pointers</span>
-<span class="k">class</span><span class="w"> </span><span class="nc">BSTree</span><span class="p">:</span>
-    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">root</span> <span class="o">=</span> <span class="n">BST_NIL</span>
-
-    <span class="k">def</span><span class="w"> </span><span class="nf">insert</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">k</span><span class="p">):</span>                       <span class="c1"># CLRS TREE-INSERT</span>
-        <span class="n">z</span> <span class="o">=</span> <span class="n">BSTNode</span><span class="p">(</span><span class="n">key</span><span class="o">=</span><span class="n">k</span><span class="p">,</span> <span class="n">left</span><span class="o">=</span><span class="n">BST_NIL</span><span class="p">,</span> <span class="n">right</span><span class="o">=</span><span class="n">BST_NIL</span><span class="p">,</span> <span class="n">parent</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
-        <span class="n">y</span><span class="p">,</span> <span class="n">x</span> <span class="o">=</span> <span class="n">BST_NIL</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">root</span>
-        <span class="k">while</span> <span class="n">x</span> <span class="ow">is</span> <span class="ow">not</span> <span class="n">BST_NIL</span><span class="p">:</span>
-            <span class="n">y</span> <span class="o">=</span> <span class="n">x</span>
-            <span class="n">x</span> <span class="o">=</span> <span class="n">x</span><span class="o">.</span><span class="n">left</span> <span class="k">if</span> <span class="n">z</span><span class="o">.</span><span class="n">key</span> <span class="o">&lt;</span> <span class="n">x</span><span class="o">.</span><span class="n">key</span> <span class="k">else</span> <span class="n">x</span><span class="o">.</span><span class="n">right</span>
-        <span class="n">z</span><span class="o">.</span><span class="n">parent</span> <span class="o">=</span> <span class="n">y</span>
-        <span class="k">if</span> <span class="n">y</span> <span class="ow">is</span> <span class="n">BST_NIL</span><span class="p">:</span>    <span class="bp">self</span><span class="o">.</span><span class="n">root</span> <span class="o">=</span> <span class="n">z</span>
-        <span class="k">elif</span> <span class="n">z</span><span class="o">.</span><span class="n">key</span> <span class="o">&lt;</span> <span class="n">y</span><span class="o">.</span><span class="n">key</span><span class="p">:</span> <span class="n">y</span><span class="o">.</span><span class="n">left</span> <span class="o">=</span> <span class="n">z</span>
-        <span class="k">else</span><span class="p">:</span>               <span class="n">y</span><span class="o">.</span><span class="n">right</span> <span class="o">=</span> <span class="n">z</span>
-        <span class="k">return</span> <span class="n">z</span>
-
-<span class="n">t</span> <span class="o">=</span> <span class="n">BSTree</span><span class="p">()</span>
-<span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="p">[</span><span class="mi">15</span><span class="p">,</span> <span class="mi">6</span><span class="p">,</span> <span class="mi">18</span><span class="p">,</span> <span class="mi">17</span><span class="p">,</span> <span class="mi">20</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">7</span><span class="p">,</span> <span class="mi">13</span><span class="p">,</span> <span class="mi">9</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">4</span><span class="p">]:</span>
-    <span class="n">t</span><span class="o">.</span><span class="n">insert</span><span class="p">(</span><span class="n">k</span><span class="p">)</span>
-
-<span class="n">diagram</span><span class="p">(</span><span class="n">t</span><span class="p">)</span>
+<span class="n">diagram</span><span class="p">(</span><span class="n">root</span><span class="p">)</span>
 </code></pre></div>
 <p>Running a script opens the diagram in a new browser tab; running it in a notebook
-renders it inline. You'll see <code>15</code> at the root, smaller keys branching down-left
-and larger keys down-right.</p>
+renders it inline. You'll see <code>10</code> at the root, <code>5</code> below-left and <code>15</code>
+below-right, and their children beneath them.</p>
 <h3 id="what-each-decorator-does">What each decorator does</h3>
-<p>The decorators on the two classes <em>are</em> the sPyTial layout — each is one rule.
-Reading top to bottom:</p>
+<p>The decorators <em>are</em> the sPyTial layout — each is one rule. Reading top to bottom:</p>
 <table>
 <thead>
 <tr>
@@ -1122,31 +1143,30 @@ Reading top to bottom:</p>
 </thead>
 <tbody>
 <tr>
-<td><code>@attribute(field="key")</code></td>
-<td>Render <code>node.key</code> as text <strong>inside</strong> the node, instead of as a separate box with an arrow.</td>
+<td><code>@orientation(selector='{ x : TreeNode, y : TreeNode \| x.left = y }', directions=['below','left'])</code></td>
+<td>Place each node's left child <strong>below and to the left</strong>. The selector matches the pairs <code>(x, y)</code> where <code>y</code> is <code>x</code>'s left child — i.e. the left-child edges.</td>
 </tr>
 <tr>
-<td><code>@orientation(selector='left &amp; (BSTNode -&gt; (BSTNode - NoneType.~key))', directions=['below','left'])</code></td>
-<td>Place each node's <strong>real</strong> left child below-and-left of it. The selector reads as "the <code>left</code> edges that point to an actual <code>BSTNode</code>, <em>not</em> the shared <code>NIL</code> sentinel," so empty leaves don't get dragged around.</td>
-</tr>
-<tr>
-<td><code>@orientation(selector='right &amp; …', directions=['below','right'])</code></td>
+<td><code>@orientation(selector='{ x : TreeNode, y : TreeNode \| x.right = y }', directions=['below','right'])</code></td>
 <td>The mirror image, for the right child.</td>
 </tr>
 <tr>
-<td><code>@hideField(field='parent')</code></td>
-<td>Don't draw the <code>parent</code> back-pointers — they'd clutter the tree.</td>
+<td><code>@attribute(field='value')</code></td>
+<td>Render <code>node.value</code> as text <strong>inside</strong> the node, instead of as a separate box with an arrow.</td>
 </tr>
 <tr>
-<td><code>@hideAtom(selector='{ x : BSTNode \| (x.key in NoneType) } + BSTree + int + NoneType')</code></td>
-<td>Hide the shared <code>NIL</code> sentinel, the <code>BSTree</code> wrapper, and the bare <code>int</code>/<code>None</code> atoms, so only the keyed nodes show.</td>
+<td><code>@hideAtom(selector='NoneType')</code></td>
+<td>Hide the empty <code>None</code> leaves.</td>
+</tr>
+<tr>
+<td><code>@flag(name="hideDisconnected")</code></td>
+<td>Drop any atom left with no edges, keeping the picture tidy.</td>
 </tr>
 </tbody>
 </table>
-<p>Those <code>selector</code> strings are sPyTial's <strong>relational query language</strong> — the same
-language across every sPyTial host. You don't need it for simple objects, but it
-lets you target exactly the right atoms and edges (here: "real children, not the
-sentinel"). See <a href="../operations/">Operations</a> for the full syntax.</p>
+<p>The <code>selector</code> strings are sPyTial's <strong>relational query language</strong>. The
+<code>{ x : T, y : T | … }</code> form matches <em>pairs</em> of atoms (here, parent-and-child edges);
+see <a href="../selectors/">Selectors</a> for a Python-oriented guide to the syntax.</p>
 <div class="admonition note">
 <p class="admonition-title">Build it up incrementally</p>
 <p>A good workflow is to call <code>diagram(obj)</code> first with <strong>no</strong> decorators to see
