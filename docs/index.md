@@ -8,7 +8,7 @@ That's what Spytial is for. It is diagramming system
 built to make it as easy to get a diagram as it is to call
 `print`. 
 
-You always get a diagram **for free* for any value, and then
+You always get a diagram **for free** for any value, and then
 use Spytial's constraint vocabulary to refine it til it resembles what you might expect.
 
 [Get started](getting-started.md){ .md-button .md-button--primary }
