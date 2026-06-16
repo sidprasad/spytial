@@ -14,10 +14,10 @@ Before laying anything out, sPyTial turns your object into a graph:
 - A **relation** is a field. `node.left` becomes a relation named `left`: the set of
   `(owner, target)` edges, one for each object that has a `left`.
 - A **type** is the set of all atoms of that type, named by the Python class:
-  `BSTNode`, `int`, `str`, `list`, `dict`. (The type of `None` is `NoneType` — not
+  `TreeNode`, `int`, `str`, `list`, `dict`. (The type of `None` is `NoneType` — not
   `None`.)
 
-The two simplest selectors are a **type name** (`BSTNode`) and a **field name**
+The two simplest selectors are a **type name** (`TreeNode`) and a **field name**
 (`left`).
 
 ## Two kinds of result: atoms vs edges
@@ -25,14 +25,15 @@ The two simplest selectors are a **type name** (`BSTNode`) and a **field name**
 A selector evaluates to one of two things, and each operation expects a particular
 one:
 
-- **Atom sets** — e.g. `BSTNode`, `{ x : BSTNode | … }`. Used by atom operations:
+- **Atom sets** — e.g. `TreeNode`, `{ x : TreeNode | … }`. Used by atom operations:
   `hideAtom`, `atomColor`.
-- **Edge sets** — e.g. `left`, `~left`, `BSTNode -> BSTNode`. Used by edge
-  operations: `orientation`, `align`.
+- **Edge sets** — e.g. `left`, `~left`, `{ x : TreeNode, y : TreeNode | … }`. Used
+  by edge operations: `orientation`, `align`, `inferredEdge`.
 
-Rule of thumb: **type names and comprehensions produce atoms**; a **bare field
-name**, its reverse `~f`, its closures `^f` / `*f`, and products `a -> b` produce
-**edges**. The set operators (`+`, `&`, `-`) keep the kind of their operands.
+Rule of thumb: a **type name** and a **single-variable comprehension** produce
+atoms; a **bare field name**, its reverse `~f`, its closures `^f` / `*f`, a product
+`a -> b`, and a **two-variable comprehension** produce edges. Set operators
+(`+`, `&`, `-`) keep the kind of their operands.
 
 ## Navigating with the dot `.`
 
@@ -40,8 +41,8 @@ name**, its reverse `~f`, its closures `^f` / `*f`, and products `a -> b` produc
 results.*
 
 ```text
-BSTNode.left        # every left-child of any BSTNode    ~  {a.left for a in BSTNode}
-BSTNode.left.key    # the keys of those children         (chained)
+TreeNode.left        # every left-child of any TreeNode   ~  {a.left for a in TreeNode}
+TreeNode.left.value  # the values of those children       (chained)
 ```
 
 When `A` is a single atom this looks like attribute access; when `A` is a whole type
@@ -54,23 +55,28 @@ or quantifier (next).
 Each line below is a complete selector you could hand to an operation:
 
 ```text
-BSTNode                              # 1. a type — all BST nodes (atoms)
-left                                 # 2. a relation — all left-edges (edges)
-{ x : BSTNode | x.key in NoneType }  # 3. a filter — nodes whose key is None (atoms)
-left & (BSTNode -> BSTNode)          # 4. left-edges with both endpoints BSTNodes (edges)
+TreeNode                                       # 1. a type — all tree nodes (atoms)
+left                                           # 2. a relation — all left-edges (edges)
+{ x : TreeNode | no x.left }                   # 3. a filter — nodes with no left child (atoms)
+{ x : TreeNode, y : TreeNode | x.left = y }    # 4. matched pairs — left-child edges (edges)
 ```
 
-The **comprehension** `{ x : T | cond }` is the workhorse — "the atoms of `T` where
-`cond` holds." Inside `cond` you can use: comparisons `=`, `in`, `<`, `<=`, `>`,
-`>=`; navigation (`x.key`); multiplicities `some e` / `no e` / `one e` / `lone e`
-(`e` is non-empty / empty / exactly one / at most one); the label of an atom `@:x`
-(the text it renders as, e.g. `@:x = "15"`); and `and` / `or` / `not`.
+Comprehensions are the workhorse:
+
+- `{ x : T | cond }` — the **atoms** of `T` where `cond` holds.
+- `{ x : T, y : T | cond }` — the **pairs** `(x, y)` where `cond` holds (an edge
+  set). This is how the examples say "connect each node to its child."
+
+Inside `cond` you can use comparisons (`=`, `in`, `<`, `<=`, `>`, `>=`); navigation
+(`x.left`); multiplicities `some e` / `no e` / `one e` / `lone e` (`e` is non-empty /
+empty / exactly one / at most one); the label of an atom `@:x` (the text it renders
+as, e.g. `@:x = "10"`); and `and` / `or` / `not`.
 
 ## Cheat sheet
 
 | Selector | Result | Means |
 | --- | --- | --- |
-| `BSTNode` | atoms | all atoms of type `BSTNode` |
+| `TreeNode` | atoms | all atoms of type `TreeNode` |
 | `left` | edges | the `left` relation — every `(owner, left-child)` pair |
 | `A.f` | atoms | follow `f` from every atom in `A` (a join) |
 | `~f` | edges | `f` reversed: `{(parent, child)}` becomes `{(child, parent)}` |
@@ -81,6 +87,7 @@ The **comprehension** `{ x : T | cond }` is the workhorse — "the atoms of `T` 
 | `a - b` | same | difference (`a - b`) |
 | `a -> b` | edges | every pair `(x, y)` with `x in a`, `y in b` — a product (edge set) |
 | `{ x : T \| cond }` | atoms | atoms of `T` where `cond` holds |
+| `{ x : T, y : T \| cond }` | edges | pairs of `T` where `cond` holds |
 
 These appear **inside `cond` / quantifiers**, not as standalone selectors:
 comparisons (`= in < <= > >=`), `#a` (size), `@:x` (an atom's label string),
@@ -88,42 +95,34 @@ arithmetic (`add[a, b]`, `min[s]`, `max[s]`), multiplicities (`some` / `no` / `o
 / `lone`), and quantifiers (`all x: T | …`, `some x: T | …`). The constant `univ` is
 the set of every atom.
 
-## Worked example: the BST selectors
+## Worked example: the binary tree
 
-The [binary search tree](getting-started.md) uses two selectors that look scary but
-say something simple.
-
-**Orient only real children** (`orientation`) — an edge set:
+The [binary tree](getting-started.md) orients children with two-variable
+comprehensions that match **pairs**:
 
 ```text
-left & (BSTNode -> (BSTNode - NoneType.~key))
+{ x : TreeNode, y : TreeNode | x.left = y }
 ```
 
-- `NoneType.~key` — parses as `NoneType.(~key)`: follow `key` **backwards** from the
-  `None` atoms, giving the node(s) whose `key` is `None` — the shared `NIL` sentinel.
-- `BSTNode - NoneType.~key` — every BST node **except** the sentinel ("real nodes").
-- `BSTNode -> (…)` — all `(any node, real node)` edges.
-- `left & (…)` — keep only the `left` edges whose target is a real node.
+- `x : TreeNode, y : TreeNode` — range over pairs of nodes.
+- `x.left = y` — keep the pairs where `y` is `x`'s left child.
 
-Intersecting an edge set with an edge set is what stops the shared `NIL` from being
-placed below-left of every node at once.
+So this evaluates to the **left-child edges** — exactly what `orientation` needs.
+The mirror `{ x : TreeNode, y : TreeNode | x.right = y }` gives the right-child
+edges. Then `hideAtom(selector='NoneType')` drops the empty `None` leaves, and the
+`hideDisconnected` flag removes any atom left with no edges.
 
-**Hide the plumbing** (`hideAtom`) — an atom set:
+### Going further
 
-```text
-{ x : BSTNode | (x.key in NoneType) } + BSTree + int + NoneType
-```
-
-- `{ x : BSTNode | x.key in NoneType }` — BST nodes whose `key` is `None` (the NIL
-  sentinel).
-- `+ BSTree + int + NoneType` — also the `BSTree` wrapper, the bare `int`
-  key-values, and the `None` atoms.
-
-All atom sets, unioned — so everything but the real keyed nodes is hidden.
+When you need to be surgical, combine operators: `left & (TreeNode -> TreeNode)`
+keeps only left-edges whose endpoints are both nodes; `~left` is the child→parent
+direction; `^left` is every descendant reached through `left` pointers. The
+[`spytial-clrs`](https://github.com/sidprasad/spytial-clrs) notebooks use these to
+do things like "the real children, not the shared sentinel."
 
 ## Where selectors show up
 
 Every [operation](operations.md) that takes a `selector` argument (and the related
 `field` / `filter` arguments). For simple objects a bare field or type name is
 usually enough; reach for the relational operators when you need to target *exactly*
-the right atoms or edges — like "real children, not the sentinel" above.
+the right atoms or edges.

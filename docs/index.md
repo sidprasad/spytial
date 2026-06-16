@@ -10,53 +10,33 @@
 <div class="sp-code" markdown="1">
 
 ```python
-from spytial import attribute, orientation, hideAtom, hideField, diagram
+from spytial import orientation, attribute, hideAtom, flag, diagram
 
-@attribute(field="key")                      # show `key` inside each node
-@orientation(selector='left & (BSTNode -> (BSTNode - NoneType.~key))',
-             directions=['below', 'left'])    # real left child: below-left
-@orientation(selector='right & (BSTNode -> (BSTNode - NoneType.~key))',
-             directions=['below', 'right'])   # real right child: below-right
-class BSTNode:
-    def __init__(self, key=None, left=None, right=None, parent=None):
-        self.key = key
+@orientation(selector='{ x : TreeNode, y : TreeNode | x.left = y }', directions=['below', 'left'])
+@orientation(selector='{ x : TreeNode, y : TreeNode | x.right = y }', directions=['below', 'right'])
+@attribute(field='value')
+@hideAtom(selector='NoneType')
+@flag(name="hideDisconnected")
+class TreeNode:
+    def __init__(self, value, left=None, right=None):
+        self.value = value
         self.left = left
         self.right = right
-        self.parent = parent
 
-BST_NIL = BSTNode(key=None)                   # one shared NIL sentinel
-BST_NIL.left = BST_NIL.right = BST_NIL.parent = BST_NIL
+root = TreeNode(
+    value=10,
+    left=TreeNode(value=5, left=TreeNode(3), right=TreeNode(7)),
+    right=TreeNode(value=15, left=TreeNode(12), right=TreeNode(18)),
+)
 
-@hideAtom(selector='{ x : BSTNode | (x.key in NoneType) } + BSTree + int + NoneType')
-@hideField(field='parent')                    # don't draw parent back-pointers
-class BSTree:
-    def __init__(self):
-        self.root = BST_NIL
-
-    def insert(self, k):                       # CLRS TREE-INSERT
-        z = BSTNode(key=k, left=BST_NIL, right=BST_NIL, parent=None)
-        y, x = BST_NIL, self.root
-        while x is not BST_NIL:
-            y = x
-            x = x.left if z.key < x.key else x.right
-        z.parent = y
-        if y is BST_NIL:    self.root = z
-        elif z.key < y.key: y.left = z
-        else:               y.right = z
-        return z
-
-t = BSTree()
-for k in [15, 6, 18, 17, 20, 3, 7, 13, 9, 2, 4]:
-    t.insert(k)
-
-diagram(t)
+diagram(root)
 ```
 
 </div>
 
 <div class="sp-viz">
   <iframe src="assets/hero-tree.html" title="A binary tree rendered by sPyTial" loading="lazy"></iframe>
-  <div class="sp-cap">↑ The real, live output of the code above (a binary search tree) — drag to explore, scroll to zoom</div>
+  <div class="sp-cap">↑ The real, live output of the code above — drag to explore, scroll to zoom</div>
 </div>
 
 </div>
