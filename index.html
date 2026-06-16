@@ -50,6 +50,8 @@
     
       <link rel="stylesheet" href="assets/_mkdocstrings.css">
     
+      <link rel="stylesheet" href="stylesheets/extra.css">
+    
     <script>__md_scope=new URL(".",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
     
       
@@ -523,10 +525,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#what-you-can-do-with-it" class="md-nav__link">
+  <a href="#get-started-in-three-steps" class="md-nav__link">
     <span class="md-ellipsis">
       
-        What you can do with it
+        Get started in three steps
       
     </span>
   </a>
@@ -534,10 +536,21 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#hello-spytial" class="md-nav__link">
+  <a href="#operations-at-a-glance" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Hello, sPyTial
+        Operations at a glance
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#what-its-good-for" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What it's good for
       
     </span>
   </a>
@@ -898,10 +911,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#what-you-can-do-with-it" class="md-nav__link">
+  <a href="#get-started-in-three-steps" class="md-nav__link">
     <span class="md-ellipsis">
       
-        What you can do with it
+        Get started in three steps
       
     </span>
   </a>
@@ -909,10 +922,21 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#hello-spytial" class="md-nav__link">
+  <a href="#operations-at-a-glance" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Hello, sPyTial
+        Operations at a glance
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#what-its-good-for" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What it's good for
       
     </span>
   </a>
@@ -962,58 +986,134 @@
 
 
 <h1 id="spytial">sPyTial</h1>
-<p><strong>Spatial diagrams of Python objects.</strong> sPyTial turns structured Python data into box-and-arrow diagrams whose layout is driven by declarative spatial constraints. It is aimed at cases where the structure matters more than the UI: debugging recursive objects, teaching data structures, inspecting serialized state, or building small visual tools around Python models.</p>
-<h2 id="what-you-can-do-with-it">What you can do with it</h2>
-<ul>
-<li>Render any Python object — <code>dict</code>, <code>list</code>, dataclass, custom class, graph — as a box-and-arrow diagram.</li>
-<li>Control layout declaratively with constraints (<code>orientation</code>, <code>align</code>, <code>cyclic</code>, <code>group</code>) and directives (<code>atomColor</code>, <code>attribute</code>, <code>hideAtom</code>, <code>tag</code>, <code>inferredEdge</code>, …).</li>
-<li>Step through sequences of states to visualize how a data structure evolves.</li>
-</ul>
-<div class="admonition tip">
-<p class="admonition-title">Try it now, no install</p>
-<p>The <a href="playground/"><strong>Playground</strong></a> loads this exact binary tree in an
-in-browser editor — open it to tweak the code and watch the diagram update live.</p>
-</div>
-<h2 id="hello-spytial">Hello, sPyTial</h2>
-<p>A complete, copy-paste-runnable example: define a binary tree, describe how it
-should be laid out, and draw an instance. The four decorators <em>are</em> the "sPyTial
-layout" — each is one rule that turns the default box-and-arrow graph into a tree.</p>
-<!-- canonical example — keep in sync with docs/getting-started.md and the playground preset -->
+<p class="sp-tagline"><strong>Spatial diagrams of Python objects.</strong> Turn any dict, dataclass, tree, or graph into a box-and-arrow diagram — and shape the layout with a few declarative decorators.</p>
+
+<p><a class="md-button md-button--primary" href="getting-started/">Get started</a>
+<a class="md-button" href="playground/">Try it in your browser</a></p>
+<div class="sp-hero">
+<div class="sp-code">
 <div class="highlight"><pre><span></span><code><span class="kn">import</span><span class="w"> </span><span class="nn">spytial</span>
 
-<span class="nd">@spytial</span><span class="o">.</span><span class="n">orientation</span><span class="p">(</span><span class="n">selector</span><span class="o">=</span><span class="s2">&quot;left&quot;</span><span class="p">,</span>  <span class="n">directions</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;below&quot;</span><span class="p">,</span> <span class="s2">&quot;left&quot;</span><span class="p">])</span>   <span class="c1"># place the `left` child below-left</span>
-<span class="nd">@spytial</span><span class="o">.</span><span class="n">orientation</span><span class="p">(</span><span class="n">selector</span><span class="o">=</span><span class="s2">&quot;right&quot;</span><span class="p">,</span> <span class="n">directions</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;below&quot;</span><span class="p">,</span> <span class="s2">&quot;right&quot;</span><span class="p">])</span>  <span class="c1"># place the `right` child below-right</span>
-<span class="nd">@spytial</span><span class="o">.</span><span class="n">attribute</span><span class="p">(</span><span class="n">field</span><span class="o">=</span><span class="s2">&quot;value&quot;</span><span class="p">)</span>                                      <span class="c1"># show `value` as a label inside the node</span>
-<span class="nd">@spytial</span><span class="o">.</span><span class="n">hideAtom</span><span class="p">(</span><span class="n">selector</span><span class="o">=</span><span class="s2">&quot;NoneType&quot;</span><span class="p">)</span>                                 <span class="c1"># hide the empty (None) leaves</span>
+<span class="nd">@spytial</span><span class="o">.</span><span class="n">orientation</span><span class="p">(</span><span class="n">selector</span><span class="o">=</span><span class="s2">&quot;left&quot;</span><span class="p">,</span>  <span class="n">directions</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;below&quot;</span><span class="p">,</span> <span class="s2">&quot;left&quot;</span><span class="p">])</span>
+<span class="nd">@spytial</span><span class="o">.</span><span class="n">orientation</span><span class="p">(</span><span class="n">selector</span><span class="o">=</span><span class="s2">&quot;right&quot;</span><span class="p">,</span> <span class="n">directions</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;below&quot;</span><span class="p">,</span> <span class="s2">&quot;right&quot;</span><span class="p">])</span>
+<span class="nd">@spytial</span><span class="o">.</span><span class="n">attribute</span><span class="p">(</span><span class="n">field</span><span class="o">=</span><span class="s2">&quot;value&quot;</span><span class="p">)</span>
+<span class="nd">@spytial</span><span class="o">.</span><span class="n">hideAtom</span><span class="p">(</span><span class="n">selector</span><span class="o">=</span><span class="s2">&quot;NoneType&quot;</span><span class="p">)</span>
 <span class="k">class</span><span class="w"> </span><span class="nc">Node</span><span class="p">:</span>
     <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="n">left</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">right</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">value</span> <span class="o">=</span> <span class="n">value</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">left</span> <span class="o">=</span> <span class="n">left</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">right</span> <span class="o">=</span> <span class="n">right</span>
 
-<span class="c1"># A small binary tree, built by hand.</span>
-<span class="n">root</span> <span class="o">=</span> <span class="n">Node</span><span class="p">(</span><span class="mi">4</span><span class="p">,</span>
-            <span class="n">Node</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="n">Node</span><span class="p">(</span><span class="mi">1</span><span class="p">),</span> <span class="n">Node</span><span class="p">(</span><span class="mi">3</span><span class="p">)),</span>
-            <span class="n">Node</span><span class="p">(</span><span class="mi">6</span><span class="p">,</span> <span class="n">Node</span><span class="p">(</span><span class="mi">5</span><span class="p">),</span> <span class="n">Node</span><span class="p">(</span><span class="mi">7</span><span class="p">)))</span>
+<span class="n">root</span> <span class="o">=</span> <span class="n">Node</span><span class="p">(</span><span class="mi">4</span><span class="p">,</span> <span class="n">Node</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="n">Node</span><span class="p">(</span><span class="mi">1</span><span class="p">),</span> <span class="n">Node</span><span class="p">(</span><span class="mi">3</span><span class="p">)),</span>
+               <span class="n">Node</span><span class="p">(</span><span class="mi">6</span><span class="p">,</span> <span class="n">Node</span><span class="p">(</span><span class="mi">5</span><span class="p">),</span> <span class="n">Node</span><span class="p">(</span><span class="mi">7</span><span class="p">)))</span>
 
 <span class="n">spytial</span><span class="o">.</span><span class="n">diagram</span><span class="p">(</span><span class="n">root</span><span class="p">)</span>
 </code></pre></div>
-<p><strong>→ <a href="getting-started/">Walk through this example one annotation at a time (Getting Started)</a></strong>
-&nbsp;·&nbsp; <strong><a href="playground/">Run it in your browser (Playground)</a></strong></p>
-<h2 id="the-spytial-ecosystem">The sPyTial ecosystem</h2>
-<p>sPyTial is part of a small family of projects. Most users only need the first.</p>
+</div>
+<div class="sp-viz">
+<iframe loading="lazy" src="assets/hero-tree.html" title="A binary tree rendered by sPyTial"></iframe>
+<div class="sp-cap">↑ The real, live output of the code above — drag to explore, scroll to zoom</div>
+</div>
+</div>
+<h2 id="get-started-in-three-steps">Get started in three steps</h2>
+<ol>
+<li><strong>Install</strong> — <code>pip install spytial-diagramming</code> (Python 3.8–3.12, nothing else to set up).</li>
+<li><strong>Decorate</strong> — add layout rules to your class with decorators like <code>@orientation</code> and <code>@attribute</code>.</li>
+<li><strong>Draw</strong> — call <code>spytial.diagram(obj)</code>. It opens in your browser, or renders inline in a notebook.</li>
+</ol>
+<p>That's the whole loop. <a href="getting-started/">Walk through the example above, line by line →</a></p>
+<h2 id="operations-at-a-glance">Operations at a glance</h2>
+<p>Layout is controlled by two kinds of operation. Attach them as class decorators
+(<code>@spytial.orientation(...)</code>), to individual objects, or via <code>typing.Annotated</code>.
+Full details and arguments are in <a href="operations/">Operations</a>.</p>
+<div class="sp-ops">
+<div>
+<p><strong>Constraints</strong> — shape the geometry</p>
+<table>
+<thead>
+<tr>
+<th>Operation</th>
+<th>What it does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>orientation</code></td>
+<td>Place a field's target in a direction (<code>below</code>, <code>left</code>, …)</td>
+</tr>
+<tr>
+<td><code>align</code></td>
+<td>Line selected nodes up on a shared axis</td>
+</tr>
+<tr>
+<td><code>cyclic</code></td>
+<td>Arrange selected nodes in a ring</td>
+</tr>
+<tr>
+<td><code>group</code></td>
+<td>Enclose selected nodes in a labelled region</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div>
+<p><strong>Directives</strong> — change how things are drawn</p>
+<table>
+<thead>
+<tr>
+<th>Operation</th>
+<th>What it does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>attribute</code></td>
+<td>Show a field as a label inside the node</td>
+</tr>
+<tr>
+<td><code>atomColor</code> · <code>edgeColor</code></td>
+<td>Color nodes / edges</td>
+</tr>
+<tr>
+<td><code>hideAtom</code> · <code>hideField</code></td>
+<td>Hide nodes / fields</td>
+</tr>
+<tr>
+<td><code>tag</code></td>
+<td>Add a computed label to matching nodes</td>
+</tr>
+<tr>
+<td><code>inferredEdge</code></td>
+<td>Draw a derived edge between nodes</td>
+</tr>
+<tr>
+<td><code>size</code> · <code>icon</code></td>
+<td>Resize / icon-ify nodes</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<h2 id="what-its-good-for">What it's good for</h2>
 <ul>
-<li><strong><code>spytial-py</code></strong> (this package) — the Python host. Install with <code>pip install spytial-diagramming</code>. Exposes <code>diagram()</code>, <code>evaluate()</code>, decorators and types for annotating layouts, and a relationalizer plug-in system.</li>
-<li><strong><a href="https://github.com/sidprasad/spytial-core"><code>spytial-core</code></a></strong> — the browser-side rendering engine (TypeScript). Loaded automatically from a CDN; you do not install it yourself. The same engine is used by every sPyTial language host (Python, Rust, Pyret, Lean). See <a href="how-it-works/">How It Works</a> for the pipeline.</li>
-<li><strong><a href="https://github.com/sidprasad/spytial-clrs"><code>spytial-clrs</code></a></strong> — a Jupyter notebook collection that implements the data structures from the <strong>CLRS algorithms textbook</strong> (Cormen, Leiserson, Rivest, Stein) using sPyTial: heaps, stacks, queues, linked lists, hash tables, BST / red-black / B / van Emde Boas / interval trees, Huffman codes, disjoint-set forests, graphs with MST and SCC views. It is the best place to see the package on realistic structures. Ships with a Docker image and a JupyterLite deployment for zero-install browsing.</li>
+<li><strong>Debugging</strong> recursive or linked structures — see the shape, not a <code>repr</code>.</li>
+<li><strong>Teaching</strong> data structures — trees, heaps, graphs, hash tables.</li>
+<li><strong>Inspecting</strong> serialized state, ORM objects, protobufs, nested config.</li>
+<li><strong>Stepping through</strong> how a structure evolves, with <a href="usage/sequences/">sequences</a>.</li>
+</ul>
+<h2 id="the-spytial-ecosystem">The sPyTial ecosystem</h2>
+<p>Most users only need the first.</p>
+<ul>
+<li><strong><code>spytial-diagramming</code></strong> (this package) — the Python host: <code>diagram()</code>, <code>evaluate()</code>, the decorators, and a relationalizer plug-in system.</li>
+<li><strong><a href="https://github.com/sidprasad/spytial-core"><code>spytial-core</code></a></strong> — the browser-side rendering engine (TypeScript), loaded from a CDN. The same engine powers every sPyTial host (Python, Rust, Pyret, Lean). See <a href="how-it-works/">How It Works</a>.</li>
+<li><strong><a href="https://github.com/sidprasad/spytial-clrs"><code>spytial-clrs</code></a></strong> — Jupyter notebooks implementing CLRS-textbook data structures with sPyTial: heaps, trees, hash tables, disjoint sets, graphs, and more. The best place to see it on realistic structures.</li>
 </ul>
 <h2 id="where-to-go-next">Where to go next</h2>
 <ul>
 <li><a href="playground/">Playground</a> — edit and run sPyTial in your browser, no install.</li>
-<li><a href="getting-started/">Getting Started</a> — install, then a line-by-line walkthrough of the example above.</li>
-<li><a href="usage/diagramming/">Diagramming</a> — the main rendering workflow.</li>
-<li><a href="operations/">Operations</a> — constraints and directives.</li>
-<li><a href="how-it-works/">How It Works</a> — the Python → browser pipeline and <code>spytial-core</code>.</li>
+<li><a href="getting-started/">Getting Started</a> — install, then a line-by-line walkthrough.</li>
+<li><a href="operations/">Operations</a> — every layout constraint and drawing directive.</li>
+<li><a href="how-it-works/">How It Works</a> — the Python → browser pipeline.</li>
 <li><a href="examples/spytial-clrs/">CLRS Notebook Examples</a> — worked examples on classic data structures.</li>
 </ul>
 

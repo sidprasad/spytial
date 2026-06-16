@@ -1,0 +1,41 @@
+/* sPyTial docs — layout helpers only (no palette changes; uses Material theme vars) */
+
+/* ---- Landing hero: minimal code, then a big live diagram ---- */
+.sp-hero { margin: 1.2rem 0 1.8rem; }
+.sp-hero .sp-code > pre { margin: 0 0 0.4rem; }
+
+.sp-viz {
+  border: 1px solid var(--md-default-fg-color--lightest);
+  border-radius: 0.6rem;
+  overflow: hidden;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+  background: #ffffff;
+}
+.sp-viz iframe { display: block; width: 100%; height: 440px; border: 0; }
+.sp-cap {
+  font-size: 0.7rem;
+  color: var(--md-default-fg-color--light);
+  text-align: center;
+  padding: 0.4rem;
+  border-top: 1px solid var(--md-default-fg-color--lightest);
+}
+
+.sp-tagline {
+  font-size: 1.15rem;
+  line-height: 1.5;
+  color: var(--md-default-fg-color--light);
+  margin: 0.1rem 0 0.8rem;
+}
+.sp-cta { display: flex; gap: 0.6rem; flex-wrap: wrap; margin: 0.2rem 0 0.4rem; }
+
+/* ---- Operations at a glance: two columns of compact tables ---- */
+.sp-ops {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0 1.5rem;
+}
+@media screen and (max-width: 899px) {
+  .sp-ops { grid-template-columns: 1fr; }
+}
+.sp-ops table { font-size: 0.8rem; }
+.sp-ops table th, .sp-ops table td { padding: 0.3rem 0.6rem; }
