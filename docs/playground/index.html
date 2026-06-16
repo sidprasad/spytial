@@ -127,7 +127,7 @@
   </header>
 
   <div class="toolbar">
-    <span class="title">Binary tree</span>
+    <span class="title">Binary search tree</span>
     <button id="run" class="primary" disabled>Run ▶</button>
     <button id="reset" disabled>Reset</button>
     <span class="status"><span id="dot" class="dot busy"></span><span id="statusText">Starting…</span></span>
@@ -153,29 +153,49 @@
 (function () {
   "use strict";
 
-  // Starter example — a simple binary tree.
+  // Starter example — the binary search tree from spytial-clrs.
   // Keep in sync with docs/index.md and docs/getting-started.md.
   var STARTER_CODE = [
-    "import spytial",
+    "from spytial import attribute, orientation, hideAtom, hideField, diagram",
     "",
-    "# Each decorator below is one rule for how the tree is drawn.",
-    "# Try commenting one out and re-running to see what it does.",
-    "@spytial.orientation(selector=\"left\",  directions=[\"below\", \"left\"])   # `left` child goes below-left",
-    "@spytial.orientation(selector=\"right\", directions=[\"below\", \"right\"])  # `right` child goes below-right",
-    "@spytial.attribute(field=\"value\")                                      # show `value` as a label inside the node",
-    "@spytial.hideAtom(selector=\"NoneType\")                                 # hide the empty (None) leaves",
-    "class Node:",
-    "    def __init__(self, value, left=None, right=None):",
-    "        self.value = value",
+    "@attribute(field=\"key\")                      # show `key` inside each node",
+    "@orientation(selector='left & (BSTNode -> (BSTNode - NoneType.~key))',",
+    "             directions=['below', 'left'])    # real left child: below-left",
+    "@orientation(selector='right & (BSTNode -> (BSTNode - NoneType.~key))',",
+    "             directions=['below', 'right'])   # real right child: below-right",
+    "class BSTNode:",
+    "    def __init__(self, key=None, left=None, right=None, parent=None):",
+    "        self.key = key",
     "        self.left = left",
     "        self.right = right",
+    "        self.parent = parent",
     "",
-    "# A small binary tree, built by hand.",
-    "root = Node(4,",
-    "            Node(2, Node(1), Node(3)),",
-    "            Node(6, Node(5), Node(7)))",
+    "BST_NIL = BSTNode(key=None)                   # one shared NIL sentinel",
+    "BST_NIL.left = BST_NIL.right = BST_NIL.parent = BST_NIL",
     "",
-    "spytial.diagram(root)"
+    "@hideAtom(selector='{ x : BSTNode | (x.key in NoneType) } + BSTree + int + NoneType')",
+    "@hideField(field='parent')                    # don't draw parent back-pointers",
+    "class BSTree:",
+    "    def __init__(self):",
+    "        self.root = BST_NIL",
+    "",
+    "    def insert(self, k):                       # CLRS TREE-INSERT",
+    "        z = BSTNode(key=k, left=BST_NIL, right=BST_NIL, parent=None)",
+    "        y, x = BST_NIL, self.root",
+    "        while x is not BST_NIL:",
+    "            y = x",
+    "            x = x.left if z.key < x.key else x.right",
+    "        z.parent = y",
+    "        if y is BST_NIL:    self.root = z",
+    "        elif z.key < y.key: y.left = z",
+    "        else:               y.right = z",
+    "        return z",
+    "",
+    "t = BSTree()",
+    "for k in [15, 6, 18, 17, 20, 3, 7, 13, 9, 2, 4]:",
+    "    t.insert(k)",
+    "",
+    "diagram(t)"
   ].join("\n");
 
   var $ = function (id) { return document.getElementById(id); };

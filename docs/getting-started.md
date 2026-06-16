@@ -16,119 +16,88 @@ That's it — no browser extension, no separate renderer, no config. Supported o
 Python 3.8 – 3.12.
 
 !!! tip "Don't want to install yet?"
-    The [**Playground**](playground/index.html) runs this exact example in your browser.
-    Come back here when you want to run it locally.
+    The [**Playground**](playground/index.html) runs this exact example in your
+    browser. Come back here when you want to run it locally.
 
-## Your first diagram: a binary tree, step by step
+## Your first diagram — a binary search tree
 
-We'll build up a binary tree diagram one annotation at a time, so you can see
-exactly what each one does. Step 1 is a complete program; steps 2–4 show just the
-decorator you add at each stage, and the full runnable version is at the end.
-
-### 1. Start with plain Python
-
-Define a binary tree node — nothing sPyTial-specific yet — and ask sPyTial to
-draw an instance:
-
-```python
-import spytial
-
-class Node:
-    def __init__(self, value, left=None, right=None):
-        self.value = value
-        self.left = left
-        self.right = right
-
-root = Node(4,
-            Node(2, Node(1), Node(3)),
-            Node(6, Node(5), Node(7)))
-
-spytial.diagram(root)
-```
-
-`spytial.diagram()` draws **any** object, so this already works. But with no
-layout rules you get a *generic* box-and-arrow graph: each `value`, `left`, and
-`right` is its own box joined by labelled arrows, placed wherever it happens to
-fit. The next three steps shape that into a tree.
-
-### 2. Lay the children out — `@orientation`
-
-```python
-@spytial.orientation(selector="left",  directions=["below", "left"])   # the `left` child goes below-left
-@spytial.orientation(selector="right", directions=["below", "right"])  # the `right` child goes below-right
-class Node:
-    ...
-```
-
-`orientation` is a layout **constraint**. `selector="left"` picks the `left`
-field; `directions=["below", "left"]` says "place whatever that field points to
-*below* its owner and offset to the *left*." Add the mirror rule for `right` and
-parents now sit above their children — the graph reads top-down like a tree.
-
-### 3. Put the value inside the node — `@attribute`
-
-```python
-@spytial.attribute(field="value")   # draw `value` as text inside the node
-```
-
-By default `value` is a separate box with an arrow pointing at it. `attribute`
-folds the field *into* its owner as a text label, so each node simply shows its
-number. (`attribute` is a **directive** — it changes how things are drawn, not
-where.)
-
-### 4. Hide the empty leaves — `@hideAtom`
-
-```python
-@spytial.hideAtom(selector="NoneType")   # don't draw the None children
-```
-
-A leaf's `left`/`right` are `None`, and without this every `None` shows up as an
-empty box. `hideAtom` removes atoms matching a selector — here, everything of
-type `NoneType` — so the leaves stay clean.
-
-### The complete example
-
-Putting all four rules together. Copy this into a `.py` file or a notebook cell
-and run it:
+This is the binary search tree from the
+[`spytial-clrs`](https://github.com/sidprasad/spytial-clrs) notebooks. Copy the
+whole block into a `.py` file or a notebook cell and run it — it builds a BST and
+draws it as a box-and-arrow diagram. We walk through what each decorator does just
+below.
 
 <!-- canonical example — keep in sync with docs/index.md and the playground preset -->
 ```python
-import spytial
+from spytial import attribute, orientation, hideAtom, hideField, diagram
 
-# Each decorator below is one rule for how the tree is drawn.
-@spytial.orientation(selector="left",  directions=["below", "left"])   # place the `left` child below-left
-@spytial.orientation(selector="right", directions=["below", "right"])  # place the `right` child below-right
-@spytial.attribute(field="value")                                      # show `value` as a label inside the node
-@spytial.hideAtom(selector="NoneType")                                 # hide the empty (None) leaves
-class Node:
-    def __init__(self, value, left=None, right=None):
-        self.value = value
+@attribute(field="key")                      # show `key` inside each node
+@orientation(selector='left & (BSTNode -> (BSTNode - NoneType.~key))',
+             directions=['below', 'left'])    # real left child: below-left
+@orientation(selector='right & (BSTNode -> (BSTNode - NoneType.~key))',
+             directions=['below', 'right'])   # real right child: below-right
+class BSTNode:
+    def __init__(self, key=None, left=None, right=None, parent=None):
+        self.key = key
         self.left = left
         self.right = right
+        self.parent = parent
 
-# A small binary tree, built by hand.
-root = Node(4,
-            Node(2, Node(1), Node(3)),
-            Node(6, Node(5), Node(7)))
+BST_NIL = BSTNode(key=None)                   # one shared NIL sentinel
+BST_NIL.left = BST_NIL.right = BST_NIL.parent = BST_NIL
 
-spytial.diagram(root)
+@hideAtom(selector='{ x : BSTNode | (x.key in NoneType) } + BSTree + int + NoneType')
+@hideField(field='parent')                    # don't draw parent back-pointers
+class BSTree:
+    def __init__(self):
+        self.root = BST_NIL
+
+    def insert(self, k):                       # CLRS TREE-INSERT
+        z = BSTNode(key=k, left=BST_NIL, right=BST_NIL, parent=None)
+        y, x = BST_NIL, self.root
+        while x is not BST_NIL:
+            y = x
+            x = x.left if z.key < x.key else x.right
+        z.parent = y
+        if y is BST_NIL:    self.root = z
+        elif z.key < y.key: y.left = z
+        else:               y.right = z
+        return z
+
+t = BSTree()
+for k in [15, 6, 18, 17, 20, 3, 7, 13, 9, 2, 4]:
+    t.insert(k)
+
+diagram(t)
 ```
 
 Running a script opens the diagram in a new browser tab; running it in a notebook
-renders it inline. You'll see `4` at the root, `2` and `6` below it, and their
-children fanning out beneath them.
+renders it inline. You'll see `15` at the root, smaller keys branching down-left
+and larger keys down-right.
 
-!!! note "Selectors can do much more"
-    Here `selector` just names a field (`"left"`) or a type (`"NoneType"`). For
-    bigger structures it's a small relational query language — see
-    [Operations](operations.md) for the full syntax, and the
-    [`spytial-clrs`](https://github.com/sidprasad/spytial-clrs) notebooks for how
-    a real CLRS binary search tree uses it.
+### What each decorator does
 
-!!! note "Start small, then annotate"
-    A good workflow is: call `diagram(obj)` first to see the raw structure, then add
-    one decorator at a time. The [Playground](playground/index.html) is the fastest place to
-    do this — edit, run, repeat.
+The decorators on the two classes *are* the sPyTial layout — each is one rule.
+Reading top to bottom:
+
+| Decorator | What it does |
+| --- | --- |
+| `@attribute(field="key")` | Render `node.key` as text **inside** the node, instead of as a separate box with an arrow. |
+| `@orientation(selector='left & (BSTNode -> (BSTNode - NoneType.~key))', directions=['below','left'])` | Place each node's **real** left child below-and-left of it. The selector reads as "the `left` edges that point to an actual `BSTNode`, *not* the shared `NIL` sentinel," so empty leaves don't get dragged around. |
+| `@orientation(selector='right & …', directions=['below','right'])` | The mirror image, for the right child. |
+| `@hideField(field='parent')` | Don't draw the `parent` back-pointers — they'd clutter the tree. |
+| `@hideAtom(selector='{ x : BSTNode \| (x.key in NoneType) } + BSTree + int + NoneType')` | Hide the shared `NIL` sentinel, the `BSTree` wrapper, and the bare `int`/`None` atoms, so only the keyed nodes show. |
+
+Those `selector` strings are sPyTial's **relational query language** — the same
+language across every sPyTial host. You don't need it for simple objects, but it
+lets you target exactly the right atoms and edges (here: "real children, not the
+sentinel"). See [Operations](operations.md) for the full syntax.
+
+!!! note "Build it up incrementally"
+    A good workflow is to call `diagram(obj)` first with **no** decorators to see
+    the raw structure, then add one rule at a time. The
+    [Playground](playground/index.html) is the fastest place to do this — edit,
+    run, repeat.
 
 ## Where the diagram shows up
 
@@ -145,9 +114,9 @@ You can always force one explicitly:
 ```python
 import spytial
 
-spytial.diagram(root, method="browser")   # open a new tab
-spytial.diagram(root, method="file")      # save spytial_visualization.html
-spytial.diagram(root, method="inline")    # force inline (notebook) output
+spytial.diagram(t, method="browser")   # open a new tab
+spytial.diagram(t, method="file")      # save spytial_visualization.html
+spytial.diagram(t, method="inline")    # force inline (notebook) output
 ```
 
 The actual rendering is done in the browser by
@@ -164,7 +133,7 @@ relations — useful when debugging a custom class or annotation — use the
 ```python
 import spytial
 
-spytial.evaluate(root)
+spytial.evaluate(t)
 ```
 
 ## Optional extras
@@ -183,7 +152,7 @@ pip install "spytial-diagramming[docs]"       # mkdocs + plugins (contributors)
 
 ## Next steps
 
-- Try the [Playground](playground/index.html) — edit and run examples in your browser.
+- Try the [Playground](playground/index.html) — edit and run sPyTial in your browser.
 - Read [Diagramming](usage/diagramming.md) for the main rendering workflow.
 - Read [Operations](operations.md) for every layout constraint and drawing directive.
 - Read the [Evaluator](usage/evaluator.md) guide for inspecting serialized data.
