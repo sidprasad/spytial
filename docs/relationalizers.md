@@ -1,5 +1,8 @@
 # Custom Relationalizers
 
+
+> Custom relationalizers are still very much a W.I.P.
+
 Relationalizers are plug-ins that teach Spytial how to serialize your custom objects into atoms and relations.
 
 ## When to use a relationalizer

@@ -109,19 +109,6 @@ import spytial
 spytial.evaluate(t)
 ```
 
-## Optional extras
-
-Most users do not need these. Install them only if you hit one of the listed cases.
-
-```bash
-pip install "spytial-diagramming[widget]"     # anywidget-based Jupyter widget mode
-pip install "spytial-diagramming[headless]"   # Selenium-driven headless rendering for benchmarking
-pip install "spytial-diagramming[dev]"        # pytest, flake8, black (contributors)
-pip install "spytial-diagramming[docs]"       # mkdocs + plugins (contributors)
-```
-
-- `[headless]` also requires a Chrome / Chromedriver installation on `PATH`. See
-  [Diagramming → Headless benchmarking](usage/diagramming.md#headless-benchmarking).
 
 ## Next steps
 
