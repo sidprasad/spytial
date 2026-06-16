@@ -1,14 +1,130 @@
-/* sPyTial docs — layout helpers only (no palette changes; uses Material theme vars) */
+/* ============================================================
+   sPyTial docs theme — minimal, typographic, programmer-first.
+   Ink-on-paper with a single calm teal accent. No gradients,
+   no shadows, no chartjunk.
+   ============================================================ */
 
-/* ---- Landing hero: minimal code, then a big live diagram ---- */
+/* ---- Palette: light (paper + ink + teal) ---- */
+[data-md-color-scheme="default"] {
+  --md-default-bg-color:            #fbfaf7;
+  --md-default-fg-color:            #1b1d1f;
+  --md-default-fg-color--light:     #565b60;
+  --md-default-fg-color--lighter:   #8b9096;
+  --md-default-fg-color--lightest:  #e6e2d8;
+
+  --md-primary-fg-color:            #1b1d1f;   /* header bar = ink */
+  --md-primary-fg-color--light:     #1b1d1f;
+  --md-primary-fg-color--dark:      #1b1d1f;
+  --md-primary-bg-color:            #fbfaf7;   /* header text on ink */
+  --md-primary-bg-color--light:     #c7cace;
+
+  --md-accent-fg-color:             #0a5b63;   /* hover */
+  --md-typeset-a-color:             #0e6f78;   /* links = teal */
+
+  --md-code-bg-color:               #f2efe7;
+  --md-code-fg-color:               #1b1d1f;
+  --md-typeset-mark-color:          #f6e7a8;
+  --md-footer-bg-color:             #1b1d1f;
+}
+
+/* ---- Palette: dark (warm slate + cream + bright teal) ---- */
+[data-md-color-scheme="slate"] {
+  --md-hue: 210;
+  --md-default-bg-color:            #15181b;
+  --md-default-fg-color:            #e7e4dd;
+  --md-default-fg-color--light:     #a4a8ad;
+  --md-default-fg-color--lighter:   #6f757b;
+  --md-default-fg-color--lightest:  #2a2f34;
+
+  --md-primary-fg-color:            #0f1114;
+  --md-primary-fg-color--light:     #0f1114;
+  --md-primary-fg-color--dark:      #0f1114;
+  --md-primary-bg-color:            #e7e4dd;
+  --md-primary-bg-color--light:     #9aa0a6;
+
+  --md-accent-fg-color:             #6fd2da;
+  --md-typeset-a-color:             #55c1cb;
+
+  --md-code-bg-color:               #1c2024;
+  --md-code-fg-color:               #e7e4dd;
+  --md-footer-bg-color:             #0f1114;
+}
+
+/* ---- Typography: mono headings, sans body ---- */
+.md-typeset {
+  font-feature-settings: "kern", "liga", "calt";
+  line-height: 1.72;
+}
+.md-typeset h1,
+.md-typeset h2,
+.md-typeset h3,
+.md-typeset h4,
+.md-header__topic,
+.md-nav__title {
+  font-family: var(--md-code-font-family, "IBM Plex Mono", monospace);
+  font-weight: 600;
+  letter-spacing: -0.015em;
+}
+.md-typeset h1 {
+  color: var(--md-default-fg-color);
+  font-size: 1.78rem;
+  line-height: 1.2;
+  letter-spacing: -0.025em;
+  margin-bottom: 0.7em;
+}
+.md-typeset h2 {
+  font-size: 1.32rem;
+  margin-top: 2.2em;
+  padding-bottom: 0.25em;
+  border-bottom: 1px solid var(--md-default-fg-color--lightest);
+}
+.md-typeset h3 { font-size: 1.08rem; margin-top: 1.7em; }
+
+/* tabs / brand a touch tighter */
+.md-tabs__link { font-size: 0.74rem; letter-spacing: 0.01em; }
+.md-header__title { font-weight: 600; }
+
+/* Links: understated, underline on hover only */
+.md-typeset a { text-decoration: none; border-bottom: 1px solid transparent; }
+.md-typeset a:hover { border-bottom-color: currentColor; }
+
+/* Code: flatter, hairline-bordered blocks */
+.md-typeset code { border-radius: 3px; }
+.md-typeset pre > code {
+  border: 1px solid var(--md-default-fg-color--lightest);
+  border-radius: 6px;
+}
+
+/* Tables: quiet rules, no zebra heaviness */
+.md-typeset table:not([class]) {
+  border: 1px solid var(--md-default-fg-color--lightest);
+  border-radius: 6px;
+  font-size: 0.78rem;
+}
+.md-typeset table:not([class]) th {
+  background: var(--md-code-bg-color);
+  font-family: var(--md-code-font-family, "IBM Plex Mono", monospace);
+  font-weight: 600;
+}
+
+/* ============================================================
+   Landing-page helpers (flat, minimal)
+   ============================================================ */
+.sp-tagline {
+  font-size: 1.12rem;
+  line-height: 1.55;
+  color: var(--md-default-fg-color--light);
+  margin: 0.1rem 0 1rem;
+  max-width: 46rem;
+}
+
 .sp-hero { margin: 1.2rem 0 1.8rem; }
-.sp-hero .sp-code > pre { margin: 0 0 0.4rem; }
+.sp-hero .sp-code > pre { margin: 0 0 0.5rem; }
 
 .sp-viz {
   border: 1px solid var(--md-default-fg-color--lightest);
-  border-radius: 0.6rem;
+  border-radius: 8px;
   overflow: hidden;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
   background: #ffffff;
 }
 .sp-viz iframe { display: block; width: 100%; height: 440px; border: 0; }
@@ -20,22 +136,25 @@
   border-top: 1px solid var(--md-default-fg-color--lightest);
 }
 
-.sp-tagline {
-  font-size: 1.15rem;
-  line-height: 1.5;
-  color: var(--md-default-fg-color--light);
-  margin: 0.1rem 0 0.8rem;
-}
-.sp-cta { display: flex; gap: 0.6rem; flex-wrap: wrap; margin: 0.2rem 0 0.4rem; }
-
-/* ---- Operations at a glance: two columns of compact tables ---- */
+/* "Operations at a glance" — two quiet columns */
 .sp-ops {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 0 1.5rem;
 }
-@media screen and (max-width: 899px) {
-  .sp-ops { grid-template-columns: 1fr; }
-}
-.sp-ops table { font-size: 0.8rem; }
+@media screen and (max-width: 899px) { .sp-ops { grid-template-columns: 1fr; } }
+.sp-ops table { font-size: 0.76rem; }
 .sp-ops table th, .sp-ops table td { padding: 0.3rem 0.6rem; }
+
+/* Buttons: square-ish, restrained, accent on primary only */
+.md-typeset .md-button {
+  border-radius: 6px;
+  border-width: 1px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+.md-typeset .md-button--primary {
+  background-color: var(--md-typeset-a-color);
+  border-color: var(--md-typeset-a-color);
+  color: #ffffff;
+}
