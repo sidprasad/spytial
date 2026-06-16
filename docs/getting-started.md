@@ -93,9 +93,9 @@ spytial.diagram(t, method="inline")    # force inline (notebook) output
 ```
 
 The actual rendering is done in the browser by
-[`spytial-core`](how-it-works.md), loaded from a CDN the first time you render.
-There is nothing extra to install; the bundle is cached after first load. See
-[How It Works](how-it-works.md) for the pipeline and offline/pinning guidance.
+[`spytial-core`](https://github.com/sidprasad/spytial-core), loaded from a CDN the
+first time you render. There is nothing extra to install; the bundle is cached
+after first load.
 
 ## Inspect before you diagram
 
@@ -129,7 +129,6 @@ pip install "spytial-diagramming[docs]"       # mkdocs + plugins (contributors)
 - Read [Diagramming](usage/diagramming.md) for the main rendering workflow.
 - Read [Operations](operations.md) for every layout constraint and drawing directive.
 - Read the [Evaluator](usage/evaluator.md) guide for inspecting serialized data.
-- Read [How It Works](how-it-works.md) to understand the Python → browser pipeline.
 - Browse [CLRS Notebook Examples](examples/spytial-clrs.md) for worked examples on
   classic data structures (heaps, trees, graphs, hash tables, disjoint-set forests).
 

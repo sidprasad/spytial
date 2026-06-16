@@ -10,7 +10,6 @@ nav:
   - Home: index.md
   - Getting Started: getting-started.md
   - Playground: playground/index.html
-  - How It Works: how-it-works.md
   - Diagramming: usage/diagramming.md
   - Sequences: usage/sequences.md
   - Evaluator: usage/evaluator.md

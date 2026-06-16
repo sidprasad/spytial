@@ -55,7 +55,7 @@ For stepping through sequences of states, custom relationalizers, and annotation
 ## Related projects
 
 - **[`spytial-clrs`](https://github.com/sidprasad/spytial-clrs)** — a Jupyter notebook collection that implements the data structures from the CLRS algorithms textbook (Cormen, Leiserson, Rivest, Stein) using sPyTial: heaps, linked lists, hash tables, BST / red-black / B / van Emde Boas trees, disjoint-set forests, graphs with MST and SCC views, and more. The best place to see sPyTial on realistic structures.
-- **[`spytial-core`](https://github.com/sidprasad/spytial-core)** — the browser-side rendering engine sPyTial uses under the hood. Shared across all sPyTial language hosts (Python, Rust, Pyret, Lean). See [How It Works](https://sidprasad.github.io/spytial/how-it-works/).
+- **[`spytial-core`](https://github.com/sidprasad/spytial-core)** — the browser-side rendering engine sPyTial uses under the hood. Shared across all sPyTial language hosts (Python, Rust, Pyret, Lean).
 
 ## License
 

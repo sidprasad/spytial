@@ -51,35 +51,3 @@ For non-trivial objects, the usual workflow is:
 2. `spytial.diagram(obj)` to see the layout.
 3. Add decorators or `AnnotatedType(...)` annotations if you want more control over layout or styling.
 
-## Headless benchmarking
-
-For large structures, you can render multiple times and save aggregated timing.
-
-```python
-import spytial
-
-metrics = spytial.diagram(
-    data,
-    headless=True,
-    perf_path="perf.json",
-    perf_iterations=5,
-)
-```
-
-!!! note
-    Headless mode requires Selenium and a Chrome/Chromedriver installation. Use `pip install spytial_diagramming[headless]` and ensure the driver is on your PATH.
-
-## Return values
-
-- `method="browser"` and `method="file"` return the HTML file path.
-- `headless=True` returns performance metrics when `perf_iterations` is set.
-
-## Patterns from the CLRS notebooks
-
-For realistic examples instead of toy snippets, use [`spytial-clrs`](https://github.com/sidprasad/spytial-clrs) — a notebook collection that implements CLRS-textbook data structures with Spytial:
-
-- `linked-lists.ipynb` shows list-like structures and cyclic constraints.
-- `heaps.ipynb` and `trees.ipynb` show recursive structures with alignment and attributes.
-- `graphs.ipynb` and `disjoint-sets.ipynb` show grouping-heavy layouts.
-
-See [CLRS Notebook Examples](../examples/spytial-clrs.md) for the full guide.

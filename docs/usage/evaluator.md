@@ -15,7 +15,7 @@ spytial.evaluate({"total": 3, "items": [1, 2, 3]})
 The evaluator is especially useful when:
 
 - a custom class is not relationalizing the way you expect
-- an annotation selector is not matching what you think it is matching
+- a selector is not matching what you think it is matching
 - you are writing a custom relationalizer and want to inspect the emitted atoms and relations
 
 ## Display methods
@@ -46,7 +46,3 @@ Graph = AnnotatedType(
 
 spytial.evaluate({0: [1, 2], 1: [3]}, as_type=Graph)
 ```
-
-## Recommended workflow
-
-Use `evaluate()` first when debugging serialization, then switch to `diagram()` once the data instance looks right.

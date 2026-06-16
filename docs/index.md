@@ -1,6 +1,15 @@
 # Spytial
 
-<p class="sp-tagline"><strong>Spatial diagrams of Python objects.</strong> Turn any dict, dataclass, tree, or graph into a box-and-arrow diagram — and shape the layout with a few declarative decorators.</p>
+
+Sometimes you just want to see your program values. 
+You don't need an interactive dashboard or a production-grade visualization system. You just need a diagram that lays it out clearly so you can understand what's going on.
+
+That's what Spytial is for. It is diagramming system 
+built to make it as easy to get a diagram as it is to call
+`print`. 
+
+You always get a diagram **for free* for any value, and then
+use Spytial's constraint vocabulary to refine it til it resembles what you might expect.
 
 [Get started](getting-started.md){ .md-button .md-button--primary }
 [Try it in your browser](playground/index.html){ .md-button }
@@ -41,7 +50,7 @@ diagram(root)
 
 </div>
 
-## Get started in three steps
+## Get started 
 
 1. **Install** — `pip install spytial-diagramming` (Python 3.8–3.12, nothing else to set up).
 2. **Decorate** — add layout rules to your class with decorators like `@orientation` and `@attribute`.
@@ -92,5 +101,4 @@ Full details and arguments are in [Operations](operations.md).
 - [Playground](playground/index.html) — edit and run Spytial in your browser.
 - [Getting Started](getting-started.md) — install and a walkthrough.
 - [Operations](operations.md) — every constraint and directive.
-- [How It Works](how-it-works.md) — the Python → browser pipeline.
 - [`spytial-clrs`](https://github.com/sidprasad/spytial-clrs) — more examples: CLRS data structures rendered with Spytial.
