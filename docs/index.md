@@ -1,61 +1,107 @@
 # sPyTial
 
-**Spatial diagrams of Python objects.** sPyTial turns structured Python data into box-and-arrow diagrams whose layout is driven by declarative spatial constraints. It is aimed at cases where the structure matters more than the UI: debugging recursive objects, teaching data structures, inspecting serialized state, or building small visual tools around Python models.
+<p class="sp-tagline"><strong>Spatial diagrams of Python objects.</strong> Turn any dict, dataclass, tree, or graph into a box-and-arrow diagram — and shape the layout with a few declarative decorators.</p>
 
-## What you can do with it
+[Get started](getting-started.md){ .md-button .md-button--primary }
+[Try it in your browser](playground/index.html){ .md-button }
 
-- Render any Python object — `dict`, `list`, dataclass, custom class, graph — as a box-and-arrow diagram.
-- Control layout declaratively with constraints (`orientation`, `align`, `cyclic`, `group`) and directives (`atomColor`, `attribute`, `hideAtom`, `tag`, `inferredEdge`, …).
-- Step through sequences of states to visualize how a data structure evolves.
+<div class="sp-hero" markdown="1">
 
-!!! tip "Try it now, no install"
-    The [**Playground**](playground/index.html) loads this exact binary tree in an
-    in-browser editor — open it to tweak the code and watch the diagram update live.
+<div class="sp-code" markdown="1">
 
-## Hello, sPyTial
-
-A complete, copy-paste-runnable example: define a binary tree, describe how it
-should be laid out, and draw an instance. The four decorators *are* the "sPyTial
-layout" — each is one rule that turns the default box-and-arrow graph into a tree.
-
-<!-- canonical example — keep in sync with docs/getting-started.md and the playground preset -->
 ```python
 import spytial
 
-@spytial.orientation(selector="left",  directions=["below", "left"])   # place the `left` child below-left
-@spytial.orientation(selector="right", directions=["below", "right"])  # place the `right` child below-right
-@spytial.attribute(field="value")                                      # show `value` as a label inside the node
-@spytial.hideAtom(selector="NoneType")                                 # hide the empty (None) leaves
+@spytial.orientation(selector="left",  directions=["below", "left"])
+@spytial.orientation(selector="right", directions=["below", "right"])
+@spytial.attribute(field="value")
+@spytial.hideAtom(selector="NoneType")
 class Node:
     def __init__(self, value, left=None, right=None):
         self.value = value
         self.left = left
         self.right = right
 
-# A small binary tree, built by hand.
-root = Node(4,
-            Node(2, Node(1), Node(3)),
-            Node(6, Node(5), Node(7)))
+root = Node(4, Node(2, Node(1), Node(3)),
+               Node(6, Node(5), Node(7)))
 
 spytial.diagram(root)
 ```
 
-**→ [Walk through this example one annotation at a time (Getting Started)](getting-started.md)**
-&nbsp;·&nbsp; **[Run it in your browser (Playground)](playground/index.html)**
+</div>
+
+<div class="sp-viz">
+  <iframe src="assets/hero-tree.html" title="A binary tree rendered by sPyTial" loading="lazy"></iframe>
+  <div class="sp-cap">↑ The real, live output of the code above — drag to explore, scroll to zoom</div>
+</div>
+
+</div>
+
+## Get started in three steps
+
+1. **Install** — `pip install spytial-diagramming` (Python 3.8–3.12, nothing else to set up).
+2. **Decorate** — add layout rules to your class with decorators like `@orientation` and `@attribute`.
+3. **Draw** — call `spytial.diagram(obj)`. It opens in your browser, or renders inline in a notebook.
+
+That's the whole loop. [Walk through the example above, line by line →](getting-started.md)
+
+## Operations at a glance
+
+Layout is controlled by two kinds of operation. Attach them as class decorators
+(`@spytial.orientation(...)`), to individual objects, or via `typing.Annotated`.
+Full details and arguments are in [Operations](operations.md).
+
+<div class="sp-ops" markdown="1">
+
+<div markdown="1">
+
+**Constraints** — shape the geometry
+
+| Operation | What it does |
+| --- | --- |
+| `orientation` | Place a field's target in a direction (`below`, `left`, …) |
+| `align` | Line selected nodes up on a shared axis |
+| `cyclic` | Arrange selected nodes in a ring |
+| `group` | Enclose selected nodes in a labelled region |
+
+</div>
+
+<div markdown="1">
+
+**Directives** — change how things are drawn
+
+| Operation | What it does |
+| --- | --- |
+| `attribute` | Show a field as a label inside the node |
+| `atomColor` · `edgeColor` | Color nodes / edges |
+| `hideAtom` · `hideField` | Hide nodes / fields |
+| `tag` | Add a computed label to matching nodes |
+| `inferredEdge` | Draw a derived edge between nodes |
+| `size` · `icon` | Resize / icon-ify nodes |
+
+</div>
+
+</div>
+
+## What it's good for
+
+- **Debugging** recursive or linked structures — see the shape, not a `repr`.
+- **Teaching** data structures — trees, heaps, graphs, hash tables.
+- **Inspecting** serialized state, ORM objects, protobufs, nested config.
+- **Stepping through** how a structure evolves, with [sequences](usage/sequences.md).
 
 ## The sPyTial ecosystem
 
-sPyTial is part of a small family of projects. Most users only need the first.
+Most users only need the first.
 
-- **`spytial-py`** (this package) — the Python host. Install with `pip install spytial-diagramming`. Exposes `diagram()`, `evaluate()`, decorators and types for annotating layouts, and a relationalizer plug-in system.
-- **[`spytial-core`](https://github.com/sidprasad/spytial-core)** — the browser-side rendering engine (TypeScript). Loaded automatically from a CDN; you do not install it yourself. The same engine is used by every sPyTial language host (Python, Rust, Pyret, Lean). See [How It Works](how-it-works.md) for the pipeline.
-- **[`spytial-clrs`](https://github.com/sidprasad/spytial-clrs)** — a Jupyter notebook collection that implements the data structures from the **CLRS algorithms textbook** (Cormen, Leiserson, Rivest, Stein) using sPyTial: heaps, stacks, queues, linked lists, hash tables, BST / red-black / B / van Emde Boas / interval trees, Huffman codes, disjoint-set forests, graphs with MST and SCC views. It is the best place to see the package on realistic structures. Ships with a Docker image and a JupyterLite deployment for zero-install browsing.
+- **`spytial-diagramming`** (this package) — the Python host: `diagram()`, `evaluate()`, the decorators, and a relationalizer plug-in system.
+- **[`spytial-core`](https://github.com/sidprasad/spytial-core)** — the browser-side rendering engine (TypeScript), loaded from a CDN. The same engine powers every sPyTial host (Python, Rust, Pyret, Lean). See [How It Works](how-it-works.md).
+- **[`spytial-clrs`](https://github.com/sidprasad/spytial-clrs)** — Jupyter notebooks implementing CLRS-textbook data structures with sPyTial: heaps, trees, hash tables, disjoint sets, graphs, and more. The best place to see it on realistic structures.
 
 ## Where to go next
 
 - [Playground](playground/index.html) — edit and run sPyTial in your browser, no install.
-- [Getting Started](getting-started.md) — install, then a line-by-line walkthrough of the example above.
-- [Diagramming](usage/diagramming.md) — the main rendering workflow.
-- [Operations](operations.md) — constraints and directives.
-- [How It Works](how-it-works.md) — the Python → browser pipeline and `spytial-core`.
+- [Getting Started](getting-started.md) — install, then a line-by-line walkthrough.
+- [Operations](operations.md) — every layout constraint and drawing directive.
+- [How It Works](how-it-works.md) — the Python → browser pipeline.
 - [CLRS Notebook Examples](examples/spytial-clrs.md) — worked examples on classic data structures.

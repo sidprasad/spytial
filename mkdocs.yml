@@ -41,11 +41,17 @@ plugins:
 
 markdown_extensions:
   - admonition
+  - attr_list
+  - md_in_html
+  - tables
   - pymdownx.details
   - pymdownx.superfences
   - pymdownx.tabbed
   - pymdownx.highlight
   - pymdownx.inlinehilite
+
+extra_css:
+  - stylesheets/extra.css
 
 watch:
   - spytial
