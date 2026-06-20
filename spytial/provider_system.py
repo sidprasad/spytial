@@ -380,11 +380,12 @@ class CnDDataInstanceBuilder:
                     spytial_id = getattr(obj, OBJECT_ID_ATTR)
                     self._seen[oid] = spytial_id
                     return spytial_id
-                # Then check global registry
-                elif oid in _OBJECT_ID_REGISTRY:
-                    spytial_id = _OBJECT_ID_REGISTRY[oid]
-                    self._seen[oid] = spytial_id
-                    return spytial_id
+                # Then check the identity-keyed global registry
+                else:
+                    spytial_id = _OBJECT_ID_REGISTRY.get(obj)
+                    if spytial_id is not None:
+                        self._seen[oid] = spytial_id
+                        return spytial_id
             except ImportError:
                 pass
 
