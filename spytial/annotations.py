@@ -6,6 +6,7 @@
 import yaml
 import re
 import json
+import weakref
 
 
 class NoAliasDumper(yaml.Dumper):
@@ -57,11 +58,95 @@ OBJECT_ANNOTATIONS_ATTR = "__spytial_object_annotations__"
 # Object ID storage attribute name (for self-reference)
 OBJECT_ID_ATTR = "__spytial_object_id__"
 
+_MISSING = object()
+
+
+class _IdentityKeyedRegistry:
+    """A process-global map keyed by object identity, safe against id reuse.
+
+    Some built-in values (``list``, ``dict``, ``tuple``) can store neither a
+    marker attribute nor a weak reference, so any per-object state for them must
+    live in a module-global map. Keying that map by raw ``id(obj)`` is unsafe:
+    once the object is garbage-collected its id can be reused by a brand-new
+    object, which would then silently inherit the dead object's entry.
+
+    Each entry therefore retains a *reference* to the object it belongs to:
+
+    * weak-referenceable objects (``set``, custom instances) get a ``weakref``
+      whose finalizer evicts the entry the instant the object dies — so its id
+      is never simultaneously freed and still mapped;
+    * objects that support neither attribute storage nor weakref (``list``,
+      ``dict``, ``tuple``) get a *strong* reference, which pins the id for as
+      long as the entry lives, so the id cannot be reused while it is mapped.
+
+    Lookups additionally verify object identity, so even under a reused id no
+    object can ever read another object's value. Keys are ``id(obj)`` ints, so
+    unhashable objects (lists, dicts) are fine.
+    """
+
+    def __init__(self):
+        # id(obj) -> (holder, is_weak, value); holder is a weakref or the obj.
+        self._entries = {}
+
+    def _live_object(self, entry):
+        holder, is_weak, _value = entry
+        return holder() if is_weak else holder
+
+    def _make_evictor(self, oid):
+        def _evict(dead_ref):
+            entry = self._entries.get(oid)
+            # Only drop the entry if it still belongs to the object that died,
+            # never a newer entry that reused the id.
+            if entry is not None and entry[0] is dead_ref:
+                del self._entries[oid]
+
+        return _evict
+
+    def _store(self, obj, value):
+        oid = id(obj)
+        try:
+            holder = weakref.ref(obj, self._make_evictor(oid))
+            is_weak = True
+        except TypeError:
+            # Cannot weak-reference this type (list/dict/tuple/...). Hold a
+            # strong reference: it pins the id so reuse is impossible.
+            holder = obj
+            is_weak = False
+        self._entries[oid] = (holder, is_weak, value)
+
+    def get(self, obj, default=None):
+        entry = self._entries.get(id(obj))
+        if entry is None:
+            return default
+        if self._live_object(entry) is obj:
+            return entry[2]
+        # Stale: a reused id (or a dead weakref not yet finalized). Evict.
+        self._entries.pop(id(obj), None)
+        return default
+
+    def __contains__(self, obj):
+        return self.get(obj, _MISSING) is not _MISSING
+
+    def get_or_create(self, obj, factory):
+        existing = self.get(obj, _MISSING)
+        if existing is not _MISSING:
+            return existing
+        value = factory()
+        self._store(obj, value)
+        return value
+
+    def set(self, obj, value):
+        self._store(obj, value)
+
+    def clear(self):
+        self._entries.clear()
+
+
 # Global registry for objects that can't store annotations directly
-_OBJECT_ANNOTATION_REGISTRY = {}
+_OBJECT_ANNOTATION_REGISTRY = _IdentityKeyedRegistry()
 
 # Global registry for object IDs (for objects that can't store attributes)
-_OBJECT_ID_REGISTRY = {}
+_OBJECT_ID_REGISTRY = _IdentityKeyedRegistry()
 
 # Counter for generating unique object IDs
 _OBJECT_ID_COUNTER = 0
@@ -616,19 +701,24 @@ def list_type_alias_annotations():
 
 def reset_object_ids():
     """
-    Reset the global object ID state. Useful for testing or when you need
+    Reset the global object-level state. Useful for testing or when you need
     deterministic object ID generation across multiple runs.
 
-    Warning: This will clear all existing object ID mappings, so existing
-    selectors that depend on previous object IDs may no longer work.
+    Clears both global registries — object IDs and object annotations — for the
+    built-in values that can't store that state on themselves.
+
+    Warning: This will clear all existing object ID mappings and any
+    annotations recorded for un-attributable objects, so existing selectors
+    that depend on previous object IDs may no longer work.
     """
-    global _OBJECT_ID_COUNTER, _OBJECT_ID_REGISTRY
+    global _OBJECT_ID_COUNTER
     _OBJECT_ID_COUNTER = 0
     _OBJECT_ID_REGISTRY.clear()
+    _OBJECT_ANNOTATION_REGISTRY.clear()
 
-    # Also clear object ID attributes from any objects that have them
-    # Note: We can't easily find all objects that have the attribute,
-    # so this is a best-effort cleanup of the global registry only.
+    # Note: object ID / annotation *attributes* stored on attributable objects
+    # are left intact; we can't enumerate them, so this clears the global
+    # registries only.
 
 
 def _get_or_create_object_id(obj):
@@ -647,9 +737,9 @@ def _get_or_create_object_id(obj):
         pass
 
     # Check global registry for objects that can't store attributes
-    obj_python_id = id(obj)
-    if obj_python_id in _OBJECT_ID_REGISTRY:
-        return _OBJECT_ID_REGISTRY[obj_python_id]
+    existing = _OBJECT_ID_REGISTRY.get(obj)
+    if existing is not None:
+        return existing
 
     # Create new unique ID
     _OBJECT_ID_COUNTER += 1
@@ -660,7 +750,7 @@ def _get_or_create_object_id(obj):
         setattr(obj, OBJECT_ID_ATTR, unique_id)
     except (AttributeError, TypeError):
         # Object doesn't support attribute assignment, use global registry
-        _OBJECT_ID_REGISTRY[obj_python_id] = unique_id
+        _OBJECT_ID_REGISTRY.set(obj, unique_id)
 
     return unique_id
 
@@ -843,11 +933,10 @@ def _ensure_object_registry(obj):
         return getattr(obj, OBJECT_ANNOTATIONS_ATTR)
     except (AttributeError, TypeError):
         # Object doesn't support attribute assignment (e.g., built-in types)
-        # Use global registry instead
-        obj_id = id(obj)
-        if obj_id not in _OBJECT_ANNOTATION_REGISTRY:
-            _OBJECT_ANNOTATION_REGISTRY[obj_id] = {"constraints": [], "directives": []}
-        return _OBJECT_ANNOTATION_REGISTRY[obj_id]
+        # Use the identity-keyed global registry instead.
+        return _OBJECT_ANNOTATION_REGISTRY.get_or_create(
+            obj, lambda: {"constraints": [], "directives": []}
+        )
 
 
 def _annotate_object(obj, annotation_type, **kwargs):
@@ -1076,9 +1165,8 @@ def collect_decorators(obj, type_hint=None):
         combined_registry["directives"].extend(object_registry["directives"])
 
     # Then check global registry for objects that can't store attributes
-    obj_id = id(obj)
-    if obj_id in _OBJECT_ANNOTATION_REGISTRY:
-        object_registry = _OBJECT_ANNOTATION_REGISTRY[obj_id]
+    object_registry = _OBJECT_ANNOTATION_REGISTRY.get(obj)
+    if object_registry is not None:
         combined_registry["constraints"].extend(object_registry["constraints"])
         combined_registry["directives"].extend(object_registry["directives"])
 

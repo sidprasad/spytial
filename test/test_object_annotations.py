@@ -5,30 +5,15 @@ Simple test file to validate object-level Spytial-Core annotations.
 
 import pytest
 
-import spytial.annotations as _ann
 from spytial.annotations import (
     orientation, cyclic, group, atomColor,
     annotate, annotate_orientation, annotate_group, annotate_atomColor,
-    collect_decorators, serialize_to_yaml_string,
-    reset_object_ids,
+    collect_decorators, serialize_to_yaml_string
 )
 
-
-@pytest.fixture(autouse=True)
-def _isolate_object_annotation_registry():
-    """Clear the global, id-keyed object-annotation registry around each test.
-
-    Built-in values (lists, dicts) can't store annotations on themselves, so
-    ``annotate_*`` records them in a module-global dict keyed by ``id(obj)``.
-    Once an annotated object is GC'd, a later object can reuse that id and
-    inherit phantom annotations — making these tests order-dependent. Clearing
-    the registry before and after each test removes that coupling.
-    """
-    _ann._OBJECT_ANNOTATION_REGISTRY.clear()
-    reset_object_ids()
-    yield
-    _ann._OBJECT_ANNOTATION_REGISTRY.clear()
-    reset_object_ids()
+# Note: these tests no longer need a registry-isolation fixture. The global
+# object-annotation / id registries are identity-keyed (see _IdentityKeyedRegistry
+# in spytial/annotations.py), so id() reuse can't leak annotations across tests.
 
 
 def test_object_annotations_basic():
@@ -44,7 +29,6 @@ def test_object_annotations_basic():
     assert decorators['constraints'][0]['orientation']['selector'] == 'items'
     print("✓ Basic object annotation works")
 
-@pytest.mark.skip(reason="Global registry for built-in types can leak across objects; skipping until registry isolation is fixed.")
 def test_object_annotations_builtin_types():
     """Test object annotations with built-in types that can't store attributes."""
     print("=== Testing Built-in Types (set, tuple, etc.) ===")
