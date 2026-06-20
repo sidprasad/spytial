@@ -143,10 +143,12 @@ def _make_dataclass_reifier(dc_type: Type):
 
 
 def _generate_cnd_spec(instance: Any) -> str:
-    """Generate Spytial-Core spec in YAML format from dataclass instance annotations."""
-    if not is_dataclass(instance):
-        raise ValueError(f"{instance} is not a dataclass instance")
+    """Generate a Spytial-Core spec (YAML) from any value's annotations.
 
+    Works for any object — dataclasses, builtins, or plain instances.
+    ``collect_decorators`` walks the class MRO and instance annotations, so a
+    value with no spytial annotations simply yields an empty spec.
+    """
     annotations = collect_decorators(instance)
     spec = {
         "constraints": annotations.get("constraints", []),
@@ -360,33 +362,38 @@ def _ensure_anywidget():
 
 if HAS_ANYWIDGET:
 
-    class DataClassBuilder(anywidget.AnyWidget):
+    class Editor(anywidget.AnyWidget):
         """
-        Widget-based visual editor for dataclass instances.
+        Widget-based visual editor for **any** structured value.
 
         Renders a ``<structured-input-graph>`` editor inline in Jupyter and
-        syncs every edit back to Python.  Access the current state as a
-        reified Python object via the ``.value`` property.
+        syncs every edit back to Python.  Read the current editor state as a
+        freshly reified Python object via the ``.value`` property — there is no
+        commit step, and the value you passed in is never mutated.
+
+        Works for dataclasses, dicts, lists, and arbitrary objects alike; when
+        the seed is a dataclass, declared field defaults are filled for any
+        field an edit may have dropped.
 
         Example::
 
-            builder = DataClassBuilder(TreeNode(value=1))
-            builder   # displays inline in Jupyter
+            ed = Editor(TreeNode(value=1))   # or Editor({"a": 1}), Editor([1, 2])
+            ed                               # displays inline in Jupyter
 
             # user edits visually …
 
-            result = builder.value   # TreeNode(value=42, left=TreeNode(…))
+            result = ed.value   # a new object reified from the current state
 
         As a context manager::
 
-            with DataClassBuilder(TreeNode()) as builder:
-                display(builder)
+            with Editor(TreeNode()) as ed:
+                display(ed)
                 # … edit visually …
-            result = builder.value
+            result = ed.value
 
         With change callbacks::
 
-            builder.on_change(lambda tree: print("valid?", is_valid_bst(tree)))
+            ed.on_change(lambda tree: print("valid?", is_valid_bst(tree)))
         """
 
         _esm = _ESM
@@ -401,19 +408,13 @@ if HAS_ANYWIDGET:
         _components_css_url = traitlets.Unicode("").tag(sync=True)
 
         def __init__(self, instance: Any, *, height: int = 550, **kwargs):
-            if not is_dataclass(instance):
-                raise ValueError(
-                    f"{instance} is not a dataclass instance. "
-                    "Pass an instance like: DataClassBuilder(MyClass())"
-                )
+            seed_type = type(instance)
 
-            dc_type = type(instance)
-
-            # Build the initial data instance
+            # Build the initial data instance (works for any value)
             inst_builder = CnDDataInstanceBuilder()
             initial_data = inst_builder.build_instance(instance)
 
-            # CnD spec
+            # CnD spec (empty for values without spytial annotations)
             cnd_spec = _generate_cnd_spec(instance)
 
             super().__init__(
@@ -426,9 +427,11 @@ if HAS_ANYWIDGET:
                 **kwargs,
             )
 
-            # Store type info for reification (not synced to frontend)
-            self._dataclass_type: Type = dc_type
-            self._dc_types: Set[Type] = _collect_dataclass_types(dc_type)
+            # Store type info for reification (not synced to frontend).
+            self._seed_type: Type = seed_type
+            # Dataclass types reachable from the seed; empty when the seed is
+            # not a dataclass, in which case .value uses reify()'s general path.
+            self._dc_types: Set[Type] = _collect_dataclass_types(seed_type)
             # Remember the root atom id from the initial build. spytial-core's
             # JSONDataInstance strips extra keys on round-trip, so rootId does
             # not survive frontend sync; we keep it Python-side as a fallback.
@@ -476,15 +479,20 @@ if HAS_ANYWIDGET:
             return False
 
         def __repr__(self) -> str:
-            return f"DataClassBuilder({self._dataclass_type.__name__})"
+            return f"Editor({self._seed_type.__name__})"
+
+    # Back-compat alias: ``DataClassBuilder`` was the dataclass-only name.
+    DataClassBuilder = Editor
 
 else:
     # Fallback: provide a helpful error when anywidget is not installed
-    class DataClassBuilder:  # type: ignore[no-redef]
+    class Editor:  # type: ignore[no-redef]
         """Placeholder that raises on instantiation when anywidget is missing."""
 
         def __init__(self, *args, **kwargs):
             _ensure_anywidget()
+
+    DataClassBuilder = Editor  # type: ignore[no-redef,assignment]
 
 
 # ---------------------------------------------------------------------------
@@ -542,6 +550,33 @@ def _deliver_html_content(
 # ---------------------------------------------------------------------------
 
 
+def edit(
+    instance: Any,
+    *,
+    height: int = 550,
+    **kwargs: Any,
+) -> "Editor":
+    """Open a live structured editor for any value; read edits back via ``.value``.
+
+    The interactive counterpart to :func:`spytial.diagram`. Returns an
+    :class:`Editor` widget — display it in a Jupyter cell, edit visually, then
+    read ``.value`` to get a freshly reified Python object. There is **no commit
+    step**: ``.value`` reflects the editor's current state each time you read
+    it, and ``instance`` itself is never mutated.
+
+    Accepts any value (dataclasses, dicts, lists, arbitrary objects), mirroring
+    :func:`spytial.diagram`. Requires ``anywidget`` and a Jupyter kernel; for a
+    kernel-free / pyodide path use :func:`dataclass_builder` instead.
+
+    Example::
+
+        ed = spytial.edit(TreeNode(value=1))   # cell 1 — shows the editor
+        ed
+        result = ed.value                       # cell 2 — reified from current state
+    """
+    return Editor(instance, height=height, **kwargs)
+
+
 def dataclass_builder(
     instance: Any,
     *,
@@ -550,17 +585,19 @@ def dataclass_builder(
     height: int = 500,
 ) -> Optional[str]:
     """
-    Render a visual dataclass builder as standalone HTML.
+    Render a visual structured-value editor as standalone HTML.
 
     This is the **pyodide-compatible** path.  It generates a full HTML page
     with the ``<structured-input-graph>`` editor and displays it via an
     inline iframe (in notebooks) or a browser tab.  Use the built-in
     *Export* button to copy the resulting Python constructor code.
 
-    For live two-way sync in Jupyter, use :class:`DataClassBuilder` instead.
+    Accepts any value (dataclasses, dicts, lists, arbitrary objects). For live
+    two-way sync in Jupyter with a ``.value`` round-trip, use :func:`edit`
+    (the :class:`Editor` widget) instead.
 
     Args:
-        instance: A dataclass instance to start editing from.
+        instance: Any value to start editing from.
         method: ``"inline"`` (default in notebooks), ``"browser"``, or
             ``None`` (auto-detect).
         auto_open: Open the browser tab automatically (only for
@@ -573,14 +610,8 @@ def dataclass_builder(
 
     Example::
 
-        spytial.dataclass_builder(TreeNode(value=1))
+        spytial.dataclass_builder(TreeNode(value=1))   # or {"a": 1}, [1, 2], …
     """
-    if not is_dataclass(instance):
-        raise ValueError(
-            f"{instance} is not a dataclass instance. "
-            "Pass an instance like: dataclass_builder(MyClass())"
-        )
-
     inst_builder = CnDDataInstanceBuilder()
     initial_data = inst_builder.build_instance(instance)
     cnd_spec = _generate_cnd_spec(instance)

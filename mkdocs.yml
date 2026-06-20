@@ -15,7 +15,7 @@ nav:
   - Evaluator: usage/evaluator.md
   - Operations: operations.md
   - Selectors: selectors.md
-  - Dataclass Builder: usage/dataclass-builder.md
+  - Editor (Structured Input): usage/dataclass-builder.md
   - Custom Relationalizers: relationalizers.md
   - CLRS Notebook Examples: examples/spytial-clrs.md
   - API Reference: reference/api.md

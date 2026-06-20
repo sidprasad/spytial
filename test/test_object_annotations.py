@@ -5,11 +5,31 @@ Simple test file to validate object-level Spytial-Core annotations.
 
 import pytest
 
+import spytial.annotations as _ann
 from spytial.annotations import (
     orientation, cyclic, group, atomColor,
     annotate, annotate_orientation, annotate_group, annotate_atomColor,
-    collect_decorators, serialize_to_yaml_string
+    collect_decorators, serialize_to_yaml_string,
+    reset_object_ids,
 )
+
+
+@pytest.fixture(autouse=True)
+def _isolate_object_annotation_registry():
+    """Clear the global, id-keyed object-annotation registry around each test.
+
+    Built-in values (lists, dicts) can't store annotations on themselves, so
+    ``annotate_*`` records them in a module-global dict keyed by ``id(obj)``.
+    Once an annotated object is GC'd, a later object can reuse that id and
+    inherit phantom annotations — making these tests order-dependent. Clearing
+    the registry before and after each test removes that coupling.
+    """
+    _ann._OBJECT_ANNOTATION_REGISTRY.clear()
+    reset_object_ids()
+    yield
+    _ann._OBJECT_ANNOTATION_REGISTRY.clear()
+    reset_object_ids()
+
 
 def test_object_annotations_basic():
     """Test basic object-level annotations."""
