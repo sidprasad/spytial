@@ -13,7 +13,7 @@ from dataclasses import dataclass, field
 from typing import List, Optional
 
 from spytial.provider_system import CnDDataInstanceBuilder
-from spytial.dataclass_builder import _make_dataclass_reifier
+from spytial.structured_input import _make_dataclass_reifier
 
 
 # ---------------------------------------------------------------------------

@@ -27,7 +27,7 @@ result = ed.value   # cell 2 — a fresh TreeNode reified from the current state
 
 `.value` reflects the editor's current state **each time you read it** — there is no commit step, and the value you passed in is never mutated. (Reading `spytial.edit(x).value` on a single line just returns the initial state — there was no chance to edit; use two cells.)
 
-`edit()` returns an [`Editor`][spytial.dataclass_builder.Editor] widget and requires `anywidget` + a Jupyter kernel.
+`edit()` returns an [`Editor`][spytial.structured_input.Editor] widget and requires `anywidget` + a Jupyter kernel.
 
 ### Any value, not just dataclasses
 
@@ -61,17 +61,17 @@ txt = spytial.replit(di)           # repr() of what reify() would return
 
 ## Kernel-free / pyodide path
 
-`spytial.dataclass_builder()` renders the same editor as standalone HTML (no kernel required) and uses the built-in **Export** button to copy constructor code. It also accepts any value.
+`spytial.edit_html()` renders the same editor as standalone HTML (no kernel required) and uses the built-in **Export** button to copy constructor code. It also accepts any value.
 
 ```python
-spytial.dataclass_builder(TreeNode())                 # inline iframe / browser tab
-spytial.dataclass_builder({"a": 1}, method="browser")
-spytial.dataclass_builder([1, 2, 3], method="file")
+spytial.edit_html(TreeNode())                 # inline iframe / browser tab
+spytial.edit_html({"a": 1}, method="browser")
+spytial.edit_html([1, 2, 3], method="file")
 ```
 
 ## Naming note
 
-`Editor` was previously `DataClassBuilder` (dataclass-only). The old name still works as an alias, and `dataclass_builder()` remains available, but `edit()` / `Editor` are the current, value-agnostic names.
+This module was previously `dataclass_builder` and was dataclass-only: the widget was `DataClassBuilder` and the HTML helper was `dataclass_builder()`. It now lives in `spytial.structured_input` and accepts any value; the current names are `Editor` / `edit()` (live widget) and `edit_html()` (standalone HTML). The old `DataClassBuilder` / `dataclass_builder()` names were removed.
 
 !!! tip
     For large structures, start from a minimal seed (`TreeNode()`, `{}`, `[]`) and build up visually before reading `.value`.

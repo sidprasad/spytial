@@ -1,13 +1,13 @@
 """
-sPyTial DataClassBuilder
+sPyTial structured input — visual editing of any value.
 
-Two paths for visual dataclass editing:
+Two paths for visually editing a structured value:
 
-* **Widget path** – :class:`DataClassBuilder` is an ``anywidget``-based
-  Jupyter widget with live two-way sync via traitlets.  Requires an
-  IPython kernel (standard Jupyter).
+* **Widget path** – :class:`Editor` is an ``anywidget``-based Jupyter widget
+  with live two-way sync via traitlets.  Requires an IPython kernel (standard
+  Jupyter).  :func:`edit` is the convenience verb that returns one.
 
-* **HTML path** – :func:`dataclass_builder` renders standalone HTML via
+* **HTML path** – :func:`edit_html` renders standalone HTML via
   ``input_template.html`` and displays it with an inline iframe or
   browser tab, exactly like :func:`diagram`.  No kernel needed – works
   in **pyodide** and other lightweight environments.
@@ -162,12 +162,12 @@ def _generate_cnd_spec(instance: Any) -> str:
 # ---------------------------------------------------------------------------
 
 
-def _generate_dataclass_builder_html(
+def _generate_editor_html(
     initial_data: Dict,
     cnd_spec: str,
     dataclass_name: str,
 ) -> str:
-    """Generate HTML for the interactive dataclass builder (template-based)."""
+    """Generate HTML for the interactive structured-input editor (template-based)."""
     if not HAS_JINJA2:
         raise ImportError(
             "Jinja2 is required for HTML generation. Install with: pip install jinja2"
@@ -341,21 +341,21 @@ export async function render({ model, el }) {
 """
 
 _CSS = """
-.widget-dataclass-builder {
+.widget-spytial-editor {
     width: 100%;
 }
 """
 
 
 # ---------------------------------------------------------------------------
-# DataClassBuilder widget
+# Editor widget
 # ---------------------------------------------------------------------------
 
 
 def _ensure_anywidget():
     if not HAS_ANYWIDGET:
         raise ImportError(
-            "DataClassBuilder requires the 'anywidget' package.\n"
+            "Editor requires the 'anywidget' package.\n"
             "Install it with:  pip install anywidget"
         )
 
@@ -481,9 +481,6 @@ if HAS_ANYWIDGET:
         def __repr__(self) -> str:
             return f"Editor({self._seed_type.__name__})"
 
-    # Back-compat alias: ``DataClassBuilder`` was the dataclass-only name.
-    DataClassBuilder = Editor
-
 else:
     # Fallback: provide a helpful error when anywidget is not installed
     class Editor:  # type: ignore[no-redef]
@@ -491,8 +488,6 @@ else:
 
         def __init__(self, *args, **kwargs):
             _ensure_anywidget()
-
-    DataClassBuilder = Editor  # type: ignore[no-redef,assignment]
 
 
 # ---------------------------------------------------------------------------
@@ -566,7 +561,7 @@ def edit(
 
     Accepts any value (dataclasses, dicts, lists, arbitrary objects), mirroring
     :func:`spytial.diagram`. Requires ``anywidget`` and a Jupyter kernel; for a
-    kernel-free / pyodide path use :func:`dataclass_builder` instead.
+    kernel-free / pyodide path use :func:`edit_html` instead.
 
     Example::
 
@@ -577,7 +572,7 @@ def edit(
     return Editor(instance, height=height, **kwargs)
 
 
-def dataclass_builder(
+def edit_html(
     instance: Any,
     *,
     method: Optional[str] = None,
@@ -610,13 +605,13 @@ def dataclass_builder(
 
     Example::
 
-        spytial.dataclass_builder(TreeNode(value=1))   # or {"a": 1}, [1, 2], …
+        spytial.edit_html(TreeNode(value=1))   # or {"a": 1}, [1, 2], …
     """
     inst_builder = CnDDataInstanceBuilder()
     initial_data = inst_builder.build_instance(instance)
     cnd_spec = _generate_cnd_spec(instance)
 
-    html = _generate_dataclass_builder_html(
+    html = _generate_editor_html(
         initial_data=initial_data,
         cnd_spec=cnd_spec,
         dataclass_name=type(instance).__name__,

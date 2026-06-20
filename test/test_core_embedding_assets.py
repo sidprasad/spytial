@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from spytial.dataclass_builder import _generate_dataclass_builder_html
+from spytial.structured_input import _generate_editor_html
 from spytial.evaluator import _generate_evaluator_html
 from spytial.visualizer import (
     _generate_sequence_visualizer_html,
@@ -41,12 +41,12 @@ def test_evaluator_html_uses_current_core_bundle_urls():
     assert "window.spytialcore || window.CndCore || window.CnDCore" in html
 
 
-def test_dataclass_builder_html_uses_current_core_bundle_urls():
+def test_editor_html_uses_current_core_bundle_urls():
     @dataclass
     class SampleNode:
         value: int = 1
 
-    html = _generate_dataclass_builder_html(
+    html = _generate_editor_html(
         initial_data={"atoms": [], "relations": []},
         cnd_spec="constraints: []\ndirectives: []\n",
         dataclass_name=SampleNode.__name__,

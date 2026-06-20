@@ -19,7 +19,7 @@ from .visualizer import (
     LABEL_STRATEGY_NAMES,
 )
 from .evaluator import evaluate
-from .dataclass_builder import edit, Editor, dataclass_builder, DataClassBuilder
+from .structured_input import edit, edit_html, Editor
 from .utils import AnnotatedType
 from .core_assets import get_spytial_core_version
 from .annotations import (
@@ -106,11 +106,10 @@ __all__ = [
     "evaluate",
     # Structured input (the inverse of diagram)
     "edit",
+    "edit_html",
     "Editor",
     "reify",
     "replit",
-    "dataclass_builder",
-    "DataClassBuilder",
     # New relationalizer system
     "CnDDataInstanceBuilder",
     "RelationalizerBase",

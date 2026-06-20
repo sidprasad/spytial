@@ -16,7 +16,7 @@ This section is generated directly from the Spytial source code using `mkdocstri
 
 ## Editor (structured input)
 
-::: spytial.dataclass_builder
+::: spytial.structured_input
 
 ## Annotations
 

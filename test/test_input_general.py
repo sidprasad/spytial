@@ -5,9 +5,8 @@ Covers the generalization tracked in sidprasad/spytial#113:
 * ``spytial.reify`` / ``spytial.replit`` are exported and invert
   ``build_instance`` for builtins, arbitrary classes, and dataclasses.
 * ``_generate_cnd_spec`` no longer requires a dataclass.
-* the HTML builder (``dataclass_builder``) and the live ``Editor`` / ``edit``
-  verb accept any value.
-* ``DataClassBuilder`` remains a working back-compat alias for ``Editor``.
+* the HTML path (``edit_html``) and the live ``Editor`` / ``edit`` verb accept
+  any value.
 """
 
 import os
@@ -18,7 +17,7 @@ import pytest
 
 import spytial
 from spytial.provider_system import CnDDataInstanceBuilder
-from spytial.dataclass_builder import _generate_cnd_spec, HAS_ANYWIDGET
+from spytial.structured_input import _generate_cnd_spec, HAS_ANYWIDGET
 
 
 # ---------------------------------------------------------------------------
@@ -27,10 +26,16 @@ from spytial.dataclass_builder import _generate_cnd_spec, HAS_ANYWIDGET
 
 
 def test_reify_replit_are_exported():
-    for name in ("reify", "replit", "edit", "Editor", "dataclass_builder",
-                 "DataClassBuilder"):
+    for name in ("reify", "replit", "edit", "edit_html", "Editor"):
         assert hasattr(spytial, name), f"spytial.{name} should be exported"
         assert name in spytial.__all__
+
+
+def test_legacy_names_are_gone():
+    # Clean break: the dataclass-only names were removed, not aliased.
+    for name in ("dataclass_builder", "DataClassBuilder"):
+        assert not hasattr(spytial, name), f"spytial.{name} should be removed"
+        assert name not in spytial.__all__
 
 
 @pytest.mark.parametrize(
@@ -100,9 +105,9 @@ def test_generate_cnd_spec_accepts_any_value(value):
     "value",
     [{"a": 1, "b": [1, 2]}, [1, 2, 3], Vec(7, 8), Point(1, 2)],
 )
-def test_html_dataclass_builder_accepts_any_value(value):
+def test_html_edit_accepts_any_value(value):
     # The pyodide/HTML path used to raise on non-dataclasses; now it renders.
-    path = spytial.dataclass_builder(value, method="browser", auto_open=False)
+    path = spytial.edit_html(value, method="browser", auto_open=False)
     try:
         assert path and os.path.exists(path)
         html = open(path, encoding="utf-8").read()
@@ -115,10 +120,6 @@ def test_html_dataclass_builder_accepts_any_value(value):
 # ---------------------------------------------------------------------------
 # The live Editor widget / edit() verb
 # ---------------------------------------------------------------------------
-
-
-def test_dataclassbuilder_is_editor_alias():
-    assert spytial.DataClassBuilder is spytial.Editor
 
 
 @pytest.mark.skipif(HAS_ANYWIDGET, reason="anywidget installed; placeholder path not active")
