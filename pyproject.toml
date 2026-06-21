@@ -40,9 +40,6 @@ Repository = "https://github.com/sidprasad/spytial"
 Issues = "https://github.com/sidprasad/spytial/issues"
 
 [project.optional-dependencies]
-widget = [
-    "anywidget>=0.9.0",
-]
 headless = [
     "selenium>=4.0.0",
 ]

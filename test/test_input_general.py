@@ -5,8 +5,7 @@ Covers the generalization tracked in sidprasad/spytial#113:
 * ``spytial.reify`` / ``spytial.replit`` are exported and invert
   ``build_instance`` for builtins, arbitrary classes, and dataclasses.
 * ``_generate_cnd_spec`` no longer requires a dataclass.
-* the HTML path (``edit_html``) and the live ``Editor`` / ``edit`` verb accept
-  any value.
+* the HTML path (``edit_html``) and the ``edit`` verb accept any value.
 """
 
 import os
@@ -26,14 +25,15 @@ from spytial.structured_input import _generate_cnd_spec
 
 
 def test_reify_replit_are_exported():
-    for name in ("reify", "replit", "edit", "edit_html", "Editor", "EditCancelled"):
+    for name in ("reify", "replit", "edit", "edit_html", "EditCancelled"):
         assert hasattr(spytial, name), f"spytial.{name} should be exported"
         assert name in spytial.__all__
 
 
 def test_legacy_names_are_gone():
-    # Clean break: the dataclass-only names were removed, not aliased.
-    for name in ("dataclass_builder", "DataClassBuilder"):
+    # Clean break: the dataclass-only names and the old anywidget Editor widget
+    # were removed, not aliased.
+    for name in ("dataclass_builder", "DataClassBuilder", "Editor"):
         assert not hasattr(spytial, name), f"spytial.{name} should be removed"
         assert name not in spytial.__all__
 

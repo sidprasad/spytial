@@ -14,7 +14,7 @@ This section is generated directly from the Spytial source code using `mkdocstri
 
 ::: spytial.evaluator
 
-## Editor (structured input)
+## Structured input
 
 ::: spytial.structured_input
 

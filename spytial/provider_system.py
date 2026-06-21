@@ -1065,8 +1065,8 @@ def reify(data_instance: Dict, root_id: Optional[str] = None) -> Any:
     object named by the instance's root (or ``root_id``). Works for any value —
     builtins, arbitrary classes (rebuilt via ``__module__``/``__qualname__``),
     and cyclic structures. For dataclass instances whose fields an editor may
-    have stripped, prefer the :class:`~spytial.Editor` widget, whose ``.value``
-    fills declared field defaults.
+    have stripped, prefer :func:`spytial.edit`, which registers dataclass
+    reifiers that fill declared field defaults.
     """
     return CnDDataInstanceBuilder().reify(data_instance, root_id=root_id)
 

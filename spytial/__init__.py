@@ -19,7 +19,7 @@ from .visualizer import (
     LABEL_STRATEGY_NAMES,
 )
 from .evaluator import evaluate
-from .structured_input import edit, edit_html, Editor, EditCancelled
+from .structured_input import edit, edit_html, EditCancelled
 from .utils import AnnotatedType
 from .core_assets import get_spytial_core_version
 from .annotations import (
@@ -107,7 +107,6 @@ __all__ = [
     # Structured input (the inverse of diagram)
     "edit",
     "edit_html",
-    "Editor",
     "EditCancelled",
     "reify",
     "replit",

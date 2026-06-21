@@ -1,4 +1,4 @@
-# Editor (Structured Input)
+# Structured Input
 
 `spytial.edit()` is the interactive counterpart to [`spytial.diagram()`](diagramming.md). Where `diagram()` *shows* a value, `edit()` lets you *build or change* one visually and hand it back to Python — for **any** value, not just dataclasses.
 
@@ -20,7 +20,7 @@ result = spytial.edit(TreeNode())   # opens the editor, blocks until you click D
 
 `edit()` serves the editor as a page — inline in a local Jupyter cell, or a browser tab from a script — **blocks** until you click **Done** (or **Cancel**), then reconstructs a fresh Python object with [`reify`](#reify-directly) and returns it. The value you passed in is never mutated.
 
-No Jupyter comm and no `anywidget` — only the standard library and a browser. It can't hang your kernel: if the editor never connects, stops responding, or you close it, `edit()` unblocks and returns per `on_cancel`. In **pyodide** and **hosted notebooks** (Colab, JupyterHub, Binder) the browser can't reach the local server, so `edit()` prints a note, shows [`edit_html()`](#standalone-html-no-server) (Export button) instead, and returns `None`.
+No Jupyter comm and no widget framework — only the standard library and a browser. It can't hang your kernel: if the editor never connects, stops responding, or you close it, `edit()` unblocks and returns per `on_cancel`. In **pyodide** and **hosted notebooks** (Colab, JupyterHub, Binder) the browser can't reach the local server, so `edit()` prints a note, shows [`edit_html()`](#standalone-html-no-server) (Export button) instead, and returns `None`.
 
 ### Any value, not just dataclasses
 
@@ -70,7 +70,7 @@ spytial.edit_html([1, 2, 3], method="file")
 
 ## Naming note
 
-This module was previously `dataclass_builder` and was dataclass-only: the widget was `DataClassBuilder` and the HTML helper was `dataclass_builder()`. It now lives in `spytial.structured_input` and accepts any value; the current names are `edit()` (open editor, return the value on Done) and `edit_html()` (standalone HTML). The old `DataClassBuilder` / `dataclass_builder()` names were removed.
+This module was previously `dataclass_builder` and was dataclass-only (a `DataClassBuilder` anywidget widget + a `dataclass_builder()` HTML helper). It now lives in `spytial.structured_input`, accepts any value, and exposes just two verbs: `edit()` (open editor, return the value on Done) and `edit_html()` (standalone HTML). The old `DataClassBuilder` / `dataclass_builder()` names and the anywidget widget were removed.
 
 !!! tip
     Start from a minimal seed (`TreeNode()`, `{}`, `[]`) and build up visually before clicking **Done**.

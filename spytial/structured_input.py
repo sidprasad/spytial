@@ -11,10 +11,8 @@ Two ways to edit a structured value and get it back as a Python object:
 
 * :func:`edit_html` — renders standalone HTML via ``input_template.html`` with
   an **Export** button (copy-paste constructor code). No server; works in
-  **pyodide** and other lightweight / hosted environments.
-
-:class:`Editor` is a separate ``anywidget``-based widget kept as the future
-hosted-notebook (comm) transport; :func:`edit` no longer returns it.
+  **pyodide** and other lightweight / hosted environments, and is the fallback
+  :func:`edit` uses where the local server isn't reachable.
 """
 
 import json
@@ -29,12 +27,7 @@ from typing import Any, Dict, List, Optional, Set, Type, get_type_hints
 from .provider_system import CnDDataInstanceBuilder
 from .annotations import collect_decorators
 from ._edit_server import _EditServer
-from .core_assets import (
-    SPYTIAL_CORE_BROWSER_BUNDLE_URL,
-    SPYTIAL_CORE_COMPONENTS_BUNDLE_URL,
-    SPYTIAL_CORE_COMPONENTS_CSS_URL,
-    get_template_asset_context,
-)
+from .core_assets import get_template_asset_context
 from .utils import default_method
 
 try:
@@ -50,14 +43,6 @@ try:
     HAS_JINJA2 = True
 except ImportError:
     HAS_JINJA2 = False
-
-try:
-    import anywidget
-    import traitlets
-
-    HAS_ANYWIDGET = True
-except ImportError:
-    HAS_ANYWIDGET = False
 
 
 # ---------------------------------------------------------------------------
@@ -201,306 +186,6 @@ def _generate_editor_html(
         commit=commit,
         **get_template_asset_context(),
     )
-
-
-# ---------------------------------------------------------------------------
-# ESM module for the anywidget frontend
-# ---------------------------------------------------------------------------
-
-
-_ESM = """
-// ---- helpers ----
-
-function loadScript(url) {
-    return new Promise((resolve, reject) => {
-        if (document.querySelector(`script[src="${url}"]`)) { resolve(); return; }
-        const s = document.createElement('script');
-        s.src = url;
-        s.onload = resolve;
-        s.onerror = reject;
-        document.head.appendChild(s);
-    });
-}
-
-function loadCSS(url) {
-    if (document.querySelector(`link[href="${url}"]`)) return;
-    const link = document.createElement('link');
-    link.rel = 'stylesheet';
-    link.href = url;
-    document.head.appendChild(link);
-}
-
-function getSpytialCore() {
-    const candidates = [window.spytialcore, window.CndCore, window.CnDCore];
-    return candidates.find(
-        c => c && typeof c.JSONDataInstance === 'function' && typeof c.parseLayoutSpec === 'function'
-    );
-}
-
-// ---- widget render ----
-
-export async function render({ model, el }) {
-    const coreBundleUrl       = model.get('_core_bundle_url');
-    const componentsBundleUrl = model.get('_components_bundle_url');
-    const componentsCssUrl    = model.get('_components_css_url');
-    const height              = model.get('_height') || 550;
-
-    // Load spytial-core browser bundles
-    await loadScript(coreBundleUrl);
-    await loadScript(componentsBundleUrl);
-    loadCSS(componentsCssUrl);
-
-    const core = getSpytialCore();
-    if (!core) {
-        el.innerHTML = '<div style="color:red;padding:10px;">Failed to load spytial-core. Check your network connection.</div>';
-        return;
-    }
-
-    // Mount error-message modal if available
-    const errorDiv = document.createElement('div');
-    errorDiv.id = 'error-core-' + Math.random().toString(36).slice(2);
-    el.appendChild(errorDiv);
-    if (window.mountErrorMessageModal) {
-        window.mountErrorMessageModal(errorDiv.id);
-    }
-
-    // Outer wrapper with explicit pixel height — Jupyter cells have no
-    // inherent height, so flex children collapse without one.
-    const wrapper = document.createElement('div');
-    wrapper.style.cssText =
-        'border: 2px solid #007acc; border-radius: 8px; overflow: hidden;' +
-        'width: 100%; height: ' + height + 'px;' +
-        'display: flex; flex-direction: column; background: white;';
-    el.appendChild(wrapper);
-
-    // Create structured-input-graph web component, sized to fill the wrapper.
-    const graph = document.createElement('structured-input-graph');
-    graph.setAttribute('show-export', 'true');
-    graph.style.cssText = 'width: 100%; height: 100%; flex: 1; min-height: 0;';
-    wrapper.appendChild(graph);
-
-    // Wait for custom element registration
-    if (customElements.get('structured-input-graph') === undefined) {
-        await customElements.whenDefined('structured-input-graph');
-    }
-
-    // Set initial data
-    const initialData = model.get('_data_instance');
-    const cndSpec     = model.get('_cnd_spec');
-
-    const dataInstance = new core.JSONDataInstance(initialData);
-    graph.setCnDSpec(cndSpec);
-    graph.setDataInstance(dataInstance);
-
-    // ---- Sync: poll + event fast-path, dedupe by JSON content ----
-    // Events alone don't fire reliably for label/value edits, so we poll
-    // every 250 ms. The dedupe guard makes redundant fast-path event firings
-    // free.
-    const SYNC_INTERVAL_MS = 250;
-    let lastSyncedJSON = null;
-
-    function syncToPython() {
-        if (typeof graph.getDataInstance !== 'function') return;
-        try {
-            const currentData = graph.getDataInstance();
-            if (!currentData) return;
-            const json = JSON.stringify(currentData);
-            if (json === lastSyncedJSON) return;
-            lastSyncedJSON = json;
-            model.set('_data_instance', JSON.parse(json));
-            model.save_changes();
-        } catch (e) { /* next poll retries */ }
-    }
-
-    const syncTimer = setInterval(syncToPython, SYNC_INTERVAL_MS);
-
-    const fastPathEvents = [
-        'atom-added', 'atom-removed', 'atom-updated',
-        'edge-creation-requested', 'edge-removed', 'edge-reconnected',
-        'data-changed',
-    ];
-    for (const evt of fastPathEvents) {
-        graph.addEventListener(evt, syncToPython);
-    }
-
-    // Handle layout errors
-    graph.addEventListener('layout-complete', (event) => {
-        if (event.detail?.layoutResult?.error) {
-            const err = event.detail.layoutResult.error;
-            if (err.errorMessages && window.showPositionalError) {
-                window.showPositionalError(err.errorMessages);
-            } else if (window.showGeneralError) {
-                window.showGeneralError('Layout error: ' + err.message);
-            }
-            graph.setAttribute('unsat', '');
-        } else {
-            graph.removeAttribute('unsat');
-            if (window.clearAllErrors) window.clearAllErrors();
-        }
-    });
-
-    graph.addEventListener('layout-error', (event) => {
-        if (window.showGeneralError) {
-            window.showGeneralError('Layout error: ' + (event.detail?.message || 'Unknown'));
-        }
-        graph.setAttribute('unsat', '');
-    });
-
-    // Cleanup on unmount (cell re-run, widget close)
-    return () => {
-        clearInterval(syncTimer);
-    };
-}
-"""
-
-_CSS = """
-.widget-spytial-editor {
-    width: 100%;
-}
-"""
-
-
-# ---------------------------------------------------------------------------
-# Editor widget
-# ---------------------------------------------------------------------------
-
-
-def _ensure_anywidget():
-    if not HAS_ANYWIDGET:
-        raise ImportError(
-            "Editor requires the 'anywidget' package.\n"
-            "Install it with:  pip install anywidget"
-        )
-
-
-if HAS_ANYWIDGET:
-
-    class Editor(anywidget.AnyWidget):
-        """
-        Widget-based visual editor for **any** structured value.
-
-        Renders a ``<structured-input-graph>`` editor inline in Jupyter and
-        syncs every edit back to Python.  Read the current editor state as a
-        freshly reified Python object via the ``.value`` property — there is no
-        commit step, and the value you passed in is never mutated.
-
-        Works for dataclasses, dicts, lists, and arbitrary objects alike; when
-        the seed is a dataclass, declared field defaults are filled for any
-        field an edit may have dropped.
-
-        Example::
-
-            ed = Editor(TreeNode(value=1))   # or Editor({"a": 1}), Editor([1, 2])
-            ed                               # displays inline in Jupyter
-
-            # user edits visually …
-
-            result = ed.value   # a new object reified from the current state
-
-        As a context manager::
-
-            with Editor(TreeNode()) as ed:
-                display(ed)
-                # … edit visually …
-            result = ed.value
-
-        With change callbacks::
-
-            ed.on_change(lambda tree: print("valid?", is_valid_bst(tree)))
-        """
-
-        _esm = _ESM
-        _css = _CSS
-
-        # Synced traits
-        _data_instance = traitlets.Dict({}).tag(sync=True)
-        _cnd_spec = traitlets.Unicode("").tag(sync=True)
-        _height = traitlets.Int(550).tag(sync=True)
-        _core_bundle_url = traitlets.Unicode("").tag(sync=True)
-        _components_bundle_url = traitlets.Unicode("").tag(sync=True)
-        _components_css_url = traitlets.Unicode("").tag(sync=True)
-
-        def __init__(self, instance: Any, *, height: int = 550, **kwargs):
-            seed_type = type(instance)
-
-            # Build the initial data instance (works for any value)
-            inst_builder = CnDDataInstanceBuilder()
-            initial_data = inst_builder.build_instance(instance)
-
-            # CnD spec (empty for values without spytial annotations)
-            cnd_spec = _generate_cnd_spec(instance)
-
-            super().__init__(
-                _data_instance=initial_data,
-                _cnd_spec=cnd_spec,
-                _height=height,
-                _core_bundle_url=SPYTIAL_CORE_BROWSER_BUNDLE_URL,
-                _components_bundle_url=SPYTIAL_CORE_COMPONENTS_BUNDLE_URL,
-                _components_css_url=SPYTIAL_CORE_COMPONENTS_CSS_URL,
-                **kwargs,
-            )
-
-            # Store type info for reification (not synced to frontend).
-            self._seed_type: Type = seed_type
-            # Dataclass types reachable from the seed; empty when the seed is
-            # not a dataclass, in which case .value uses reify()'s general path.
-            self._dc_types: Set[Type] = _collect_dataclass_types(seed_type)
-            # Remember the root atom id from the initial build. spytial-core's
-            # JSONDataInstance strips extra keys on round-trip, so rootId does
-            # not survive frontend sync; we keep it Python-side as a fallback.
-            self._root_atom_id: Optional[str] = initial_data.get("rootId")
-
-        @property
-        def value(self) -> Any:
-            """The current editor state as a reified Python object."""
-            reifier = CnDDataInstanceBuilder()
-            for dc_type in self._dc_types:
-                reifier.register_reifier(
-                    dc_type.__name__, _make_dataclass_reifier(dc_type)
-                )
-            return reifier.reify(self._data_instance, root_id=self._root_atom_id)
-
-        @property
-        def data_instance(self) -> Dict:
-            """The raw data-instance dict last synced from the editor."""
-            return self._data_instance
-
-        def on_change(self, callback):
-            """Register a callback that fires with the reified value on every edit.
-
-            Args:
-                callback: A callable that receives the reified Python object.
-
-            Returns:
-                self, for chaining.
-
-            Example::
-
-                builder.on_change(lambda tree: print("updated:", tree))
-            """
-
-            def _handler(change):
-                callback(self.value)
-
-            self.observe(_handler, names=["_data_instance"])
-            return self
-
-        def __enter__(self):
-            return self
-
-        def __exit__(self, exc_type, exc_val, exc_tb):
-            return False
-
-        def __repr__(self) -> str:
-            return f"Editor({self._seed_type.__name__})"
-
-else:
-    # Fallback: provide a helpful error when anywidget is not installed
-    class Editor:  # type: ignore[no-redef]
-        """Placeholder that raises on instantiation when anywidget is missing."""
-
-        def __init__(self, *args, **kwargs):
-            _ensure_anywidget()
 
 
 # ---------------------------------------------------------------------------
@@ -680,7 +365,7 @@ def edit(
     returns it. ``instance`` itself is never mutated.
 
     Accepts any value (dataclasses, dicts, lists, arbitrary objects), mirroring
-    :func:`spytial.diagram`. No Jupyter comm and no ``anywidget`` — only the
+    :func:`spytial.diagram`. No Jupyter comm and no extra dependencies — only the
     standard library and a browser. The supported transport is a local script or
     a **local** Jupyter kernel; in pyodide and hosted notebooks (Colab,
     JupyterHub, Binder) the browser can't reach the local server, so ``edit()``
@@ -778,9 +463,9 @@ def edit_html(
     inline iframe (in notebooks) or a browser tab.  Use the built-in
     *Export* button to copy the resulting Python constructor code.
 
-    Accepts any value (dataclasses, dicts, lists, arbitrary objects). For live
-    two-way sync in Jupyter with a ``.value`` round-trip, use :func:`edit`
-    (the :class:`Editor` widget) instead.
+    Accepts any value (dataclasses, dicts, lists, arbitrary objects). To get the
+    edited object back in Python directly (local script / local Jupyter), use
+    :func:`edit` instead.
 
     Args:
         instance: Any value to start editing from.
