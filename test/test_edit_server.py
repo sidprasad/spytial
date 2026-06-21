@@ -1,19 +1,21 @@
-"""Tests for the server-backed ``spytial.edit()`` flow.
+"""Tests for the server-backed ``spytial.edit()`` flow and its hardening.
 
-``edit()`` blocks on a browser interaction, so it can't be called directly in
-CI. These exercise its pieces: the ephemeral ``_EditServer`` (real HTTP round
-trip), the cancel/commit decision, reification of a committed payload, and
-``edit()`` itself with the server + display monkeypatched out.
+``edit()`` blocks on a browser interaction, so it can't be called live in CI.
+These drive ``_EditServer`` over the loopback socket (token gating, body limits,
+the three liveness outcomes) and exercise the pure helpers + ``edit()`` policy
+with the server/display monkeypatched — no browser, no real kernel.
 """
 
+import http.client
 import json
 import threading
-import urllib.request
+import time
 from dataclasses import dataclass
 
 import pytest
 
 import spytial.structured_input as si
+import spytial.utils as su
 from spytial.structured_input import (
     _EditServer,
     _is_cancel,
@@ -24,55 +26,181 @@ from spytial.provider_system import CnDDataInstanceBuilder
 
 
 # ---------------------------------------------------------------------------
-# _EditServer — real HTTP round trip
+# loopback helpers
 # ---------------------------------------------------------------------------
 
 
-def test_edit_server_serves_page_and_receives_commit():
-    server = _EditServer("<html><body>hello editor</body></html>")
+def _di(value={"a": 1}):
+    return CnDDataInstanceBuilder().build_instance(value)
+
+
+def _request(server, method, path, body=None, headers=None):
+    conn = http.client.HTTPConnection("127.0.0.1", server.port, timeout=3)
+    conn.request(method, path, body=body, headers=headers or {})
+    resp = conn.getresponse()
+    payload = resp.read()
+    conn.close()
+    return resp.status, payload
+
+
+def _tok(server, rest=""):
+    return f"/{server.token}/{rest}"
+
+
+def _serve_in_thread(server, **wait_kw):
+    """Run server.wait() in a daemon thread; return (thread, box) where box['r'] is the result."""
     box = {}
+    t = threading.Thread(
+        target=lambda: box.__setitem__("r", server.wait(**wait_kw)), daemon=True
+    )
+    t.start()
+    time.sleep(0.1)  # let serve_forever spin up
+    return t, box
 
-    waiter = threading.Thread(target=lambda: box.__setitem__("payload", server.wait(timeout=5)))
-    waiter.start()
+
+# ---------------------------------------------------------------------------
+# M1 — token gating + Origin check
+# ---------------------------------------------------------------------------
+
+
+def test_token_gating():
+    server = _EditServer("<html><body>hello editor</body></html>")
+    t, box = _serve_in_thread(server, connect_timeout=3, idle_timeout=3, poll=0.05)
     try:
-        page = urllib.request.urlopen(server.url, timeout=5).read().decode()
-        assert "hello editor" in page
-
-        di = CnDDataInstanceBuilder().build_instance({"a": 1})
-        req = urllib.request.Request(
-            server.url + "commit",
-            data=json.dumps({"data_instance": di}).encode(),
-            headers={"Content-Type": "application/json"},
-            method="POST",
-        )
-        urllib.request.urlopen(req, timeout=5)
+        assert _request(server, "GET", "/")[0] == 404            # no token
+        assert _request(server, "GET", "/wrongtoken/")[0] == 404  # wrong token
+        status, body = _request(server, "GET", _tok(server))
+        assert status == 200 and b"hello editor" in body         # right token
+        assert _request(server, "POST", "/wrong/commit", b"{}")[0] == 404
+        # foreign Origin is rejected even with the right token path
+        assert _request(
+            server, "POST", _tok(server, "commit"), b'{"cancelled":true}',
+            {"Content-Type": "application/json", "Origin": "http://evil.example"},
+        )[0] == 403
+        # valid commit ends wait()
+        assert _request(server, "POST", _tok(server, "commit"), b'{"cancelled":true}',
+                        {"Content-Type": "application/json"})[0] == 204
     finally:
-        waiter.join(timeout=5)
+        t.join(timeout=3)
+    assert box["r"] == {"cancelled": True}
+    assert server._httpd is None  # cleaned up
 
-    assert box["payload"] is not None
-    assert "data_instance" in box["payload"]
+
+# ---------------------------------------------------------------------------
+# M5 — body hardening (no fabricated cancel)
+# ---------------------------------------------------------------------------
 
 
-def test_edit_server_wait_times_out_to_none():
+def test_malformed_json_is_400_not_a_fake_cancel():
     server = _EditServer("<html></html>")
-    assert server.wait(timeout=0.2) is None
+    t, box = _serve_in_thread(server, connect_timeout=3, idle_timeout=3, poll=0.05)
+    try:
+        assert _request(server, "POST", _tok(server, "commit"), b"{not json",
+                        {"Content-Type": "application/json"})[0] == 400
+        assert not server._done.is_set()        # did NOT unblock
+        assert server.payload is None            # did NOT fabricate {"cancelled": True}
+        _request(server, "POST", _tok(server, "commit"), b'{"cancelled":true}',
+                 {"Content-Type": "application/json"})
+    finally:
+        t.join(timeout=3)
+
+
+def test_oversize_body_is_413_without_reading_it():
+    server = _EditServer("<html></html>")
+    t, box = _serve_in_thread(server, connect_timeout=3, idle_timeout=3, poll=0.05)
+    try:
+        # Declare a huge Content-Length with a tiny body: the server must reject
+        # on the header (the DoS guard) before reading the body.
+        assert _request(server, "POST", _tok(server, "commit"), b"{}",
+                        {"Content-Type": "application/json", "Content-Length": "2000000"})[0] == 413
+        assert not server._done.is_set()
+        _request(server, "POST", _tok(server, "commit"), b'{"cancelled":true}',
+                 {"Content-Type": "application/json"})
+    finally:
+        t.join(timeout=3)
 
 
 # ---------------------------------------------------------------------------
-# Cancel decision + payload reification
+# M2 / §4 — the three liveness outcomes
 # ---------------------------------------------------------------------------
 
 
-def test_is_cancel():
-    assert _is_cancel(None)
-    assert _is_cancel({})
-    assert _is_cancel({"cancelled": True})
-    assert not _is_cancel({"data_instance": {"atoms": [], "relations": []}})
+def test_liveness_committed():
+    server = _EditServer("<html>hi</html>")
+    t, box = _serve_in_thread(server, connect_timeout=2, idle_timeout=2, poll=0.05)
+    try:
+        _request(server, "GET", _tok(server))  # connect
+        _request(server, "POST", _tok(server, "commit"),
+                 json.dumps({"data_instance": _di()}).encode(),
+                 {"Content-Type": "application/json"})
+    finally:
+        t.join(timeout=3)
+    assert "data_instance" in box["r"]
+    assert server._httpd is None
+
+
+def test_liveness_never_connected():
+    server = _EditServer("<html></html>")
+    # No client ever contacts it → connect-timeout fires.
+    r = server.wait(connect_timeout=0.4, idle_timeout=0.4, poll=0.05)
+    assert r == {"disconnected": True, "reason": "never-connected"}
+    assert server._httpd is None
+
+
+def test_liveness_page_closed():
+    server = _EditServer("<html></html>")
+    t, box = _serve_in_thread(server, connect_timeout=2, idle_timeout=0.4, poll=0.05)
+    try:
+        _request(server, "GET", _tok(server))            # connect
+        _request(server, "GET", _tok(server, "heartbeat"))  # one beat, then stop
+    finally:
+        t.join(timeout=3)
+    assert box["r"]["reason"] == "page-closed"
+
+
+def test_liveness_overall_timeout():
+    server = _EditServer("<html></html>")
+    t, box = _serve_in_thread(server, timeout=0.4, connect_timeout=3, idle_timeout=3, poll=0.05)
+    try:
+        _request(server, "GET", _tok(server))  # connect so it's not 'never-connected'
+    finally:
+        t.join(timeout=3)
+    assert box["r"]["reason"] == "timeout"
+
+
+def test_wait_is_single_use():
+    server = _EditServer("<html></html>")
+    server.wait(connect_timeout=0.2, idle_timeout=0.2, poll=0.05)
+    with pytest.raises(RuntimeError):
+        server.wait(connect_timeout=0.2)
+
+
+# ---------------------------------------------------------------------------
+# M3 — cancel/commit classification
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("payload", [
+    None, {}, {"cancelled": True}, {"disconnected": True, "reason": "x"},
+    {"data_instance": None}, {"data_instance": {}}, {"data_instance": {"atoms": []}},
+    {"data_instance": {"relations": []}},  # missing atoms
+])
+def test_is_cancel_true(payload):
+    assert _is_cancel(payload)
+
+
+def test_is_cancel_false_for_real_commit():
+    assert not _is_cancel({"data_instance": {"atoms": [{"id": "a0"}], "relations": []}})
+
+
+# ---------------------------------------------------------------------------
+# M4 — root handling on a structurally-edited commit
+# ---------------------------------------------------------------------------
 
 
 def test_reify_committed_round_trips_builtin():
     seed = {"nums": [1, 2, 3], "k": "v"}
-    di = CnDDataInstanceBuilder().build_instance(seed)
+    di = _di(seed)
     assert _reify_committed(dict, {"data_instance": di}, di) == seed
 
 
@@ -83,53 +211,91 @@ class P:
 
 
 def test_reify_committed_rebuilds_dataclass():
-    di = CnDDataInstanceBuilder().build_instance(P(3, 4))
-    out = _reify_committed(P, {"data_instance": di}, di)
-    assert isinstance(out, P) and out == P(3, 4)
+    di = _di(P(3, 4))
+    assert _reify_committed(P, {"data_instance": di}, di) == P(3, 4)
+
+
+def test_reify_committed_ignores_stale_initial_root_when_gone():
+    # The initial root atom is absent from the committed instance (structural
+    # re-root). _reify_committed must NOT force the stale root; it falls through.
+    di = _di({"nums": [1, 2, 3]})
+    initial = {"rootId": "atom-that-no-longer-exists"}
+    out = _reify_committed(dict, {"data_instance": di}, initial)
+    assert out == {"nums": [1, 2, 3]}  # reconstructed via topology, no crash
 
 
 # ---------------------------------------------------------------------------
-# edit() — server + display monkeypatched out
+# edit() — policy, validation, env gating (server + display monkeypatched)
 # ---------------------------------------------------------------------------
 
 
 class _FakeServer:
     def __init__(self, payload):
         self._payload = payload
-        self.url = "http://127.0.0.1:0/"
+        self.url = "http://127.0.0.1:0/tok/"
 
-    def wait(self, timeout=None):
+    def wait(self, timeout=None, **kw):
         return self._payload
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        return False
 
 
 @pytest.fixture
 def no_show(monkeypatch):
     monkeypatch.setattr(si, "_show", lambda url, height: None)
+    monkeypatch.setattr(si, "_announce_editing", lambda url: None)
 
 
 def _patch_server(monkeypatch, payload):
     monkeypatch.setattr(si, "_EditServer", lambda html: _FakeServer(payload))
 
 
+def test_edit_validates_on_cancel_before_anything(monkeypatch):
+    # Must raise before constructing a server.
+    monkeypatch.setattr(si, "_EditServer", lambda html: pytest.fail("server built"))
+    with pytest.raises(ValueError, match="on_cancel"):
+        si.edit({"a": 1}, on_cancel="nope")
+
+
 def test_edit_commit_returns_reified(monkeypatch, no_show):
     seed = {"nums": [1, 2, 3]}
-    di = CnDDataInstanceBuilder().build_instance(seed)
-    _patch_server(monkeypatch, {"data_instance": di})
+    _patch_server(monkeypatch, {"data_instance": _di(seed)})
     assert si.edit(seed) == seed
 
 
-def test_edit_cancel_default_none(monkeypatch, no_show):
-    _patch_server(monkeypatch, {"cancelled": True})
-    assert si.edit({"a": 1}) is None
-
-
-def test_edit_cancel_seed_returns_original(monkeypatch, no_show):
+def test_edit_cancel_default_seed(monkeypatch, no_show):
     seed = {"a": 1}
-    _patch_server(monkeypatch, None)  # timeout / closed tab
-    assert si.edit(seed, on_cancel="seed") is seed
+    _patch_server(monkeypatch, {"cancelled": True})
+    assert si.edit(seed) is seed  # default on_cancel="seed"
+
+
+def test_edit_cancel_none(monkeypatch, no_show):
+    _patch_server(monkeypatch, {"cancelled": True})
+    assert si.edit({"a": 1}, on_cancel="none") is None
 
 
 def test_edit_cancel_raise(monkeypatch, no_show):
-    _patch_server(monkeypatch, {"cancelled": True})
+    _patch_server(monkeypatch, None)  # KeyboardInterrupt path
     with pytest.raises(EditCancelled):
         si.edit({"a": 1}, on_cancel="raise")
+
+
+def test_edit_disconnect_notes_reason(monkeypatch, no_show, capsys):
+    _patch_server(monkeypatch, {"disconnected": True, "reason": "never-connected"})
+    seed = {"a": 1}
+    assert si.edit(seed, on_cancel="seed") is seed
+    assert "never connected" in capsys.readouterr().err
+
+
+@pytest.mark.parametrize("env", ["pyodide", "remote"])
+def test_edit_unsupported_env_falls_back_to_edit_html(monkeypatch, env):
+    monkeypatch.setattr(su, "edit_environment", lambda: env)
+    monkeypatch.setattr(si, "_EditServer", lambda html: pytest.fail("server must not be built"))
+    calls = {}
+    monkeypatch.setattr(si, "edit_html", lambda inst, **k: calls.setdefault("inst", inst))
+    assert si.edit({"a": 1}) is None
+    assert calls["inst"] == {"a": 1}

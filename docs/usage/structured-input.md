@@ -18,9 +18,9 @@ class TreeNode:
 result = spytial.edit(TreeNode())   # opens the editor, blocks until you click Done
 ```
 
-`edit()` serves the editor as a page — inline in a Jupyter cell, or a browser tab from a script — **blocks** until you click **Done** (or **Cancel**), then reconstructs a fresh Python object with [`reify`](#reify-directly) and returns it. The value you passed in is never mutated.
+`edit()` serves the editor as a page — inline in a local Jupyter cell, or a browser tab from a script — **blocks** until you click **Done** (or **Cancel**), then reconstructs a fresh Python object with [`reify`](#reify-directly) and returns it. The value you passed in is never mutated.
 
-No Jupyter comm and no `anywidget` — only the standard library and a browser. (v1 targets local scripts and a **local** Jupyter kernel; hosted notebooks like Colab are a follow-up.)
+No Jupyter comm and no `anywidget` — only the standard library and a browser. It can't hang your kernel: if the editor never connects, stops responding, or you close it, `edit()` unblocks and returns per `on_cancel`. In **pyodide** and **hosted notebooks** (Colab, JupyterHub, Binder) the browser can't reach the local server, so `edit()` prints a note, shows [`edit_html()`](#standalone-html-no-server) (Export button) instead, and returns `None`.
 
 ### Any value, not just dataclasses
 
@@ -39,10 +39,12 @@ When the seed is a dataclass, declared field defaults fill for any field the rou
 Click **Cancel**, close the tab, or interrupt the kernel, and `edit()` returns per `on_cancel`:
 
 ```python
-spytial.edit(x)                      # -> None on cancel (default)
-spytial.edit(x, on_cancel="seed")    # -> the original x, unchanged
+spytial.edit(x)                      # -> the original x, unchanged (default: on_cancel="seed")
+spytial.edit(x, on_cancel="none")    # -> None
 spytial.edit(x, on_cancel="raise")   # -> raises spytial.EditCancelled
 ```
+
+Defaulting to `"seed"` keeps `edit()` total — you always get back a usable value of the same kind, and `None` is reserved for "the committed value really is `None`."
 
 ## Reify directly
 

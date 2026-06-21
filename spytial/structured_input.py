@@ -1,19 +1,24 @@
 """
 sPyTial structured input — visual editing of any value.
 
-Two paths for visually editing a structured value:
+Two ways to edit a structured value and get it back as a Python object:
 
-* **Widget path** – :class:`Editor` is an ``anywidget``-based Jupyter widget
-  with live two-way sync via traitlets.  Requires an IPython kernel (standard
-  Jupyter).  :func:`edit` is the convenience verb that returns one.
+* :func:`edit` — the interactive verb. Serves the editor from an ephemeral
+  ``127.0.0.1`` server (see :mod:`spytial._edit_server`), **blocks** until the
+  user clicks **Done**, then reconstructs the object with :func:`reify` and
+  returns it. Needs a local kernel the browser can reach (local script / local
+  Jupyter); hosted notebooks and pyodide fall back to :func:`edit_html`.
 
-* **HTML path** – :func:`edit_html` renders standalone HTML via
-  ``input_template.html`` and displays it with an inline iframe or
-  browser tab, exactly like :func:`diagram`.  No kernel needed – works
-  in **pyodide** and other lightweight environments.
+* :func:`edit_html` — renders standalone HTML via ``input_template.html`` with
+  an **Export** button (copy-paste constructor code). No server; works in
+  **pyodide** and other lightweight / hosted environments.
+
+:class:`Editor` is a separate ``anywidget``-based widget kept as the future
+hosted-notebook (comm) transport; :func:`edit` no longer returns it.
 """
 
 import json
+import sys
 import tempfile
 import webbrowser
 import yaml
@@ -558,66 +563,138 @@ class EditCancelled(Exception):
 
 
 def _show(url: str, height: int) -> None:
-    """Display the editor URL: an inline iframe in Jupyter, else a browser tab."""
-    try:
-        from IPython import get_ipython
+    """Display the editor: an inline iframe in a local notebook, else a browser tab."""
+    from .utils import is_notebook, in_vscode
 
-        if get_ipython() is not None:
+    # VS Code's webview CSP often blanks an inline 127.0.0.1 iframe — open the
+    # external browser there, which can still reach the local server.
+    if is_notebook() and not in_vscode():
+        try:
             from IPython.display import display, IFrame
 
             display(IFrame(url, width="100%", height=height))
             return
-    except Exception:
-        pass
-    webbrowser.open(url)
+        except Exception:
+            pass
+    if not webbrowser.open(url):
+        print(
+            f"spytial.edit: couldn't open a browser. Open this URL manually:\n  {url}",
+            file=sys.stderr,
+            flush=True,
+        )
 
 
 def _is_cancel(payload: Optional[Dict]) -> bool:
-    """A missing payload, an explicit cancel, or one with no data instance is a cancel."""
-    return not payload or bool(payload.get("cancelled")) or "data_instance" not in payload
+    """True for a cancel / disconnect / empty commit — anything not safe to reify.
+
+    A missing payload, an explicit ``cancelled``/``disconnected``, or a
+    ``data_instance`` that isn't a dict with at least one atom all route through
+    ``on_cancel`` instead of crashing :func:`reify` (which requires a non-empty
+    ``atoms`` list).
+    """
+    if not payload or payload.get("cancelled") or payload.get("disconnected"):
+        return True
+    di = payload.get("data_instance")
+    return not isinstance(di, dict) or not di.get("atoms")
 
 
 def _reify_committed(seed_type: Type, payload: Dict, initial_data: Dict):
     """Reconstruct the object from a (non-cancelled) committed payload.
 
     Registers dataclass reifiers so declared field defaults fill for any field
-    the round-trip dropped; ``initial_data``'s ``rootId`` is the v1 root (the
-    editor strips the top-level rootId, so we fall back to the initial build's).
+    the round-trip dropped. Root choice (issue #113): prefer the committed
+    instance's own ``rootId`` if present; else the initial build's root *only if
+    that atom survived the edit* (a structural re-root drops it); else let
+    :func:`reify` infer from topology.
     """
+    di = payload["data_instance"]
+    atom_ids = {a.get("id") for a in di.get("atoms", [])}
+    committed_root = di.get("rootId")
+    initial_root = initial_data.get("rootId")
+    if committed_root in atom_ids:
+        root_id = committed_root
+    elif initial_root in atom_ids:
+        root_id = initial_root
+    else:
+        root_id = None
+
     reifier = CnDDataInstanceBuilder()
     for dc_type in _collect_dataclass_types(seed_type):
         reifier.register_reifier(dc_type.__name__, _make_dataclass_reifier(dc_type))
-    return reifier.reify(payload["data_instance"], root_id=initial_data.get("rootId"))
+    return reifier.reify(di, root_id=root_id)
+
+
+def _resolve_cancel(on_cancel: str, instance: Any) -> Any:
+    """Apply the ``on_cancel`` policy."""
+    if on_cancel == "seed":
+        return instance
+    if on_cancel == "raise":
+        raise EditCancelled("edit() was cancelled")
+    return None
+
+
+def _announce_editing(url: str) -> None:
+    from .utils import is_notebook
+
+    if is_notebook():
+        msg = (
+            "spytial.edit(): editing… click Done in the editor to continue "
+            "(interrupt the kernel to cancel)."
+        )
+    else:
+        msg = (
+            f"spytial.edit(): editing… opened {url}\n"
+            "  Click Done in the browser to continue, or press Ctrl-C to cancel."
+        )
+    print(msg, file=sys.stderr, flush=True)
+
+
+def _note_disconnect(reason: Optional[str]) -> None:
+    msg = {
+        "never-connected": "the editor never connected — if you're on a hosted "
+        "notebook (e.g. Colab/JupyterHub), use spytial.edit_html() instead.",
+        "page-closed": "the editor was closed before clicking Done.",
+        "timeout": "the edit() timeout elapsed.",
+    }.get(reason, "the editor disconnected.")
+    print(f"spytial.edit(): {msg}", file=sys.stderr, flush=True)
 
 
 def edit(
     instance: Any,
     *,
-    on_cancel: str = "none",
+    on_cancel: str = "seed",
     timeout: Optional[float] = None,
     height: int = 560,
 ) -> Any:
     """Open a structured editor for any value and return the reified result on **Done**.
 
     The interactive counterpart to :func:`spytial.diagram`. Serves the editor as
-    a page from an ephemeral ``127.0.0.1`` server (shown inline in Jupyter, or in
+    a page from an ephemeral ``127.0.0.1`` server (inline in a local notebook, or
     a browser tab from a script), **blocks** until you click **Done** or
     **Cancel**, then reconstructs a fresh Python object with :func:`reify` and
     returns it. ``instance`` itself is never mutated.
 
     Accepts any value (dataclasses, dicts, lists, arbitrary objects), mirroring
-    :func:`spytial.diagram`. No Jupyter kernel comm and no ``anywidget`` needed —
-    only the standard library and a browser. (v1 targets local scripts and a
-    local Jupyter kernel; hosted notebooks such as Colab are a follow-up.)
+    :func:`spytial.diagram`. No Jupyter comm and no ``anywidget`` — only the
+    standard library and a browser. The supported transport is a local script or
+    a **local** Jupyter kernel; in pyodide and hosted notebooks (Colab,
+    JupyterHub, Binder) the browser can't reach the local server, so ``edit()``
+    prints a note, shows :func:`edit_html` (standalone, Export button) instead,
+    and returns ``None``.
+
+    The editor can never hang the kernel: if the page never connects, stops
+    responding, or you close it, ``edit()`` unblocks and returns per ``on_cancel``.
 
     Args:
         instance: Any value to seed the editor with.
-        on_cancel: What to return if the editor is cancelled / closed —
-            ``"none"`` (return ``None``, default), ``"seed"`` (return the
-            original ``instance`` unchanged), or ``"raise"`` (raise
-            :class:`EditCancelled`).
-        timeout: Optional seconds to wait before giving up (treated as cancel).
-        height: Pixel height of the inline iframe in Jupyter.
+        on_cancel: What to return if the editor is cancelled / closed /
+            disconnected — ``"seed"`` (return the original ``instance``
+            unchanged, default), ``"none"`` (return ``None``), or ``"raise"``
+            (raise :class:`EditCancelled`).
+        timeout: Optional overall seconds to wait; ``None`` (default) waits as
+            long as the page stays alive (a closed/unreachable page still
+            unblocks promptly via liveness detection).
+        height: Pixel height of the inline iframe in a notebook.
 
     Returns:
         The reified Python object on Done; otherwise per ``on_cancel``.
@@ -626,22 +703,45 @@ def edit(
 
         result = spytial.edit(TreeNode(value=1))   # edit visually, click Done
     """
+    if on_cancel not in ("none", "seed", "raise"):
+        raise ValueError(
+            f"on_cancel must be 'none', 'seed', or 'raise', got {on_cancel!r}"
+        )
+
+    from .utils import edit_environment
+
+    env = edit_environment()
+    if env != "local":
+        why = (
+            "this looks like a hosted notebook (e.g. Colab/JupyterHub), whose "
+            "browser can't reach the local server"
+            if env == "remote"
+            else "pyodide can't run a local server"
+        )
+        print(
+            f"spytial.edit(): {why}. Showing the standalone editor — use its "
+            "Export button, or run locally for edit().",
+            file=sys.stderr,
+            flush=True,
+        )
+        edit_html(instance, height=height)
+        return None
+
     seed_type = type(instance)
     initial_data = CnDDataInstanceBuilder().build_instance(instance)
     html = _generate_editor_html(
         initial_data, _generate_cnd_spec(instance), seed_type.__name__, commit=True
     )
 
-    server = _EditServer(html)
-    _show(server.url, height)
-    payload = server.wait(timeout)
+    with _EditServer(html) as server:
+        _show(server.url, height)
+        _announce_editing(server.url)
+        payload = server.wait(timeout)
 
     if _is_cancel(payload):
-        if on_cancel == "seed":
-            return instance
-        if on_cancel == "raise":
-            raise EditCancelled("edit() was cancelled")
-        return None
+        if isinstance(payload, dict) and payload.get("disconnected"):
+            _note_disconnect(payload.get("reason"))
+        return _resolve_cancel(on_cancel, instance)
     return _reify_committed(seed_type, payload, initial_data)
 
 

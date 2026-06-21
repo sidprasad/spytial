@@ -93,16 +93,17 @@
     <div id="error-core"></div>
 
     {% if commit %}
+    <style>#spytial-done:disabled{opacity:.5;cursor:progress;}</style>
     <div id="spytial-commit-bar"
          style="position:fixed;bottom:0;left:0;right:0;display:flex;gap:8px;
                 justify-content:flex-end;align-items:center;padding:10px 16px;
                 background:rgba(255,255,255,0.96);border-top:1px solid #ddd;
                 font:14px system-ui,sans-serif;z-index:1000;">
         <span style="margin-right:auto;color:#666;">Edit the value, then click&nbsp;<b>Done</b> to send it back to Python.</span>
-        <button id="spytial-cancel"
+        <button id="spytial-cancel" aria-label="Cancel editing"
                 style="padding:6px 14px;border:1px solid #ccc;border-radius:4px;
                        background:#fff;cursor:pointer;">✕ Cancel</button>
-        <button id="spytial-done"
+        <button id="spytial-done" disabled aria-label="Done — send the edited value back to Python"
                 style="padding:6px 18px;border:none;border-radius:4px;font-weight:600;
                        background:#007acc;color:#fff;cursor:pointer;">✓ Done</button>
     </div>
@@ -792,34 +793,76 @@
 
     {% if commit %}
     <script>
-        // Done / Cancel commit flow: POST the current data instance back to the
-        // ephemeral Python server (_EditServer) that served this page. The page
-        // is served at "/", so the relative "/commit" is same-origin.
+        // Done / Cancel / liveness for the server-backed spytial.edit().
+        // The page is served at "/<token>/", so all fetches here are RELATIVE
+        // (commit, heartbeat) and resolve under the token path automatically —
+        // the token is never written into this script.
         (function () {
+            var doneBtn = document.getElementById('spytial-done');
+            var cancelBtn = document.getElementById('spytial-cancel');
+
+            function graph() { return document.getElementById('structured-graph'); }
+            function currentInstance() {
+                var el = graph();
+                return (el && typeof el.getDataInstance === 'function') ? el.getDataInstance() : null;
+            }
+            function isReady() {
+                var di = currentInstance();
+                return !!(di && (di.atoms || []).length);
+            }
+
+            // Heartbeat: prove the page is alive so the Python side can tell a
+            // live page from a dead one (closed tab / unreachable iframe) and
+            // unblock instead of hanging. Kept outside any spytial-core code so a
+            // page that fails to load core still beats (kernel stays un-hung).
+            var hb = setInterval(function () {
+                fetch('heartbeat', { method: 'GET', cache: 'no-store' }).catch(function () {});
+            }, 2000);
+            function stopHeartbeat() { if (hb) { clearInterval(hb); hb = null; } }
+
+            // Enable Done only once the graph can produce a non-empty instance,
+            // so a too-early click can't POST a broken/empty commit.
+            function refreshReady() {
+                if (isReady()) { doneBtn.disabled = false; clearInterval(readyPoll); }
+            }
+            var readyPoll = setInterval(refreshReady, 300);
+            var g = graph();
+            if (g) g.addEventListener('layout-complete', refreshReady);
+            refreshReady();
+
             function commit(cancelled) {
+                stopHeartbeat();
                 var body;
                 if (cancelled) {
                     body = { cancelled: true };
                 } else {
-                    var el = document.getElementById('structured-graph');
-                    if (!el || typeof el.getDataInstance !== 'function') {
-                        alert('Editor is still loading — give it a moment, then click Done.');
-                        return;
-                    }
-                    body = { data_instance: el.getDataInstance() };
+                    var di = currentInstance();
+                    if (!di || !(di.atoms || []).length) { return; }  // not ready
+                    body = { data_instance: di };
                 }
-                fetch('/commit', {
+                fetch('commit', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(body)
                 }).then(function () {
                     document.body.innerHTML =
                         '<p style="font:15px system-ui,sans-serif;padding:2rem;color:#333">' +
-                        'Done — you can close this tab.</p>';
+                        'Value sent back to Python. You can return to your notebook or terminal.</p>';
                 }).catch(function (e) { console.error('commit failed', e); });
             }
-            document.getElementById('spytial-done').addEventListener('click', function () { commit(false); });
-            document.getElementById('spytial-cancel').addEventListener('click', function () { commit(true); });
+
+            doneBtn.addEventListener('click', function () { if (!doneBtn.disabled) commit(false); });
+            cancelBtn.addEventListener('click', function () { commit(true); });
+
+            // Best-effort cancel when the tab/iframe goes away (sendBeacon
+            // survives unload); the server's idle-timeout is the guarantee.
+            window.addEventListener('pagehide', function () {
+                stopHeartbeat();
+                try {
+                    navigator.sendBeacon('commit',
+                        new Blob([JSON.stringify({ cancelled: true })], { type: 'application/json' }));
+                } catch (e) {}
+            });
         })();
     </script>
     {% endif %}

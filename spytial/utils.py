@@ -2,6 +2,8 @@
 Shared utilities for sPyTial.
 """
 
+import os
+import sys
 from typing import Any
 
 try:
@@ -10,6 +12,39 @@ try:
     HAS_IPYTHON = True
 except ImportError:
     HAS_IPYTHON = False
+
+
+def in_vscode() -> bool:
+    """True when running under the VS Code Python/Jupyter extension.
+
+    The local kernel *is* reachable there, but the webview's CSP frequently
+    blanks an inline ``127.0.0.1`` iframe — so :func:`spytial.edit` opens an
+    external browser instead.
+    """
+    return bool(os.environ.get("VSCODE_PID") or os.environ.get("VSCODE_CWD"))
+
+
+def edit_environment() -> str:
+    """Classify the runtime for :func:`spytial.edit`'s local-server transport.
+
+    Returns one of:
+
+    * ``"pyodide"`` — Python runs in the browser; no sockets, so the local
+      server can't be created at all.
+    * ``"remote"`` — a hosted kernel whose ``127.0.0.1`` the user's browser
+      can't reach (Google Colab, JupyterHub, Binder).
+    * ``"local"`` — a local script or a local Jupyter kernel; the server
+      transport works (VS Code is "local"; see :func:`in_vscode`).
+    """
+    if sys.platform == "emscripten" or "pyodide" in sys.modules:
+        return "pyodide"
+    if "google.colab" in sys.modules:
+        return "remote"
+    if os.environ.get("JUPYTERHUB_SERVICE_PREFIX") or os.environ.get(
+        "BINDER_SERVICE_HOST"
+    ):
+        return "remote"
+    return "local"
 
 
 def is_notebook() -> bool:
