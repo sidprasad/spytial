@@ -35,7 +35,7 @@ COMMITTED = "document.body.innerText.includes('sent back to Python')"
 
 
 @pytest.fixture(scope="module")
-def browser():
+def pw_browser():
     try:
         from playwright.sync_api import sync_playwright
     except ImportError:
@@ -88,8 +88,8 @@ def _editing(monkeypatch, seed, **edit_kwargs):
         worker.join(timeout=25)
 
 
-def _open_editor(browser, url):
-    page = browser.new_page()
+def _open_editor(pw_browser, url):
+    page = pw_browser.new_page()
     page.goto(url, wait_until="domcontentloaded", timeout=30000)
     page.wait_for_function(
         "customElements.get('structured-input-graph') !== undefined", timeout=30000
@@ -100,10 +100,10 @@ def _open_editor(browser, url):
 # ---------------------------------------------------------------------------
 
 
-def test_done_round_trips(browser, monkeypatch):
+def test_done_round_trips(pw_browser, monkeypatch):
     seed = {"name": "root", "children": [{"v": 1}, {"v": 2}], "count": 3}
     with _editing(monkeypatch, seed, timeout=60) as (url, holder, worker):
-        page = _open_editor(browser, url)
+        page = _open_editor(pw_browser, url)
         # Done enables only when getDataInstance() has atoms → component works.
         page.wait_for_selector(f"{DONE}:not([disabled])", timeout=40000)
         page.click(DONE)
@@ -113,10 +113,10 @@ def test_done_round_trips(browser, monkeypatch):
     assert holder.get("value") == seed
 
 
-def test_cancel_returns_seed(browser, monkeypatch):
+def test_cancel_returns_seed(pw_browser, monkeypatch):
     seed = {"a": 1, "b": [2, 3]}
     with _editing(monkeypatch, seed, timeout=60) as (url, holder, worker):
-        page = _open_editor(browser, url)
+        page = _open_editor(pw_browser, url)
         page.wait_for_selector(CANCEL, timeout=40000)
         page.click(CANCEL)
         page.wait_for_function(COMMITTED, timeout=15000)
@@ -124,10 +124,10 @@ def test_cancel_returns_seed(browser, monkeypatch):
     assert holder.get("value") is seed  # default on_cancel="seed"
 
 
-def test_an_edit_is_reflected(browser, monkeypatch):
+def test_an_edit_is_reflected(pw_browser, monkeypatch):
     seed = {"count": 3, "tag": "x"}
     with _editing(monkeypatch, seed, timeout=60) as (url, holder, worker):
-        page = _open_editor(browser, url)
+        page = _open_editor(pw_browser, url)
         page.wait_for_selector(f"{DONE}:not([disabled])", timeout=40000)
         # Change the int atom labelled "3" to "99" and push it back through the
         # component, proving edit() returns the *current* state, not the seed.
@@ -150,12 +150,12 @@ def test_an_edit_is_reflected(browser, monkeypatch):
     assert holder.get("value") == {"count": 99, "tag": "x"}
 
 
-def test_closing_the_page_does_not_hang(browser, monkeypatch):
+def test_closing_the_page_does_not_hang(pw_browser, monkeypatch):
     # The worst failure mode: a closed page that deadlocks the kernel. Closing
     # the tab must unblock edit() (pagehide beacon, or the overall timeout).
     seed = {"a": 1}
     with _editing(monkeypatch, seed, timeout=5) as (url, holder, worker):
-        page = _open_editor(browser, url)
+        page = _open_editor(pw_browser, url)
         page.wait_for_selector(CANCEL, timeout=40000)  # connected
         page.close()  # close without committing
     assert not worker.is_alive(), "edit() hung after the page closed"
