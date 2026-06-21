@@ -215,6 +215,15 @@ def test_reify_committed_rebuilds_dataclass():
     assert _reify_committed(P, {"data_instance": di}, di) == P(3, 4)
 
 
+def test_reify_committed_tolerates_missing_relations():
+    # The editor's getDataInstance() may drop an empty relations list; reify()
+    # requires the key, so _reify_committed must normalize rather than crash.
+    di = _di(5)  # a primitive: relations is legitimately empty
+    assert di["relations"] == []
+    di.pop("relations")
+    assert _reify_committed(int, {"data_instance": di}, di) == 5
+
+
 def test_reify_committed_ignores_stale_initial_root_when_gone():
     # The initial root atom is absent from the committed instance (structural
     # re-root). _reify_committed must NOT force the stale root; it falls through.
@@ -289,6 +298,19 @@ def test_edit_disconnect_notes_reason(monkeypatch, no_show, capsys):
     seed = {"a": 1}
     assert si.edit(seed, on_cancel="seed") is seed
     assert "never connected" in capsys.readouterr().err
+
+
+def test_edit_reify_failure_degrades_to_on_cancel(monkeypatch, no_show, capsys):
+    # A commit that can't be reconstructed must not crash the caller's kernel.
+    seed = {"a": 1}
+    _patch_server(monkeypatch, {"data_instance": _di(seed)})
+
+    def _boom(*a, **k):
+        raise RuntimeError("bad instance")
+
+    monkeypatch.setattr(si, "_reify_committed", _boom)
+    assert si.edit(seed, on_cancel="seed") is seed
+    assert "couldn't reconstruct" in capsys.readouterr().err
 
 
 @pytest.mark.parametrize("env", ["pyodide", "remote"])

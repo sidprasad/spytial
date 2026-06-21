@@ -38,6 +38,7 @@ class _EditServer:
         self.token = secrets.token_urlsafe(16)
         self.payload: Optional[dict] = None
         self._done = threading.Event()
+        self._commit_lock = threading.Lock()
         self._connected = threading.Event()
         self._last_seen: Optional[float] = None
         self._httpd = http.server.ThreadingHTTPServer(
@@ -121,10 +122,14 @@ class _EditServer:
                 if not isinstance(data, dict):
                     self.send_error(400)
                     return
-                server.payload = data
                 self.send_response(204)  # respond before unblocking, so the
                 self.end_headers()       # browser gets its reply before shutdown
-                server._done.set()
+                # First writer wins: a pagehide cancel beacon racing an in-flight
+                # Done POST must not clobber the real committed payload.
+                with server._commit_lock:
+                    if not server._done.is_set():
+                        server.payload = data
+                        server._done.set()
 
             def log_message(self, *args):  # silence default stderr logging
                 pass

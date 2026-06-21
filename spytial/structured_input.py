@@ -608,6 +608,9 @@ def _reify_committed(seed_type: Type, payload: Dict, initial_data: Dict):
     :func:`reify` infer from topology.
     """
     di = payload["data_instance"]
+    # reify() requires both keys; the editor's getDataInstance() may drop an
+    # empty relations list on round-trip, so normalize before reconstructing.
+    di.setdefault("relations", [])
     atom_ids = {a.get("id") for a in di.get("atoms", [])}
     committed_root = di.get("rootId")
     initial_root = initial_data.get("rootId")
@@ -634,9 +637,11 @@ def _resolve_cancel(on_cancel: str, instance: Any) -> Any:
 
 
 def _announce_editing(url: str) -> None:
-    from .utils import is_notebook
+    from .utils import is_notebook, in_vscode
 
-    if is_notebook():
+    # VS Code shows an external browser tab (its webview blanks the iframe), so
+    # only claim "the editor below" for a genuine inline-iframe notebook.
+    if is_notebook() and not in_vscode():
         msg = (
             "spytial.edit(): editing… click Done in the editor to continue "
             "(interrupt the kernel to cancel)."
@@ -742,7 +747,20 @@ def edit(
         if isinstance(payload, dict) and payload.get("disconnected"):
             _note_disconnect(payload.get("reason"))
         return _resolve_cancel(on_cancel, instance)
-    return _reify_committed(seed_type, payload, initial_data)
+
+    # Reify the committed instance. The data instance crosses the JS↔Python
+    # trust boundary, so any reconstruction failure degrades to on_cancel rather
+    # than crashing the caller's kernel/script.
+    try:
+        return _reify_committed(seed_type, payload, initial_data)
+    except Exception as exc:  # noqa: BLE001 — boundary: never crash the caller
+        print(
+            f"spytial.edit(): couldn't reconstruct the edited value ({exc}); "
+            "returning per on_cancel.",
+            file=sys.stderr,
+            flush=True,
+        )
+        return _resolve_cancel(on_cancel, instance)
 
 
 def edit_html(
