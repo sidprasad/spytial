@@ -243,22 +243,25 @@ def test_reify_committed_ignores_stale_initial_root_when_gone():
 # ---------------------------------------------------------------------------
 
 
-def test_template_commit_js_is_unload_safe():
+def test_template_commit_race_is_guarded():
     from spytial.structured_input import _generate_editor_html
 
     html = _generate_editor_html({"atoms": [], "relations": []}, "c: []\n", "X", commit=True)
-    # Done survives a tab close, and a commit-in-flight suppresses the pagehide cancel.
-    assert "keepalive: true" in html
+    # A commit-in-flight suppresses the pagehide cancel beacon (the race fix)...
     assert "if (committed)" in html
+    # ...and the Done POST does not use the keepalive fetch option (it caps the
+    # body at ~64 KB, under the server's 1 MB limit).
+    assert "keepalive: true" not in html
 
 
-def test_template_export_is_reify_based_for_builtins():
+def test_template_export_is_reify_based_for_any_value():
     from spytial.structured_input import _generate_editor_html
 
     html = _generate_editor_html({"atoms": [], "relations": []}, "c: []\n", "dict", commit=False)
-    # Builtin seeds get a general, valid spytial.reify() snippet — not list(idx=0,...).
+    # Export is a single spytial.reify() snippet for every seed — the fragile
+    # dataclass-constructor generator is gone.
     assert "spytial.reify(json.loads" in html
-    assert "BUILTIN" in html
+    assert "buildPythonConstructor" not in html
 
 
 class _FakeServer:

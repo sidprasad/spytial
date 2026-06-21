@@ -183,7 +183,7 @@
                 console.log('Data preview:', jsonString.substring(0, 200));
                 
                 // Convert Spytial-Core data to Python code
-                const pythonCode = convertCnDToPythonCode(cleanData, dataclassName);
+                const pythonCode = convertCnDToPythonCode(cleanData);
                 
                 // Store globally so user can access via console
                 window.spytialExportedData = cleanData;
@@ -202,88 +202,15 @@
         /**
          * Convert Spytial-Core relational data to Python dataclass constructor code
          */
-        function convertCnDToPythonCode(cndData, dataclassName) {
-            // Built-in containers/primitives have no dataclass constructor, so the
-            // constructor codegen below would emit invalid code like `list(idx=0)`.
-            // Hand back a general, reconstructible snippet via spytial.reify, which
-            // round-trips any value (dicts, lists, arbitrary classes, cycles).
-            const BUILTIN = new Set(['dict', 'list', 'tuple', 'set', 'frozenset',
-                'str', 'int', 'float', 'bool', 'NoneType']);
-            if (BUILTIN.has(dataclassName)) {
-                return 'import json, spytial\n'
-                    + '# Reconstruct the edited value from the exported data instance:\n'
-                    + 'value = spytial.reify(json.loads(r"""' + JSON.stringify(cndData) + '"""))';
-            }
-
-            // Build a map of atom ID to its value/label
-            const atomMap = {};
-            if (cndData.atoms) {
-                cndData.atoms.forEach(atom => {
-                    atomMap[atom.id] = {
-                        type: atom.type,
-                        label: atom.label,
-                        pythonValue: getPythonValue(atom)
-                    };
-                });
-            }
-            
-            // Find the main dataclass instance (not a primitive)
-            let mainAtom = null;
-            if (cndData.atoms) {
-                mainAtom = cndData.atoms.find(a => a.type === dataclassName);
-            }
-            
-            if (!mainAtom) {
-                return `# Could not find ${dataclassName} instance in exported data`;
-            }
-            
-            // Build the Python constructor recursively
-            return buildPythonConstructor(mainAtom.id, cndData, atomMap, dataclassName);
-        }
-        
-        /**
-         * Get Python representation of an atom's value
-         */
-        function getPythonValue(atom) {
-            if (atom.type === 'NoneType') return 'None';
-            if (atom.type === 'bool') return atom.label;
-            if (atom.type === 'int' || atom.type === 'float') return atom.label;
-            if (atom.type === 'str') return `"${atom.label.replace(/"/g, '\\"')}"`;
-            return atom.label;
-        }
-        
-        /**
-         * Recursively build Python constructor call
-         */
-        function buildPythonConstructor(atomId, cndData, atomMap, dataclassName) {
-            const atom = atomMap[atomId];
-            if (!atom) return 'None';
-            
-            // If it's a primitive, return its Python value
-            if (atom.type !== dataclassName) {
-                return atom.pythonValue;
-            }
-            
-            // Build constructor arguments
-            const args = [];
-            
-            // Get all relations that point from this atom
-            if (cndData.relations) {
-                cndData.relations.forEach(relation => {
-                    if (relation.tuples) {
-                        relation.tuples.forEach(tuple => {
-                            if (tuple.atoms && tuple.atoms[0] === atomId) {
-                                const targetId = tuple.atoms[1];
-                                const fieldName = relation.name;
-                                const fieldValue = buildPythonConstructor(targetId, cndData, atomMap, dataclassName);
-                                args.push(`${fieldName}=${fieldValue}`);
-                            }
-                        });
-                    }
-                });
-            }
-            
-            return `${dataclassName}(${args.join(', ')})`;
+        // Export the edited value as a single spytial.reify() snippet. reify
+        // reconstructs ANY value — dataclasses, builtins, arbitrary classes, and
+        // cycles — so this is correct for every seed. (The old dataclass-only
+        // constructor generator produced unusable code for non-dataclass objects,
+        // container fields, and cycles; reify is the one general path.)
+        function convertCnDToPythonCode(cndData) {
+            return 'import json, spytial\n'
+                + '# Reconstruct the edited value from the exported data instance:\n'
+                + 'value = spytial.reify(json.loads(r"""' + JSON.stringify(cndData) + '"""))';
         }
 
         /**
@@ -863,11 +790,15 @@
                     body = { data_instance: di };
                 }
                 committed = true;
+                // A plain POST: the `keepalive` fetch flag caps the body at ~64 KB,
+                // which a few hundred atoms can exceed while still under the
+                // server's 1 MB cap, silently dropping the commit. Localhost makes
+                // the POST near-instant, so the heartbeat can stop here. (The
+                // pagehide cancel is tiny and survives unload via sendBeacon.)
                 stopHeartbeat();
                 fetch('commit', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    keepalive: true,  // survive a tab close right after Done so the value still lands
                     body: JSON.stringify(body)
                 }).then(function () {
                     document.body.innerHTML =
