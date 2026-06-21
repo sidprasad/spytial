@@ -23,6 +23,7 @@ from typing import Any, Dict, List, Optional, Set, Type, get_type_hints
 
 from .provider_system import CnDDataInstanceBuilder
 from .annotations import collect_decorators
+from ._edit_server import _EditServer
 from .core_assets import (
     SPYTIAL_CORE_BROWSER_BUNDLE_URL,
     SPYTIAL_CORE_COMPONENTS_BUNDLE_URL,
@@ -166,8 +167,14 @@ def _generate_editor_html(
     initial_data: Dict,
     cnd_spec: str,
     dataclass_name: str,
+    commit: bool = False,
 ) -> str:
-    """Generate HTML for the interactive structured-input editor (template-based)."""
+    """Generate HTML for the interactive structured-input editor (template-based).
+
+    When ``commit`` is true the page renders Done / Cancel buttons that POST the
+    current data instance back to ``/commit`` (the :func:`edit` server flow);
+    otherwise it renders the standalone *Export* path (:func:`edit_html`).
+    """
     if not HAS_JINJA2:
         raise ImportError(
             "Jinja2 is required for HTML generation. Install with: pip install jinja2"
@@ -186,6 +193,7 @@ def _generate_editor_html(
         cnd_spec=cnd_spec,
         dataclass_name=dataclass_name,
         title=f"{dataclass_name} Builder",
+        commit=commit,
         **get_template_asset_context(),
     )
 
@@ -545,31 +553,96 @@ def _deliver_html_content(
 # ---------------------------------------------------------------------------
 
 
+class EditCancelled(Exception):
+    """Raised by :func:`edit` when the editor is cancelled and ``on_cancel="raise"``."""
+
+
+def _show(url: str, height: int) -> None:
+    """Display the editor URL: an inline iframe in Jupyter, else a browser tab."""
+    try:
+        from IPython import get_ipython
+
+        if get_ipython() is not None:
+            from IPython.display import display, IFrame
+
+            display(IFrame(url, width="100%", height=height))
+            return
+    except Exception:
+        pass
+    webbrowser.open(url)
+
+
+def _is_cancel(payload: Optional[Dict]) -> bool:
+    """A missing payload, an explicit cancel, or one with no data instance is a cancel."""
+    return not payload or bool(payload.get("cancelled")) or "data_instance" not in payload
+
+
+def _reify_committed(seed_type: Type, payload: Dict, initial_data: Dict):
+    """Reconstruct the object from a (non-cancelled) committed payload.
+
+    Registers dataclass reifiers so declared field defaults fill for any field
+    the round-trip dropped; ``initial_data``'s ``rootId`` is the v1 root (the
+    editor strips the top-level rootId, so we fall back to the initial build's).
+    """
+    reifier = CnDDataInstanceBuilder()
+    for dc_type in _collect_dataclass_types(seed_type):
+        reifier.register_reifier(dc_type.__name__, _make_dataclass_reifier(dc_type))
+    return reifier.reify(payload["data_instance"], root_id=initial_data.get("rootId"))
+
+
 def edit(
     instance: Any,
     *,
-    height: int = 550,
-    **kwargs: Any,
-) -> "Editor":
-    """Open a live structured editor for any value; read edits back via ``.value``.
+    on_cancel: str = "none",
+    timeout: Optional[float] = None,
+    height: int = 560,
+) -> Any:
+    """Open a structured editor for any value and return the reified result on **Done**.
 
-    The interactive counterpart to :func:`spytial.diagram`. Returns an
-    :class:`Editor` widget — display it in a Jupyter cell, edit visually, then
-    read ``.value`` to get a freshly reified Python object. There is **no commit
-    step**: ``.value`` reflects the editor's current state each time you read
-    it, and ``instance`` itself is never mutated.
+    The interactive counterpart to :func:`spytial.diagram`. Serves the editor as
+    a page from an ephemeral ``127.0.0.1`` server (shown inline in Jupyter, or in
+    a browser tab from a script), **blocks** until you click **Done** or
+    **Cancel**, then reconstructs a fresh Python object with :func:`reify` and
+    returns it. ``instance`` itself is never mutated.
 
     Accepts any value (dataclasses, dicts, lists, arbitrary objects), mirroring
-    :func:`spytial.diagram`. Requires ``anywidget`` and a Jupyter kernel; for a
-    kernel-free / pyodide path use :func:`edit_html` instead.
+    :func:`spytial.diagram`. No Jupyter kernel comm and no ``anywidget`` needed —
+    only the standard library and a browser. (v1 targets local scripts and a
+    local Jupyter kernel; hosted notebooks such as Colab are a follow-up.)
+
+    Args:
+        instance: Any value to seed the editor with.
+        on_cancel: What to return if the editor is cancelled / closed —
+            ``"none"`` (return ``None``, default), ``"seed"`` (return the
+            original ``instance`` unchanged), or ``"raise"`` (raise
+            :class:`EditCancelled`).
+        timeout: Optional seconds to wait before giving up (treated as cancel).
+        height: Pixel height of the inline iframe in Jupyter.
+
+    Returns:
+        The reified Python object on Done; otherwise per ``on_cancel``.
 
     Example::
 
-        ed = spytial.edit(TreeNode(value=1))   # cell 1 — shows the editor
-        ed
-        result = ed.value                       # cell 2 — reified from current state
+        result = spytial.edit(TreeNode(value=1))   # edit visually, click Done
     """
-    return Editor(instance, height=height, **kwargs)
+    seed_type = type(instance)
+    initial_data = CnDDataInstanceBuilder().build_instance(instance)
+    html = _generate_editor_html(
+        initial_data, _generate_cnd_spec(instance), seed_type.__name__, commit=True
+    )
+
+    server = _EditServer(html)
+    _show(server.url, height)
+    payload = server.wait(timeout)
+
+    if _is_cancel(payload):
+        if on_cancel == "seed":
+            return instance
+        if on_cancel == "raise":
+            raise EditCancelled("edit() was cancelled")
+        return None
+    return _reify_committed(seed_type, payload, initial_data)
 
 
 def edit_html(

@@ -17,7 +17,7 @@ import pytest
 
 import spytial
 from spytial.provider_system import CnDDataInstanceBuilder
-from spytial.structured_input import _generate_cnd_spec, HAS_ANYWIDGET
+from spytial.structured_input import _generate_cnd_spec
 
 
 # ---------------------------------------------------------------------------
@@ -26,7 +26,7 @@ from spytial.structured_input import _generate_cnd_spec, HAS_ANYWIDGET
 
 
 def test_reify_replit_are_exported():
-    for name in ("reify", "replit", "edit", "edit_html", "Editor"):
+    for name in ("reify", "replit", "edit", "edit_html", "Editor", "EditCancelled"):
         assert hasattr(spytial, name), f"spytial.{name} should be exported"
         assert name in spytial.__all__
 
@@ -117,27 +117,5 @@ def test_html_edit_accepts_any_value(value):
             os.remove(path)
 
 
-# ---------------------------------------------------------------------------
-# The live Editor widget / edit() verb
-# ---------------------------------------------------------------------------
-
-
-@pytest.mark.skipif(HAS_ANYWIDGET, reason="anywidget installed; placeholder path not active")
-def test_edit_without_anywidget_raises_helpful_error():
-    with pytest.raises(ImportError, match="anywidget"):
-        spytial.edit({"a": 1})
-
-
-@pytest.mark.skipif(not HAS_ANYWIDGET, reason="requires anywidget")
-@pytest.mark.parametrize(
-    "value",
-    [{"a": 1, "b": [1, 2]}, [1, 2, 3], Vec(7, 8), Point(1, 2)],
-)
-def test_editor_value_round_trips_any_value(value):
-    # The widget seeds from any value and .value reifies the synced state.
-    ed = spytial.edit(value)
-    out = ed.value
-    if isinstance(value, Vec):
-        assert type(out) is Vec and (out.x, out.y) == (value.x, value.y)
-    else:
-        assert out == value
+# The server-based edit() verb (blocks on a browser interaction) is covered in
+# test_edit_server.py, which exercises its pieces without opening a browser.

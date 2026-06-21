@@ -2,7 +2,7 @@
 
 `spytial.edit()` is the interactive counterpart to [`spytial.diagram()`](diagramming.md). Where `diagram()` *shows* a value, `edit()` lets you *build or change* one visually and hand it back to Python — for **any** value, not just dataclasses.
 
-## The live editor
+## edit() — edit, click Done, get the value back
 
 ```python
 from dataclasses import dataclass
@@ -15,19 +15,12 @@ class TreeNode:
     left: Optional["TreeNode"] = None
     right: Optional["TreeNode"] = None
 
-ed = spytial.edit(TreeNode())   # cell 1 — shows the editor inline
-ed
+result = spytial.edit(TreeNode())   # opens the editor, blocks until you click Done
 ```
 
-Edit the structure visually, then read the result in a later cell:
+`edit()` serves the editor as a page — inline in a Jupyter cell, or a browser tab from a script — **blocks** until you click **Done** (or **Cancel**), then reconstructs a fresh Python object with [`reify`](#reify-directly) and returns it. The value you passed in is never mutated.
 
-```python
-result = ed.value   # cell 2 — a fresh TreeNode reified from the current state
-```
-
-`.value` reflects the editor's current state **each time you read it** — there is no commit step, and the value you passed in is never mutated. (Reading `spytial.edit(x).value` on a single line just returns the initial state — there was no chance to edit; use two cells.)
-
-`edit()` returns an [`Editor`][spytial.structured_input.Editor] widget and requires `anywidget` + a Jupyter kernel.
+No Jupyter comm and no `anywidget` — only the standard library and a browser. (v1 targets local scripts and a **local** Jupyter kernel; hosted notebooks like Colab are a follow-up.)
 
 ### Any value, not just dataclasses
 
@@ -39,17 +32,21 @@ spytial.edit([{"x": 1}, {"x": 2}])            # list
 spytial.edit(my_graph_node)                    # an arbitrary object (cycles ok)
 ```
 
-When the seed is a dataclass, declared field defaults are filled for any field an edit may have dropped. For other values, reconstruction uses the general path (builtins rebuild as themselves; arbitrary classes rebuild via their import path).
+When the seed is a dataclass, declared field defaults fill for any field the round-trip dropped. Other values reconstruct via the general path (builtins rebuild as themselves; arbitrary classes via their import path).
 
-### React to every edit
+### Cancelling
+
+Click **Cancel**, close the tab, or interrupt the kernel, and `edit()` returns per `on_cancel`:
 
 ```python
-ed.on_change(lambda tree: print("valid BST?", is_valid_bst(tree)))
+spytial.edit(x)                      # -> None on cancel (default)
+spytial.edit(x, on_cancel="seed")    # -> the original x, unchanged
+spytial.edit(x, on_cancel="raise")   # -> raises spytial.EditCancelled
 ```
 
 ## Reify directly
 
-If you already have a data instance (e.g. from `build_instance`, a saved file, or the editor) you can reconstruct the object without the widget:
+If you already have a data instance (from `build_instance`, a saved file, or the editor) you can reconstruct the object without the UI:
 
 ```python
 di  = spytial.CnDDataInstanceBuilder().build_instance(my_value)
@@ -59,9 +56,9 @@ txt = spytial.replit(di)           # repr() of what reify() would return
 
 `reify()` handles builtins, arbitrary classes, and cyclic structures.
 
-## Kernel-free / pyodide path
+## Standalone HTML (no server)
 
-`spytial.edit_html()` renders the same editor as standalone HTML (no kernel required) and uses the built-in **Export** button to copy constructor code. It also accepts any value.
+`spytial.edit_html()` renders the editor as standalone HTML and uses the built-in **Export** button to copy constructor code — handy where the local server isn't reachable (e.g. pyodide). It also accepts any value.
 
 ```python
 spytial.edit_html(TreeNode())                 # inline iframe / browser tab
@@ -71,7 +68,7 @@ spytial.edit_html([1, 2, 3], method="file")
 
 ## Naming note
 
-This module was previously `dataclass_builder` and was dataclass-only: the widget was `DataClassBuilder` and the HTML helper was `dataclass_builder()`. It now lives in `spytial.structured_input` and accepts any value; the current names are `Editor` / `edit()` (live widget) and `edit_html()` (standalone HTML). The old `DataClassBuilder` / `dataclass_builder()` names were removed.
+This module was previously `dataclass_builder` and was dataclass-only: the widget was `DataClassBuilder` and the HTML helper was `dataclass_builder()`. It now lives in `spytial.structured_input` and accepts any value; the current names are `edit()` (open editor, return the value on Done) and `edit_html()` (standalone HTML). The old `DataClassBuilder` / `dataclass_builder()` names were removed.
 
 !!! tip
-    For large structures, start from a minimal seed (`TreeNode()`, `{}`, `[]`) and build up visually before reading `.value`.
+    Start from a minimal seed (`TreeNode()`, `{}`, `[]`) and build up visually before clicking **Done**.
