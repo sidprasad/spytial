@@ -141,6 +141,8 @@ class _EditServer:
         timeout: Optional[float] = None,
         *,
         connect_timeout: float = 20.0,
+        # Must stay a comfortable multiple of the page's heartbeat interval
+        # (2 s, in input_template.html) — this is ~5 missed beats.
         idle_timeout: float = 10.0,
         poll: float = 0.25,
     ) -> Optional[dict]:

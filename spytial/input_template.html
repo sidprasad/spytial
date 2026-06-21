@@ -809,6 +809,13 @@
         // The page is served at "/<token>/", so all fetches here are RELATIVE
         // (commit, heartbeat) and resolve under the token path automatically —
         // the token is never written into this script.
+        //
+        // PYTHON<->JS CONTRACT — keep these in sync if you change either side:
+        //   endpoints : POST "commit", GET "heartbeat"   <-> spytial/_edit_server.py (do_POST/do_GET)
+        //   payload   : {data_instance: <di>} | {cancelled: true}
+        //                                                <-> structured_input._is_cancel / _reify_committed
+        //   data inst : di.atoms[].{id,type,label}, di.relations[].{name,tuples[].atoms}, di.rootId
+        //                                                <-> provider_system.build_instance / reify
         (function () {
             var doneBtn = document.getElementById('spytial-done');
             var cancelBtn = document.getElementById('spytial-cancel');
@@ -827,6 +834,8 @@
             // live page from a dead one (closed tab / unreachable iframe) and
             // unblock instead of hanging. Kept outside any spytial-core code so a
             // page that fails to load core still beats (kernel stays un-hung).
+            // 2 s beat; must stay well under _EditServer.wait()'s idle_timeout
+            // (10 s ≈ 5 missed beats) so a live page is never declared dead.
             var hb = setInterval(function () {
                 fetch('heartbeat', { method: 'GET', cache: 'no-store' }).catch(function () {});
             }, 2000);

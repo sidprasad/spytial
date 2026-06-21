@@ -182,14 +182,17 @@ def _generate_editor_html(
         python_data=json.dumps(initial_data),
         cnd_spec=cnd_spec,
         dataclass_name=dataclass_name,
-        title=f"{dataclass_name} Builder",
+        # "<type> — sPyTial editor"; "Builder" was a leftover from the old
+        # DataClassBuilder. (dataclass_name is the root type name, reused by the
+        # export codegen — kept as the template var name to avoid churn there.)
+        title=f"{dataclass_name} — sPyTial editor",
         commit=commit,
         **get_template_asset_context(),
     )
 
 
 # ---------------------------------------------------------------------------
-# HTML delivery (mirrors visualizer._deliver_html_content)
+# HTML delivery
 # ---------------------------------------------------------------------------
 
 
@@ -199,7 +202,12 @@ def _deliver_html_content(
     auto_open: bool,
     height: int,
 ) -> Optional[str]:
-    """Display or persist already-rendered builder HTML."""
+    """Display or persist already-rendered editor HTML.
+
+    Adapted from :func:`visualizer._deliver_html_content`, but intentionally
+    narrower: only ``"inline"`` and ``"browser"`` (no ``"file"`` / output path),
+    since the editor is interactive rather than a saved artifact.
+    """
     if method == "inline":
         if HAS_IPYTHON:
             try:
@@ -247,13 +255,20 @@ class EditCancelled(Exception):
     """Raised by :func:`edit` when the editor is cancelled and ``on_cancel="raise"``."""
 
 
-def _show(url: str, height: int) -> None:
-    """Display the editor: an inline iframe in a local notebook, else a browser tab."""
+def _inline_iframe_ok() -> bool:
+    """Whether to embed the editor inline (vs. opening a browser tab).
+
+    True only in a genuine local notebook: VS Code's webview CSP frequently
+    blanks an inline ``127.0.0.1`` iframe, so we open an external browser there.
+    """
     from .utils import is_notebook, in_vscode
 
-    # VS Code's webview CSP often blanks an inline 127.0.0.1 iframe — open the
-    # external browser there, which can still reach the local server.
-    if is_notebook() and not in_vscode():
+    return is_notebook() and not in_vscode()
+
+
+def _show(url: str, height: int) -> None:
+    """Display the editor: an inline iframe in a local notebook, else a browser tab."""
+    if _inline_iframe_ok():
         try:
             from IPython.display import display, IFrame
 
@@ -322,11 +337,9 @@ def _resolve_cancel(on_cancel: str, instance: Any) -> Any:
 
 
 def _announce_editing(url: str) -> None:
-    from .utils import is_notebook, in_vscode
-
-    # VS Code shows an external browser tab (its webview blanks the iframe), so
-    # only claim "the editor below" for a genuine inline-iframe notebook.
-    if is_notebook() and not in_vscode():
+    # Only claim "the editor below" when it's a genuine inline iframe; otherwise
+    # (script or VS Code) it's a browser tab, so point at the URL.
+    if _inline_iframe_ok():
         msg = (
             "spytial.edit(): editing… click Done in the editor to continue "
             "(interrupt the kernel to cancel)."
