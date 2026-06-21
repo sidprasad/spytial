@@ -203,6 +203,18 @@
          * Convert Spytial-Core relational data to Python dataclass constructor code
          */
         function convertCnDToPythonCode(cndData, dataclassName) {
+            // Built-in containers/primitives have no dataclass constructor, so the
+            // constructor codegen below would emit invalid code like `list(idx=0)`.
+            // Hand back a general, reconstructible snippet via spytial.reify, which
+            // round-trips any value (dicts, lists, arbitrary classes, cycles).
+            const BUILTIN = new Set(['dict', 'list', 'tuple', 'set', 'frozenset',
+                'str', 'int', 'float', 'bool', 'NoneType']);
+            if (BUILTIN.has(dataclassName)) {
+                return 'import json, spytial\n'
+                    + '# Reconstruct the edited value from the exported data instance:\n'
+                    + 'value = spytial.reify(json.loads(r"""' + JSON.stringify(cndData) + '"""))';
+            }
+
             // Build a map of atom ID to its value/label
             const atomMap = {};
             if (cndData.atoms) {
@@ -830,19 +842,23 @@
             if (g) g.addEventListener('layout-complete', refreshReady);
             refreshReady();
 
+            var committed = false;  // a deliberate Done/Cancel is in flight
             function commit(cancelled) {
-                stopHeartbeat();
+                if (committed) { return; }
                 var body;
                 if (cancelled) {
                     body = { cancelled: true };
                 } else {
                     var di = currentInstance();
-                    if (!di || !(di.atoms || []).length) { return; }  // not ready
+                    if (!di || !(di.atoms || []).length) { return; }  // not ready; stay open
                     body = { data_instance: di };
                 }
+                committed = true;
+                stopHeartbeat();
                 fetch('commit', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
+                    keepalive: true,  // survive a tab close right after Done so the value still lands
                     body: JSON.stringify(body)
                 }).then(function () {
                     document.body.innerHTML =
@@ -854,10 +870,13 @@
             doneBtn.addEventListener('click', function () { if (!doneBtn.disabled) commit(false); });
             cancelBtn.addEventListener('click', function () { commit(true); });
 
-            // Best-effort cancel when the tab/iframe goes away (sendBeacon
-            // survives unload); the server's idle-timeout is the guarantee.
+            // Best-effort cancel when the tab/iframe goes away without a click
+            // (sendBeacon survives unload); the server's idle-timeout is the
+            // guarantee. Skip it if a real Done/Cancel is already in flight, so a
+            // close right after Done can't race a cancel over the committed value.
             window.addEventListener('pagehide', function () {
                 stopHeartbeat();
+                if (committed) { return; }
                 try {
                     navigator.sendBeacon('commit',
                         new Blob([JSON.stringify({ cancelled: true })], { type: 'application/json' }));

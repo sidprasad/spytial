@@ -63,9 +63,9 @@ txt = spytial.replit(di)           # repr() of what reify() would return
 `spytial.edit_html()` renders the editor as standalone HTML and uses the built-in **Export** button to copy constructor code — handy where the local server isn't reachable (e.g. pyodide). It also accepts any value.
 
 ```python
-spytial.edit_html(TreeNode())                 # inline iframe / browser tab
-spytial.edit_html({"a": 1}, method="browser")
-spytial.edit_html([1, 2, 3], method="file")
+spytial.edit_html(TreeNode())                 # inline iframe (notebook), else a browser tab
+spytial.edit_html({"a": 1}, method="browser") # force a browser tab
+spytial.edit_html([1, 2, 3], method="inline") # force an inline iframe
 ```
 
 ## Naming note

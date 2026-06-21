@@ -238,6 +238,29 @@ def test_reify_committed_ignores_stale_initial_root_when_gone():
 # ---------------------------------------------------------------------------
 
 
+# ---------------------------------------------------------------------------
+# Template hardening (Codex review): commit-race + non-dataclass export
+# ---------------------------------------------------------------------------
+
+
+def test_template_commit_js_is_unload_safe():
+    from spytial.structured_input import _generate_editor_html
+
+    html = _generate_editor_html({"atoms": [], "relations": []}, "c: []\n", "X", commit=True)
+    # Done survives a tab close, and a commit-in-flight suppresses the pagehide cancel.
+    assert "keepalive: true" in html
+    assert "if (committed)" in html
+
+
+def test_template_export_is_reify_based_for_builtins():
+    from spytial.structured_input import _generate_editor_html
+
+    html = _generate_editor_html({"atoms": [], "relations": []}, "c: []\n", "dict", commit=False)
+    # Builtin seeds get a general, valid spytial.reify() snippet — not list(idx=0,...).
+    assert "spytial.reify(json.loads" in html
+    assert "BUILTIN" in html
+
+
 class _FakeServer:
     def __init__(self, payload):
         self._payload = payload
