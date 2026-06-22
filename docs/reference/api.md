@@ -14,9 +14,9 @@ This section is generated directly from the Spytial source code using `mkdocstri
 
 ::: spytial.evaluator
 
-## Dataclass builder
+## Structured input
 
-::: spytial.dataclass_builder
+::: spytial.structured_input
 
 ## Annotations
 

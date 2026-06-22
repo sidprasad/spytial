@@ -8,6 +8,7 @@ on:
     branches:
       - main
       - master
+  workflow_dispatch:  # enables the manual "Run workflow" button (for browser-e2e)
 
 jobs:
   test:
@@ -30,3 +31,31 @@ jobs:
       - name: Run tests
         run: |
           python -m pytest
+
+  # Real-browser end-to-end for spytial.edit(). Opt-in: runs only on a manual
+  # "Run workflow" (workflow_dispatch), never on PRs/pushes — it needs a browser
+  # and the spytial-core CDN, kept out of the required PR checks.
+  browser-e2e:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch'
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install ".[dev,e2e]"
+          python -m playwright install --with-deps chromium
+
+      - name: Run browser e2e
+        env:
+          SPYTIAL_BROWSER_TESTS: "1"
+        run: |
+          python -m pytest test/test_edit_browser.py -v

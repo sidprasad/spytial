@@ -7,6 +7,9 @@ from .provider_system import (
     relationalizer,
     Atom,
     Relation,
+    # Structured input: the inverse of build_instance / diagram
+    reify,
+    replit,
 )
 from .visualizer import (
     diagram,
@@ -16,7 +19,7 @@ from .visualizer import (
     LABEL_STRATEGY_NAMES,
 )
 from .evaluator import evaluate
-from .dataclass_builder import dataclass_builder, DataClassBuilder
+from .structured_input import edit, edit_html, EditCancelled
 from .utils import AnnotatedType
 from .core_assets import get_spytial_core_version
 from .annotations import (
@@ -101,8 +104,12 @@ __all__ = [
     "SEQUENCE_POLICY_NAMES",
     "LABEL_STRATEGY_NAMES",
     "evaluate",
-    "dataclass_builder",
-    "DataClassBuilder",
+    # Structured input (the inverse of diagram)
+    "edit",
+    "edit_html",
+    "EditCancelled",
+    "reify",
+    "replit",
     # New relationalizer system
     "CnDDataInstanceBuilder",
     "RelationalizerBase",

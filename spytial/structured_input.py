@@ -1,0 +1,514 @@
+"""
+sPyTial structured input — visual editing of any value.
+
+Two ways to edit a structured value and get it back as a Python object:
+
+* :func:`edit` — the interactive verb. Serves the editor from an ephemeral
+  ``127.0.0.1`` server (see :mod:`spytial._edit_server`), **blocks** until the
+  user clicks **Done**, then reconstructs the object with :func:`reify` and
+  returns it. Needs a local kernel the browser can reach (local script / local
+  Jupyter); hosted notebooks and pyodide fall back to :func:`edit_html`.
+
+* :func:`edit_html` — renders standalone HTML via ``input_template.html`` with
+  an **Export** button (copy-paste constructor code). No server; works in
+  **pyodide** and other lightweight / hosted environments, and is the fallback
+  :func:`edit` uses where the local server isn't reachable.
+"""
+
+import json
+import sys
+import tempfile
+import webbrowser
+import yaml
+from dataclasses import MISSING, fields, is_dataclass
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Set, Type, get_type_hints
+
+from .provider_system import CnDDataInstanceBuilder
+from .annotations import collect_decorators
+from ._edit_server import _EditServer
+from .core_assets import get_template_asset_context
+from .utils import default_method
+
+try:
+    from IPython.display import display, HTML
+
+    HAS_IPYTHON = True
+except ImportError:
+    HAS_IPYTHON = False
+
+try:
+    from jinja2 import Environment, FileSystemLoader
+
+    HAS_JINJA2 = True
+except ImportError:
+    HAS_JINJA2 = False
+
+
+# ---------------------------------------------------------------------------
+# Dataclass type introspection helpers
+# ---------------------------------------------------------------------------
+
+
+def _extract_inner_types(tp: Any) -> List[Any]:
+    """Extract concrete types from generic aliases (Optional, List, Union, etc.)."""
+    args = getattr(tp, "__args__", None)
+    if args:
+        result = []
+        for arg in args:
+            if arg is type(None):
+                continue
+            result.append(arg)
+            result.extend(_extract_inner_types(arg))
+        return result
+    return []
+
+
+def _collect_dataclass_types(
+    dc_type: Type, visited: Optional[Set[Type]] = None
+) -> Set[Type]:
+    """Walk type annotations to find all reachable dataclass types."""
+    if visited is None:
+        visited = set()
+    if dc_type in visited or not is_dataclass(dc_type):
+        return visited
+
+    visited.add(dc_type)
+
+    try:
+        hints = get_type_hints(dc_type)
+    except Exception:
+        hints = {f.name: f.type for f in fields(dc_type)}
+
+    for field_type in hints.values():
+        candidates = [field_type] + _extract_inner_types(field_type)
+        for t in candidates:
+            if isinstance(t, type) and is_dataclass(t) and t not in visited:
+                _collect_dataclass_types(t, visited)
+
+    return visited
+
+
+def _make_dataclass_reifier(dc_type: Type):
+    """Create a reifier that reconstructs an instance of ``dc_type``.
+
+    Allocates the instance with ``object.__new__`` and populates fields
+    directly — this lets cyclic structures (self-loops, A↔B) reify by
+    registering the partially-constructed instance *before* recursing into
+    children, and also works for frozen dataclasses. Fields with no relation
+    in the data instance fall back to their declared default.
+
+    Note: ``__post_init__`` is intentionally not invoked (matches pickle's
+    behaviour). Post-init validation can't safely run against a half-built
+    cyclic instance; callers that need it can re-run it themselves.
+    """
+
+    field_defs = fields(dc_type)
+
+    def _apply_defaults(obj: Any) -> None:
+        for f in field_defs:
+            if f.default is not MISSING:
+                object.__setattr__(obj, f.name, f.default)
+            elif f.default_factory is not MISSING:  # type: ignore[misc]
+                object.__setattr__(obj, f.name, f.default_factory())
+
+    def reifier(atom: Dict, relations: Dict, reify_atom, register=None):
+        obj = object.__new__(dc_type)
+        if register is not None:
+            register(obj)
+        _apply_defaults(obj)
+        for field_name, target_ids in relations.items():
+            if len(target_ids) == 1:
+                value = reify_atom(target_ids[0])
+            else:
+                value = [reify_atom(tid) for tid in target_ids]
+            object.__setattr__(obj, field_name, value)
+        return obj
+
+    return reifier
+
+
+# ---------------------------------------------------------------------------
+# CnD spec helper
+# ---------------------------------------------------------------------------
+
+
+def _generate_cnd_spec(instance: Any) -> str:
+    """Generate a Spytial-Core spec (YAML) from any value's annotations.
+
+    Works for any object — dataclasses, builtins, or plain instances.
+    ``collect_decorators`` walks the class MRO and instance annotations, so a
+    value with no spytial annotations simply yields an empty spec.
+    """
+    annotations = collect_decorators(instance)
+    spec = {
+        "constraints": annotations.get("constraints", []),
+        "directives": annotations.get("directives", []),
+    }
+    return yaml.dump(spec, default_flow_style=False)
+
+
+# ---------------------------------------------------------------------------
+# Template-based HTML generation (used by input_template.html)
+# ---------------------------------------------------------------------------
+
+
+def _generate_editor_html(
+    initial_data: Dict,
+    cnd_spec: str,
+    dataclass_name: str,
+    commit: bool = False,
+) -> str:
+    """Generate HTML for the interactive structured-input editor (template-based).
+
+    When ``commit`` is true the page renders Done / Cancel buttons that POST the
+    current data instance back to ``/commit`` (the :func:`edit` server flow);
+    otherwise it renders the standalone *Export* path (:func:`edit_html`).
+    """
+    if not HAS_JINJA2:
+        raise ImportError(
+            "Jinja2 is required for HTML generation. Install with: pip install jinja2"
+        )
+
+    current_dir = Path(__file__).parent
+    env = Environment(loader=FileSystemLoader(current_dir))
+
+    try:
+        template = env.get_template("input_template.html")
+    except Exception as e:
+        raise FileNotFoundError(f"input_template.html not found in {current_dir}: {e}")
+
+    return template.render(
+        python_data=json.dumps(initial_data),
+        cnd_spec=cnd_spec,
+        dataclass_name=dataclass_name,
+        # "<type> — sPyTial editor"; "Builder" was a leftover from the old
+        # DataClassBuilder. (dataclass_name is the root type name, reused by the
+        # export codegen — kept as the template var name to avoid churn there.)
+        title=f"{dataclass_name} — sPyTial editor",
+        commit=commit,
+        **get_template_asset_context(),
+    )
+
+
+# ---------------------------------------------------------------------------
+# HTML delivery
+# ---------------------------------------------------------------------------
+
+
+def _deliver_html_content(
+    html_content: str,
+    method: str,
+    auto_open: bool,
+    height: int,
+) -> Optional[str]:
+    """Display or persist already-rendered editor HTML.
+
+    Adapted from :func:`visualizer._deliver_html_content`, but intentionally
+    narrower: only ``"inline"`` and ``"browser"`` (no ``"file"`` / output path),
+    since the editor is interactive rather than a saved artifact.
+    """
+    if method == "inline":
+        if HAS_IPYTHON:
+            try:
+                import base64
+
+                encoded_html = base64.b64encode(
+                    html_content.encode("utf-8")
+                ).decode("utf-8")
+                iframe_html = (
+                    '<div style="border: 2px solid #007acc; border-radius: 8px; '
+                    'overflow: hidden;">'
+                    f'<iframe src="data:text/html;base64,{encoded_html}" '
+                    f'width="100%" height="{height + 50}px" frameborder="0" '
+                    'style="display: block;"></iframe></div>'
+                )
+                display(HTML(iframe_html))
+                return None
+            except Exception:
+                pass
+
+        return _deliver_html_content(
+            html_content, method="browser", auto_open=auto_open, height=height
+        )
+
+    if method == "browser":
+        with tempfile.NamedTemporaryFile(
+            mode="w", suffix=".html", delete=False, encoding="utf-8"
+        ) as f:
+            f.write(html_content)
+            temp_path = f.name
+
+        if auto_open:
+            webbrowser.open(f"file://{temp_path}")
+        return temp_path
+
+    raise ValueError(f"Unknown display method: {method}")
+
+
+# ---------------------------------------------------------------------------
+# Convenience function (HTML path – pyodide compatible)
+# ---------------------------------------------------------------------------
+
+
+class EditCancelled(Exception):
+    """Raised by :func:`edit` when the editor is cancelled and ``on_cancel="raise"``."""
+
+
+def _inline_iframe_ok() -> bool:
+    """Whether to embed the editor inline (vs. opening a browser tab).
+
+    True only in a genuine local notebook: VS Code's webview CSP frequently
+    blanks an inline ``127.0.0.1`` iframe, so we open an external browser there.
+    """
+    from .utils import is_notebook, in_vscode
+
+    return is_notebook() and not in_vscode()
+
+
+def _show(url: str, height: int) -> None:
+    """Display the editor: an inline iframe in a local notebook, else a browser tab."""
+    if _inline_iframe_ok():
+        try:
+            from IPython.display import display, IFrame
+
+            display(IFrame(url, width="100%", height=height))
+            return
+        except Exception:
+            pass
+    if not webbrowser.open(url):
+        print(
+            f"spytial.edit: couldn't open a browser. Open this URL manually:\n  {url}",
+            file=sys.stderr,
+            flush=True,
+        )
+
+
+def _is_cancel(payload: Optional[Dict]) -> bool:
+    """True for a cancel / disconnect / empty commit — anything not safe to reify.
+
+    A missing payload, an explicit ``cancelled``/``disconnected``, or a
+    ``data_instance`` that isn't a dict with at least one atom all route through
+    ``on_cancel`` instead of crashing :func:`reify` (which requires a non-empty
+    ``atoms`` list).
+    """
+    if not payload or payload.get("cancelled") or payload.get("disconnected"):
+        return True
+    di = payload.get("data_instance")
+    return not isinstance(di, dict) or not di.get("atoms")
+
+
+def _reify_committed(seed_type: Type, payload: Dict, initial_data: Dict):
+    """Reconstruct the object from a (non-cancelled) committed payload.
+
+    Registers dataclass reifiers so declared field defaults fill for any field
+    the round-trip dropped. Root choice (issue #113): prefer the committed
+    instance's own ``rootId`` if present; else the initial build's root *only if
+    that atom survived the edit* (a structural re-root drops it); else let
+    :func:`reify` infer from topology.
+    """
+    di = payload["data_instance"]
+    # reify() requires both keys; the editor's getDataInstance() may drop an
+    # empty relations list on round-trip, so normalize before reconstructing.
+    di.setdefault("relations", [])
+    atom_ids = {a.get("id") for a in di.get("atoms", [])}
+    committed_root = di.get("rootId")
+    initial_root = initial_data.get("rootId")
+    if committed_root in atom_ids:
+        root_id = committed_root
+    elif initial_root in atom_ids:
+        root_id = initial_root
+    else:
+        root_id = None
+
+    reifier = CnDDataInstanceBuilder()
+    for dc_type in _collect_dataclass_types(seed_type):
+        reifier.register_reifier(dc_type.__name__, _make_dataclass_reifier(dc_type))
+    return reifier.reify(di, root_id=root_id)
+
+
+def _resolve_cancel(on_cancel: str, instance: Any) -> Any:
+    """Apply the ``on_cancel`` policy."""
+    if on_cancel == "seed":
+        return instance
+    if on_cancel == "raise":
+        raise EditCancelled("edit() was cancelled")
+    return None
+
+
+def _announce_editing(url: str) -> None:
+    # Only claim "the editor below" when it's a genuine inline iframe; otherwise
+    # (script or VS Code) it's a browser tab, so point at the URL.
+    if _inline_iframe_ok():
+        msg = (
+            "spytial.edit(): editing… click Done in the editor to continue "
+            "(interrupt the kernel to cancel)."
+        )
+    else:
+        msg = (
+            f"spytial.edit(): editing… opened {url}\n"
+            "  Click Done in the browser to continue, or press Ctrl-C to cancel."
+        )
+    print(msg, file=sys.stderr, flush=True)
+
+
+def _note_disconnect(reason: Optional[str]) -> None:
+    msg = {
+        "never-connected": "the editor never connected — if you're on a hosted "
+        "notebook (e.g. Colab/JupyterHub), use spytial.edit_html() instead.",
+        "page-closed": "the editor was closed before clicking Done.",
+        "timeout": "the edit() timeout elapsed.",
+    }.get(reason, "the editor disconnected.")
+    print(f"spytial.edit(): {msg}", file=sys.stderr, flush=True)
+
+
+def edit(
+    instance: Any,
+    *,
+    on_cancel: str = "seed",
+    timeout: Optional[float] = None,
+    height: int = 560,
+) -> Any:
+    """Open a structured editor for any value and return the reified result on **Done**.
+
+    The interactive counterpart to :func:`spytial.diagram`. Serves the editor as
+    a page from an ephemeral ``127.0.0.1`` server (inline in a local notebook, or
+    a browser tab from a script), **blocks** until you click **Done** or
+    **Cancel**, then reconstructs a fresh Python object with :func:`reify` and
+    returns it. ``instance`` itself is never mutated.
+
+    Accepts any value (dataclasses, dicts, lists, arbitrary objects), mirroring
+    :func:`spytial.diagram`. No Jupyter comm and no extra dependencies — only the
+    standard library and a browser. The supported transport is a local script or
+    a **local** Jupyter kernel; in pyodide and hosted notebooks (Colab,
+    JupyterHub, Binder) the browser can't reach the local server, so ``edit()``
+    prints a note, shows :func:`edit_html` (standalone, Export button) instead,
+    and returns ``None``.
+
+    The editor can never hang the kernel: if the page never connects, stops
+    responding, or you close it, ``edit()`` unblocks and returns per ``on_cancel``.
+
+    Args:
+        instance: Any value to seed the editor with.
+        on_cancel: What to return if the editor is cancelled / closed /
+            disconnected — ``"seed"`` (return the original ``instance``
+            unchanged, default), ``"none"`` (return ``None``), or ``"raise"``
+            (raise :class:`EditCancelled`).
+        timeout: Optional overall seconds to wait; ``None`` (default) waits as
+            long as the page stays alive (a closed/unreachable page still
+            unblocks promptly via liveness detection).
+        height: Pixel height of the inline iframe in a notebook.
+
+    Returns:
+        The reified Python object on Done; otherwise per ``on_cancel``.
+
+    Example::
+
+        result = spytial.edit(TreeNode(value=1))   # edit visually, click Done
+    """
+    if on_cancel not in ("none", "seed", "raise"):
+        raise ValueError(
+            f"on_cancel must be 'none', 'seed', or 'raise', got {on_cancel!r}"
+        )
+
+    from .utils import edit_environment
+
+    env = edit_environment()
+    if env != "local":
+        why = (
+            "this looks like a hosted notebook (e.g. Colab/JupyterHub), whose "
+            "browser can't reach the local server"
+            if env == "remote"
+            else "pyodide can't run a local server"
+        )
+        print(
+            f"spytial.edit(): {why}. Showing the standalone editor — use its "
+            "Export button, or run locally for edit().",
+            file=sys.stderr,
+            flush=True,
+        )
+        edit_html(instance, height=height)
+        return None
+
+    seed_type = type(instance)
+    initial_data = CnDDataInstanceBuilder().build_instance(instance)
+    html = _generate_editor_html(
+        initial_data, _generate_cnd_spec(instance), seed_type.__name__, commit=True
+    )
+
+    with _EditServer(html) as server:
+        _show(server.url, height)
+        _announce_editing(server.url)
+        payload = server.wait(timeout)
+
+    if _is_cancel(payload):
+        if isinstance(payload, dict) and payload.get("disconnected"):
+            _note_disconnect(payload.get("reason"))
+        return _resolve_cancel(on_cancel, instance)
+
+    # Reify the committed instance. The data instance crosses the JS↔Python
+    # trust boundary, so any reconstruction failure degrades to on_cancel rather
+    # than crashing the caller's kernel/script.
+    try:
+        return _reify_committed(seed_type, payload, initial_data)
+    except Exception as exc:  # noqa: BLE001 — boundary: never crash the caller
+        print(
+            f"spytial.edit(): couldn't reconstruct the edited value ({exc}); "
+            "returning per on_cancel.",
+            file=sys.stderr,
+            flush=True,
+        )
+        return _resolve_cancel(on_cancel, instance)
+
+
+def edit_html(
+    instance: Any,
+    *,
+    method: Optional[str] = None,
+    auto_open: bool = True,
+    height: int = 500,
+) -> Optional[str]:
+    """
+    Render a visual structured-value editor as standalone HTML.
+
+    This is the **pyodide-compatible** path.  It generates a full HTML page
+    with the ``<structured-input-graph>`` editor and displays it via an
+    inline iframe (in notebooks) or a browser tab.  Use the built-in
+    *Export* button to copy the resulting Python constructor code.
+
+    Accepts any value (dataclasses, dicts, lists, arbitrary objects). To get the
+    edited object back in Python directly (local script / local Jupyter), use
+    :func:`edit` instead.
+
+    Args:
+        instance: Any value to start editing from.
+        method: ``"inline"`` (default in notebooks), ``"browser"``, or
+            ``None`` (auto-detect).
+        auto_open: Open the browser tab automatically (only for
+            ``method="browser"``).
+        height: Pixel height of the inline iframe.
+
+    Returns:
+        ``None`` when displayed inline, or the path to the temp HTML file
+        when displayed in a browser.
+
+    Example::
+
+        spytial.edit_html(TreeNode(value=1))   # or {"a": 1}, [1, 2], …
+    """
+    inst_builder = CnDDataInstanceBuilder()
+    initial_data = inst_builder.build_instance(instance)
+    cnd_spec = _generate_cnd_spec(instance)
+
+    html = _generate_editor_html(
+        initial_data=initial_data,
+        cnd_spec=cnd_spec,
+        dataclass_name=type(instance).__name__,
+    )
+
+    if method is None:
+        method = default_method()
+
+    return _deliver_html_content(
+        html, method=method, auto_open=auto_open, height=height
+    )

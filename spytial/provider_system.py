@@ -380,11 +380,12 @@ class CnDDataInstanceBuilder:
                     spytial_id = getattr(obj, OBJECT_ID_ATTR)
                     self._seen[oid] = spytial_id
                     return spytial_id
-                # Then check global registry
-                elif oid in _OBJECT_ID_REGISTRY:
-                    spytial_id = _OBJECT_ID_REGISTRY[oid]
-                    self._seen[oid] = spytial_id
-                    return spytial_id
+                # Then check the identity-keyed global registry
+                else:
+                    spytial_id = _OBJECT_ID_REGISTRY.get(obj)
+                    if spytial_id is not None:
+                        self._seen[oid] = spytial_id
+                        return spytial_id
             except ImportError:
                 pass
 
@@ -1050,6 +1051,32 @@ class CnDDataInstanceBuilder:
             List of type names that have custom reifiers registered
         """
         return list(self._custom_reifiers.keys())
+
+
+# ---------------------------------------------------------------------------
+# Top-level convenience functions — the inverse of build_instance / diagram
+# ---------------------------------------------------------------------------
+
+
+def reify(data_instance: Dict, root_id: Optional[str] = None) -> Any:
+    """Reconstruct a Python object from a Spytial data instance.
+
+    The inverse of :meth:`CnDDataInstanceBuilder.build_instance`: rebuild the
+    object named by the instance's root (or ``root_id``). Works for any value —
+    builtins, arbitrary classes (rebuilt via ``__module__``/``__qualname__``),
+    and cyclic structures. For dataclass instances whose fields an editor may
+    have stripped, prefer :func:`spytial.edit`, which registers dataclass
+    reifiers that fill declared field defaults.
+    """
+    return CnDDataInstanceBuilder().reify(data_instance, root_id=root_id)
+
+
+def replit(data_instance: Dict, root_id: Optional[str] = None) -> str:
+    """Return ``repr()`` of the object :func:`reify` would reconstruct.
+
+    Reproduces the host REPL's echo for a data instance.
+    """
+    return CnDDataInstanceBuilder().replit(data_instance, root_id=root_id)
 
 
 # Import built-in relationalizers to ensure they get registered

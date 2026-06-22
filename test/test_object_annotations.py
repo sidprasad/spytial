@@ -11,6 +11,11 @@ from spytial.annotations import (
     collect_decorators, serialize_to_yaml_string
 )
 
+# Note: these tests no longer need a registry-isolation fixture. The global
+# object-annotation / id registries are identity-keyed (see _IdentityKeyedRegistry
+# in spytial/annotations.py), so id() reuse can't leak annotations across tests.
+
+
 def test_object_annotations_basic():
     """Test basic object-level annotations."""
     print("=== Testing Basic Object Annotations ===")
@@ -24,7 +29,6 @@ def test_object_annotations_basic():
     assert decorators['constraints'][0]['orientation']['selector'] == 'items'
     print("✓ Basic object annotation works")
 
-@pytest.mark.skip(reason="Global registry for built-in types can leak across objects; skipping until registry isolation is fixed.")
 def test_object_annotations_builtin_types():
     """Test object annotations with built-in types that can't store attributes."""
     print("=== Testing Built-in Types (set, tuple, etc.) ===")
