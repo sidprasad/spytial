@@ -10,7 +10,7 @@
       
       
       
-        <link rel="canonical" href="https://sidprasad.github.io/spytial/usage/dataclass-builder/">
+        <link rel="canonical" href="https://sidprasad.github.io/spytial/usage/structured-input/">
       
       
         <link rel="prev" href="../../selectors/">
@@ -27,7 +27,7 @@
     
     
       
-        <title>Dataclass Builder - Spytial</title>
+        <title>Structured Input - Spytial</title>
       
     
     
@@ -82,7 +82,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#dataclass-builder" class="md-skip">
+        <a href="#structured-input" class="md-skip">
           Skip to content
         </a>
       
@@ -116,7 +116,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Dataclass Builder
+              Structured Input
             
           </span>
         </div>
@@ -387,7 +387,7 @@
   
     
   
-  Dataclass Builder
+  Structured Input
 
       </a>
     </li>
@@ -735,7 +735,7 @@
   <span class="md-ellipsis">
     
   
-    Dataclass Builder
+    Structured Input
   
 
     
@@ -753,7 +753,7 @@
   <span class="md-ellipsis">
     
   
-    Dataclass Builder
+    Structured Input
   
 
     
@@ -779,10 +779,49 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#example" class="md-nav__link">
+  <a href="#edit-edit-click-done-get-the-value-back" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Example
+        edit() — edit, click Done, get the value back
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="edit() — edit, click Done, get the value back">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#any-value-not-just-dataclasses" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Any value, not just dataclasses
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cancelling" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Cancelling
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#reify-directly" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Reify directly
       
     </span>
   </a>
@@ -790,10 +829,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#what-it-expects" class="md-nav__link">
+  <a href="#standalone-html-no-server" class="md-nav__link">
     <span class="md-ellipsis">
       
-        What it expects
+        Standalone HTML (no server)
       
     </span>
   </a>
@@ -801,21 +840,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#output-methods" class="md-nav__link">
+  <a href="#naming-note" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Output methods
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#typical-workflow" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Typical workflow
+        Naming note
       
     </span>
   </a>
@@ -938,10 +966,49 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#example" class="md-nav__link">
+  <a href="#edit-edit-click-done-get-the-value-back" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Example
+        edit() — edit, click Done, get the value back
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="edit() — edit, click Done, get the value back">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#any-value-not-just-dataclasses" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Any value, not just dataclasses
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cancelling" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Cancelling
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#reify-directly" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Reify directly
       
     </span>
   </a>
@@ -949,10 +1016,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#what-it-expects" class="md-nav__link">
+  <a href="#standalone-html-no-server" class="md-nav__link">
     <span class="md-ellipsis">
       
-        What it expects
+        Standalone HTML (no server)
       
     </span>
   </a>
@@ -960,21 +1027,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#output-methods" class="md-nav__link">
+  <a href="#naming-note" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Output methods
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#typical-workflow" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Typical workflow
+        Naming note
       
     </span>
   </a>
@@ -1001,9 +1057,9 @@
   
 
 
-<h1 id="dataclass-builder">Dataclass Builder</h1>
-<p><code>spytial.dataclass_builder()</code> opens an interactive builder for a dataclass instance. It lets you visually edit the structure and export the resulting constructor code.</p>
-<h2 id="example">Example</h2>
+<h1 id="structured-input">Structured Input</h1>
+<p><code>spytial.edit()</code> is the interactive counterpart to <a href="../diagramming/"><code>spytial.diagram()</code></a>. Where <code>diagram()</code> <em>shows</em> a value, <code>edit()</code> lets you <em>build or change</em> one visually and hand it back to Python — for <strong>any</strong> value, not just dataclasses.</p>
+<h2 id="edit-edit-click-done-get-the-value-back">edit() — edit, click Done, get the value back</h2>
 <div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">dataclasses</span><span class="w"> </span><span class="kn">import</span> <span class="n">dataclass</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Optional</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">spytial</span>
@@ -1014,26 +1070,42 @@
     <span class="n">left</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="s2">&quot;TreeNode&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
     <span class="n">right</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="s2">&quot;TreeNode&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
 
-<span class="c1"># Start with an empty instance</span>
-<span class="n">spytial</span><span class="o">.</span><span class="n">dataclass_builder</span><span class="p">(</span><span class="n">TreeNode</span><span class="p">())</span>
+<span class="n">result</span> <span class="o">=</span> <span class="n">spytial</span><span class="o">.</span><span class="n">edit</span><span class="p">(</span><span class="n">TreeNode</span><span class="p">())</span>   <span class="c1"># opens the editor, blocks until you click Done</span>
 </code></pre></div>
-<h2 id="what-it-expects">What it expects</h2>
-<p>The builder requires a dataclass instance, not a class object. Pass <code>TreeNode()</code> rather than <code>TreeNode</code>.</p>
-<h2 id="output-methods">Output methods</h2>
-<div class="highlight"><pre><span></span><code><span class="n">spytial</span><span class="o">.</span><span class="n">dataclass_builder</span><span class="p">(</span><span class="n">TreeNode</span><span class="p">(),</span> <span class="n">method</span><span class="o">=</span><span class="s2">&quot;browser&quot;</span><span class="p">)</span>
-<span class="n">spytial</span><span class="o">.</span><span class="n">dataclass_builder</span><span class="p">(</span><span class="n">TreeNode</span><span class="p">(),</span> <span class="n">method</span><span class="o">=</span><span class="s2">&quot;file&quot;</span><span class="p">)</span>
-<span class="n">spytial</span><span class="o">.</span><span class="n">dataclass_builder</span><span class="p">(</span><span class="n">TreeNode</span><span class="p">(),</span> <span class="n">method</span><span class="o">=</span><span class="s2">&quot;inline&quot;</span><span class="p">)</span>
+<p><code>edit()</code> serves the editor as a page — inline in a local Jupyter cell, or a browser tab from a script — <strong>blocks</strong> until you click <strong>Done</strong> (or <strong>Cancel</strong>), then reconstructs a fresh Python object with <a href="#reify-directly"><code>reify</code></a> and returns it. The value you passed in is never mutated.</p>
+<p>No Jupyter comm and no widget framework — only the standard library and a browser. It can't hang your kernel: if the editor never connects, stops responding, or you close it, <code>edit()</code> unblocks and returns per <code>on_cancel</code>. In <strong>pyodide</strong> and <strong>hosted notebooks</strong> (Colab, JupyterHub, Binder) the browser can't reach the local server, so <code>edit()</code> prints a note, shows <a href="#standalone-html-no-server"><code>edit_html()</code></a> (Export button) instead, and returns <code>None</code>.</p>
+<h3 id="any-value-not-just-dataclasses">Any value, not just dataclasses</h3>
+<p><code>edit()</code> accepts whatever <code>diagram()</code> accepts:</p>
+<div class="highlight"><pre><span></span><code><span class="n">spytial</span><span class="o">.</span><span class="n">edit</span><span class="p">({</span><span class="s2">&quot;a&quot;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span> <span class="s2">&quot;items&quot;</span><span class="p">:</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">]})</span>   <span class="c1"># dict</span>
+<span class="n">spytial</span><span class="o">.</span><span class="n">edit</span><span class="p">([{</span><span class="s2">&quot;x&quot;</span><span class="p">:</span> <span class="mi">1</span><span class="p">},</span> <span class="p">{</span><span class="s2">&quot;x&quot;</span><span class="p">:</span> <span class="mi">2</span><span class="p">}])</span>            <span class="c1"># list</span>
+<span class="n">spytial</span><span class="o">.</span><span class="n">edit</span><span class="p">(</span><span class="n">my_graph_node</span><span class="p">)</span>                    <span class="c1"># an arbitrary object (cycles ok)</span>
 </code></pre></div>
-<h2 id="typical-workflow">Typical workflow</h2>
-<ol>
-<li>Start with a minimal dataclass instance.</li>
-<li>Open the builder.</li>
-<li>Edit the structure in the UI.</li>
-<li>Use <strong>Export</strong> to copy the generated constructor code back into your Python code.</li>
-</ol>
+<p>When the seed is a dataclass, declared field defaults fill for any field the round-trip dropped. Other values reconstruct via the general path (builtins rebuild as themselves; arbitrary classes via their import path).</p>
+<h3 id="cancelling">Cancelling</h3>
+<p>Click <strong>Cancel</strong>, close the tab, or interrupt the kernel, and <code>edit()</code> returns per <code>on_cancel</code>:</p>
+<div class="highlight"><pre><span></span><code><span class="n">spytial</span><span class="o">.</span><span class="n">edit</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>                      <span class="c1"># -&gt; the original x, unchanged (default: on_cancel=&quot;seed&quot;)</span>
+<span class="n">spytial</span><span class="o">.</span><span class="n">edit</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">on_cancel</span><span class="o">=</span><span class="s2">&quot;none&quot;</span><span class="p">)</span>    <span class="c1"># -&gt; None</span>
+<span class="n">spytial</span><span class="o">.</span><span class="n">edit</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">on_cancel</span><span class="o">=</span><span class="s2">&quot;raise&quot;</span><span class="p">)</span>   <span class="c1"># -&gt; raises spytial.EditCancelled</span>
+</code></pre></div>
+<p>Defaulting to <code>"seed"</code> keeps <code>edit()</code> total — you always get back a usable value of the same kind, and <code>None</code> is reserved for "the committed value really is <code>None</code>."</p>
+<h2 id="reify-directly">Reify directly</h2>
+<p>If you already have a data instance (from <code>build_instance</code>, a saved file, or the editor) you can reconstruct the object without the UI:</p>
+<div class="highlight"><pre><span></span><code><span class="n">di</span>  <span class="o">=</span> <span class="n">spytial</span><span class="o">.</span><span class="n">CnDDataInstanceBuilder</span><span class="p">()</span><span class="o">.</span><span class="n">build_instance</span><span class="p">(</span><span class="n">my_value</span><span class="p">)</span>
+<span class="n">obj</span> <span class="o">=</span> <span class="n">spytial</span><span class="o">.</span><span class="n">reify</span><span class="p">(</span><span class="n">di</span><span class="p">)</span>            <span class="c1"># inverse of build_instance</span>
+<span class="n">txt</span> <span class="o">=</span> <span class="n">spytial</span><span class="o">.</span><span class="n">replit</span><span class="p">(</span><span class="n">di</span><span class="p">)</span>           <span class="c1"># repr() of what reify() would return</span>
+</code></pre></div>
+<p><code>reify()</code> handles builtins, arbitrary classes, and cyclic structures.</p>
+<h2 id="standalone-html-no-server">Standalone HTML (no server)</h2>
+<p><code>spytial.edit_html()</code> renders the editor as standalone HTML and uses the built-in <strong>Export</strong> button to copy constructor code — handy where the local server isn't reachable (e.g. pyodide). It also accepts any value.</p>
+<div class="highlight"><pre><span></span><code><span class="n">spytial</span><span class="o">.</span><span class="n">edit_html</span><span class="p">(</span><span class="n">TreeNode</span><span class="p">())</span>                 <span class="c1"># inline iframe (notebook), else a browser tab</span>
+<span class="n">spytial</span><span class="o">.</span><span class="n">edit_html</span><span class="p">({</span><span class="s2">&quot;a&quot;</span><span class="p">:</span> <span class="mi">1</span><span class="p">},</span> <span class="n">method</span><span class="o">=</span><span class="s2">&quot;browser&quot;</span><span class="p">)</span> <span class="c1"># force a browser tab</span>
+<span class="n">spytial</span><span class="o">.</span><span class="n">edit_html</span><span class="p">([</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">],</span> <span class="n">method</span><span class="o">=</span><span class="s2">&quot;inline&quot;</span><span class="p">)</span> <span class="c1"># force an inline iframe</span>
+</code></pre></div>
+<h2 id="naming-note">Naming note</h2>
+<p>This module was previously <code>dataclass_builder</code> and was dataclass-only (a <code>DataClassBuilder</code> anywidget widget + a <code>dataclass_builder()</code> HTML helper). It now lives in <code>spytial.structured_input</code>, accepts any value, and exposes just two verbs: <code>edit()</code> (open editor, return the value on Done) and <code>edit_html()</code> (standalone HTML). The old <code>DataClassBuilder</code> / <code>dataclass_builder()</code> names and the anywidget widget were removed.</p>
 <div class="admonition tip">
 <p class="admonition-title">Tip</p>
-<p>For large models, start with a minimal instance and build up visually before exporting the final constructor.</p>
+<p>Start from a minimal seed (<code>TreeNode()</code>, <code>{}</code>, <code>[]</code>) and build up visually before clicking <strong>Done</strong>.</p>
 </div>
 
 
