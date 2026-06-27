@@ -54,6 +54,9 @@ htmlcov/
 spytial_visualization.html
 spytial_sequence_visualization.html
 
+# scripts/render_check.py output
+_render_check/
+
 # Erroneous version files from broken pip install commands
 =*.*.*
 
