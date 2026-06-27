@@ -50,6 +50,8 @@ spytial.diagram(data)
 spytial.diagram(data, method="file")
 ```
 
+Not sure where to start with a class of your own? `spytial.suggest(MyClass)` reads the class and scaffolds a starting set of layout directives you can edit — see [Suggesting Specs](https://sidprasad.github.io/spytial/suggest/).
+
 For stepping through sequences of states, custom relationalizers, and annotation-driven layouts, see the [docs](https://sidprasad.github.io/spytial/).
 
 ## Related projects

@@ -17,6 +17,7 @@ nav:
   - Selectors: selectors.md
   - Structured Input: usage/structured-input.md
   - Custom Relationalizers: relationalizers.md
+  - Suggesting Specs: suggest.md
   - CLRS Notebook Examples: examples/spytial-clrs.md
   - API Reference: reference/api.md
 
