@@ -9,18 +9,20 @@ path the introspector has to handle.
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import List, Optional
 
 import spytial
+import spytial.suggest._enrich as _enrich_mod
 from spytial.suggest import (
     HeuristicRegistry,
     Suggestion,
     build_class_info,
     suggest,
 )
-from spytial.suggest.rules import _LIST_HIDE
+from spytial.suggest.rules import _LIST_HIDE, enum_member_selector
 
 
 # --------------------------------------------------------------------------- #
@@ -594,3 +596,146 @@ def test_custom_registry_is_isolated_from_default():
     # nothing registered -> nothing suggested, proving the default registry
     # didn't leak in.
     assert draft.suggestions == []
+
+
+# --------------------------------------------------------------------------- #
+# 7. Optional LLM enrichment (mocked — never touches a network or the llm dep)
+# --------------------------------------------------------------------------- #
+
+
+class _FakeResponse:
+    def __init__(self, payload):
+        self._payload = payload
+
+    def text(self):
+        return json.dumps(self._payload)
+
+
+class _FakeModel:
+    def __init__(self, payload, calls=None):
+        self._payload = payload
+        self._calls = calls
+
+    def prompt(self, prompt, schema=None):
+        if self._calls is not None:
+            self._calls.append({"prompt": prompt, "schema": schema})
+        return _FakeResponse(self._payload)
+
+
+def _fake_llm(payload, calls=None, seen_model=None):
+    class _LLM:
+        @staticmethod
+        def get_model(name=None):
+            if seen_model is not None:
+                seen_model.append(name)
+            return _FakeModel(payload, calls)
+
+    return _LLM
+
+
+def _atomcolors(draft):
+    return [s for s in draft.suggestions if s.directive == "atomColor"]
+
+
+def test_enrich_missing_llm_degrades_with_note(monkeypatch):
+    # `llm` not installed is the real default; assert a clean no-op + a note that
+    # points at the extra, rather than a crash.
+    monkeypatch.setattr(_enrich_mod, "_import_llm", lambda: None)
+    base = _atomcolors(suggest(RBNode, instance=_rb_instance()))
+    draft = suggest(RBNode, instance=_rb_instance(), enrich=True)
+    assert [s.kwargs["value"] for s in _atomcolors(draft)] == [
+        s.kwargs["value"] for s in base
+    ]
+    assert all(s.source == "rule" for s in _atomcolors(draft))
+    assert any("suggest-llm" in n for n in draft.notes)
+
+
+def test_enrich_palette_swaps_in_semantic_colors(monkeypatch):
+    payload = {
+        "assignments": [
+            {"field": "color", "member": "RED", "color": "red"},
+            {"field": "color", "member": "BLACK", "color": "#222"},
+        ]
+    }
+    monkeypatch.setattr(_enrich_mod, "_import_llm", lambda: _fake_llm(payload))
+    draft = suggest(RBNode, instance=_rb_instance(), enrich=True)
+    by_sel = {s.kwargs["selector"]: s.kwargs["value"] for s in _atomcolors(draft)}
+    assert by_sel[enum_member_selector("RBNode", "color", "RED")] == "red"
+    assert by_sel[enum_member_selector("RBNode", "color", "BLACK")] == "#222"
+    # model-sourced, still off by default (you pick), and the selectors are exactly
+    # the verified ones the deterministic rule generated — the model only colors.
+    assert _atomcolors(draft) and all(s.source == "llm" for s in _atomcolors(draft))
+    assert all(not s.enabled_by_default for s in _atomcolors(draft))
+    base = _atomcolors(suggest(RBNode, instance=_rb_instance()))
+    assert {s.kwargs["selector"] for s in base} == set(by_sel)
+
+
+def test_enrich_works_at_type_level_without_instance(monkeypatch):
+    # The headline property: enrichment needs no instance — enum members are read
+    # statically, so suggest(cls, enrich=True) enriches a bare class.
+    payload = {"assignments": [{"field": "color", "member": "RED", "color": "red"}]}
+    monkeypatch.setattr(_enrich_mod, "_import_llm", lambda: _fake_llm(payload))
+    draft = suggest(RBNode, enrich=True)
+    reds = [s for s in _atomcolors(draft) if s.kwargs["value"] == "red"]
+    assert reds and reds[0].source == "llm"
+
+
+def test_enrich_no_enum_fields_never_calls_model(monkeypatch):
+    calls = []
+    monkeypatch.setattr(
+        _enrich_mod, "_import_llm", lambda: _fake_llm({"assignments": []}, calls)
+    )
+    draft = suggest(BTreeNode, enrich=True)  # no enum field anywhere
+    assert calls == []  # abstain — don't spend a model call when there's nothing
+    assert not _atomcolors(draft)
+
+
+def test_enrich_ignores_unrequested_field_member(monkeypatch):
+    # A model that names a field/member we never offered must not inject a row
+    # (and therefore can't smuggle in a selector for something we didn't analyze).
+    payload = {
+        "assignments": [
+            {"field": "color", "member": "RED", "color": "red"},
+            {"field": "bogus", "member": "X", "color": "lime"},
+            {"field": "color", "member": "NOTAMEMBER", "color": "lime"},
+        ]
+    }
+    monkeypatch.setattr(_enrich_mod, "_import_llm", lambda: _fake_llm(payload))
+    draft = suggest(RBNode, instance=_rb_instance(), enrich=True)
+    values = {s.kwargs["value"] for s in _atomcolors(draft)}
+    assert "red" in values and "lime" not in values
+
+
+def test_enrich_bad_response_degrades(monkeypatch):
+    class _BadModel:
+        def prompt(self, prompt, schema=None):
+            class _R:
+                def text(self):
+                    return "not json {"
+
+            return _R()
+
+    class _LLM:
+        @staticmethod
+        def get_model(name=None):
+            return _BadModel()
+
+    monkeypatch.setattr(_enrich_mod, "_import_llm", lambda: _LLM)
+    base = _atomcolors(suggest(RBNode, instance=_rb_instance()))
+    draft = suggest(RBNode, instance=_rb_instance(), enrich=True)
+    # falls back to the built-in palette, records a note, and never raises
+    assert [s.kwargs["value"] for s in _atomcolors(draft)] == [
+        s.kwargs["value"] for s in base
+    ]
+    assert any("enrichment skipped" in n for n in draft.notes)
+
+
+def test_enrich_passes_through_model_id(monkeypatch):
+    seen = []
+    monkeypatch.setattr(
+        _enrich_mod,
+        "_import_llm",
+        lambda: _fake_llm({"assignments": []}, seen_model=seen),
+    )
+    suggest(RBNode, instance=_rb_instance(), enrich=True, enrich_model="claude-x")
+    assert seen == ["claude-x"]

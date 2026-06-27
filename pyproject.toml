@@ -52,12 +52,15 @@ dev = [
 e2e = [
     "playwright>=1.40",
 ]
-# Future home for the optional LLM enrichment layer of spytial.suggest
-# (semantic palettes, unfamiliar domain naming). The static analyzer needs none
-# of this — it is stdlib-only. Uncomment and pin a provider when that lands:
-# suggest-llm = [
-#     "anthropic>=0.40",
-# ]
+# Optional LLM enrichment layer for spytial.suggest (semantic enum palettes today).
+# The static analyzer needs none of this — it is stdlib-only and the default path.
+# We depend on `llm` (Simon Willison's) rather than a single provider SDK: it is
+# provider-agnostic (Claude, GPT, Gemini, local Ollama via plugins) and owns key
+# management, so spytial stays unopinionated. Install a provider plugin separately,
+# e.g. `llm install llm-anthropic`. (`llm` itself requires Python >=3.10.)
+suggest-llm = [
+    "llm>=0.23",
+]
 docs = [
     "mkdocs>=1.5.0",
     "mkdocs-material>=9.0.0",
