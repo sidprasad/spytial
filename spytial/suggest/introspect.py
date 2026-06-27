@@ -120,6 +120,11 @@ def _build_field(
     if type_repr is None and default is not _MISSING and default is not None:
         type_repr, _ = _value_facts(default)
 
+    # An Optional[...] / X | None annotation is itself proof the value can be None,
+    # even with no default — so the edge excludes None and NoneType atoms are hidden.
+    annotated_nullable = _is_nullable_annotation(type_repr)
+    has_none = has_none or annotated_nullable
+
     container = _container_of(type_repr)
     is_self_ref = _is_self_ref(type_repr, cls)
     enum_members = _enum_members_from(annotation, default, type_repr, cls)
@@ -129,9 +134,10 @@ def _build_field(
     record = agg.get(name) if agg else None
     if record:
         is_self_ref = is_self_ref or record["self"]
-        # Observation is authoritative for nullability: an __init__ parameter may
-        # default to None while the attribute is never None (e.g. ``x or []``).
-        has_none = record["none"]
+        # Observation overrides the weak signal of an __init__ parameter that
+        # defaults to None while the attribute is never None (e.g. ``x or []``).
+        # An Optional annotation, however, is authoritative and survives sampling.
+        has_none = record["none"] or annotated_nullable
         if record["containers"]:
             container = container or sorted(record["containers"])[0]
         if enum_members is None and record["enum"]:
@@ -184,6 +190,13 @@ def _container_of(type_repr: Optional[str]) -> Optional[str]:
         if name in _CONTAINER_NAMES:
             return _CONTAINER_NAMES[name]
     return None
+
+
+def _is_nullable_annotation(type_repr: Optional[str]) -> bool:
+    """True if the annotation admits None (``Optional[X]``, ``Union[X, None]``,
+    ``X | None``) — independent of any default value."""
+    names = _referenced_names(type_repr)
+    return bool(names & {"Optional", "None", "NoneType"})
 
 
 def _is_self_ref(type_repr: Optional[str], cls: type) -> bool:

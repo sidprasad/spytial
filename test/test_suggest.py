@@ -137,6 +137,13 @@ class WithFactory:
     items: list = field(default_factory=_tracking_factory)
 
 
+@dataclass
+class OptNoDefault:  # Optional self-ref fields with NO default value
+    value: int
+    left: Optional["OptNoDefault"]
+    right: Optional["OptNoDefault"]
+
+
 # --------------------------------------------------------------------------- #
 # Helpers
 # --------------------------------------------------------------------------- #
@@ -324,6 +331,14 @@ def test_enum_color_is_speculative():
     assert len(_entries(full, "atomColor")) == 2
 
 
+def test_enum_selector_joins_through_name_relation():
+    # @:(x.color) reads the enum atom's display label, not the member name; the
+    # selector must join through the member's `name` relation to match.
+    full = suggest(RBNode, instance=_rb_instance()).to_registry(enabled_only=False)
+    selectors = [p["selector"] for p in _entries(full, "atomColor")]
+    assert selectors and all(".color.name) =" in s for s in selectors)
+
+
 def test_no_directive_for_private_fields():
     # MaxHeap.a is structural-looking but underscore fields would never be hidden;
     # here we assert a private field on a normal class yields no hideField.
@@ -389,6 +404,17 @@ def test_non_nullable_edge_uses_bare_relation():
 
     reg = suggest(Cell).to_registry()
     assert _has(reg, "orientation", selector="nxt", directions=["right"])
+
+
+def test_optional_without_default_is_nullable():
+    # Optional[...] with NO default still means the edge can be None, so it uses
+    # the None-excluding form and hides NoneType — even with no instance.
+    assert build_class_info(OptNoDefault).get("left").has_none_default
+    reg = suggest(OptNoDefault).to_registry()
+    assert _has(
+        reg, "orientation", selector=_edge("left"), directions=["below", "left"]
+    )
+    assert _has(reg, "hideAtom", selector="NoneType")
 
 
 def test_registry_serializes():

@@ -252,7 +252,10 @@ def enum_color(field: FieldInfo, ci: ClassInfo) -> List[Suggestion]:
     out: List[Suggestion] = []
     for i, member in enumerate(field.enum_members):
         color = _PALETTE[i % len(_PALETTE)]
-        selector = "{ x : %s | @:(x.%s) = %s }" % (type_name, field.name, member)
+        # An Enum member relationalizes to an atom whose display label is not the
+        # member name, so @:(x.field) won't match it — join through the member's
+        # `name` relation: @:(x.field.name) reads the 'RED'/'BLACK' string atom.
+        selector = "{ x : %s | @:(x.%s.name) = %s }" % (type_name, field.name, member)
         out.append(
             Suggestion(
                 "atomColor",
