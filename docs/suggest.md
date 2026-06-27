@@ -56,9 +56,12 @@ and maps them to directives:
 
 Two choices worth knowing:
 
-- **Structural selectors use the field form** (`selector='left'`), not a
-  type-name comprehension, so a directive can't break when an instance happens to
-  contain zero atoms of that type.
+- **Edge selectors are `None`-aware.** A nullable edge — a `left` that can be
+  empty — is emitted as `{ x : TreeNode, y : TreeNode | x.left = y }`. Typing both
+  ends excludes the `(leaf, None)` pairs that the bare `left` relation would
+  include, so the orientation never tries to place the `NoneType` atoms that
+  `hideAtom('NoneType')` removes. A non-nullable edge uses the simpler bare
+  relation name (`selector='left'`).
 - **`parent` is context-aware.** When a class also has child fields, `parent`
   just duplicates those edges, so it is hidden by default — with the "place
   above" orientation kept as a toggled-off alternative on

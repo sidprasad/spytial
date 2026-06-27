@@ -56,6 +56,23 @@ def _self_ref_names(ci: ClassInfo) -> set:
     return {f.name for f in ci.fields if f.is_self_ref}
 
 
+def _edge_selector(ci: ClassInfo, field_name: str) -> str:
+    """Selector for a structural edge over a scalar self-reference.
+
+    When the field can be ``None`` (leaves point to nothing), restrict both
+    endpoints to the node type: ``{ x : T, y : T | x.f = y }``. This excludes the
+    ``(leaf, None)`` pairs the bare relation would include, so the orientation
+    never tries to place the ``NoneType`` atoms that ``hideAtom`` removes — the
+    same reason the hand-written specs use this form. Otherwise the bare relation
+    name is simpler and names no type at all.
+    """
+    f = ci.get(field_name)
+    if f is not None and f.has_none_default:
+        cls = ci.cls.__name__
+        return "{ x : %s, y : %s | x.%s = y }" % (cls, cls, field_name)
+    return field_name
+
+
 # --------------------------------------------------------------------------- #
 # R1 — binary tree (left + right together)
 # --------------------------------------------------------------------------- #
@@ -67,14 +84,14 @@ def binary_tree(ci: ClassInfo) -> List[Suggestion]:
     return [
         Suggestion(
             "orientation",
-            {"selector": "left", "directions": ["below", "left"]},
+            {"selector": _edge_selector(ci, "left"), "directions": ["below", "left"]},
             "high",
             "left child of the same type → tree edge below-left",
             "left",
         ),
         Suggestion(
             "orientation",
-            {"selector": "right", "directions": ["below", "right"]},
+            {"selector": _edge_selector(ci, "right"), "directions": ["below", "right"]},
             "high",
             "right child of the same type → tree edge below-right",
             "right",
@@ -113,7 +130,7 @@ def linked_list(ci: ClassInfo) -> List[Suggestion]:
         out.append(
             Suggestion(
                 "orientation",
-                {"selector": n, "directions": ["right"]},
+                {"selector": _edge_selector(ci, n), "directions": ["right"]},
                 "high",
                 f"{n} links to the next node → place to the right",
                 n,
@@ -134,7 +151,7 @@ def linked_list(ci: ClassInfo) -> List[Suggestion]:
             out.append(
                 Suggestion(
                     "orientation",
-                    {"selector": p, "directions": ["left"]},
+                    {"selector": _edge_selector(ci, p), "directions": ["left"]},
                     "high",
                     f"{p} links to the previous node → place to the left",
                     p,
@@ -164,7 +181,7 @@ def parent_pointer(ci: ClassInfo) -> List[Suggestion]:
         )
         up = Suggestion(
             "orientation",
-            {"selector": p, "directions": ["above"]},
+            {"selector": _edge_selector(ci, p), "directions": ["above"]},
             "medium",
             f"{p} points to the enclosing node → place above",
             p,
@@ -188,7 +205,7 @@ def generic_self_ref(field: FieldInfo, ci: ClassInfo) -> List[Suggestion]:
         return [
             Suggestion(
                 "orientation",
-                {"selector": field.name, "directions": ["below"]},
+                {"selector": _edge_selector(ci, field.name), "directions": ["below"]},
                 "high",
                 f"{field.name} references the same type → structural edge below",
                 field.name,

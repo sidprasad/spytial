@@ -121,6 +121,11 @@ def _has(registry, name, **must):
     return False
 
 
+def _edge(cls_name, field):
+    """The None-excluding comprehension selector emitted for a nullable edge."""
+    return "{ x : %s, y : %s | x.%s = y }" % (cls_name, cls_name, field)
+
+
 def _rb_instance():
     root = RBNode(10, Color.BLACK)
     root.left = RBNode(5, Color.RED)
@@ -173,15 +178,28 @@ def test_introspect_enum_member_detected_statically():
 
 
 def test_binary_tree_spec():
+    # left/right are Optional (nullable) -> None-excluding comprehension form
     reg = suggest(BTreeNode).to_registry()
-    assert _has(reg, "orientation", selector="left", directions=["below", "left"])
-    assert _has(reg, "orientation", selector="right", directions=["below", "right"])
+    assert _has(
+        reg,
+        "orientation",
+        selector=_edge("BTreeNode", "left"),
+        directions=["below", "left"],
+    )
+    assert _has(
+        reg,
+        "orientation",
+        selector=_edge("BTreeNode", "right"),
+        directions=["below", "right"],
+    )
     assert _has(reg, "attribute", field="value")
 
 
 def test_linked_list_spec():
     reg = suggest(LinkedNode).to_registry()
-    assert _has(reg, "orientation", selector="nxt", directions=["right"])
+    assert _has(
+        reg, "orientation", selector=_edge("LinkedNode", "nxt"), directions=["right"]
+    )
     assert _has(reg, "attribute", field="val")
 
 
@@ -202,8 +220,18 @@ def test_nary_tree_spec_via_instance():
 
 def test_rbnode_matches_handwritten_spec():
     reg = suggest(RBNode, instance=_rb_instance()).to_registry()
-    assert _has(reg, "orientation", selector="left", directions=["below", "left"])
-    assert _has(reg, "orientation", selector="right", directions=["below", "right"])
+    assert _has(
+        reg,
+        "orientation",
+        selector=_edge("RBNode", "left"),
+        directions=["below", "left"],
+    )
+    assert _has(
+        reg,
+        "orientation",
+        selector=_edge("RBNode", "right"),
+        directions=["below", "right"],
+    )
     assert _has(reg, "attribute", field="key")
     assert _has(reg, "hideField", field="parent")
     assert _has(reg, "hideAtom", selector="NoneType")
@@ -248,13 +276,31 @@ def test_apply_roundtrips_through_real_decorators():
     assert any("attribute" in d for d in collected["directives"])
 
 
-def test_structural_selectors_are_field_form():
-    # orientation/align/cyclic must use field selectors (e.g. 'left'), never a
-    # bare type-name comprehension, which can trip the absent-type arity error.
+def test_nullable_edges_exclude_none():
+    # left/right can be None and NoneType is hidden, so the orientation must NOT
+    # use the bare 'left' relation (which includes the (leaf, None) pairs); it
+    # uses the typed comprehension that restricts both ends to the node type.
     reg = suggest(RBNode, instance=_rb_instance()).to_registry(enabled_only=False)
-    for name in ("orientation", "align", "cyclic"):
-        for payload in _entries(reg, name):
-            assert "{" not in payload["selector"], payload
+    assert _has(reg, "hideAtom", selector="NoneType")
+    assert not _has(reg, "orientation", selector="left")
+    assert _has(
+        reg,
+        "orientation",
+        selector=_edge("RBNode", "left"),
+        directions=["below", "left"],
+    )
+
+
+def test_non_nullable_edge_uses_bare_relation():
+    # A required (non-Optional) self-reference has no None target, so the simpler
+    # bare relation selector is used.
+    @dataclass
+    class Cell:
+        val: int
+        nxt: "Cell"
+
+    reg = suggest(Cell).to_registry()
+    assert _has(reg, "orientation", selector="nxt", directions=["right"])
 
 
 def test_registry_serializes():
@@ -286,7 +332,12 @@ def test_parent_only_orients_above():
     child = ParentOnly(2)
     child.parent = root
     reg = suggest(ParentOnly, instance=child).to_registry()
-    assert _has(reg, "orientation", selector="parent", directions=["above"])
+    assert _has(
+        reg,
+        "orientation",
+        selector=_edge("ParentOnly", "parent"),
+        directions=["above"],
+    )
     assert not _has(reg, "hideField", field="parent")
 
 
@@ -298,7 +349,8 @@ def test_parent_with_children_hides_and_offers_alternative():
     alts = [
         s
         for s in draft.alternatives
-        if s.directive == "orientation" and s.kwargs.get("selector") == "parent"
+        if s.directive == "orientation"
+        and s.kwargs.get("selector") == _edge("RBNode", "parent")
     ]
     assert alts and alts[0].kwargs["directions"] == ["above"]
 
