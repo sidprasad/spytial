@@ -28,6 +28,7 @@ class FieldInfo:
     enum_members: Optional[List[str]] = None
     has_none_default: bool = False
     is_private: bool = False  # leading underscore (read, but never emits a directive)
+    is_nested_container: bool = False  # a container of containers (e.g. a matrix)
     source: str = "unknown"  # 'dataclass' | 'annotations' | 'init_ast' | 'instance'
 
 

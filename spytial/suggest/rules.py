@@ -75,6 +75,29 @@ def _edge_selector(ci: ClassInfo, field_name: str) -> str:
     return field_name
 
 
+# spytial relationalizes a list as a ternary idx(list, index, element); a dict as
+# kv(dict, key, value); a set as contains(set, element). So a container field
+# reaches the intermediate `list`/`dict` atom, NOT its elements — directives must
+# go through these relations. These two are the render-tested CLRS sequence forms.
+_LIST_SEQUENCE = (
+    "{x,y : idx[object][object] | @num:(x[idx[object]]) < @num:(y[idx[object]])}"
+)
+_LIST_HIDE = "list + (int - idx[object][object])"
+
+
+def _children_selector(cls_name: str, field_name: str, container: str) -> str:
+    """A (parent, child) edge for a container of child nodes, reaching the actual
+    elements through the relationalizer's idx/kv/contains relation rather than
+    orienting the intermediate container atom."""
+    if container in ("list", "tuple"):
+        elems = "%s.idx[int]" % field_name
+    elif container == "dict":
+        elems = "%s.kv[univ]" % field_name
+    else:  # set
+        elems = "%s.contains" % field_name
+    return "{ p : %s, c : %s | c in p.%s }" % (cls_name, cls_name, elems)
+
+
 # --------------------------------------------------------------------------- #
 # R1 — binary tree (left + right together)
 # --------------------------------------------------------------------------- #
@@ -106,19 +129,50 @@ def binary_tree(ci: ClassInfo) -> List[Suggestion]:
 # --------------------------------------------------------------------------- #
 @heuristic(scope="field", priority=20)
 def child_container(field: FieldInfo, ci: ClassInfo) -> List[Suggestion]:
-    if field.is_private:
-        return []  # underscore fields are not relationalized — nothing to orient
+    if field.is_private or field.is_nested_container:
+        return []  # underscore: not relationalized; nested: handled as a matrix note
     if field.is_self_ref and field.container in ("list", "tuple", "set", "dict"):
+        selector = _children_selector(ci.cls.__name__, field.name, field.container)
         return [
             Suggestion(
                 "orientation",
-                {"selector": field.name, "directions": ["below"]},
+                {"selector": selector, "directions": ["below"]},
                 "high",
                 f"{field.name} holds children of the same type → place below",
                 field.name,
             )
         ]
     return []
+
+
+# --------------------------------------------------------------------------- #
+# R3b — plain list/tuple of non-node elements (a sequence: stack, queue, array)
+# --------------------------------------------------------------------------- #
+@heuristic(scope="field", priority=15)
+def list_sequence(field: FieldInfo, ci: ClassInfo) -> List[Suggestion]:
+    # Order the elements left-to-right by their list index, via the idx relation.
+    # Render-tested against the CLRS stacks/queues spec.
+    if field.is_private or field.is_self_ref or field.is_nested_container:
+        return []
+    if field.container not in ("list", "tuple"):
+        return []
+    return [
+        Suggestion(
+            "orientation",
+            {"selector": _LIST_SEQUENCE, "directions": ["directlyRight"]},
+            "high",
+            f"{field.name} is a sequence → lay elements out left-to-right by index",
+            field.name,
+        ),
+        Suggestion(
+            "hideAtom",
+            {"selector": _LIST_HIDE},
+            "medium",
+            "hide the list scaffold and index integers (keeps the element values)",
+            field.name,
+            enabled_by_default=False,
+        ),
+    ]
 
 
 # --------------------------------------------------------------------------- #

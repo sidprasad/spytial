@@ -155,9 +155,21 @@ def _build_notes(class_info: ClassInfo) -> List[str]:
         notes.append(
             "No fields discovered; pass instance=... so the analyzer can sample one."
         )
-    elif not any(f.is_self_ref for f in class_info.fields):
+    elif not any(f.is_self_ref for f in class_info.fields) and not any(
+        not f.is_private and (f.container in ("list", "tuple") or f.is_nested_container)
+        for f in class_info.fields
+    ):
+        # Only when nothing structural was produced — a plain list (sequence) or a
+        # nested list (matrix) is handled by the sequence rule / matrix note below.
         notes.append(
             "No self-referential fields found — structure could not be inferred "
             "statically (array/index-encoded structures need a custom heuristic)."
         )
+    for f in class_info.fields:
+        if f.is_nested_container and not f.is_private:
+            notes.append(
+                f"'{f.name}' is a nested container (a grid/matrix). spytial lays "
+                "grids out with align/orientation over the idx relation, but the 2D "
+                "selector isn't auto-generated yet — add it by hand or via @heuristic."
+            )
     return notes

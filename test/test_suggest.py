@@ -20,6 +20,7 @@ from spytial.suggest import (
     build_class_info,
     suggest,
 )
+from spytial.suggest.rules import _LIST_HIDE
 
 
 # --------------------------------------------------------------------------- #
@@ -172,6 +173,11 @@ def _edge(field):
     return "%s - (univ -> NoneType)" % field
 
 
+def _child_edge(cls_name, field):
+    """The element-edge selector for a container of child nodes."""
+    return "{ p : %s, c : %s | c in p.%s.idx[int] }" % (cls_name, cls_name, field)
+
+
 def _rb_instance():
     root = RBNode(10, Color.BLACK)
     root.left = RBNode(5, Color.RED)
@@ -269,18 +275,67 @@ def test_linked_list_spec():
 
 
 def test_nary_tree_spec_static():
+    # The container orientation reaches the elements through idx, not the bare
+    # `children` relation (which targets the intermediate list atom).
     reg = suggest(NaryDC).to_registry()
-    assert _has(reg, "orientation", selector="children", directions=["below"])
+    assert _has(
+        reg,
+        "orientation",
+        selector=_child_edge("NaryDC", "children"),
+        directions=["below"],
+    )
+    assert not _has(reg, "orientation", selector="children")
 
 
 def test_nary_tree_spec_via_instance():
     # plain class whose children default to None — needs instance sampling
     n = NaryNode("root", [NaryNode("a"), NaryNode("b")])
     reg = suggest(NaryNode, instance=n).to_registry()
-    assert _has(reg, "orientation", selector="children", directions=["below"])
+    assert _has(
+        reg,
+        "orientation",
+        selector=_child_edge("NaryNode", "children"),
+        directions=["below"],
+    )
     assert _has(reg, "attribute", field="value")
     # children is always a list (never None) -> no NoneType atoms to hide
     assert not _has(reg, "hideAtom", selector="NoneType")
+
+
+def test_list_sequence_orders_elements_by_index():
+    # A plain list of non-node elements (a stack/array) gets a positional
+    # orientation over the idx relation — render-tested CLRS form.
+    class ArrayStack:
+        def __init__(self):
+            self.A = []
+            self.top = -1
+
+    s = ArrayStack()
+    s.A = [10, 20, 30]
+    s.top = 2
+    draft = suggest(ArrayStack, instance=s)
+    reg = draft.to_registry(enabled_only=False)
+    seq = [
+        p
+        for p in _entries(reg, "orientation")
+        if p.get("directions") == ["directlyRight"]
+    ]
+    assert seq and "idx[object][object]" in seq[0]["selector"]
+    assert _has(reg, "attribute", field="top")
+    # the idx-hiding atom is offered but speculative (broad effect)
+    assert _has(draft.to_registry(enabled_only=False), "hideAtom", selector=_LIST_HIDE)
+    assert not _has(draft.to_registry(), "hideAtom", selector=_LIST_HIDE)
+
+
+def test_nested_list_matrix_emits_note_not_malformed_selector():
+    class Grid:
+        def __init__(self):
+            self.cells = [[1, 2], [3, 4]]
+
+    draft = suggest(Grid, instance=Grid())
+    # no guessed 2D selector — just a note
+    assert not _entries(draft.to_registry(enabled_only=False), "orientation")
+    assert any("nested container" in n for n in draft.notes)
 
 
 def test_slots_class_discovers_self_ref_via_instance():
@@ -428,12 +483,24 @@ def test_registry_serializes():
 # --------------------------------------------------------------------------- #
 
 
-def test_array_encoded_structure_bails_gracefully():
+def test_array_encoded_structure_lays_out_the_backing_array():
+    # A heap stores its tree in a flat list via index math. We don't fabricate
+    # the implied tree, but we DO lay the backing array out as a sequence — a
+    # well-formed scaffold over the idx relation rather than nothing.
     draft = suggest(MaxHeap, instance=MaxHeap([4, 2, 7, 1]))
     reg = draft.to_registry(enabled_only=False)
-    # no fabricated structural edges
-    assert not _entries(reg, "orientation")
-    assert any("structure could not be inferred" in n for n in draft.notes)
+    seq = [
+        p
+        for p in _entries(reg, "orientation")
+        if p.get("directions") == ["directlyRight"]
+    ]
+    assert seq and "idx[object][object]" in seq[0]["selector"]
+    # no fabricated node-to-node tree edges
+    assert not any(
+        "(univ -> NoneType)" in p.get("selector", "")
+        or "below" in p.get("directions", [])
+        for p in _entries(reg, "orientation")
+    )
 
 
 # --------------------------------------------------------------------------- #

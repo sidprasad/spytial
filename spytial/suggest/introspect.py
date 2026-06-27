@@ -129,6 +129,7 @@ def _build_field(
     is_self_ref = _is_self_ref(type_repr, cls)
     enum_members = _enum_members_from(annotation, default, type_repr, cls)
     is_scalar = _is_scalar(type_repr, container, is_self_ref, enum_members)
+    nested = _is_nested_annotation(type_repr)
 
     # Fold in evidence aggregated across every sampled node of this class.
     record = agg.get(name) if agg else None
@@ -147,6 +148,7 @@ def _build_field(
         is_scalar = is_scalar or _is_scalar(
             type_repr, container, is_self_ref, enum_members
         )
+        nested = nested or record["nested"]
 
     return FieldInfo(
         name=name,
@@ -157,6 +159,7 @@ def _build_field(
         enum_members=enum_members,
         has_none_default=has_none,
         is_private=name.startswith("_"),
+        is_nested_container=nested and container is not None,
         source=source,
     )
 
@@ -197,6 +200,15 @@ def _is_nullable_annotation(type_repr: Optional[str]) -> bool:
     ``X | None``) — independent of any default value."""
     names = _referenced_names(type_repr)
     return bool(names & {"Optional", "None", "NoneType"})
+
+
+def _is_nested_annotation(type_repr: Optional[str]) -> bool:
+    """True if the annotation is a container of containers (e.g. ``list[list[int]]``,
+    a matrix) — counts container tokens in the raw string, so duplicates count."""
+    if not type_repr:
+        return False
+    hits = sum(1 for m in _IDENT.finditer(type_repr) if m.group(0) in _CONTAINER_NAMES)
+    return hits >= 2
 
 
 def _is_self_ref(type_repr: Optional[str], cls: type) -> bool:
@@ -368,6 +380,7 @@ def _sample_graph(root: Any, cls: type, max_nodes: int = 1000) -> dict:
                     "enum": None,
                     "self": False,
                     "none": False,
+                    "nested": False,
                 },
             )
             if value is None:
@@ -382,6 +395,8 @@ def _sample_graph(root: Any, cls: type, max_nodes: int = 1000) -> dict:
                 for item in _container_items(value):
                     if isinstance(item, cls):
                         rec["self"] = True
+                    if _container_of_value(item):  # a container of containers (matrix)
+                        rec["nested"] = True
                     if id(item) not in seen:
                         queue.append(item)
             else:
