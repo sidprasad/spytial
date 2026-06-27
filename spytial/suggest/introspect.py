@@ -296,6 +296,34 @@ def _container_items(value: Any):
     return []
 
 
+def _instance_attrs(obj: Any) -> List[Tuple[str, Any]]:
+    """Return ``(name, value)`` pairs for ``obj``, slots-aware.
+
+    ``vars(obj)`` raises ``TypeError`` for a class that defines ``__slots__`` and
+    carries no ``__dict__`` — which would silently drop every node of such a
+    class from the graph walk. Read the instance ``__dict__`` when present and
+    union in the slots declared across the MRO, skipping slots left unset on this
+    instance (their descriptor raises ``AttributeError``).
+    """
+    items: Dict[str, Any] = {}
+    inst_dict = getattr(obj, "__dict__", None)
+    if isinstance(inst_dict, dict):
+        items.update(inst_dict)
+    for klass in type(obj).__mro__:
+        slots = klass.__dict__.get("__slots__")
+        if slots is None:
+            continue
+        if isinstance(slots, str):
+            slots = (slots,)
+        for name in slots:
+            if name in ("__dict__", "__weakref__") or name in items:
+                continue
+            value = getattr(obj, name, _MISSING)
+            if value is not _MISSING:
+                items[name] = value
+    return list(items.items())
+
+
 def _sample_graph(root: Any, cls: type, max_nodes: int = 1000) -> dict:
     """Aggregate per-attribute type evidence over all reachable nodes of ``cls``.
 
@@ -318,11 +346,7 @@ def _sample_graph(root: Any, cls: type, max_nodes: int = 1000) -> dict:
         if not isinstance(obj, cls):
             continue
         visited += 1
-        try:
-            attrs = list(vars(obj).items())
-        except TypeError:
-            continue
-        for name, value in attrs:
+        for name, value in _instance_attrs(obj):
             rec = agg.setdefault(
                 name,
                 {

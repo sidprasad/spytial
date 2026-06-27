@@ -85,6 +85,16 @@ class ParentOnly:
         self.parent = parent
 
 
+class SlotsNode:  # __slots__ class, no __dict__ — graph walk must stay slots-aware
+    __slots__ = ("sym", "freq", "zero_", "one_")
+
+    def __init__(self, freq, sym=None, zero_=None, one_=None):
+        self.sym = sym
+        self.freq = freq
+        self.zero_ = zero_
+        self.one_ = one_
+
+
 class MaxHeap:  # array/index-encoded — the ceiling case
     def __init__(self, data=None):
         self.a = [0]
@@ -264,6 +274,26 @@ def test_nary_tree_spec_via_instance():
     assert _has(reg, "attribute", field="value")
     # children is always a list (never None) -> no NoneType atoms to hide
     assert not _has(reg, "hideAtom", selector="NoneType")
+
+
+def test_slots_class_discovers_self_ref_via_instance():
+    # A __slots__ class has no __dict__, so the graph walk must read slots
+    # directly; vars(obj) would raise and silently drop every node, yielding
+    # zero directives even for a fully populated pointer tree (CLRS huffman).
+    root = SlotsNode(
+        8,
+        zero_=SlotsNode(5, sym="a"),
+        one_=SlotsNode(3, zero_=SlotsNode(2, sym="b"), one_=SlotsNode(1, sym="c")),
+    )
+    ci = build_class_info(SlotsNode, instance=root)
+    assert set(ci.self_ref_fields) == {"zero_", "one_"}
+
+    reg = suggest(SlotsNode, instance=root).to_registry(enabled_only=False)
+    assert _has(reg, "orientation", selector=_edge("zero_"), directions=["below"])
+    assert _has(reg, "orientation", selector=_edge("one_"), directions=["below"])
+    assert _has(reg, "attribute", field="sym")
+    assert _has(reg, "attribute", field="freq")
+    assert _has(reg, "hideAtom", selector="NoneType")
 
 
 def test_rbnode_matches_handwritten_spec():
