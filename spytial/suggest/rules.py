@@ -53,24 +53,25 @@ _PALETTE = [
 
 
 def _self_ref_names(ci: ClassInfo) -> set:
-    return {f.name for f in ci.fields if f.is_self_ref}
+    # Private fields are skipped by the relationalizers, so their edges never
+    # render — exclude them so no structural rule targets a missing relation.
+    return {f.name for f in ci.fields if f.is_self_ref and not f.is_private}
 
 
 def _edge_selector(ci: ClassInfo, field_name: str) -> str:
     """Selector for a structural edge over a scalar self-reference.
 
-    When the field can be ``None`` (leaves point to nothing), restrict both
-    endpoints to the node type with the documented surgical idiom
-    ``left & (T -> T)`` (see docs/selectors.md). The intersection keeps only the
-    node→node pairs, excluding the ``(leaf, None)`` tuples the bare relation would
-    include — so the orientation never tries to place the ``NoneType`` atoms that
-    ``hideAtom`` removes. Otherwise the bare relation name is simpler and names no
-    type at all.
+    When the field can be ``None`` (leaves point to nothing), drop the
+    ``(source, None)`` tuples with ``left - (univ -> NoneType)`` — so the
+    orientation never tries to place the ``NoneType`` atoms that ``hideAtom``
+    removes. Subtracting only the ``None`` targets (rather than intersecting with
+    a named node type) keeps edges to subtype nodes, which a
+    ``& (T -> T)`` intersection would wrongly drop. Otherwise the bare relation
+    name is simpler.
     """
     f = ci.get(field_name)
     if f is not None and f.has_none_default:
-        cls = ci.cls.__name__
-        return "%s & (%s -> %s)" % (field_name, cls, cls)
+        return "%s - (univ -> NoneType)" % field_name
     return field_name
 
 
@@ -105,6 +106,8 @@ def binary_tree(ci: ClassInfo) -> List[Suggestion]:
 # --------------------------------------------------------------------------- #
 @heuristic(scope="field", priority=20)
 def child_container(field: FieldInfo, ci: ClassInfo) -> List[Suggestion]:
+    if field.is_private:
+        return []  # underscore fields are not relationalized — nothing to orient
     if field.is_self_ref and field.container in ("list", "tuple", "set", "dict"):
         return [
             Suggestion(
@@ -202,7 +205,12 @@ def parent_pointer(ci: ClassInfo) -> List[Suggestion]:
 # --------------------------------------------------------------------------- #
 @heuristic(scope="field", priority=10)
 def generic_self_ref(field: FieldInfo, ci: ClassInfo) -> List[Suggestion]:
-    if field.is_self_ref and field.container is None and field.name not in _SPECIALIZED:
+    if (
+        field.is_self_ref
+        and not field.is_private
+        and field.container is None
+        and field.name not in _SPECIALIZED
+    ):
         return [
             Suggestion(
                 "orientation",
@@ -238,7 +246,7 @@ def scalar_attribute(field: FieldInfo, ci: ClassInfo) -> List[Suggestion]:
 # --------------------------------------------------------------------------- #
 @heuristic(scope="field", priority=10)
 def enum_color(field: FieldInfo, ci: ClassInfo) -> List[Suggestion]:
-    if not field.enum_members:
+    if not field.enum_members or field.is_private:
         return []
     type_name = ci.cls.__name__
     out: List[Suggestion] = []
@@ -263,7 +271,9 @@ def enum_color(field: FieldInfo, ci: ClassInfo) -> List[Suggestion]:
 # --------------------------------------------------------------------------- #
 @heuristic(scope="class", priority=5)
 def hide_none(ci: ClassInfo) -> List[Suggestion]:
-    if any(f.is_self_ref and f.has_none_default for f in ci.fields):
+    if any(
+        f.is_self_ref and not f.is_private and f.has_none_default for f in ci.fields
+    ):
         return [
             Suggestion(
                 "hideAtom",
@@ -282,7 +292,7 @@ def hide_none(ci: ClassInfo) -> List[Suggestion]:
 # --------------------------------------------------------------------------- #
 @heuristic(scope="class", priority=1)
 def hide_disconnected(ci: ClassInfo) -> List[Suggestion]:
-    if any(f.is_self_ref for f in ci.fields):
+    if any(f.is_self_ref and not f.is_private for f in ci.fields):
         return [
             Suggestion(
                 "flag",

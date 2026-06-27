@@ -98,6 +98,35 @@ class AnnotatedNode:  # class-level annotations, not a dataclass
     weight: int
 
 
+class PartlyAnnotated:  # one class annotation + __init__-only structural fields
+    value: int
+
+    def __init__(self, value, left=None, right=None):
+        self.value = value
+        self.left = left
+        self.right = right
+
+
+@dataclass
+class PrivateChild:
+    value: int = 0
+    _next: Optional["PrivateChild"] = None
+
+
+_FACTORY_CALLS = []
+
+
+def _tracking_factory():
+    _FACTORY_CALLS.append(1)
+    return []
+
+
+@dataclass
+class WithFactory:
+    value: int = 0
+    items: list = field(default_factory=_tracking_factory)
+
+
 # --------------------------------------------------------------------------- #
 # Helpers
 # --------------------------------------------------------------------------- #
@@ -121,9 +150,9 @@ def _has(registry, name, **must):
     return False
 
 
-def _edge(cls_name, field):
-    """The None-excluding selector emitted for a nullable edge (surgical idiom)."""
-    return "%s & (%s -> %s)" % (field, cls_name, cls_name)
+def _edge(field):
+    """The None-excluding selector emitted for a nullable edge."""
+    return "%s - (univ -> NoneType)" % field
 
 
 def _rb_instance():
@@ -172,24 +201,45 @@ def test_introspect_enum_member_detected_statically():
     assert ci.get("color").enum_members == ["RED", "BLACK"]
 
 
+def test_partial_annotations_merge_with_init_and_instance():
+    # Only `value` is annotated; left/right exist solely in __init__. The
+    # discovery must merge all sources, not stop at __annotations__.
+    n = PartlyAnnotated(1)
+    n.left, n.right = PartlyAnnotated(2), PartlyAnnotated(3)
+    ci = build_class_info(PartlyAnnotated, instance=n)
+    assert set(ci.self_ref_fields) == {"left", "right"}
+    assert ci.get("value").is_scalar
+    reg = suggest(PartlyAnnotated, instance=n).to_registry()
+    assert _has(reg, "orientation", selector=_edge("left"))
+    assert _has(reg, "attribute", field="value")
+
+
+def test_dataclass_default_factory_not_executed():
+    # A static pass must not invoke arbitrary user code.
+    before = len(_FACTORY_CALLS)
+    suggest(WithFactory)
+    build_class_info(WithFactory)
+    assert len(_FACTORY_CALLS) == before
+
+
 # --------------------------------------------------------------------------- #
 # 2. Semantic golden specs
 # --------------------------------------------------------------------------- #
 
 
 def test_binary_tree_spec():
-    # left/right are Optional (nullable) -> None-excluding comprehension form
+    # left/right are Optional (nullable) -> None-excluding selector form
     reg = suggest(BTreeNode).to_registry()
     assert _has(
         reg,
         "orientation",
-        selector=_edge("BTreeNode", "left"),
+        selector=_edge("left"),
         directions=["below", "left"],
     )
     assert _has(
         reg,
         "orientation",
-        selector=_edge("BTreeNode", "right"),
+        selector=_edge("right"),
         directions=["below", "right"],
     )
     assert _has(reg, "attribute", field="value")
@@ -197,9 +247,7 @@ def test_binary_tree_spec():
 
 def test_linked_list_spec():
     reg = suggest(LinkedNode).to_registry()
-    assert _has(
-        reg, "orientation", selector=_edge("LinkedNode", "nxt"), directions=["right"]
-    )
+    assert _has(reg, "orientation", selector=_edge("nxt"), directions=["right"])
     assert _has(reg, "attribute", field="val")
 
 
@@ -223,13 +271,13 @@ def test_rbnode_matches_handwritten_spec():
     assert _has(
         reg,
         "orientation",
-        selector=_edge("RBNode", "left"),
+        selector=_edge("left"),
         directions=["below", "left"],
     )
     assert _has(
         reg,
         "orientation",
-        selector=_edge("RBNode", "right"),
+        selector=_edge("right"),
         directions=["below", "right"],
     )
     assert _has(reg, "attribute", field="key")
@@ -256,6 +304,16 @@ def test_no_directive_for_private_fields():
 
     reg = suggest(WithPrivate).to_registry(enabled_only=False)
     assert not _has(reg, "hideField", field="_cache")
+
+
+def test_private_self_ref_emits_no_structural_directive():
+    # A private self-reference (_next) is skipped by the relationalizers, so no
+    # structural directive should target it — and nothing else (hideAtom/flag).
+    reg = suggest(PrivateChild).to_registry(enabled_only=False)
+    assert not _has(reg, "orientation", selector="_next")
+    assert not _has(reg, "orientation", selector=_edge("_next"))
+    assert not _entries(reg, "hideAtom")
+    assert _has(reg, "attribute", field="value")
 
 
 # --------------------------------------------------------------------------- #
@@ -286,7 +344,7 @@ def test_nullable_edges_exclude_none():
     assert _has(
         reg,
         "orientation",
-        selector=_edge("RBNode", "left"),
+        selector=_edge("left"),
         directions=["below", "left"],
     )
 
@@ -335,7 +393,7 @@ def test_parent_only_orients_above():
     assert _has(
         reg,
         "orientation",
-        selector=_edge("ParentOnly", "parent"),
+        selector=_edge("parent"),
         directions=["above"],
     )
     assert not _has(reg, "hideField", field="parent")
@@ -349,8 +407,7 @@ def test_parent_with_children_hides_and_offers_alternative():
     alts = [
         s
         for s in draft.alternatives
-        if s.directive == "orientation"
-        and s.kwargs.get("selector") == _edge("RBNode", "parent")
+        if s.directive == "orientation" and s.kwargs.get("selector") == _edge("parent")
     ]
     assert alts and alts[0].kwargs["directions"] == ["above"]
 

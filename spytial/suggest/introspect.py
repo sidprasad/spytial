@@ -62,27 +62,46 @@ def build_class_info(cls: type, instance: Any = None) -> ClassInfo:
 
 
 def _discover(cls: type, instance: Any, agg: Optional[dict]) -> List[FieldInfo]:
-    if dataclasses.is_dataclass(cls):
-        raw = [(f.name, f.type, _dc_default(f)) for f in dataclasses.fields(cls)]
-        source = "dataclass"
-    elif getattr(cls, "__annotations__", None):
-        raw = [(n, t, _MISSING) for n, t in cls.__annotations__.items()]
-        source = "annotations"
-    else:
-        names = _init_assignment_names(cls)
-        if names:
-            sig_types, sig_defaults = _init_params(cls)
-            raw = [(n, sig_types.get(n), sig_defaults.get(n, _MISSING)) for n in names]
-            source = "init_ast"
-        elif agg:
-            raw = [(n, None, _MISSING) for n in agg]
-            source = "instance"
+    # Merge field names from every source rather than stopping at the first that
+    # yields anything: a plain class can carry a few class annotations *and* set
+    # other fields only in __init__, and an instance can reveal more still. The
+    # first source to name a field also supplies its type/default; later sources
+    # only fill gaps and contribute names not seen yet.
+    order: List[str] = []
+    merged: dict = {}
+
+    def add(name: str, annotation: Any, default: Any, source: str) -> None:
+        if name not in merged:
+            order.append(name)
+            merged[name] = [annotation, default, source]
         else:
-            return []
+            entry = merged[name]
+            if entry[0] is None and annotation is not None:
+                entry[0] = annotation
+            if entry[1] is _MISSING and default is not _MISSING:
+                entry[1] = default
+
+    if dataclasses.is_dataclass(cls):
+        for f in dataclasses.fields(cls):
+            add(f.name, f.type, _dc_default(f), "dataclass")
+    else:
+        for n, t in getattr(cls, "__annotations__", {}).items():
+            add(n, t, _MISSING, "annotations")
+
+    init_names = _init_assignment_names(cls)
+    if init_names:
+        sig_types, sig_defaults = _init_params(cls)
+        for n in init_names:
+            add(n, sig_types.get(n), sig_defaults.get(n, _MISSING), "init_ast")
+
+    if agg:
+        for n in agg:
+            add(n, None, _MISSING, "instance")
 
     return [
         _build_field(cls, name, annotation, default, agg, source)
-        for name, annotation, default in raw
+        for name in order
+        for annotation, default, source in [merged[name]]
     ]
 
 
@@ -402,11 +421,10 @@ def _init_params(cls: type) -> Tuple[Dict[str, Any], Dict[str, Any]]:
 
 
 def _dc_default(field: "dataclasses.Field") -> Any:
+    # Never invoke a default_factory: this is a static pass and the factory could
+    # have side effects (open resources, mutate state) or be slow. The field's
+    # annotation already carries the type, and a factory default is never None, so
+    # _MISSING (an unknown, non-None default) is all the analyzer needs.
     if field.default is not dataclasses.MISSING:
         return field.default
-    if field.default_factory is not dataclasses.MISSING:  # type: ignore[misc]
-        try:
-            return field.default_factory()
-        except Exception:
-            return _MISSING
     return _MISSING
