@@ -60,16 +60,17 @@ def _edge_selector(ci: ClassInfo, field_name: str) -> str:
     """Selector for a structural edge over a scalar self-reference.
 
     When the field can be ``None`` (leaves point to nothing), restrict both
-    endpoints to the node type: ``{ x : T, y : T | x.f = y }``. This excludes the
-    ``(leaf, None)`` pairs the bare relation would include, so the orientation
-    never tries to place the ``NoneType`` atoms that ``hideAtom`` removes — the
-    same reason the hand-written specs use this form. Otherwise the bare relation
-    name is simpler and names no type at all.
+    endpoints to the node type with the documented surgical idiom
+    ``left & (T -> T)`` (see docs/selectors.md). The intersection keeps only the
+    node→node pairs, excluding the ``(leaf, None)`` tuples the bare relation would
+    include — so the orientation never tries to place the ``NoneType`` atoms that
+    ``hideAtom`` removes. Otherwise the bare relation name is simpler and names no
+    type at all.
     """
     f = ci.get(field_name)
     if f is not None and f.has_none_default:
         cls = ci.cls.__name__
-        return "{ x : %s, y : %s | x.%s = y }" % (cls, cls, field_name)
+        return "%s & (%s -> %s)" % (field_name, cls, cls)
     return field_name
 
 

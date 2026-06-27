@@ -57,11 +57,15 @@ and maps them to directives:
 Two choices worth knowing:
 
 - **Edge selectors are `None`-aware.** A nullable edge — a `left` that can be
-  empty — is emitted as `{ x : TreeNode, y : TreeNode | x.left = y }`. Typing both
-  ends excludes the `(leaf, None)` pairs that the bare `left` relation would
-  include, so the orientation never tries to place the `NoneType` atoms that
-  `hideAtom('NoneType')` removes. A non-nullable edge uses the simpler bare
-  relation name (`selector='left'`).
+  empty — is emitted as `left & (TreeNode -> TreeNode)`, the surgical idiom from
+  the [Selectors](selectors.md) guide. Restricting both ends to the node type
+  keeps only the node→node pairs, excluding the `(leaf, None)` tuples the bare
+  `left` relation would include — so the orientation never tries to place the
+  `NoneType` atoms that `hideAtom('NoneType')` removes. A non-nullable edge uses
+  the simpler bare relation name (`selector='left'`). (A type-agnostic
+  `left - (univ -> NoneType)` would also work and tolerate subtype targets, but
+  `univ` is outside the documented selector grammar, so the type-restricted form
+  is the safe default.)
 - **`parent` is context-aware.** When a class also has child fields, `parent`
   just duplicates those edges, so it is hidden by default — with the "place
   above" orientation kept as a toggled-off alternative on

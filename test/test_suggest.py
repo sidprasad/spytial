@@ -122,8 +122,8 @@ def _has(registry, name, **must):
 
 
 def _edge(cls_name, field):
-    """The None-excluding comprehension selector emitted for a nullable edge."""
-    return "{ x : %s, y : %s | x.%s = y }" % (cls_name, cls_name, field)
+    """The None-excluding selector emitted for a nullable edge (surgical idiom)."""
+    return "%s & (%s -> %s)" % (field, cls_name, cls_name)
 
 
 def _rb_instance():
