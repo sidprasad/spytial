@@ -288,18 +288,30 @@ def test_nary_tree_spec_static():
 
 
 def test_nary_tree_spec_via_instance():
-    # plain class whose children default to None — needs instance sampling
+    # plain class whose children default to None — needs instance sampling.
+    # The render-verified combo: a direct child edge + below orientation + hide
+    # the node->list edge + hide the intermediate list atoms (these coexist; the
+    # orientation and hideField are not treated as alternatives).
     n = NaryNode("root", [NaryNode("a"), NaryNode("b")])
+    sel = _child_edge("NaryNode", "children")
     reg = suggest(NaryNode, instance=n).to_registry()
-    assert _has(
-        reg,
-        "orientation",
-        selector=_child_edge("NaryNode", "children"),
-        directions=["below"],
+    assert _has(reg, "orientation", selector=sel, directions=["below"])
+    assert any(
+        p.get("selector") == sel and p.get("name") == "children"
+        for p in _entries(reg, "inferredEdge")
     )
+    assert _has(reg, "hideField", field="children")
+    assert _has(reg, "hideAtom", selector="list")
     assert _has(reg, "attribute", field="value")
     # children is always a list (never None) -> no NoneType atoms to hide
     assert not _has(reg, "hideAtom", selector="NoneType")
+
+
+def test_hide_disconnected_enabled_for_structures():
+    # folded-in scalar atoms (values/indices) float as disconnected nodes; the
+    # flag clears them, so it is enabled by default once a structure exists.
+    reg = suggest(BTreeNode).to_registry()  # enabled-only
+    assert {"flag": "hideDisconnected"} in reg["constraints"] + reg["directives"]
 
 
 def test_list_sequence_orders_elements_by_index():

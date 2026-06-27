@@ -131,18 +131,46 @@ def binary_tree(ci: ClassInfo) -> List[Suggestion]:
 def child_container(field: FieldInfo, ci: ClassInfo) -> List[Suggestion]:
     if field.is_private or field.is_nested_container:
         return []  # underscore: not relationalized; nested: handled as a matrix note
-    if field.is_self_ref and field.container in ("list", "tuple", "set", "dict"):
-        selector = _children_selector(ci.cls.__name__, field.name, field.container)
-        return [
-            Suggestion(
-                "orientation",
-                {"selector": selector, "directions": ["below"]},
-                "high",
-                f"{field.name} holds children of the same type → place below",
-                field.name,
-            )
-        ]
-    return []
+    if not (field.is_self_ref and field.container in ("list", "tuple", "set", "dict")):
+        return []
+    # A container of child nodes reaches its elements through the idx/kv/contains
+    # relation, NOT the bare field (which points at the intermediate list atom).
+    # The render-verified combo: draw a direct parent->child edge over that
+    # selector, orient children below, and hide the container scaffolding. The
+    # edge/orientation target the derived edge (source_field=None) so they don't
+    # collide with the hideField on the original container relation.
+    selector = _children_selector(ci.cls.__name__, field.name, field.container)
+    return [
+        Suggestion(
+            "inferredEdge",
+            {"name": field.name, "selector": selector},
+            "high",
+            f"{field.name} holds children of the same type → direct child edge",
+            None,
+        ),
+        Suggestion(
+            "orientation",
+            {"selector": selector, "directions": ["below"]},
+            "high",
+            f"place each {field.name} element below its parent",
+            None,
+        ),
+        Suggestion(
+            "hideField",
+            {"field": field.name},
+            "high",
+            f"hide the node->{field.container} edge (the direct child edge replaces it)",
+            field.name,
+        ),
+        Suggestion(
+            "hideAtom",
+            {"selector": field.container},
+            "medium",
+            f"hide the intermediate {field.container} atoms",
+            None,
+            enabled_by_default=True,
+        ),
+    ]
 
 
 # --------------------------------------------------------------------------- #
@@ -354,9 +382,11 @@ def hide_disconnected(ci: ClassInfo) -> List[Suggestion]:
             Suggestion(
                 "flag",
                 {"name": "hideDisconnected"},
-                "low",
-                "drop disconnected atoms for a cleaner layout",
+                "medium",
+                "drop the leftover folded-in scalar atoms (values/indices) for a "
+                "cleaner layout",
                 None,
+                enabled_by_default=True,
             )
         ]
     return []
