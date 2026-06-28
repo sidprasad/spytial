@@ -60,7 +60,9 @@ e2e = [
 # management, so spytial stays unopinionated. Install a provider plugin separately,
 # e.g. `llm install llm-anthropic`. (`llm` itself requires Python >=3.10.)
 suggest-llm = [
-    "llm>=0.23",
+    # `llm` requires Python >=3.10; the marker keeps the extra installable (just
+    # inert) on the project's 3.8/3.9 floor rather than erroring at resolution.
+    "llm>=0.23; python_version >= '3.10'",
 ]
 docs = [
     "mkdocs>=1.5.0",

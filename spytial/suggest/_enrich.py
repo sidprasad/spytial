@@ -199,6 +199,11 @@ def _shape_to_suggestion(ci: ClassInfo, cls: str, f, sh: dict) -> Optional[Sugge
     kind = sh.get("constraint")
     why = (sh.get("why") or "").strip()
     rationale = f"{f.name}: {why}" if why else f"{f.name}: model-suggested shape"
+    # Directives over the original field relation carry source_field=f.name; a
+    # derived (parent, child) edge over a container carries None, matching
+    # rules.child_container — so identical suggestions de-dup and same-field
+    # exclusivity grouping stays correct.
+    source_field = f.name
 
     if kind == "orientation":
         dirs = [d for d in (sh.get("directions") or []) if d in _ORIENT_DIRS][:2]
@@ -206,6 +211,7 @@ def _shape_to_suggestion(ci: ClassInfo, cls: str, f, sh: dict) -> Optional[Sugge
             return None
         if f.container in _CONTAINERS:
             selector = _children_selector(cls, f.name, f.container)
+            source_field = None  # derived edge, not the container relation itself
         else:
             selector = _edge_selector(ci, f.name)
         kwargs = {"selector": selector, "directions": dirs}
@@ -228,7 +234,7 @@ def _shape_to_suggestion(ci: ClassInfo, cls: str, f, sh: dict) -> Optional[Sugge
         kwargs,
         "low",
         rationale,
-        f.name,
+        source_field,
         enabled_by_default=False,
         source="llm",
     )

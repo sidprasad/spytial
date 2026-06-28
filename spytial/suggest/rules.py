@@ -59,9 +59,9 @@ def enum_member_selector(type_name: str, field_name: str, member: str) -> str:
     name, so ``@:(x.field)`` won't match it — join through the member's ``name``
     relation: ``@:(x.field.name)`` reads the ``'RED'``/``'BLACK'`` string atom.
 
-    Public because the optional LLM enrichment layer reuses this exact (render-
-    verified) selector and only substitutes the color *value*; the model never
-    authors relational syntax itself.
+    Factored out (rather than inlined in :func:`enum_color`) so this exact, render-
+    verified form lives in one place — reusable by custom heuristics or tooling that
+    needs to match an enum member.
     """
     return "{ x : %s | @:(x.%s.name) = %s }" % (type_name, field_name, member)
 

@@ -682,11 +682,22 @@ def test_enrich_orientation_over_container_uses_children_selector(monkeypatch):
     payload = {"shapes": [_shape("related", "orientation", directions=["right"])]}
     monkeypatch.setattr(_enrich_mod, "_import_llm", lambda: _fake_llm(payload))
     draft = suggest(Ticket, enrich=True)
+    # The derived (parent, child) edge carries source_field=None — matching
+    # rules.child_container — so it de-dups and groups like the deterministic one.
     assert any(
         s.kwargs
         == {"selector": _child_edge("Ticket", "related"), "directions": ["right"]}
+        and s.source_field is None
         for s in _of(draft, "orientation")
     )
+
+
+def test_enrich_container_orientation_dedups_against_deterministic(monkeypatch):
+    # The rules already orient `related` children below (derived edge, source_field
+    # None); an identical model suggestion must collapse, not slip past _key().
+    payload = {"shapes": [_shape("related", "orientation", directions=["below"])]}
+    monkeypatch.setattr(_enrich_mod, "_import_llm", lambda: _fake_llm(payload))
+    assert not _of(suggest(Ticket, enrich=True), "orientation")
 
 
 def test_enrich_cyclic_over_single_pointer(monkeypatch):
