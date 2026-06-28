@@ -24,6 +24,12 @@ def _row(suggestion, dim: bool = False) -> str:
     badge_fg = "#0c447c" if state == "on" else "#888780"
     badge_border = "none" if state == "on" else "0.5px solid #b4b2a9"
     kwargs = ", ".join(f"{k}={v!r}" for k, v in suggestion.kwargs.items())
+    model_tag = (
+        '<span style="font-size:10px;color:#6b4fbb;background:#f1ecfa;'
+        'padding:1px 6px;border-radius:5px;flex:none;">model</span>'
+        if getattr(suggestion, "source", "rule") == "llm"
+        else ""
+    )
     return (
         f'<div style="display:flex;align-items:center;gap:10px;padding:8px 10px;'
         f'border:0.5px solid #e3e1d9;border-radius:8px;opacity:{opacity};margin-bottom:6px;">'
@@ -32,6 +38,7 @@ def _row(suggestion, dim: bool = False) -> str:
         f"<div>@spytial.{_esc(suggestion.directive)}({_esc(kwargs)})</div>"
         f'<div style="font-family:inherit;font-size:11px;color:#5f5e5a;font-style:italic;">'
         f"{_esc(suggestion.rationale)}</div></div>"
+        f"{model_tag}"
         f'<span style="font-size:11px;color:{badge_fg};background:{badge_bg};'
         f'border:{badge_border};padding:2px 8px;border-radius:6px;flex:none;">{state}</span>'
         f"</div>"
@@ -42,6 +49,8 @@ def render_html(draft: SpecDraft) -> str:
     cls_name = _esc(draft.cls.__name__)
     enabled = draft.enabled()
     speculative = [s for s in draft.suggestions if not s.enabled_by_default]
+    has_llm = any(getattr(s, "source", "rule") == "llm" for s in draft.suggestions)
+    provenance = "analysis + model" if has_llm else "analysis only · no model"
 
     parts = [
         '<div style="max-width:680px;border:0.5px solid #d3d1c7;border-radius:12px;'
@@ -49,7 +58,7 @@ def render_html(draft: SpecDraft) -> str:
         f'<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:2px;">'
         f'<span style="font-family:ui-monospace,Menlo,monospace;font-size:14px;color:#2c2c2a;">'
         f"spytial.suggest({cls_name})</span>"
-        f'<span style="font-size:11px;color:#888780;">analysis only · no model</span></div>',
+        f'<span style="font-size:11px;color:#888780;">{provenance}</span></div>',
         f'<div style="font-size:12px;color:#5f5e5a;margin-bottom:14px;">'
         f"{len(draft.suggestions)} proposed · "
         f"{len(enabled)} on by default · edit, then copy or .apply()</div>",

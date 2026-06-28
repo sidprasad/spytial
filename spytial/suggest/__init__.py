@@ -45,6 +45,7 @@ def suggest(
     instance: Any = None,
     registry: Optional[HeuristicRegistry] = None,
     enrich: bool = False,
+    enrich_model: Optional[str] = None,
 ) -> SpecDraft:
     """Analyze a class and return a :class:`SpecDraft` of proposed directives.
 
@@ -55,15 +56,19 @@ def suggest(
             can't recover.
         registry: an alternate :class:`HeuristicRegistry`; defaults to the global
             one populated with the built-in rules.
-        enrich: reserved for the optional LLM enrichment layer (semantic palettes,
-            unfamiliar domain naming). Not yet implemented.
+        enrich: opt into the optional LLM enrichment layer (the ``[suggest-llm]``
+            extra). It suggests the *spatial shape* of the structure — orientation
+            directions per structural field, ``cyclic`` for ring-like links, and
+            ``group`` for collections — filling the gap where the deterministic rules
+            fall back to a flat ``below`` for fields outside their name vocabulary.
+            The model only chooses the shape; spytial supplies the (render-verified)
+            selector from the field, so this stays schema-level and needs no
+            instance. Enriched rows are tagged ``source="llm"`` and stay off by
+            default — candidates you pick. Degrades to the static draft (with a note)
+            if ``llm`` isn't installed or no model is configured — never raises.
+        enrich_model: an ``llm`` model id (e.g. ``"claude-sonnet-4-6"``); defaults
+            to your configured ``llm`` default model. Ignored unless ``enrich``.
     """
-    if enrich:
-        raise NotImplementedError(
-            "LLM enrichment is not implemented yet. The static analyzer needs no "
-            "extra dependencies; when enrichment lands it will live behind the "
-            "'spytial_diagramming[suggest-llm]' extra."
-        )
     if isinstance(target, type):
         cls = target
     else:
@@ -73,4 +78,9 @@ def suggest(
 
     reg = registry if registry is not None else DEFAULT_REGISTRY
     class_info = build_class_info(cls, instance=instance)
-    return build_draft(class_info, reg)
+    draft = build_draft(class_info, reg)
+    if enrich:
+        from ._enrich import enrich_draft
+
+        draft = enrich_draft(draft, class_info, model=enrich_model)
+    return draft

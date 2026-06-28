@@ -9,11 +9,13 @@ path the introspector has to handle.
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import List, Optional
 
 import spytial
+import spytial.suggest._enrich as _enrich_mod
 from spytial.suggest import (
     HeuristicRegistry,
     Suggestion,
@@ -594,3 +596,197 @@ def test_custom_registry_is_isolated_from_default():
     # nothing registered -> nothing suggested, proving the default registry
     # didn't leak in.
     assert draft.suggestions == []
+
+
+# --------------------------------------------------------------------------- #
+# 7. Optional LLM enrichment (mocked — never touches a network or the llm dep)
+# --------------------------------------------------------------------------- #
+
+
+class _FakeResponse:
+    def __init__(self, payload):
+        self._payload = payload
+
+    def text(self):
+        return json.dumps(self._payload)
+
+
+class _FakeModel:
+    def __init__(self, payload, calls=None):
+        self._payload = payload
+        self._calls = calls
+
+    def prompt(self, prompt, schema=None):
+        if self._calls is not None:
+            self._calls.append({"prompt": prompt, "schema": schema})
+        return _FakeResponse(self._payload)
+
+
+def _fake_llm(payload, calls=None, seen_model=None):
+    class _LLM:
+        @staticmethod
+        def get_model(name=None):
+            if seen_model is not None:
+                seen_model.append(name)
+            return _FakeModel(payload, calls)
+
+    return _LLM
+
+
+def _llm_rows(draft):
+    return [s for s in draft.suggestions if s.source == "llm"]
+
+
+def _of(draft, directive):
+    return [
+        s for s in draft.suggestions if s.directive == directive and s.source == "llm"
+    ]
+
+
+# An unfamiliar-named structure: `escalation` is a single self-ref pointer whose
+# name is outside the built-in vocabulary (the rules only manage a flat 'below'),
+# and `related` is a self-ref collection. Both are read statically — no instance.
+@dataclass
+class Ticket:
+    id: int = 0
+    escalation: Optional["Ticket"] = None
+    related: List["Ticket"] = field(default_factory=list)
+
+
+def _shape(field, constraint, **extra):
+    return {"field": field, "constraint": constraint, "why": "test", **extra}
+
+
+def test_enrich_missing_llm_degrades_with_note(monkeypatch):
+    # `llm` not installed is the real default; assert a clean no-op + a note.
+    monkeypatch.setattr(_enrich_mod, "_import_llm", lambda: None)
+    draft = suggest(Ticket, enrich=True)
+    assert not _llm_rows(draft)
+    assert any("suggest-llm" in n for n in draft.notes)
+
+
+def test_enrich_orientation_for_unfamiliar_field(monkeypatch):
+    # The model picks a direction (above); spytial supplies the field-form selector.
+    payload = {"shapes": [_shape("escalation", "orientation", directions=["above"])]}
+    monkeypatch.setattr(_enrich_mod, "_import_llm", lambda: _fake_llm(payload))
+    draft = suggest(Ticket, enrich=True)
+    assert any(
+        s.kwargs == {"selector": _edge("escalation"), "directions": ["above"]}
+        and s.source == "llm"
+        and not s.enabled_by_default
+        for s in _of(draft, "orientation")
+    )
+
+
+def test_enrich_orientation_over_container_uses_children_selector(monkeypatch):
+    payload = {"shapes": [_shape("related", "orientation", directions=["right"])]}
+    monkeypatch.setattr(_enrich_mod, "_import_llm", lambda: _fake_llm(payload))
+    draft = suggest(Ticket, enrich=True)
+    # The derived (parent, child) edge carries source_field=None — matching
+    # rules.child_container — so it de-dups and groups like the deterministic one.
+    assert any(
+        s.kwargs
+        == {"selector": _child_edge("Ticket", "related"), "directions": ["right"]}
+        and s.source_field is None
+        for s in _of(draft, "orientation")
+    )
+
+
+def test_enrich_container_orientation_dedups_against_deterministic(monkeypatch):
+    # The rules already orient `related` children below (derived edge, source_field
+    # None); an identical model suggestion must collapse, not slip past _key().
+    payload = {"shapes": [_shape("related", "orientation", directions=["below"])]}
+    monkeypatch.setattr(_enrich_mod, "_import_llm", lambda: _fake_llm(payload))
+    assert not _of(suggest(Ticket, enrich=True), "orientation")
+
+
+def test_enrich_cyclic_over_single_pointer(monkeypatch):
+    payload = {"shapes": [_shape("nxt", "cyclic", direction="clockwise")]}
+    monkeypatch.setattr(_enrich_mod, "_import_llm", lambda: _fake_llm(payload))
+    draft = suggest(LinkedNode, enrich=True)
+    assert any(
+        s.kwargs == {"selector": _edge("nxt"), "direction": "clockwise"}
+        for s in _of(draft, "cyclic")
+    )
+
+
+def test_enrich_group_only_for_containers(monkeypatch):
+    # group on a scalar pointer is dropped; on a collection it emits the
+    # field-based group form.
+    payload = {"shapes": [_shape("escalation", "group"), _shape("related", "group")]}
+    monkeypatch.setattr(_enrich_mod, "_import_llm", lambda: _fake_llm(payload))
+    draft = suggest(Ticket, enrich=True)
+    assert [s.kwargs for s in _of(draft, "group")] == [
+        {"field": "related", "groupOn": 0, "addToGroup": 1}
+    ]
+
+
+def test_enrich_rejects_unknown_field(monkeypatch):
+    # A field we never analyzed can't be targeted — so the model can't drive a
+    # selector for something off-schema.
+    payload = {"shapes": [_shape("nope", "orientation", directions=["below"])]}
+    monkeypatch.setattr(_enrich_mod, "_import_llm", lambda: _fake_llm(payload))
+    assert not _llm_rows(suggest(Ticket, enrich=True))
+
+
+def test_enrich_filters_out_of_vocab_directions(monkeypatch):
+    payload = {
+        "shapes": [
+            _shape("escalation", "orientation", directions=["sideways", "above"])
+        ]
+    }
+    monkeypatch.setattr(_enrich_mod, "_import_llm", lambda: _fake_llm(payload))
+    draft = suggest(Ticket, enrich=True)
+    assert any(s.kwargs["directions"] == ["above"] for s in _of(draft, "orientation"))
+
+
+def test_enrich_dedups_against_deterministic(monkeypatch):
+    # The rules already orient `escalation` below; an identical model suggestion is
+    # not added a second time.
+    payload = {"shapes": [_shape("escalation", "orientation", directions=["below"])]}
+    monkeypatch.setattr(_enrich_mod, "_import_llm", lambda: _fake_llm(payload))
+    assert not _of(suggest(Ticket, enrich=True), "orientation")
+
+
+def test_enrich_works_at_type_level_without_instance(monkeypatch):
+    payload = {"shapes": [_shape("escalation", "orientation", directions=["above"])]}
+    monkeypatch.setattr(_enrich_mod, "_import_llm", lambda: _fake_llm(payload))
+    assert _of(suggest(Ticket, enrich=True), "orientation")  # no instance= needed
+
+
+def test_enrich_no_structural_fields_never_calls_model(monkeypatch):
+    calls = []
+    monkeypatch.setattr(
+        _enrich_mod, "_import_llm", lambda: _fake_llm({"shapes": []}, calls)
+    )
+    suggest(Point, enrich=True)  # only scalars — nothing structural to shape
+    assert calls == []
+
+
+def test_enrich_bad_response_degrades(monkeypatch):
+    class _BadModel:
+        def prompt(self, prompt, schema=None):
+            class _R:
+                def text(self):
+                    return "not json {"
+
+            return _R()
+
+    class _LLM:
+        @staticmethod
+        def get_model(name=None):
+            return _BadModel()
+
+    monkeypatch.setattr(_enrich_mod, "_import_llm", lambda: _LLM)
+    draft = suggest(Ticket, enrich=True)
+    assert not _llm_rows(draft)  # never raises; degrades to the static draft
+    assert any("shape enrichment skipped" in n for n in draft.notes)
+
+
+def test_enrich_passes_through_model_id(monkeypatch):
+    seen = []
+    monkeypatch.setattr(
+        _enrich_mod, "_import_llm", lambda: _fake_llm({"shapes": []}, seen_model=seen)
+    )
+    suggest(Ticket, enrich=True, enrich_model="claude-x")
+    assert seen == ["claude-x"]

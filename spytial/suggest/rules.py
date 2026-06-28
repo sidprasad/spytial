@@ -52,6 +52,20 @@ _PALETTE = [
 ]
 
 
+def enum_member_selector(type_name: str, field_name: str, member: str) -> str:
+    """Selector matching atoms whose enum ``field`` equals ``member``.
+
+    An Enum member relationalizes to an atom whose display label is not the member
+    name, so ``@:(x.field)`` won't match it — join through the member's ``name``
+    relation: ``@:(x.field.name)`` reads the ``'RED'``/``'BLACK'`` string atom.
+
+    Factored out (rather than inlined in :func:`enum_color`) so this exact, render-
+    verified form lives in one place — reusable by custom heuristics or tooling that
+    needs to match an enum member.
+    """
+    return "{ x : %s | @:(x.%s.name) = %s }" % (type_name, field_name, member)
+
+
 def _self_ref_names(ci: ClassInfo) -> set:
     # Private fields are skipped by the relationalizers, so their edges never
     # render — exclude them so no structural rule targets a missing relation.
@@ -334,10 +348,7 @@ def enum_color(field: FieldInfo, ci: ClassInfo) -> List[Suggestion]:
     out: List[Suggestion] = []
     for i, member in enumerate(field.enum_members):
         color = _PALETTE[i % len(_PALETTE)]
-        # An Enum member relationalizes to an atom whose display label is not the
-        # member name, so @:(x.field) won't match it — join through the member's
-        # `name` relation: @:(x.field.name) reads the 'RED'/'BLACK' string atom.
-        selector = "{ x : %s | @:(x.%s.name) = %s }" % (type_name, field.name, member)
+        selector = enum_member_selector(type_name, field.name, member)
         out.append(
             Suggestion(
                 "atomColor",

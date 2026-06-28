@@ -61,6 +61,7 @@ class Suggestion:
     rationale: str = ""  # human-readable "why" — teaches the directive language
     source_field: Optional[str] = None
     enabled_by_default: Optional[bool] = None
+    source: str = "rule"  # 'rule' (deterministic) | 'llm' (model-enriched value)
 
     def __post_init__(self) -> None:
         if self.enabled_by_default is None:
