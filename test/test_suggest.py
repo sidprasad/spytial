@@ -22,7 +22,7 @@ from spytial.suggest import (
     build_class_info,
     suggest,
 )
-from spytial.suggest.rules import _LIST_HIDE, enum_member_selector
+from spytial.suggest.rules import _LIST_HIDE
 
 
 # --------------------------------------------------------------------------- #
@@ -633,77 +633,123 @@ def _fake_llm(payload, calls=None, seen_model=None):
     return _LLM
 
 
-def _atomcolors(draft):
-    return [s for s in draft.suggestions if s.directive == "atomColor"]
+def _llm_rows(draft):
+    return [s for s in draft.suggestions if s.source == "llm"]
+
+
+def _of(draft, directive):
+    return [
+        s for s in draft.suggestions if s.directive == directive and s.source == "llm"
+    ]
+
+
+# An unfamiliar-named structure: `escalation` is a single self-ref pointer whose
+# name is outside the built-in vocabulary (the rules only manage a flat 'below'),
+# and `related` is a self-ref collection. Both are read statically — no instance.
+@dataclass
+class Ticket:
+    id: int = 0
+    escalation: Optional["Ticket"] = None
+    related: List["Ticket"] = field(default_factory=list)
+
+
+def _shape(field, constraint, **extra):
+    return {"field": field, "constraint": constraint, "why": "test", **extra}
 
 
 def test_enrich_missing_llm_degrades_with_note(monkeypatch):
-    # `llm` not installed is the real default; assert a clean no-op + a note that
-    # points at the extra, rather than a crash.
+    # `llm` not installed is the real default; assert a clean no-op + a note.
     monkeypatch.setattr(_enrich_mod, "_import_llm", lambda: None)
-    base = _atomcolors(suggest(RBNode, instance=_rb_instance()))
-    draft = suggest(RBNode, instance=_rb_instance(), enrich=True)
-    assert [s.kwargs["value"] for s in _atomcolors(draft)] == [
-        s.kwargs["value"] for s in base
-    ]
-    assert all(s.source == "rule" for s in _atomcolors(draft))
+    draft = suggest(Ticket, enrich=True)
+    assert not _llm_rows(draft)
     assert any("suggest-llm" in n for n in draft.notes)
 
 
-def test_enrich_palette_swaps_in_semantic_colors(monkeypatch):
+def test_enrich_orientation_for_unfamiliar_field(monkeypatch):
+    # The model picks a direction (above); spytial supplies the field-form selector.
+    payload = {"shapes": [_shape("escalation", "orientation", directions=["above"])]}
+    monkeypatch.setattr(_enrich_mod, "_import_llm", lambda: _fake_llm(payload))
+    draft = suggest(Ticket, enrich=True)
+    assert any(
+        s.kwargs == {"selector": _edge("escalation"), "directions": ["above"]}
+        and s.source == "llm"
+        and not s.enabled_by_default
+        for s in _of(draft, "orientation")
+    )
+
+
+def test_enrich_orientation_over_container_uses_children_selector(monkeypatch):
+    payload = {"shapes": [_shape("related", "orientation", directions=["right"])]}
+    monkeypatch.setattr(_enrich_mod, "_import_llm", lambda: _fake_llm(payload))
+    draft = suggest(Ticket, enrich=True)
+    assert any(
+        s.kwargs
+        == {"selector": _child_edge("Ticket", "related"), "directions": ["right"]}
+        for s in _of(draft, "orientation")
+    )
+
+
+def test_enrich_cyclic_over_single_pointer(monkeypatch):
+    payload = {"shapes": [_shape("nxt", "cyclic", direction="clockwise")]}
+    monkeypatch.setattr(_enrich_mod, "_import_llm", lambda: _fake_llm(payload))
+    draft = suggest(LinkedNode, enrich=True)
+    assert any(
+        s.kwargs == {"selector": _edge("nxt"), "direction": "clockwise"}
+        for s in _of(draft, "cyclic")
+    )
+
+
+def test_enrich_group_only_for_containers(monkeypatch):
+    # group on a scalar pointer is dropped; on a collection it emits the
+    # field-based group form.
+    payload = {"shapes": [_shape("escalation", "group"), _shape("related", "group")]}
+    monkeypatch.setattr(_enrich_mod, "_import_llm", lambda: _fake_llm(payload))
+    draft = suggest(Ticket, enrich=True)
+    assert [s.kwargs for s in _of(draft, "group")] == [
+        {"field": "related", "groupOn": 0, "addToGroup": 1}
+    ]
+
+
+def test_enrich_rejects_unknown_field(monkeypatch):
+    # A field we never analyzed can't be targeted — so the model can't drive a
+    # selector for something off-schema.
+    payload = {"shapes": [_shape("nope", "orientation", directions=["below"])]}
+    monkeypatch.setattr(_enrich_mod, "_import_llm", lambda: _fake_llm(payload))
+    assert not _llm_rows(suggest(Ticket, enrich=True))
+
+
+def test_enrich_filters_out_of_vocab_directions(monkeypatch):
     payload = {
-        "assignments": [
-            {"field": "color", "member": "RED", "color": "red"},
-            {"field": "color", "member": "BLACK", "color": "#222"},
+        "shapes": [
+            _shape("escalation", "orientation", directions=["sideways", "above"])
         ]
     }
     monkeypatch.setattr(_enrich_mod, "_import_llm", lambda: _fake_llm(payload))
-    draft = suggest(RBNode, instance=_rb_instance(), enrich=True)
-    by_sel = {s.kwargs["selector"]: s.kwargs["value"] for s in _atomcolors(draft)}
-    assert by_sel[enum_member_selector("RBNode", "color", "RED")] == "red"
-    assert by_sel[enum_member_selector("RBNode", "color", "BLACK")] == "#222"
-    # model-sourced, still off by default (you pick), and the selectors are exactly
-    # the verified ones the deterministic rule generated — the model only colors.
-    assert _atomcolors(draft) and all(s.source == "llm" for s in _atomcolors(draft))
-    assert all(not s.enabled_by_default for s in _atomcolors(draft))
-    base = _atomcolors(suggest(RBNode, instance=_rb_instance()))
-    assert {s.kwargs["selector"] for s in base} == set(by_sel)
+    draft = suggest(Ticket, enrich=True)
+    assert any(s.kwargs["directions"] == ["above"] for s in _of(draft, "orientation"))
+
+
+def test_enrich_dedups_against_deterministic(monkeypatch):
+    # The rules already orient `escalation` below; an identical model suggestion is
+    # not added a second time.
+    payload = {"shapes": [_shape("escalation", "orientation", directions=["below"])]}
+    monkeypatch.setattr(_enrich_mod, "_import_llm", lambda: _fake_llm(payload))
+    assert not _of(suggest(Ticket, enrich=True), "orientation")
 
 
 def test_enrich_works_at_type_level_without_instance(monkeypatch):
-    # The headline property: enrichment needs no instance — enum members are read
-    # statically, so suggest(cls, enrich=True) enriches a bare class.
-    payload = {"assignments": [{"field": "color", "member": "RED", "color": "red"}]}
+    payload = {"shapes": [_shape("escalation", "orientation", directions=["above"])]}
     monkeypatch.setattr(_enrich_mod, "_import_llm", lambda: _fake_llm(payload))
-    draft = suggest(RBNode, enrich=True)
-    reds = [s for s in _atomcolors(draft) if s.kwargs["value"] == "red"]
-    assert reds and reds[0].source == "llm"
+    assert _of(suggest(Ticket, enrich=True), "orientation")  # no instance= needed
 
 
-def test_enrich_no_enum_fields_never_calls_model(monkeypatch):
+def test_enrich_no_structural_fields_never_calls_model(monkeypatch):
     calls = []
     monkeypatch.setattr(
-        _enrich_mod, "_import_llm", lambda: _fake_llm({"assignments": []}, calls)
+        _enrich_mod, "_import_llm", lambda: _fake_llm({"shapes": []}, calls)
     )
-    draft = suggest(BTreeNode, enrich=True)  # no enum field anywhere
-    assert calls == []  # abstain — don't spend a model call when there's nothing
-    assert not _atomcolors(draft)
-
-
-def test_enrich_ignores_unrequested_field_member(monkeypatch):
-    # A model that names a field/member we never offered must not inject a row
-    # (and therefore can't smuggle in a selector for something we didn't analyze).
-    payload = {
-        "assignments": [
-            {"field": "color", "member": "RED", "color": "red"},
-            {"field": "bogus", "member": "X", "color": "lime"},
-            {"field": "color", "member": "NOTAMEMBER", "color": "lime"},
-        ]
-    }
-    monkeypatch.setattr(_enrich_mod, "_import_llm", lambda: _fake_llm(payload))
-    draft = suggest(RBNode, instance=_rb_instance(), enrich=True)
-    values = {s.kwargs["value"] for s in _atomcolors(draft)}
-    assert "red" in values and "lime" not in values
+    suggest(Point, enrich=True)  # only scalars — nothing structural to shape
+    assert calls == []
 
 
 def test_enrich_bad_response_degrades(monkeypatch):
@@ -721,21 +767,15 @@ def test_enrich_bad_response_degrades(monkeypatch):
             return _BadModel()
 
     monkeypatch.setattr(_enrich_mod, "_import_llm", lambda: _LLM)
-    base = _atomcolors(suggest(RBNode, instance=_rb_instance()))
-    draft = suggest(RBNode, instance=_rb_instance(), enrich=True)
-    # falls back to the built-in palette, records a note, and never raises
-    assert [s.kwargs["value"] for s in _atomcolors(draft)] == [
-        s.kwargs["value"] for s in base
-    ]
-    assert any("enrichment skipped" in n for n in draft.notes)
+    draft = suggest(Ticket, enrich=True)
+    assert not _llm_rows(draft)  # never raises; degrades to the static draft
+    assert any("shape enrichment skipped" in n for n in draft.notes)
 
 
 def test_enrich_passes_through_model_id(monkeypatch):
     seen = []
     monkeypatch.setattr(
-        _enrich_mod,
-        "_import_llm",
-        lambda: _fake_llm({"assignments": []}, seen_model=seen),
+        _enrich_mod, "_import_llm", lambda: _fake_llm({"shapes": []}, seen_model=seen)
     )
-    suggest(RBNode, instance=_rb_instance(), enrich=True, enrich_model="claude-x")
+    suggest(Ticket, enrich=True, enrich_model="claude-x")
     assert seen == ["claude-x"]

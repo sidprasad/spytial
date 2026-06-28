@@ -116,9 +116,11 @@ def color_by_status(field, cls_info):
 
 ## Optional: LLM enrichment
 
-The deterministic core gets the *structure* right but punts on taste — enum
-colors come from an arbitrary built-in palette. The optional enrichment layer
-fills those in semantically, behind the `[suggest-llm]` extra:
+The deterministic rules key off a fixed name vocabulary — `left`/`right`,
+`next`/`prev`, `parent`/`children` — and fall back to a flat `below` for any
+self-reference they don't recognize. The optional enrichment layer asks a model
+to suggest the *spatial shape* of those fields instead, behind the
+`[suggest-llm]` extra:
 
 ```bash
 pip install "spytial_diagramming[suggest-llm]"
@@ -127,39 +129,42 @@ llm keys set anthropic           # llm owns key management; spytial doesn't
 ```
 
 ```python
-draft = suggest(RBNode, enrich=True)              # uses your default llm model
-draft = suggest(RBNode, enrich=True, enrich_model="claude-sonnet-4-6")
+draft = suggest(Ticket, enrich=True)              # uses your default llm model
+draft = suggest(Ticket, enrich=True, enrich_model="claude-sonnet-4-6")
 ```
 
 It depends on [`llm`](https://llm.datasette.io/) (Simon Willison's) rather than a
 single provider SDK, so you choose the model — Claude, GPT, Gemini, a local model
 via Ollama — and `llm` handles the keys.
 
-The design is deliberately conservative, in one sentence: **the model never
-writes a selector.** Spytial selectors are Alloy/Forge relational expressions; a
-model gets them subtly wrong and there is no in-Python validator to catch it (the
-engine runs in the browser). So enrichment only substitutes *values* into the
-selectors the deterministic rules already generated and render-verified — today,
-one color per enum member. Consequences:
+It suggests **shape**: an `orientation` direction per structural field, `cyclic`
+for ring-like links, and `group` for collections. So a field named `escalation`
+— which the rules can only lay out `below` — gets a model-proposed `above`,
+because the model reads the name. The key line: **the model picks the shape, not
+the selector.** It chooses a direction from a fixed vocabulary; spytial builds the
+selector from the field, reusing the same render-verified forms the deterministic
+rules emit. That's what keeps it schema-level and safe:
 
-- **Type-level first.** Enum members are read statically, so `enrich=True` needs
+- **Type-level first.** It reasons over the class's fields, so `enrich=True` needs
   no instance.
 - **You pick.** Enriched rows are tagged `source="llm"` (a `model` chip in the
-  notebook panel) and stay **off by default** — they are candidates, never
-  applied behind your back.
+  notebook panel) and stay **off by default** — candidates beside the
+  deterministic ones, never applied behind your back.
 - **It can't break `suggest()`.** No `llm` installed, no model configured, or a
   malformed response each degrade to the static draft with a note in
-  `draft.notes` — never an exception.
+  `draft.notes` — never an exception. Choices that name an unknown field or an
+  out-of-vocabulary direction are dropped.
 
-Unfamiliar domain naming and freeform structural selectors (the heap) are *not*
-done here — that needs the datum schema, an instance, and render-verification,
-and is left for a later, hard-gated tier.
+Letting the model write actual selectors is a separate, future extension: a
+selector can only be *validated* by evaluating it over a data instance (the
+engine has no schema-only mode), so that tier belongs with a **set of example
+instances** to check against — not here, where there may be no instance at all.
 
 ## Limits
 
 `suggest` infers structure from fields and references. It cannot recover
 structure that lives in *computation* — an array-backed heap whose tree is
 implied by index arithmetic, for example — and it will say so in `draft.notes`
-rather than invent edges. Unfamiliar domain naming is still left to you (or the
-enrichment tier above); the deterministic core aims to get the structure right
-and the rest close enough to edit.
+rather than invent edges. The deterministic core aims to get the structure right
+and the rest close enough to edit; the [enrichment tier](#optional-llm-enrichment)
+above helps with the spatial shape of unfamiliar fields.

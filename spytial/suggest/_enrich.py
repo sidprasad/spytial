@@ -1,32 +1,45 @@
-"""Optional LLM *enrichment* for ``spytial.suggest`` (the ``[suggest-llm]`` extra).
+"""Optional LLM *shape* enrichment for ``spytial.suggest`` (the ``[suggest-llm]``
+extra).
 
-Dormant unless you call ``suggest(..., enrich=True)``. The deterministic analyzer
-needs none of this.
+Dormant unless you call ``suggest(..., enrich=True)``. This tier is **schema-level**:
+it reasons over the class's structural fields, not a data instance, so it needs no
+datum — only the model call.
 
-The cardinal rule here: **the model never writes a relational selector.** Spytial
-selectors are Alloy/Forge relational expressions (``{ p : T, c : T | c in p.left }``,
-``left - (univ -> NoneType)``, ``@:(x.color.name) = RED``) — easy for a model to get
-subtly wrong, and there is no in-Python validator to catch it (spytial-core runs in
-the browser). So enrichment only fills *values* into directives whose selectors the
-deterministic rules already generated and render-verified. Today that is one thing:
-semantic colors for enum members, replacing the arbitrary built-in palette. The
-worst a bad model response can do is propose an ugly color — never an illegal
-selector.
+What it does: suggest the *spatial shape* of a structure — how each structural
+field orients in space (``orientation`` directions), whether a self-reference forms
+a ring (``cyclic``), and whether a collection's elements should be boxed together
+(``group``). This is exactly where the deterministic rules are weakest: they key off
+a fixed name vocabulary (left/right/next/prev/parent/children) and fall back to a
+flat ``below`` for anything else. A model reads ``escalation`` / ``downstream`` /
+``reportsTo`` and proposes a direction that matches the meaning.
 
-Everything degrades to the static draft. No ``llm`` installed, no model/key
-configured, or a malformed response each append a note and return the draft
-unchanged — enrichment can never crash ``suggest()``. And because enriched rows are
-tagged ``source="llm"`` and stay off by default, they are *candidates you pick*, not
-directives applied behind your back.
+What it deliberately does **not** do: write a selector. Spytial selectors are
+Alloy/Forge relational expressions, and validating one requires a datum the schema
+doesn't have — the evaluator only runs over a data instance. (Letting the model
+author selectors, checked against real instances, is a separate, instance-set-based
+extension.) So here the model only chooses the *shape*; spytial supplies the
+selector from the field, reusing the same render-verified forms the deterministic
+rules emit. That keeps the tier safe by construction at the type level.
+
+Enriched rows are tagged ``source="llm"``, stay off by default (you pick), and every
+failure path — no ``llm`` installed, no model configured, malformed output — degrades
+to the static draft with a note. Enrichment can never crash ``suggest()``.
 """
 
 from __future__ import annotations
 
 import json
-from typing import Dict, List, Optional
+from typing import List, Optional
 
 from ._model import ClassInfo, SpecDraft, Suggestion
-from .rules import enum_member_selector
+from .rules import _children_selector, _edge_selector
+
+# Render-verified spatial vocabularies the model picks from. Validated in Python
+# (not just declared in the schema) so a provider that ignores nested enums can't
+# slip an unknown token into a directive.
+_ORIENT_DIRS = ("below", "above", "left", "right", "directlyRight", "directlyLeft")
+_CYCLIC_DIRS = ("clockwise", "counterclockwise")
+_CONTAINERS = ("list", "tuple", "set", "dict")
 
 _INSTALL_HINT = (
     "enrich=True needs the optional 'llm' library. Install it with "
@@ -35,47 +48,57 @@ _INSTALL_HINT = (
     "llm provider plugin). Returning the static draft unchanged."
 )
 
-# A fixed-shape schema (a flat list, not an open-ended map) so it round-trips
-# across llm provider plugins whose structured-output support rejects
-# ``additionalProperties``.
-_PALETTE_SCHEMA = {
+_SHAPE_SCHEMA = {
     "type": "object",
     "properties": {
-        "assignments": {
+        "shapes": {
             "type": "array",
             "items": {
                 "type": "object",
                 "properties": {
                     "field": {"type": "string"},
-                    "member": {"type": "string"},
-                    "color": {
+                    "constraint": {
                         "type": "string",
-                        "description": (
-                            "A CSS color name or #hex. Empty string if no "
-                            "conventional color fits."
-                        ),
+                        "enum": ["orientation", "cyclic", "group", "none"],
                     },
+                    "directions": {
+                        "type": "array",
+                        "items": {"type": "string", "enum": list(_ORIENT_DIRS)},
+                    },
+                    "direction": {"type": "string", "enum": list(_CYCLIC_DIRS)},
+                    "why": {"type": "string"},
                 },
-                "required": ["field", "member", "color"],
+                "required": ["field", "constraint", "why"],
             },
         }
     },
-    "required": ["assignments"],
+    "required": ["shapes"],
 }
 
-_PALETTE_PROMPT = """\
-You choose display colors for enum members in a structure diagram. You ONLY choose \
-colors — never write code, selectors, or any other text. Prefer conventional \
-associations: RED->red, BLACK->#222, GREEN->seagreen, BLUE->steelblue, \
-ACTIVE/OK/SUCCESS->seagreen, ERROR/FAIL->crimson, WARNING/PENDING->goldenrod, \
-INACTIVE/DISABLED->#999. If a member has no conventional color, return an empty \
-string for it and it will keep the default palette.
+_SHAPE_PROMPT = """\
+You suggest the spatial SHAPE of a data structure for a diagram — how each
+structural field lays out. You do NOT write selectors or code; you only pick a shape
+per field from a fixed vocabulary, and spytial draws the selector itself.
+
+For each structural field choose exactly one constraint:
+- orientation: the field is a directional edge. Give 1-2 directions from
+  [below, above, left, right, directlyRight, directlyLeft]. A tree child -> below;
+  a forward/"next" link -> right; a parent/back link -> above.
+- cyclic: the field forms a ring or cycle (circular list, ring buffer). Give a
+  direction (clockwise / counterclockwise). Only for single-pointer fields.
+- group: the field is a collection whose elements should be boxed together. Only
+  for container fields (list/tuple/set/dict).
+- none: no clear spatial meaning. This is the preferred answer when unsure.
+
+Read the field NAME for meaning: reportsTo/manager/escalation -> above;
+downstream/child -> below or right; sibling/peer -> right. When in doubt, choose
+none — suggest less, not more.
 
 Class: {cls}
-Enum fields and their members:
+Structural fields:
 {fields}
 
-Return exactly one assignment per (field, member) pair listed above."""
+Return one entry per field listed above."""
 
 
 def _import_llm():
@@ -88,14 +111,18 @@ def _import_llm():
         return None
 
 
+def _structural_fields(ci: ClassInfo) -> List:
+    """Non-private self-referential fields — the structural edges shape applies to."""
+    return [f for f in ci.fields if f.is_self_ref and not f.is_private]
+
+
 def enrich_draft(
     draft: SpecDraft, class_info: ClassInfo, *, model: Optional[str] = None
 ) -> SpecDraft:
-    """Augment a :class:`SpecDraft` with model-chosen values; returns the draft.
+    """Augment a :class:`SpecDraft` with model-suggested spatial shape.
 
-    Any failure — missing dependency, no configured model, malformed output —
-    leaves the deterministic suggestions untouched and records a note in
-    ``draft.notes``. The draft is mutated in place and also returned.
+    Returns the same draft, mutated in place. Any failure leaves the deterministic
+    suggestions untouched and records a note in ``draft.notes``.
     """
     llm = _import_llm()
     if llm is None:
@@ -111,77 +138,105 @@ def enrich_draft(
         return draft
 
     try:
-        _enrich_palette(draft, class_info, m)
+        _enrich_shape(draft, class_info, m)
     except Exception as exc:  # noqa: BLE001 — never crash suggest() on enrichment
-        draft.notes.append(f"enrich=True: color enrichment skipped ({exc}).")
+        draft.notes.append(f"enrich=True: shape enrichment skipped ({exc}).")
     return draft
 
 
-def _enrich_palette(draft: SpecDraft, ci: ClassInfo, model) -> None:
-    """Replace the built-in palette guesses for enum fields with semantic colors."""
-    enum_fields: Dict[str, List[str]] = {
-        f.name: list(f.enum_members)
-        for f in ci.fields
-        if f.enum_members and not f.is_private
-    }
-    if not enum_fields:
-        return  # nothing to color; don't spend a model call
+def _enrich_shape(draft: SpecDraft, ci: ClassInfo, model) -> None:
+    fields = _structural_fields(ci)
+    if not fields:
+        return  # nothing structural to shape; don't spend a model call
 
-    colors = _ask_palette(model, ci.cls.__name__, enum_fields)
-    if not colors:
-        return
-
-    type_name = ci.cls.__name__
-    draft.suggestions = [
-        s
-        for s in draft.suggestions
-        if not (s.directive == "atomColor" and s.source_field in enum_fields)
-    ]
-    for field_name, members in enum_fields.items():
-        chosen = colors.get(field_name, {})
-        for member in members:
-            color = chosen.get(member)
-            if not color:
-                continue  # no conventional color — keep the default (drop the row)
-            draft.suggestions.append(
-                Suggestion(
-                    "atomColor",
-                    {
-                        "selector": enum_member_selector(type_name, field_name, member),
-                        "value": color,
-                    },
-                    "medium",
-                    f"{field_name} = {member} -> {color} (semantic, model-chosen)",
-                    field_name,
-                    enabled_by_default=False,
-                    source="llm",
-                )
-            )
+    shapes = _ask_shapes(model, ci, fields)
+    _apply_shapes(draft, ci, fields, shapes)
 
 
-def _ask_palette(
-    model, cls_name: str, enum_fields: Dict[str, List[str]]
-) -> Dict[str, Dict[str, str]]:
-    """Prompt the model for one color per (field, member); validate the response.
-
-    Returns ``{field: {member: color}}``, keeping only non-empty colors for
-    (field, member) pairs we actually asked about — so a model can't smuggle in a
-    field/member (and therefore a selector) we never offered.
-    """
-    field_lines = "\n".join(
-        f"- {field}: {', '.join(members)}" for field, members in enum_fields.items()
-    )
-    prompt = _PALETTE_PROMPT.format(cls=cls_name, fields=field_lines)
-    response = model.prompt(prompt, schema=_PALETTE_SCHEMA)
+def _ask_shapes(model, ci: ClassInfo, fields: List) -> List[dict]:
+    """Prompt the model for a shape per structural field; return the raw list."""
+    lines = []
+    for f in fields:
+        kind = f.container if f.container else "single pointer"
+        nullable = "yes" if f.has_none_default else "no"
+        lines.append(
+            f"- {f.name}: type={f.type_repr or '?'}, kind={kind}, nullable={nullable}"
+        )
+    prompt = _SHAPE_PROMPT.format(cls=ci.cls.__name__, fields="\n".join(lines))
+    response = model.prompt(prompt, schema=_SHAPE_SCHEMA)
     data = json.loads(response.text())
+    shapes = data.get("shapes", [])
+    return [s for s in shapes if isinstance(s, dict)]
 
-    out: Dict[str, Dict[str, str]] = {}
-    for assignment in data.get("assignments", []):
-        if not isinstance(assignment, dict):
+
+def _apply_shapes(draft: SpecDraft, ci: ClassInfo, fields: List, shapes: List) -> None:
+    """Turn validated shape choices into off-by-default, model-tagged suggestions.
+
+    Every selector is built by spytial from the field (the render-verified form the
+    deterministic rules use), never by the model. Choices that name an unknown field,
+    an out-of-vocabulary direction, or a constraint that doesn't fit the field's kind
+    are dropped — schema-level validation, no datum required.
+    """
+    by_name = {f.name: f for f in fields}
+    cls = ci.cls.__name__
+    seen = {_key(s) for s in draft.suggestions}
+
+    for sh in shapes:
+        f = by_name.get(sh.get("field"))
+        if f is None:
+            continue  # model named a field we didn't analyze — drop it
+        sug = _shape_to_suggestion(ci, cls, f, sh)
+        if sug is None:
             continue
-        field = assignment.get("field")
-        member = assignment.get("member")
-        color = str(assignment.get("color") or "").strip()
-        if color and field in enum_fields and member in enum_fields[field]:
-            out.setdefault(field, {})[member] = color
-    return out
+        key = _key(sug)
+        if key in seen:
+            continue  # don't duplicate a directive the deterministic rules emitted
+        seen.add(key)
+        draft.suggestions.append(sug)
+
+
+def _shape_to_suggestion(ci: ClassInfo, cls: str, f, sh: dict) -> Optional[Suggestion]:
+    kind = sh.get("constraint")
+    why = (sh.get("why") or "").strip()
+    rationale = f"{f.name}: {why}" if why else f"{f.name}: model-suggested shape"
+
+    if kind == "orientation":
+        dirs = [d for d in (sh.get("directions") or []) if d in _ORIENT_DIRS][:2]
+        if not dirs:
+            return None
+        if f.container in _CONTAINERS:
+            selector = _children_selector(cls, f.name, f.container)
+        else:
+            selector = _edge_selector(ci, f.name)
+        kwargs = {"selector": selector, "directions": dirs}
+    elif kind == "cyclic":
+        if f.container is not None:
+            return None  # a ring is over a single pointer, not a collection
+        direction = sh.get("direction")
+        if direction not in _CYCLIC_DIRS:
+            return None
+        kwargs = {"selector": _edge_selector(ci, f.name), "direction": direction}
+    elif kind == "group":
+        if f.container not in _CONTAINERS:
+            return None  # group boxes the elements of a collection
+        kwargs = {"field": f.name, "groupOn": 0, "addToGroup": 1}
+    else:
+        return None  # 'none' or anything unrecognized — abstain
+
+    return Suggestion(
+        kind,
+        kwargs,
+        "low",
+        rationale,
+        f.name,
+        enabled_by_default=False,
+        source="llm",
+    )
+
+
+def _key(s: Suggestion):
+    return (
+        s.directive,
+        s.source_field,
+        json.dumps(s.kwargs, sort_keys=True, default=str),
+    )

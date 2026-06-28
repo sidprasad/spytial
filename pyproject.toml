@@ -52,8 +52,9 @@ dev = [
 e2e = [
     "playwright>=1.40",
 ]
-# Optional LLM enrichment layer for spytial.suggest (semantic enum palettes today).
-# The static analyzer needs none of this — it is stdlib-only and the default path.
+# Optional LLM enrichment layer for spytial.suggest (spatial-shape suggestions:
+# orientation / cyclic / group over structural fields). The static analyzer needs
+# none of this — it is stdlib-only and the default path.
 # We depend on `llm` (Simon Willison's) rather than a single provider SDK: it is
 # provider-agnostic (Claude, GPT, Gemini, local Ollama via plugins) and owns key
 # management, so spytial stays unopinionated. Install a provider plugin separately,

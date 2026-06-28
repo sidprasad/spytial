@@ -57,11 +57,14 @@ def suggest(
         registry: an alternate :class:`HeuristicRegistry`; defaults to the global
             one populated with the built-in rules.
         enrich: opt into the optional LLM enrichment layer (the ``[suggest-llm]``
-            extra). It only *fills values* into selectors the deterministic rules
-            already generated — today, semantic colors for enum members in place of
-            the arbitrary built-in palette. The model never writes a selector;
-            enriched rows are tagged ``source="llm"`` and stay off by default, so
-            they are candidates you pick. Degrades to the static draft (with a note)
+            extra). It suggests the *spatial shape* of the structure — orientation
+            directions per structural field, ``cyclic`` for ring-like links, and
+            ``group`` for collections — filling the gap where the deterministic rules
+            fall back to a flat ``below`` for fields outside their name vocabulary.
+            The model only chooses the shape; spytial supplies the (render-verified)
+            selector from the field, so this stays schema-level and needs no
+            instance. Enriched rows are tagged ``source="llm"`` and stay off by
+            default — candidates you pick. Degrades to the static draft (with a note)
             if ``llm`` isn't installed or no model is configured — never raises.
         enrich_model: an ``llm`` model id (e.g. ``"claude-sonnet-4-6"``); defaults
             to your configured ``llm`` default model. Ignored unless ``enrich``.
