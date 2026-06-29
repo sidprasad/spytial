@@ -19,8 +19,9 @@ doesn't have. So here the model only chooses the *shape*; spytial supplies the
 selector from the field, reusing the same render-verified forms the deterministic
 rules emit. That keeps the tier safe by construction at the type level. Authoring
 *selectors* — for the relational cases this shape tier can't express — is the
-companion tier in :mod:`spytial.suggest._enrich_selectors`, which activates when an
-instance is available and validates every candidate by evaluating it over that datum.
+companion tier in :mod:`spytial.suggest._enrich_from_examples`, which activates when
+example instances are available and validates every candidate by evaluating it over
+each of them.
 
 Enriched rows are tagged ``source="llm"``, stay off by default (you pick), and every
 failure path — no ``llm`` installed, no model configured, malformed output — degrades
@@ -122,15 +123,16 @@ def enrich_draft(
     class_info: ClassInfo,
     *,
     model: Optional[str] = None,
-    instance: Any = None,
+    examples: Optional[List[Any]] = None,
 ) -> SpecDraft:
     """Augment a :class:`SpecDraft` with model-suggested spatial shape and selectors.
 
-    The schema-level *shape* tier always runs. When ``instance`` is provided, the
-    *selector* tier (:mod:`._enrich_selectors`) also runs — the model authors
-    selectors that are validated by evaluation over that instance. Returns the same
-    draft, mutated in place. Any failure leaves the deterministic suggestions
-    untouched and records a note in ``draft.notes`` — enrichment never raises.
+    The schema-level *shape* tier always runs. When ``examples`` (a list of instances)
+    is provided, the *selector* tier (:mod:`._enrich_from_examples`) also runs — the
+    model authors selectors that are validated by evaluation over every example.
+    Returns the same draft, mutated in place. Any failure leaves the deterministic
+    suggestions untouched and records a note in ``draft.notes`` — enrichment never
+    raises.
     """
     llm = _import_llm()
     if llm is None:
@@ -150,20 +152,21 @@ def enrich_draft(
     except Exception as exc:  # noqa: BLE001 — never crash suggest() on enrichment
         draft.notes.append(f"enrich=True: shape enrichment skipped ({exc}).")
 
-    # Tier-2: model-authored selectors, validated over a datum. Only runs with an
-    # instance to evaluate against; otherwise note (when there's structure it could
-    # have helped) and stay shape-only.
-    if instance is not None:
+    # Tier-2: model-authored selectors, validated by evaluation over example
+    # instances. Runs only with examples to evaluate against; otherwise note (when
+    # there's structure it could have helped) and stay shape-only.
+    if examples:
         try:
-            from . import _enrich_selectors
+            from . import _enrich_from_examples
 
-            _enrich_selectors.enrich_selectors(draft, class_info, m, instance)
+            _enrich_from_examples.enrich_from_examples(draft, class_info, m, examples)
         except Exception as exc:  # noqa: BLE001 — never crash suggest() on enrichment
             draft.notes.append(f"enrich=True: selector tier skipped ({exc}).")
     elif _structural_fields(class_info):
         draft.notes.append(
-            "enrich=True: pass an instance — suggest(obj) or suggest(Cls, instance=obj) — to also "
-            "get model-authored selectors validated against your data."
+            "enrich=True: pass examples — suggest(obj, enrich=True) or "
+            "suggest(Cls, examples=[obj], enrich=True) — to also get model-authored "
+            "selectors validated against your data."
         )
     return draft
 

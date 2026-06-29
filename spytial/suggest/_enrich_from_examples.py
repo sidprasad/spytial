@@ -1,30 +1,34 @@
-"""Tier-2 enrichment: LLM-*authored* selectors, validated by evaluation over a datum.
+"""Example-validated selectors for ``spytial.suggest`` (the tier-2 enrichment).
 
 The shape tier (:mod:`spytial.suggest._enrich`) reasons at the schema level — the
 model picks a spatial *shape* per field and spytial builds the selector. This tier
-goes further: the model authors the **selector expression** itself, for the cases
-the shape tier can't reach — an edge through a join or closure, an edge over an
-index/key relation (``list -> idx``, ``dict -> kv``, ``set -> contains``), a
-relation the field names don't reveal.
+goes further: the model **authors the selector expression** itself, and a candidate
+is admitted only if it holds up when *evaluated over example instances* — the
+relational cases the shape tier can't reach (an edge through a join or closure, an
+edge over an index/key relation, a relation the field names don't reveal).
 
-A model-authored selector is an Alloy/Forge expression that can only be trusted once
-it has been *evaluated*, so this tier is gated on a datum and the headless evaluator
-(:mod:`spytial.suggest._eval`). Every candidate is run over the instance; only those
-that parse, are non-empty, and have the arity the directive requires survive. They
-enter the draft as off-by-default, ``source="llm"`` candidates — the human still
-picks. Validating against real data is exactly what kills hallucinated relation
-names, arity errors, and selectors that resolve to nothing.
+This is selector suggestion **by example**. You supply one or more example instances
+(``suggest(obj, enrich=True)`` or ``suggest(Cls, examples=[a, b, ...], enrich=True)``);
+the model proposes selectors grounded in those instances' vocabulary, and only the
+ones that parse, are non-empty, and have the directive's arity **on every example**
+survive. Validating across a *set* of examples is what narrows the gap toward "correct
+on all data" — a selector that resolves consistently across several instances is far
+more trustworthy than one witnessed once.
 
-Activates only when ``enrich=True`` **and** an instance is available **and** the
-evaluator bridge is runnable. Any missing prerequisite records a note and falls back
-to the shape-only tier; this never raises into ``suggest()``.
+This is **LLM-authored, example-validated** — distinct from spytial-core's
+deterministic by-example *synthesizer* (``synthesizeSelector``): here the model writes
+the selector and the examples only validate it.
+
+Gated on the headless evaluator (:mod:`._eval`). Any missing prerequisite (no
+buildable datum, no evaluator) records a note and falls back to the shape-only tier;
+this never raises into ``suggest()``.
 """
 
 from __future__ import annotations
 
 import json
 import re
-from typing import List, Optional
+from typing import Callable, List, Optional
 
 from . import _eval
 from ._enrich import _ORIENT_DIRS, _structural_fields
@@ -62,9 +66,10 @@ _SELECTOR_SCHEMA = {
 }
 
 _SELECTOR_PROMPT = """\
-You author spytial SELECTORS for a diagram of one specific data instance. A selector
-is a small relational expression in an Alloy-like language; spytial evaluates it over
-the instance to pick atoms (arity 1) or edges/pairs (arity 2).
+You author spytial SELECTORS for a diagram, validated against {n} example instance(s)
+of the same class. A selector is a small relational expression in an Alloy-like
+language; spytial evaluates it over an instance to pick atoms (arity 1) or edges/pairs
+(arity 2).
 
 Grammar (use ONLY this):
 - identifiers: a type or relation name from the vocabulary below
@@ -87,25 +92,33 @@ Author selectors for these directives. EACH needs an ARITY-2 selector returning 
 Only propose a selector that shows something a plain single-field edge does NOT —
 e.g. an edge through a join/closure, or over an index/key relation. Skip anything a
 bare field relation already covers. Each selector MUST evaluate to a non-empty set of
-pairs over THIS data. Prefer a few high-quality selectors; return an empty list if
-nothing is worthwhile.
+pairs on EVERY one of the {n} example(s). Prefer a few high-quality selectors; return
+an empty list if nothing is worthwhile.
 
 Class: {cls}
 Self-referential / structural fields: {fields}
 """
 
 
-def enrich_selectors(draft: SpecDraft, ci: ClassInfo, model, instance) -> None:
-    """Author selectors with the model, validate each over a datum, append survivors.
+def enrich_from_examples(
+    draft: SpecDraft, ci: ClassInfo, model, examples: List
+) -> None:
+    """Author selectors, validate each across the ``examples``, append survivors.
 
-    Mutates ``draft`` in place. Every failure path records a note and returns; the
-    caller also guards, but the no-raise contract is kept locally too.
+    ``examples`` is a non-empty list of instances of ``ci.cls``. A selector is
+    admitted only if it resolves at the directive's arity on *every* example — the
+    instance-set form. Mutates ``draft`` in place; every failure path records a note
+    and returns, so this never raises into ``suggest()``.
     """
-    try:
-        datum = CnDDataInstanceBuilder().build_instance(instance)
-    except Exception as exc:  # noqa: BLE001 — no datum, no tier
+    datums = []
+    for obj in examples:
+        try:
+            datums.append(CnDDataInstanceBuilder().build_instance(obj))
+        except Exception:  # noqa: BLE001 — skip an example we can't build a datum from
+            continue
+    if not datums:
         draft.notes.append(
-            f"enrich=True: selector tier skipped (couldn't build a datum from the instance: {exc})."
+            "enrich=True: selector tier skipped (couldn't build a datum from any example)."
         )
         return
 
@@ -116,12 +129,12 @@ def enrich_selectors(draft: SpecDraft, ci: ClassInfo, model, instance) -> None:
         )
         return
 
-    vocab = _vocabulary(datum)
+    vocab = _vocabulary(datums)
     if not vocab["relations"]:
         return  # no relations to author edges over — nothing for this tier to do
 
     try:
-        candidates = _ask_selectors(model, ci, vocab)
+        candidates = _ask_selectors(model, ci, vocab, len(datums))
     except Exception as exc:  # noqa: BLE001 — bad model call/parse: disable tier
         draft.notes.append(
             f"enrich=True: selector tier skipped (model call or response parse failed: {exc})."
@@ -132,16 +145,27 @@ def enrich_selectors(draft: SpecDraft, ci: ClassInfo, model, instance) -> None:
 
     selectors = [s for s in (_as_str(c.get("selector")) for c in candidates) if s]
     try:
-        verdicts = {v.selector: v for v in _eval.evaluate_selectors(datum, selectors)}
+        per_example = [
+            {v.selector: v for v in _eval.evaluate_selectors(d, selectors)}
+            for d in datums
+        ]
     except _eval.EvaluatorUnavailable as exc:
         draft.notes.append(f"enrich=True: selector tier skipped ({exc}).")
         return
+
+    def resolves_on_all(selector: str, expected: int) -> bool:
+        """True iff the selector resolves at ``expected`` arity on every example."""
+        for verdicts in per_example:
+            v = verdicts.get(selector)
+            if v is None or not v.resolves or v.arity != expected:
+                return False
+        return True
 
     seen = {s.dedup_key() for s in draft.suggestions}
     kept = 0
     for cand in candidates:
         try:
-            sug = _admit(cand, verdicts)
+            sug = _admit(cand, resolves_on_all)
         except Exception:  # noqa: BLE001 — drop one bad candidate, keep batch
             continue
         if sug is None or sug.dedup_key() in seen:
@@ -150,27 +174,28 @@ def enrich_selectors(draft: SpecDraft, ci: ClassInfo, model, instance) -> None:
         draft.suggestions.append(sug)
         kept += 1
     if kept:
+        n = len(datums)
+        across = "the example instance" if n == 1 else f"all {n} example instances"
         draft.notes.append(
             f"enrich=True: added {kept} model-authored selector candidate(s), each validated over "
-            "the provided instance (off by default — review before enabling)."
+            f"{across} (off by default — review before enabling)."
         )
 
 
-def _admit(cand: dict, verdicts: dict) -> Optional[Suggestion]:
+def _admit(cand: dict, resolves: Callable[[str, int], bool]) -> Optional[Suggestion]:
     """Return a Suggestion iff the candidate's selector resolves at the right arity.
 
     The arity gate is what makes validation trustworthy: ``resolves`` already means
-    parsed + non-empty + arity >= 1 (so a hallucinated bareword, which echoes itself
-    as an arity-0 singleton, is rejected), and the exact-arity check pins the result
-    to what the directive consumes (an edge, arity 2).
+    parsed + non-empty + arity >= 1 on every example (so a hallucinated bareword,
+    which echoes itself as an arity-0 singleton, is rejected), and the exact-arity
+    check pins the result to what the directive consumes (an edge, arity 2).
     """
     directive = cand.get("directive")
     selector = _as_str(cand.get("selector"))
     expected = _DIRECTIVE_ARITY.get(directive)
     if expected is None or not selector:
         return None
-    v = verdicts.get(selector)
-    if v is None or not v.resolves or v.arity != expected:
+    if not resolves(selector, expected):
         return None
 
     rationale = _as_str(cand.get("why")) or f"model-authored {directive} selector"
@@ -198,13 +223,17 @@ def _admit(cand: dict, verdicts: dict) -> Optional[Suggestion]:
     )
 
 
-def _ask_selectors(model, ci: ClassInfo, vocab: dict) -> List[dict]:
+def _ask_selectors(model, ci: ClassInfo, vocab: dict, n_examples: int) -> List[dict]:
     """Prompt the model for selectors grounded in the datum vocabulary; return the list."""
     types_line = ", ".join(f"{t} (#{n})" for t, n in vocab["types"]) or "(none)"
     rels_line = ", ".join(f"{name}/{arity}" for name, arity in vocab["relations"])
     fields = ", ".join(f.name for f in _structural_fields(ci)) or "(none detected)"
     prompt = _SELECTOR_PROMPT.format(
-        cls=ci.cls.__name__, types=types_line, relations=rels_line, fields=fields
+        cls=ci.cls.__name__,
+        types=types_line,
+        relations=rels_line,
+        fields=fields,
+        n=n_examples,
     )
     response = model.prompt(prompt, schema=_SELECTOR_SCHEMA)
     data = json.loads(response.text())
@@ -212,29 +241,28 @@ def _ask_selectors(model, ci: ClassInfo, vocab: dict) -> List[dict]:
     return [c for c in out if isinstance(c, dict)]
 
 
-def _vocabulary(datum: dict) -> dict:
+def _vocabulary(datums: List[dict]) -> dict:
     """The closed vocabulary a selector may reference: populated types + relations.
 
-    Only *populated* types are listed — a selector over a zero-atom type triggers
-    spytial-core's absent-type arity error, so feeding only non-empty types keeps the
-    model inside the safe set. Relations carry arity so the model can match the
-    directive's arity requirement.
+    Unions across all example datums, so the model sees every name that appears in
+    any example; validation then requires a selector to resolve on *every* example, so
+    a name present in only some examples is offered but won't survive. Only *populated*
+    types are listed — a selector over a zero-atom type triggers spytial-core's
+    absent-type arity error, so feeding only non-empty types keeps the model inside the
+    safe set.
     """
     pop: dict = {}
-    for atom in datum.get("atoms", []):
-        t = atom.get("type")
-        if t:
-            pop[t] = pop.get(t, 0) + 1
-    types = sorted(pop.items())  # (type, #atoms) for populated types only
-
-    relations = []
-    seen = set()
-    for rel in datum.get("relations", []):
-        name = rel.get("name")
-        if name and name not in seen:
-            seen.add(name)
-            relations.append((name, len(rel.get("types", []))))
-    return {"types": types, "relations": relations}
+    relations: dict = {}
+    for datum in datums:
+        for atom in datum.get("atoms", []):
+            t = atom.get("type")
+            if t:
+                pop[t] = pop.get(t, 0) + 1
+        for rel in datum.get("relations", []):
+            name = rel.get("name")
+            if name and name not in relations:
+                relations[name] = len(rel.get("types", []))
+    return {"types": sorted(pop.items()), "relations": sorted(relations.items())}
 
 
 def _as_str(value) -> str:
