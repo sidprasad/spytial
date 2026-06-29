@@ -66,6 +66,10 @@ def suggest(
             instance. Enriched rows are tagged ``source="llm"`` and stay off by
             default — candidates you pick. Degrades to the static draft (with a note)
             if ``llm`` isn't installed or no model is configured — never raises.
+            When you also pass an instance, enrichment additionally authors
+            *selectors* for relational cases the shape tier can't express, validating
+            each by evaluating it over that instance (these too are off-by-default
+            ``source="llm"`` candidates).
         enrich_model: an ``llm`` model id (e.g. ``"claude-sonnet-4-6"``); defaults
             to your configured ``llm`` default model. Ignored unless ``enrich``.
     """
@@ -82,5 +86,5 @@ def suggest(
     if enrich:
         from ._enrich import enrich_draft
 
-        draft = enrich_draft(draft, class_info, model=enrich_model)
+        draft = enrich_draft(draft, class_info, model=enrich_model, instance=instance)
     return draft

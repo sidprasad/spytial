@@ -13,13 +13,14 @@ a fixed name vocabulary (left/right/next/prev/parent/children) and fall back to 
 flat ``below`` for anything else. A model reads ``escalation`` / ``downstream`` /
 ``reportsTo`` and proposes a direction that matches the meaning.
 
-What it deliberately does **not** do: write a selector. Spytial selectors are
+What this tier deliberately does **not** do: write a selector. Spytial selectors are
 Alloy/Forge relational expressions, and validating one requires a datum the schema
-doesn't have — the evaluator only runs over a data instance. (Letting the model
-author selectors, checked against real instances, is a separate, instance-set-based
-extension.) So here the model only chooses the *shape*; spytial supplies the
+doesn't have. So here the model only chooses the *shape*; spytial supplies the
 selector from the field, reusing the same render-verified forms the deterministic
-rules emit. That keeps the tier safe by construction at the type level.
+rules emit. That keeps the tier safe by construction at the type level. Authoring
+*selectors* — for the relational cases this shape tier can't express — is the
+companion tier in :mod:`spytial.suggest._enrich_selectors`, which activates when an
+instance is available and validates every candidate by evaluating it over that datum.
 
 Enriched rows are tagged ``source="llm"``, stay off by default (you pick), and every
 failure path — no ``llm`` installed, no model configured, malformed output — degrades
@@ -29,7 +30,7 @@ to the static draft with a note. Enrichment can never crash ``suggest()``.
 from __future__ import annotations
 
 import json
-from typing import List, Optional
+from typing import Any, List, Optional
 
 from ._model import ClassInfo, SpecDraft, Suggestion
 from .rules import _children_selector, _edge_selector
@@ -117,12 +118,19 @@ def _structural_fields(ci: ClassInfo) -> List:
 
 
 def enrich_draft(
-    draft: SpecDraft, class_info: ClassInfo, *, model: Optional[str] = None
+    draft: SpecDraft,
+    class_info: ClassInfo,
+    *,
+    model: Optional[str] = None,
+    instance: Any = None,
 ) -> SpecDraft:
-    """Augment a :class:`SpecDraft` with model-suggested spatial shape.
+    """Augment a :class:`SpecDraft` with model-suggested spatial shape and selectors.
 
-    Returns the same draft, mutated in place. Any failure leaves the deterministic
-    suggestions untouched and records a note in ``draft.notes``.
+    The schema-level *shape* tier always runs. When ``instance`` is provided, the
+    *selector* tier (:mod:`._enrich_selectors`) also runs — the model authors
+    selectors that are validated by evaluation over that instance. Returns the same
+    draft, mutated in place. Any failure leaves the deterministic suggestions
+    untouched and records a note in ``draft.notes`` — enrichment never raises.
     """
     llm = _import_llm()
     if llm is None:
@@ -141,6 +149,22 @@ def enrich_draft(
         _enrich_shape(draft, class_info, m)
     except Exception as exc:  # noqa: BLE001 — never crash suggest() on enrichment
         draft.notes.append(f"enrich=True: shape enrichment skipped ({exc}).")
+
+    # Tier-2: model-authored selectors, validated over a datum. Only runs with an
+    # instance to evaluate against; otherwise note (when there's structure it could
+    # have helped) and stay shape-only.
+    if instance is not None:
+        try:
+            from . import _enrich_selectors
+
+            _enrich_selectors.enrich_selectors(draft, class_info, m, instance)
+        except Exception as exc:  # noqa: BLE001 — never crash suggest() on enrichment
+            draft.notes.append(f"enrich=True: selector tier skipped ({exc}).")
+    elif _structural_fields(class_info):
+        draft.notes.append(
+            "enrich=True: pass an instance — suggest(obj) or suggest(Cls, instance=obj) — to also "
+            "get model-authored selectors validated against your data."
+        )
     return draft
 
 
