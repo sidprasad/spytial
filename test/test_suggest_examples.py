@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Tests for tier-2 example-validated selectors (``spytial.suggest._enrich_from_examples``).
+"""Tests for tier-2 example-validated selectors (``_enrich_from_examples``).
 
 The loop logic is exercised with a fake model and a *stubbed* evaluator, so these run
 deterministically with no node and no network. Two end-to-end tests use the real
@@ -254,6 +254,19 @@ def test_inferred_edge_name_is_sanitized(monkeypatch):
     sel.enrich_from_examples(draft, _ci(), model, [_instance()])
     (s,) = _llm(draft)
     assert s.kwargs["name"] == "myedge"
+
+
+def test_inferred_edge_name_avoids_vocab_collision(monkeypatch):
+    # 'next' is a real relation on LL; an inferredEdge named 'next' must be mangled so
+    # it can't shadow the relation in the rendered diagram.
+    _stub_eval(monkeypatch, {"^next": (True, False, 2)})
+    model = FakeModel(
+        [{"directive": "inferredEdge", "selector": "^next", "name": "next", "why": "x"}]
+    )
+    draft = _draft()
+    sel.enrich_from_examples(draft, _ci(), model, [_instance()])
+    (s,) = _llm(draft)
+    assert s.kwargs["name"] == "next_"
 
 
 # --------------------------------------------------------------------------- #

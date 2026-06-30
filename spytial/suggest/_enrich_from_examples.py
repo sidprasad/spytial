@@ -118,14 +118,15 @@ def enrich_from_examples(
             continue
     if not datums:
         draft.notes.append(
-            "enrich=True: selector tier skipped (couldn't build a datum from any example)."
+            "enrich=True: selector tier skipped "
+            "(couldn't build a datum from any example)."
         )
         return
 
     if not _eval.is_available():
         draft.notes.append(
-            "enrich=True: selector tier skipped (headless evaluator unavailable — needs node and a "
-            "resolvable spytial-core, e.g. SPYTIAL_CORE_NODE_PATH)."
+            "enrich=True: selector tier skipped (headless evaluator unavailable "
+            "— needs node and a resolvable spytial-core, e.g. SPYTIAL_CORE_NODE_PATH)."
         )
         return
 
@@ -137,20 +138,34 @@ def enrich_from_examples(
         candidates = _ask_selectors(model, ci, vocab, len(datums))
     except Exception as exc:  # noqa: BLE001 — bad model call/parse: disable tier
         draft.notes.append(
-            f"enrich=True: selector tier skipped (model call or response parse failed: {exc})."
+            "enrich=True: selector tier skipped "
+            f"(model call or response parse failed: {exc})."
         )
         return
     if not candidates:
         return
 
-    selectors = [s for s in (_as_str(c.get("selector")) for c in candidates) if s]
-    try:
-        per_example = [
-            {v.selector: v for v in _eval.evaluate_selectors(d, selectors)}
-            for d in datums
-        ]
-    except _eval.EvaluatorUnavailable as exc:
-        draft.notes.append(f"enrich=True: selector tier skipped ({exc}).")
+    # De-dup selector strings so the bridge doesn't evaluate the same expression
+    # twice when two directives propose it.
+    selectors = list(
+        dict.fromkeys(s for s in (_as_str(c.get("selector")) for c in candidates) if s)
+    )
+    # Evaluate per example, tolerating an example whose datum the evaluator rejects —
+    # consistent with the build loop above. Degrade only if none can be evaluated.
+    per_example = []
+    last_exc = None
+    for d in datums:
+        try:
+            per_example.append(
+                {v.selector: v for v in _eval.evaluate_selectors(d, selectors)}
+            )
+        except _eval.EvaluatorUnavailable as exc:
+            last_exc = exc
+    if not per_example:
+        draft.notes.append(
+            "enrich=True: selector tier skipped "
+            f"(no example could be evaluated: {last_exc})."
+        )
         return
 
     def resolves_on_all(selector: str, expected: int) -> bool:
@@ -161,11 +176,13 @@ def enrich_from_examples(
                 return False
         return True
 
+    # Names already taken by a type/relation — an inferredEdge must not shadow one.
+    reserved = {n for n, _ in vocab["relations"]} | {t for t, _ in vocab["types"]}
     seen = {s.dedup_key() for s in draft.suggestions}
     kept = 0
     for cand in candidates:
         try:
-            sug = _admit(cand, resolves_on_all)
+            sug = _admit(cand, resolves_on_all, reserved)
         except Exception:  # noqa: BLE001 — drop one bad candidate, keep batch
             continue
         if sug is None or sug.dedup_key() in seen:
@@ -177,12 +194,15 @@ def enrich_from_examples(
         n = len(datums)
         across = "the example instance" if n == 1 else f"all {n} example instances"
         draft.notes.append(
-            f"enrich=True: added {kept} model-authored selector candidate(s), each validated over "
-            f"{across} (off by default — review before enabling)."
+            f"enrich=True: added {kept} model-authored selector "
+            f"candidate(s), each validated over {across} "
+            "(off by default — review before enabling)."
         )
 
 
-def _admit(cand: dict, resolves: Callable[[str, int], bool]) -> Optional[Suggestion]:
+def _admit(
+    cand: dict, resolves: Callable[[str, int], bool], reserved: set
+) -> Optional[Suggestion]:
     """Return a Suggestion iff the candidate's selector resolves at the right arity.
 
     The arity gate is what makes validation trustworthy: ``resolves`` already means
@@ -208,7 +228,7 @@ def _admit(cand: dict, resolves: Callable[[str, int], bool]) -> Optional[Suggest
             return None  # an orientation with no valid direction is meaningless
         kwargs = {"selector": selector, "directions": dirs}
     elif directive == "inferredEdge":
-        kwargs = {"name": _sanitize_name(cand.get("name")), "selector": selector}
+        kwargs = {"name": _edge_name(cand.get("name"), reserved), "selector": selector}
     else:  # pragma: no cover — guarded by _DIRECTIVE_ARITY above
         return None
 
@@ -224,7 +244,7 @@ def _admit(cand: dict, resolves: Callable[[str, int], bool]) -> Optional[Suggest
 
 
 def _ask_selectors(model, ci: ClassInfo, vocab: dict, n_examples: int) -> List[dict]:
-    """Prompt the model for selectors grounded in the datum vocabulary; return the list."""
+    """Prompt the model for selectors grounded in the vocabulary; return the list."""
     types_line = ", ".join(f"{t} (#{n})" for t, n in vocab["types"]) or "(none)"
     rels_line = ", ".join(f"{name}/{arity}" for name, arity in vocab["relations"])
     fields = ", ".join(f.name for f in _structural_fields(ci)) or "(none detected)"
@@ -282,4 +302,17 @@ def _sanitize_name(raw) -> str:
         return "edge"
     if name[0].isdigit():
         name = "e" + name
+    return name
+
+
+def _edge_name(raw, reserved) -> str:
+    """A safe, non-colliding identifier for an inferredEdge.
+
+    Sanitizes the model's name, then mangles it if it would shadow a real type or
+    relation already in the datum — an inferredEdge named ``next`` over data that has a
+    ``next`` relation renders confusingly.
+    """
+    name = _sanitize_name(raw)
+    while name in reserved:
+        name += "_"
     return name
