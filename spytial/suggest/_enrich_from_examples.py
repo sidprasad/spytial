@@ -126,7 +126,7 @@ def enrich_from_examples(
     if not _eval.is_available():
         draft.notes.append(
             "enrich=True: selector tier skipped (headless evaluator unavailable "
-            "— needs node and a resolvable spytial-core, e.g. SPYTIAL_CORE_NODE_PATH)."
+            "— needs a node runtime on PATH, or set SPYTIAL_NODE to a node binary)."
         )
         return
 
