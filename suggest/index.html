@@ -1246,12 +1246,32 @@ to suggest the <em>spatial shape</em> of those fields instead, behind the
 llm<span class="w"> </span>install<span class="w"> </span>llm-anthropic<span class="w">        </span><span class="c1"># or llm-gemini, llm-openai, llm-ollama, …</span>
 llm<span class="w"> </span>keys<span class="w"> </span><span class="nb">set</span><span class="w"> </span>anthropic<span class="w">           </span><span class="c1"># llm owns key management; spytial doesn&#39;t</span>
 </code></pre></div>
-<div class="highlight"><pre><span></span><code><span class="n">draft</span> <span class="o">=</span> <span class="n">suggest</span><span class="p">(</span><span class="n">Ticket</span><span class="p">,</span> <span class="n">enrich</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>              <span class="c1"># uses your default llm model</span>
-<span class="n">draft</span> <span class="o">=</span> <span class="n">suggest</span><span class="p">(</span><span class="n">Ticket</span><span class="p">,</span> <span class="n">enrich</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">enrich_model</span><span class="o">=</span><span class="s2">&quot;claude-sonnet-4-6&quot;</span><span class="p">)</span>
+<div class="highlight"><pre><span></span><code><span class="n">draft</span> <span class="o">=</span> <span class="n">suggest</span><span class="p">(</span><span class="n">Ticket</span><span class="p">,</span> <span class="n">enrich</span><span class="o">=</span><span class="s2">&quot;claude-sonnet-4-6&quot;</span><span class="p">)</span>   <span class="c1"># a named llm model</span>
+<span class="n">draft</span> <span class="o">=</span> <span class="n">suggest</span><span class="p">(</span><span class="n">Ticket</span><span class="p">,</span> <span class="n">enrich</span><span class="o">=</span><span class="s2">&quot;llama3.2&quot;</span><span class="p">)</span>            <span class="c1"># a local model via llm-ollama</span>
 </code></pre></div>
-<p>It depends on <a href="https://llm.datasette.io/"><code>llm</code></a> (Simon Willison's) rather than a
-single provider SDK, so you choose the model — Claude, GPT, Gemini, a local model
-via Ollama — and <code>llm</code> handles the keys.</p>
+<p>You always say <strong>what</strong> to enrich with; there is no ambient default. A string is a
+model id resolved through <a href="https://llm.datasette.io/"><code>llm</code></a> (Simon Willison's), so
+you pick the model (Claude, GPT, Gemini, a local model via Ollama) and <code>llm</code> owns
+the keys.</p>
+<p>A <strong>provider is just a callable</strong> <code>(prompt, *, schema) -&gt; dict</code>. So you can enrich
+from a <strong>subscription</strong> instead of a metered key — the built-in <code>ClaudeCode</code> and
+<code>Codex</code> providers run the respective CLI on your existing plan:</p>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">spytial.suggest</span><span class="w"> </span><span class="kn">import</span> <span class="n">ClaudeCode</span><span class="p">,</span> <span class="n">Codex</span>
+
+<span class="n">draft</span> <span class="o">=</span> <span class="n">suggest</span><span class="p">(</span><span class="n">Ticket</span><span class="p">,</span> <span class="n">enrich</span><span class="o">=</span><span class="n">ClaudeCode</span><span class="p">(</span><span class="n">model</span><span class="o">=</span><span class="s2">&quot;sonnet&quot;</span><span class="p">))</span>   <span class="c1"># your Claude Max/Pro sub</span>
+<span class="n">draft</span> <span class="o">=</span> <span class="n">suggest</span><span class="p">(</span><span class="n">Ticket</span><span class="p">,</span> <span class="n">enrich</span><span class="o">=</span><span class="n">Codex</span><span class="p">())</span>                      <span class="c1"># your ChatGPT plan (codex)</span>
+</code></pre></div>
+<p>Or write your own in a few lines — anything callable with that signature works,
+including a bare function (use <code>instruct_json</code> / <code>extract_json</code> for a text-only
+backend):</p>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">spytial.suggest.providers</span><span class="w"> </span><span class="kn">import</span> <span class="n">instruct_json</span><span class="p">,</span> <span class="n">extract_json</span>
+
+<span class="k">def</span><span class="w"> </span><span class="nf">my_provider</span><span class="p">(</span><span class="n">prompt</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">schema</span><span class="p">):</span>
+    <span class="n">text</span> <span class="o">=</span> <span class="n">call_some_model</span><span class="p">(</span><span class="n">instruct_json</span><span class="p">(</span><span class="n">prompt</span><span class="p">,</span> <span class="n">schema</span><span class="p">))</span>
+    <span class="k">return</span> <span class="n">extract_json</span><span class="p">(</span><span class="n">text</span><span class="p">)</span>
+
+<span class="n">draft</span> <span class="o">=</span> <span class="n">suggest</span><span class="p">(</span><span class="n">Ticket</span><span class="p">,</span> <span class="n">enrich</span><span class="o">=</span><span class="n">my_provider</span><span class="p">)</span>
+</code></pre></div>
 <p>It suggests <strong>shape</strong>: an <code>orientation</code> direction per structural field, <code>cyclic</code>
 for ring-like links, and <code>group</code> for collections. So a field named <code>escalation</code>
 — which the rules can only lay out <code>below</code> — gets a model-proposed <code>above</code>,
@@ -1260,20 +1280,25 @@ the selector.</strong> It chooses a direction from a fixed vocabulary; spytial b
 selector from the field, reusing the same render-verified forms the deterministic
 rules emit. That's what keeps it schema-level and safe:</p>
 <ul>
-<li><strong>Type-level first.</strong> It reasons over the class's fields, so <code>enrich=True</code> needs
-  no instance.</li>
+<li><strong>Type-level first.</strong> It reasons over the class's fields, so <code>enrich=</code> needs no
+  instance.</li>
 <li><strong>You pick.</strong> Enriched rows are tagged <code>source="llm"</code> (a <code>model</code> chip in the
   notebook panel) and stay <strong>off by default</strong> — candidates beside the
   deterministic ones, never applied behind your back.</li>
-<li><strong>It can't break <code>suggest()</code>.</strong> No <code>llm</code> installed, no model configured, or a
-  malformed response each degrade to the static draft with a note in
-  <code>draft.notes</code> — never an exception. Choices that name an unknown field or an
-  out-of-vocabulary direction are dropped.</li>
+<li><strong>It can't break <code>suggest()</code>.</strong> An unresolvable <code>enrich=</code> spec (no <code>llm</code>
+  installed, an unknown model id, a non-provider value) or a malformed response
+  each degrade to the static draft with a note in <code>draft.notes</code> — never an
+  exception. Choices that name an unknown field or an out-of-vocabulary direction
+  are dropped.</li>
 </ul>
-<p>Letting the model write actual selectors is a separate, future extension: a
-selector can only be <em>validated</em> by evaluating it over a data instance (the
-engine has no schema-only mode), so that tier belongs with a <strong>set of example
-instances</strong> to check against — not here, where there may be no instance at all.</p>
+<p>When you pass example instances (<code>suggest(obj, enrich=...)</code> or
+<code>suggest(Cls, examples=[a, b, ...], enrich=...)</code>), a second tier lets the model
+<strong>author selector expressions</strong> for relational cases the shape tier can't reach —
+each admitted only if it evaluates cleanly, at the right arity, on <em>every</em> example.
+A selector can only be validated by running it over data (the engine has no
+schema-only mode), which is why that tier needs the examples and the shape tier
+above does not. It runs headlessly on a vendored spytial-core evaluator, so it
+needs only a <code>node</code> runtime.</p>
 <h2 id="limits">Limits</h2>
 <p><code>suggest</code> infers structure from fields and references. It cannot recover
 structure that lives in <em>computation</em> — an array-backed heap whose tree is
