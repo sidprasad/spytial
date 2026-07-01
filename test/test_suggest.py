@@ -10,12 +10,14 @@ path the introspector has to handle.
 from __future__ import annotations
 
 import json
+import os
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import List, Optional
 
+import pytest
+
 import spytial
-import spytial.suggest._enrich as _enrich_mod
 from spytial.suggest import (
     HeuristicRegistry,
     Suggestion,
@@ -603,34 +605,20 @@ def test_custom_registry_is_isolated_from_default():
 # --------------------------------------------------------------------------- #
 
 
-class _FakeResponse:
-    def __init__(self, payload):
-        self._payload = payload
+class _FakeProvider:
+    """A test provider — a callable ``(prompt, *, schema) -> dict``.
 
-    def text(self):
-        return json.dumps(self._payload)
+    Returns a fixed payload dict; records each call in ``calls`` if given.
+    """
 
-
-class _FakeModel:
     def __init__(self, payload, calls=None):
         self._payload = payload
         self._calls = calls
 
-    def prompt(self, prompt, schema=None):
+    def __call__(self, prompt, *, schema):
         if self._calls is not None:
             self._calls.append({"prompt": prompt, "schema": schema})
-        return _FakeResponse(self._payload)
-
-
-def _fake_llm(payload, calls=None, seen_model=None):
-    class _LLM:
-        @staticmethod
-        def get_model(name=None):
-            if seen_model is not None:
-                seen_model.append(name)
-            return _FakeModel(payload, calls)
-
-    return _LLM
+        return self._payload
 
 
 def _llm_rows(draft):
@@ -657,19 +645,18 @@ def _shape(field, constraint, **extra):
     return {"field": field, "constraint": constraint, "why": "test", **extra}
 
 
-def test_enrich_missing_llm_degrades_with_note(monkeypatch):
-    # `llm` not installed is the real default; assert a clean no-op + a note.
-    monkeypatch.setattr(_enrich_mod, "_import_llm", lambda: None)
-    draft = suggest(Ticket, enrich=True)
+def test_enrich_bad_spec_degrades_with_note():
+    # enrich must be a model-id string or a provider object; a bad spec is a clean
+    # no-op with a note, never a crash.
+    draft = suggest(Ticket, enrich=123)
     assert not _llm_rows(draft)
-    assert any("suggest-llm" in n for n in draft.notes)
+    assert any("enrich skipped" in n for n in draft.notes)
 
 
-def test_enrich_orientation_for_unfamiliar_field(monkeypatch):
-    # The model picks a direction (above); spytial supplies the field-form selector.
+def test_enrich_orientation_for_unfamiliar_field():
+    # The provider picks a direction (above); spytial supplies the field-form selector.
     payload = {"shapes": [_shape("escalation", "orientation", directions=["above"])]}
-    monkeypatch.setattr(_enrich_mod, "_import_llm", lambda: _fake_llm(payload))
-    draft = suggest(Ticket, enrich=True)
+    draft = suggest(Ticket, enrich=_FakeProvider(payload))
     assert any(
         s.kwargs == {"selector": _edge("escalation"), "directions": ["above"]}
         and s.source == "llm"
@@ -678,10 +665,9 @@ def test_enrich_orientation_for_unfamiliar_field(monkeypatch):
     )
 
 
-def test_enrich_orientation_over_container_uses_children_selector(monkeypatch):
+def test_enrich_orientation_over_container_uses_children_selector():
     payload = {"shapes": [_shape("related", "orientation", directions=["right"])]}
-    monkeypatch.setattr(_enrich_mod, "_import_llm", lambda: _fake_llm(payload))
-    draft = suggest(Ticket, enrich=True)
+    draft = suggest(Ticket, enrich=_FakeProvider(payload))
     # The derived (parent, child) edge carries source_field=None — matching
     # rules.child_container — so it de-dups and groups like the deterministic one.
     assert any(
@@ -692,101 +678,204 @@ def test_enrich_orientation_over_container_uses_children_selector(monkeypatch):
     )
 
 
-def test_enrich_container_orientation_dedups_against_deterministic(monkeypatch):
+def test_enrich_container_orientation_dedups_against_deterministic():
     # The rules already orient `related` children below (derived edge, source_field
     # None); an identical model suggestion must collapse, not slip past _key().
     payload = {"shapes": [_shape("related", "orientation", directions=["below"])]}
-    monkeypatch.setattr(_enrich_mod, "_import_llm", lambda: _fake_llm(payload))
-    assert not _of(suggest(Ticket, enrich=True), "orientation")
+    assert not _of(suggest(Ticket, enrich=_FakeProvider(payload)), "orientation")
 
 
-def test_enrich_cyclic_over_single_pointer(monkeypatch):
+def test_enrich_cyclic_over_single_pointer():
     payload = {"shapes": [_shape("nxt", "cyclic", direction="clockwise")]}
-    monkeypatch.setattr(_enrich_mod, "_import_llm", lambda: _fake_llm(payload))
-    draft = suggest(LinkedNode, enrich=True)
+    draft = suggest(LinkedNode, enrich=_FakeProvider(payload))
     assert any(
         s.kwargs == {"selector": _edge("nxt"), "direction": "clockwise"}
         for s in _of(draft, "cyclic")
     )
 
 
-def test_enrich_group_only_for_containers(monkeypatch):
+def test_enrich_group_only_for_containers():
     # group on a scalar pointer is dropped; on a collection it emits the
     # field-based group form.
     payload = {"shapes": [_shape("escalation", "group"), _shape("related", "group")]}
-    monkeypatch.setattr(_enrich_mod, "_import_llm", lambda: _fake_llm(payload))
-    draft = suggest(Ticket, enrich=True)
+    draft = suggest(Ticket, enrich=_FakeProvider(payload))
     assert [s.kwargs for s in _of(draft, "group")] == [
         {"field": "related", "groupOn": 0, "addToGroup": 1}
     ]
 
 
-def test_enrich_rejects_unknown_field(monkeypatch):
+def test_enrich_rejects_unknown_field():
     # A field we never analyzed can't be targeted — so the model can't drive a
     # selector for something off-schema.
     payload = {"shapes": [_shape("nope", "orientation", directions=["below"])]}
-    monkeypatch.setattr(_enrich_mod, "_import_llm", lambda: _fake_llm(payload))
-    assert not _llm_rows(suggest(Ticket, enrich=True))
+    assert not _llm_rows(suggest(Ticket, enrich=_FakeProvider(payload)))
 
 
-def test_enrich_filters_out_of_vocab_directions(monkeypatch):
+def test_enrich_filters_out_of_vocab_directions():
     payload = {
         "shapes": [
             _shape("escalation", "orientation", directions=["sideways", "above"])
         ]
     }
-    monkeypatch.setattr(_enrich_mod, "_import_llm", lambda: _fake_llm(payload))
-    draft = suggest(Ticket, enrich=True)
+    draft = suggest(Ticket, enrich=_FakeProvider(payload))
     assert any(s.kwargs["directions"] == ["above"] for s in _of(draft, "orientation"))
 
 
-def test_enrich_dedups_against_deterministic(monkeypatch):
+def test_enrich_honors_falsy_callable_provider():
+    # A provider whose __bool__/__len__ is falsy must still resolve — "off" is None or
+    # False only, not truthiness. Regression for the callable provider slot.
+    payload = {"shapes": [_shape("escalation", "orientation", directions=["above"])]}
+
+    class _FalsyProvider(_FakeProvider):
+        def __len__(self):
+            return 0  # makes the instance falsy
+
+    prov = _FalsyProvider(payload)
+    assert not prov  # falsy...
+    draft = suggest(Ticket, enrich=prov)
+    assert any(  # ...yet honored, not silently skipped
+        s.kwargs["directions"] == ["above"] for s in _of(draft, "orientation")
+    )
+
+
+def test_enrich_none_and_false_are_off():
+    # The only two "off" values — neither runs a provider nor leaves an enrich note.
+    for off in (None, False):
+        draft = suggest(Ticket, enrich=off)
+        assert not _llm_rows(draft)
+        assert not any("enrich" in n.lower() for n in draft.notes)
+
+
+def test_enrich_dedups_against_deterministic():
     # The rules already orient `escalation` below; an identical model suggestion is
     # not added a second time.
     payload = {"shapes": [_shape("escalation", "orientation", directions=["below"])]}
-    monkeypatch.setattr(_enrich_mod, "_import_llm", lambda: _fake_llm(payload))
-    assert not _of(suggest(Ticket, enrich=True), "orientation")
+    assert not _of(suggest(Ticket, enrich=_FakeProvider(payload)), "orientation")
 
 
-def test_enrich_works_at_type_level_without_instance(monkeypatch):
+def test_enrich_works_at_type_level_without_instance():
     payload = {"shapes": [_shape("escalation", "orientation", directions=["above"])]}
-    monkeypatch.setattr(_enrich_mod, "_import_llm", lambda: _fake_llm(payload))
-    assert _of(suggest(Ticket, enrich=True), "orientation")  # no instance= needed
+    assert _of(suggest(Ticket, enrich=_FakeProvider(payload)), "orientation")
 
 
-def test_enrich_no_structural_fields_never_calls_model(monkeypatch):
+def test_enrich_no_structural_fields_never_calls_provider():
     calls = []
-    monkeypatch.setattr(
-        _enrich_mod, "_import_llm", lambda: _fake_llm({"shapes": []}, calls)
-    )
-    suggest(Point, enrich=True)  # only scalars — nothing structural to shape
-    assert calls == []
+    suggest(Point, enrich=_FakeProvider({"shapes": []}, calls))
+    assert calls == []  # only scalars — nothing structural to shape
 
 
-def test_enrich_bad_response_degrades(monkeypatch):
-    class _BadModel:
-        def prompt(self, prompt, schema=None):
-            class _R:
-                def text(self):
-                    return "not json {"
+def test_enrich_provider_error_degrades():
+    # A provider that raises degrades to the static draft with a note, never crashes.
+    def boom(prompt, *, schema):
+        raise RuntimeError("model unreachable")
 
-            return _R()
-
-    class _LLM:
-        @staticmethod
-        def get_model(name=None):
-            return _BadModel()
-
-    monkeypatch.setattr(_enrich_mod, "_import_llm", lambda: _LLM)
-    draft = suggest(Ticket, enrich=True)
-    assert not _llm_rows(draft)  # never raises; degrades to the static draft
+    draft = suggest(Ticket, enrich=boom)
+    assert not _llm_rows(draft)  # never raises
     assert any("shape enrichment skipped" in n for n in draft.notes)
 
 
-def test_enrich_passes_through_model_id(monkeypatch):
+# --- the provider slot itself ------------------------------------------------- #
+
+
+def test_as_provider_accepts_callables_and_rejects_non_callables():
+    from spytial.suggest import EnrichProvider, providers
+
+    fn = _FakeProvider({"shapes": []})
+    assert isinstance(fn, EnrichProvider)  # a callable satisfies the protocol
+    assert providers.as_provider(fn) is fn  # passes straight through
+    assert callable(providers.as_provider(lambda prompt, *, schema: {}))
+    with pytest.raises(providers.EnrichError):
+        providers.as_provider(123)  # not a model id, not callable
+
+
+def test_llmmodel_unresolvable_raises_enrich_error():
+    # No llm installed OR an unknown id both surface as EnrichError — which suggest()
+    # catches and turns into a note.
+    from spytial.suggest import providers
+
+    with pytest.raises(providers.EnrichError):
+        providers.LlmModel("definitely-not-a-real-model-xyz")
+
+
+def test_llmmodel_passes_id_and_returns_dict(monkeypatch):
+    # A model-id string resolves the *named* model (no ambient default); the adapter
+    # parses llm's response text into a dict.
+    llm = pytest.importorskip("llm")
     seen = []
-    monkeypatch.setattr(
-        _enrich_mod, "_import_llm", lambda: _fake_llm({"shapes": []}, seen_model=seen)
-    )
-    suggest(Ticket, enrich=True, enrich_model="claude-x")
+
+    class _Resp:
+        def text(self):
+            return json.dumps({"shapes": []})
+
+    class _Model:
+        def prompt(self, prompt, *, schema):
+            return _Resp()
+
+    def _fake_get_model(model_id):
+        seen.append(model_id)
+        return _Model()
+
+    monkeypatch.setattr(llm, "get_model", _fake_get_model)
+    from spytial.suggest import providers
+
+    prov = providers.LlmModel("claude-x")
     assert seen == ["claude-x"]
+    assert prov("hi", schema={}) == {"shapes": []}
+
+
+def test_extract_json_handles_plain_fenced_and_noisy():
+    from spytial.suggest import providers
+
+    assert providers.extract_json('{"a": 1}') == {"a": 1}
+    assert providers.extract_json('```json\n{"a": 1}\n```') == {"a": 1}
+    assert providers.extract_json('Sure, here:\n{"a": 1}\nHope that helps.') == {"a": 1}
+    with pytest.raises(providers.EnrichError):
+        providers.extract_json("no json object here")
+
+
+def test_claudecode_builds_command_and_parses(monkeypatch):
+    # Injects the schema into the prompt and parses the (fenced) reply.
+    from spytial.suggest import providers
+
+    captured = {}
+
+    class _Proc:
+        returncode = 0
+        stdout = '```json\n{"shapes": []}\n```'
+        stderr = ""
+
+    monkeypatch.setattr(providers.shutil, "which", lambda b: "/usr/bin/" + b)
+    monkeypatch.setattr(
+        providers.subprocess, "run", lambda cmd, **kw: captured.update(cmd=cmd) or _Proc()
+    )
+
+    out = providers.ClaudeCode(model="opus")("hi", schema={"type": "object"})
+    assert out == {"shapes": []}
+    assert captured["cmd"][:4] == ["/usr/bin/claude", "-p", "--model", "opus"]
+    assert "JSON Schema" in captured["cmd"][-1]  # schema injected into the prompt
+
+
+def test_codex_uses_native_output_schema(monkeypatch):
+    # Passes --output-schema pointing at a real temp file present during the call.
+    from spytial.suggest import providers
+
+    captured = {}
+
+    class _Proc:
+        returncode = 0
+        stdout = '{"selectors": []}'
+        stderr = ""
+
+    def fake_run(cmd, **kw):
+        captured["cmd"] = cmd
+        i = cmd.index("--output-schema")
+        captured["schema_exists"] = os.path.exists(cmd[i + 1])
+        return _Proc()
+
+    monkeypatch.setattr(providers.shutil, "which", lambda b: "/usr/bin/" + b)
+    monkeypatch.setattr(providers.subprocess, "run", fake_run)
+
+    out = providers.Codex()("author selectors", schema={"type": "object"})
+    assert out == {"selectors": []}
+    assert "--output-schema" in captured["cmd"]
+    assert captured["schema_exists"]  # temp schema file present during the call

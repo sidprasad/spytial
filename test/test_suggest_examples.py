@@ -8,8 +8,6 @@ headless evaluator and skip when the bridge isn't present.
 
 from __future__ import annotations
 
-import json
-
 import pytest
 
 from spytial.suggest import _enrich
@@ -48,24 +46,19 @@ def _draft(suggestions=None):
     return SpecDraft(LL, list(suggestions or []))
 
 
-class _Resp:
-    def __init__(self, payload):
-        self._payload = payload
-
-    def text(self):
-        return json.dumps(self._payload)
-
-
 class FakeModel:
-    """Returns a fixed ``{"selectors": [...]}`` payload; records prompts seen."""
+    """A callable provider returning a fixed ``{"selectors": [...]}`` dict.
+
+    Records prompts seen; a minimal provider for the selector tier.
+    """
 
     def __init__(self, candidates):
         self.candidates = candidates
         self.prompts = []
 
-    def prompt(self, prompt, schema=None):
+    def __call__(self, prompt, *, schema):
         self.prompts.append(prompt)
-        return _Resp({"selectors": self.candidates})
+        return {"selectors": self.candidates}
 
 
 def _v(selector, ok=True, empty=False, arity=2):
@@ -567,34 +560,29 @@ def test_vocabulary_unions_populated_types_across_examples():
 # --------------------------------------------------------------------------- #
 
 
-class _FakeLLM:
-    def get_model(self, *a, **k):
-        return _ShapeModel()
+class _ShapeProvider:
+    """A callable provider whose shape tier is a no-op — exercises enrich_draft wiring."""
+
+    def __call__(self, prompt, *, schema):
+        return {"shapes": []}
 
 
-class _ShapeModel:
-    def prompt(self, prompt, schema=None):
-        return _Resp({"shapes": []})  # shape tier no-op
-
-
-def test_enrich_draft_notes_when_no_examples(monkeypatch):
-    monkeypatch.setattr(_enrich, "_import_llm", lambda: _FakeLLM())
+def test_enrich_draft_notes_when_no_examples():
     draft = _draft()
-    _enrich.enrich_draft(draft, _ci(), model=None, examples=None)
+    _enrich.enrich_draft(draft, _ci(), provider=_ShapeProvider(), examples=None)
     assert any("pass examples" in n for n in draft.notes)
 
 
 def test_enrich_draft_runs_selector_tier_with_examples(monkeypatch):
-    monkeypatch.setattr(_enrich, "_import_llm", lambda: _FakeLLM())
     calls = []
     monkeypatch.setattr(
         sel,
         "enrich_from_examples",
-        lambda draft, ci, model, examples: calls.append(examples),
+        lambda draft, ci, provider, examples: calls.append(examples),
     )
     objs = [_instance(), _instance(2)]
     draft = _draft()
-    _enrich.enrich_draft(draft, _ci(), model=None, examples=objs)
+    _enrich.enrich_draft(draft, _ci(), provider=_ShapeProvider(), examples=objs)
     assert calls == [objs]  # selector tier invoked with the full example set
 
 

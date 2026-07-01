@@ -24,6 +24,14 @@ from typing import Any, List, Optional
 from . import rules  # noqa: F401  (import for the side effect of registering built-ins)
 from ._model import ClassInfo, FieldInfo, SpecDraft, Suggestion
 from .introspect import build_class_info
+from .providers import (
+    ClaudeCode,
+    Codex,
+    EnrichError,
+    EnrichProvider,
+    LlmModel,
+    as_provider,
+)
 from .registry import DEFAULT_REGISTRY, HeuristicRegistry, build_draft, heuristic
 
 __all__ = [
@@ -36,6 +44,11 @@ __all__ = [
     "FieldInfo",
     "ClassInfo",
     "build_class_info",
+    "EnrichProvider",
+    "EnrichError",
+    "LlmModel",
+    "ClaudeCode",
+    "Codex",
 ]
 
 
@@ -44,7 +57,7 @@ def _coerce_examples(examples: Any, instance: Any) -> List[Any]:
 
     ``examples`` is a list/tuple of instances; a bare object counts as one example.
     When omitted, fall back to the single sampled ``instance`` so the common
-    ``suggest(obj, enrich=True)`` validates against ``obj``. ``None`` entries drop.
+    ``suggest(obj, enrich=...)`` validates against ``obj``. ``None`` entries drop.
     """
     if examples is None:
         return [instance] if instance is not None else []
@@ -59,8 +72,7 @@ def suggest(
     instance: Any = None,
     examples: Optional[List[Any]] = None,
     registry: Optional[HeuristicRegistry] = None,
-    enrich: bool = False,
-    enrich_model: Optional[str] = None,
+    enrich: Any = None,
 ) -> SpecDraft:
     """Analyze a class and return a :class:`SpecDraft` of proposed directives.
 
@@ -77,22 +89,24 @@ def suggest(
             ``target``); pass more for the instance-set form. Ignored unless ``enrich``.
         registry: an alternate :class:`HeuristicRegistry`; defaults to the global
             one populated with the built-in rules.
-        enrich: opt into the optional LLM enrichment layer (the ``[suggest-llm]``
-            extra). It suggests the *spatial shape* of the structure — orientation
-            directions per structural field, ``cyclic`` for ring-like links, and
-            ``group`` for collections — filling the gap where the deterministic rules
-            fall back to a flat ``below`` for fields outside their name vocabulary.
-            The model only chooses the shape; spytial supplies the (render-verified)
-            selector from the field, so this stays schema-level and needs no
-            instance. Enriched rows are tagged ``source="llm"`` and stay off by
-            default — candidates you pick. Degrades to the static draft (with a note)
-            if ``llm`` isn't installed or no model is configured — never raises.
-            When examples are available, enrichment additionally authors *selectors*
-            for relational cases the shape tier can't express, validating each by
-            evaluating it over every example (these too are off-by-default
-            ``source="llm"`` candidates).
-        enrich_model: an ``llm`` model id (e.g. ``"claude-sonnet-4-6"``); defaults
-            to your configured ``llm`` default model. Ignored unless ``enrich``.
+        enrich: turn on the optional LLM enrichment layer by saying *what* to enrich
+            with — there is no ambient default. Either a model-id **string** resolved
+            through the ``llm`` library (e.g. ``enrich="llama3.2"``, ``"gpt-4o"``; the
+            ``[suggest-llm]`` extra), or any **callable provider** with the signature
+            ``(prompt, *, schema) -> dict`` — a function, or a built-in like
+            :class:`~spytial.suggest.ClaudeCode` / :class:`~spytial.suggest.Codex` to
+            enrich from a subscription instead of a metered key. ``None`` (default)
+            or ``False`` leaves the draft static. Enrichment suggests the
+            *spatial shape* of the structure (orientation directions per field,
+            ``cyclic`` for ring-like links, ``group`` for collections) where the
+            deterministic rules fall back to a flat ``below``; the model only chooses
+            the shape and spytial supplies the render-verified selector. Enriched rows
+            are tagged ``source="llm"`` and stay off by default — candidates you pick.
+            When examples are available it additionally authors *selectors* for
+            relational cases the shape tier can't express, validating each by
+            evaluating it over every example. A spec that can't be resolved (``llm``
+            missing, unknown id) degrades to the static draft with a note — never
+            raises.
     """
     if isinstance(target, type):
         cls = target
@@ -102,7 +116,7 @@ def suggest(
         cls = type(target)
 
     # The example set drives selector validation (tier-2). Default it to the sampled
-    # instance so suggest(obj, enrich=True) just works; an explicit examples= list is
+    # instance so suggest(obj, enrich=...) just works; an explicit examples= list is
     # the instance-set form. The introspection sample falls back to the first example.
     example_objs = _coerce_examples(examples, instance)
     sample = (
@@ -114,10 +128,22 @@ def suggest(
     reg = registry if registry is not None else DEFAULT_REGISTRY
     class_info = build_class_info(cls, instance=sample)
     draft = build_draft(class_info, reg)
-    if enrich:
+    # ``None``/``False`` mean "no enrichment"; everything else is a provider spec.
+    # Use identity checks, not truthiness — a callable provider whose ``__bool__``
+    # (or ``__len__``) is falsy must still resolve, since the contract accepts *any*
+    # callable.
+    if enrich is not None and enrich is not False:
+        # Resolve the provider up front: a bad spec (no llm / unknown id / wrong
+        # type) degrades to the static draft with a note rather than raising.
+        try:
+            provider = as_provider(enrich)
+        except EnrichError as exc:
+            draft.notes.append(f"enrich skipped: {exc}")
+            return draft
+
         from ._enrich import enrich_draft
 
         draft = enrich_draft(
-            draft, class_info, model=enrich_model, examples=example_objs
+            draft, class_info, provider=provider, examples=example_objs
         )
     return draft

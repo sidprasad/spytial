@@ -1,7 +1,7 @@
 """Optional LLM *shape* enrichment for ``spytial.suggest`` (the ``[suggest-llm]``
 extra).
 
-Dormant unless you call ``suggest(..., enrich=True)``. This tier is **schema-level**:
+Dormant unless you call ``suggest(..., enrich=...)``. This tier is **schema-level**:
 it reasons over the class's structural fields, not a data instance, so it needs no
 datum — only the model call.
 
@@ -24,8 +24,10 @@ example instances are available and validates every candidate by evaluating it o
 each of them.
 
 Enriched rows are tagged ``source="llm"``, stay off by default (you pick), and every
-failure path — no ``llm`` installed, no model configured, malformed output — degrades
-to the static draft with a note. Enrichment can never crash ``suggest()``.
+failure path — an unresolvable provider, a malformed model response — degrades to the
+static draft with a note. Enrichment can never crash ``suggest()``. The provider (how
+to reach a model) is chosen by the caller via ``enrich=`` and resolved in
+:mod:`spytial.suggest.providers`; this module just calls ``provider(prompt, schema=)``.
 """
 
 from __future__ import annotations
@@ -42,13 +44,6 @@ from .rules import _children_selector, _edge_selector
 _ORIENT_DIRS = ("below", "above", "left", "right", "directlyRight", "directlyLeft")
 _CYCLIC_DIRS = ("clockwise", "counterclockwise")
 _CONTAINERS = ("list", "tuple", "set", "dict")
-
-_INSTALL_HINT = (
-    "enrich=True needs the optional 'llm' library. Install it with "
-    'pip install "spytial_diagramming[suggest-llm]" and configure a model '
-    "(e.g. `llm install llm-anthropic && llm keys set anthropic`, or any other "
-    "llm provider plugin). Returning the static draft unchanged."
-)
 
 _SHAPE_SCHEMA = {
     "type": "object",
@@ -103,16 +98,6 @@ Structural fields:
 Return one entry per field listed above."""
 
 
-def _import_llm():
-    """Return the ``llm`` module, or ``None`` if the extra isn't installed."""
-    try:
-        import llm  # type: ignore
-
-        return llm
-    except ImportError:
-        return None
-
-
 def _structural_fields(ci: ClassInfo) -> List:
     """Non-private self-referential fields — the structural edges shape applies to."""
     return [f for f in ci.fields if f.is_self_ref and not f.is_private]
@@ -122,35 +107,23 @@ def enrich_draft(
     draft: SpecDraft,
     class_info: ClassInfo,
     *,
-    model: Optional[str] = None,
+    provider: Any,
     examples: Optional[List[Any]] = None,
 ) -> SpecDraft:
     """Augment a :class:`SpecDraft` with model-suggested spatial shape and selectors.
 
-    The schema-level *shape* tier always runs. When ``examples`` (a list of instances)
-    is provided, the *selector* tier (:mod:`._enrich_from_examples`) also runs — the
-    model authors selectors that are validated by evaluation over every example.
-    Returns the same draft, mutated in place. Any failure leaves the deterministic
-    suggestions untouched and records a note in ``draft.notes`` — enrichment never
-    raises.
+    ``provider`` is an :class:`~spytial.suggest.EnrichProvider` (already resolved from
+    the caller's ``enrich=`` spec). The schema-level *shape* tier always runs. When
+    ``examples`` (a list of instances) is provided, the *selector* tier
+    (:mod:`._enrich_from_examples`) also runs — the model authors selectors that are
+    validated by evaluation over every example. Returns the same draft, mutated in
+    place. Any failure leaves the deterministic suggestions untouched and records a
+    note in ``draft.notes`` — enrichment never raises.
     """
-    llm = _import_llm()
-    if llm is None:
-        draft.notes.append(_INSTALL_HINT)
-        return draft
-
     try:
-        m = llm.get_model(model) if model else llm.get_model()
-    except Exception as exc:  # noqa: BLE001 — any provider/config error degrades
-        draft.notes.append(
-            f"enrich=True: no usable llm model ({exc}); returning the static draft."
-        )
-        return draft
-
-    try:
-        _enrich_shape(draft, class_info, m)
+        _enrich_shape(draft, class_info, provider)
     except Exception as exc:  # noqa: BLE001 — never crash suggest() on enrichment
-        draft.notes.append(f"enrich=True: shape enrichment skipped ({exc}).")
+        draft.notes.append(f"enrich: shape enrichment skipped ({exc}).")
 
     # Tier-2: model-authored selectors, validated by evaluation over example
     # instances. Runs only with examples to evaluate against; otherwise note (when
@@ -159,29 +132,31 @@ def enrich_draft(
         try:
             from . import _enrich_from_examples
 
-            _enrich_from_examples.enrich_from_examples(draft, class_info, m, examples)
+            _enrich_from_examples.enrich_from_examples(
+                draft, class_info, provider, examples
+            )
         except Exception as exc:  # noqa: BLE001 — never crash suggest() on enrichment
-            draft.notes.append(f"enrich=True: selector tier skipped ({exc}).")
+            draft.notes.append(f"enrich: selector tier skipped ({exc}).")
     elif _structural_fields(class_info):
         draft.notes.append(
-            "enrich=True: pass examples — suggest(obj, enrich=True) or "
-            "suggest(Cls, examples=[obj], enrich=True) — to also get model-authored "
+            "enrich: pass examples — suggest(obj, enrich=...) or "
+            "suggest(Cls, examples=[obj], enrich=...) — to also get model-authored "
             "selectors validated against your data."
         )
     return draft
 
 
-def _enrich_shape(draft: SpecDraft, ci: ClassInfo, model) -> None:
+def _enrich_shape(draft: SpecDraft, ci: ClassInfo, provider) -> None:
     fields = _structural_fields(ci)
     if not fields:
         return  # nothing structural to shape; don't spend a model call
 
-    shapes = _ask_shapes(model, ci, fields)
+    shapes = _ask_shapes(provider, ci, fields)
     _apply_shapes(draft, ci, fields, shapes)
 
 
-def _ask_shapes(model, ci: ClassInfo, fields: List) -> List[dict]:
-    """Prompt the model for a shape per structural field; return the raw list."""
+def _ask_shapes(provider, ci: ClassInfo, fields: List) -> List[dict]:
+    """Prompt the provider for a shape per structural field; return the raw list."""
     lines = []
     for f in fields:
         kind = f.container if f.container else "single pointer"
@@ -190,8 +165,7 @@ def _ask_shapes(model, ci: ClassInfo, fields: List) -> List[dict]:
             f"- {f.name}: type={f.type_repr or '?'}, kind={kind}, nullable={nullable}"
         )
     prompt = _SHAPE_PROMPT.format(cls=ci.cls.__name__, fields="\n".join(lines))
-    response = model.prompt(prompt, schema=_SHAPE_SCHEMA)
-    data = json.loads(response.text())
+    data = provider(prompt, schema=_SHAPE_SCHEMA)
     shapes = data.get("shapes", [])
     return [s for s in shapes if isinstance(s, dict)]
 

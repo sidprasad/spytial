@@ -8,7 +8,7 @@ relational cases the shape tier can't reach (an edge through a join or closure, 
 edge over an index/key relation, a relation the field names don't reveal).
 
 This is selector suggestion **by example**. You supply one or more example instances
-(``suggest(obj, enrich=True)`` or ``suggest(Cls, examples=[a, b, ...], enrich=True)``);
+(``suggest(obj, enrich=...)`` or ``suggest(Cls, examples=[a, b, ...], enrich=...)``);
 the model proposes selectors grounded in those instances' vocabulary, and only the
 ones that parse, are non-empty, and have the directive's arity **on every example**
 survive. Validating across a *set* of examples is what narrows the gap toward "correct
@@ -101,7 +101,7 @@ Self-referential / structural fields: {fields}
 
 
 def enrich_from_examples(
-    draft: SpecDraft, ci: ClassInfo, model, examples: List
+    draft: SpecDraft, ci: ClassInfo, provider, examples: List
 ) -> None:
     """Author selectors, validate each across the ``examples``, append survivors.
 
@@ -118,14 +118,14 @@ def enrich_from_examples(
             continue
     if not datums:
         draft.notes.append(
-            "enrich=True: selector tier skipped "
+            "enrich: selector tier skipped "
             "(couldn't build a datum from any example)."
         )
         return
 
     if not _eval.is_available():
         draft.notes.append(
-            "enrich=True: selector tier skipped (headless evaluator unavailable "
+            "enrich: selector tier skipped (headless evaluator unavailable "
             "— needs a node runtime on PATH, or set SPYTIAL_NODE to a node binary)."
         )
         return
@@ -135,10 +135,10 @@ def enrich_from_examples(
         return  # no relations to author edges over — nothing for this tier to do
 
     try:
-        candidates = _ask_selectors(model, ci, vocab, len(datums))
+        candidates = _ask_selectors(provider, ci, vocab, len(datums))
     except Exception as exc:  # noqa: BLE001 — bad model call/parse: disable tier
         draft.notes.append(
-            "enrich=True: selector tier skipped "
+            "enrich: selector tier skipped "
             f"(model call or response parse failed: {exc})."
         )
         return
@@ -163,7 +163,7 @@ def enrich_from_examples(
             last_exc = exc
     if not per_example:
         draft.notes.append(
-            "enrich=True: selector tier skipped "
+            "enrich: selector tier skipped "
             f"(no example could be evaluated: {last_exc})."
         )
         return
@@ -194,7 +194,7 @@ def enrich_from_examples(
         n = len(datums)
         across = "the example instance" if n == 1 else f"all {n} example instances"
         draft.notes.append(
-            f"enrich=True: added {kept} model-authored selector "
+            f"enrich: added {kept} model-authored selector "
             f"candidate(s), each validated over {across} "
             "(off by default — review before enabling)."
         )
@@ -243,8 +243,8 @@ def _admit(
     )
 
 
-def _ask_selectors(model, ci: ClassInfo, vocab: dict, n_examples: int) -> List[dict]:
-    """Prompt the model for selectors grounded in the vocabulary; return the list."""
+def _ask_selectors(provider, ci: ClassInfo, vocab: dict, n_examples: int) -> List[dict]:
+    """Prompt the provider for selectors grounded in the vocabulary; return the list."""
     types_line = ", ".join(f"{t} (#{n})" for t, n in vocab["types"]) or "(none)"
     rels_line = ", ".join(f"{name}/{arity}" for name, arity in vocab["relations"])
     fields = ", ".join(f.name for f in _structural_fields(ci)) or "(none detected)"
@@ -255,8 +255,7 @@ def _ask_selectors(model, ci: ClassInfo, vocab: dict, n_examples: int) -> List[d
         fields=fields,
         n=n_examples,
     )
-    response = model.prompt(prompt, schema=_SELECTOR_SCHEMA)
-    data = json.loads(response.text())
+    data = provider(prompt, schema=_SELECTOR_SCHEMA)
     out = data.get("selectors", [])
     return [c for c in out if isinstance(c, dict)]
 
