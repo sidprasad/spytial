@@ -1,11 +1,10 @@
 #!/usr/bin/env python3
 """Tests for ``spytial.suggest._eval`` — the headless selector-evaluation bridge.
 
-The bridge shells out to ``node`` over the windowless spytial-core evaluator, so
-the real-evaluation tests only run when that bridge is present (``node`` on PATH
-and ``SPYTIAL_CORE_NODE_PATH`` pointing at an install). They skip cleanly
-otherwise, so CI stays green with no network. The degradation path is always
-exercised.
+The bridge shells out to ``node`` over the windowless spytial-core evaluator. The
+evaluator is normally the vendored self-contained copy, so the real-evaluation
+tests run whenever ``node`` is on PATH; they skip cleanly otherwise, so CI stays
+green with no network. The degradation path is always exercised.
 """
 
 from __future__ import annotations
@@ -17,7 +16,7 @@ from spytial.suggest import _eval
 
 requires_bridge = pytest.mark.skipif(
     not _eval.is_available(),
-    reason="headless evaluator bridge unavailable (need node + SPYTIAL_CORE_NODE_PATH)",
+    reason="headless evaluator bridge unavailable (need a node runtime on PATH)",
 )
 
 
@@ -40,10 +39,31 @@ def _linked_list_datum():
 # --------------------------------------------------------------------------- #
 
 
-def test_unavailable_raises(monkeypatch, tmp_path):
-    """With no resolvable spytial-core, evaluate_selectors raises (never hangs)."""
+def _force_unavailable(monkeypatch, tmp_path):
+    """Disable both resolution paths: invalid env override AND no vendored file."""
     monkeypatch.setenv("SPYTIAL_CORE_NODE_PATH", str(tmp_path))  # no node_modules here
-    assert _eval._node_path() is None
+    monkeypatch.setattr(_eval, "_VENDORED_EVALUATOR", tmp_path / "absent.js")
+
+
+def test_resolution_prefers_env_override_then_vendored(monkeypatch, tmp_path):
+    """A valid SPYTIAL_CORE_NODE_PATH wins; otherwise the vendored file (no node needed)."""
+    # No override + the shipped vendored file present -> require it by absolute path.
+    monkeypatch.delenv("SPYTIAL_CORE_NODE_PATH", raising=False)
+    core = _eval._resolve_core()
+    assert core == {"SPYTIAL_EVALUATOR_MODULE": str(_eval._VENDORED_EVALUATOR)}
+
+    # A valid override takes precedence -> bare specifier resolved via NODE_PATH.
+    install = tmp_path / "install"
+    (install / "node_modules" / "spytial-core").mkdir(parents=True)
+    monkeypatch.setenv("SPYTIAL_CORE_NODE_PATH", str(install))
+    assert _eval._resolve_core() == {"NODE_PATH": str(install / "node_modules")}
+
+
+def test_unavailable_raises(monkeypatch, tmp_path):
+    """With no resolvable evaluator at all, evaluate_selectors raises (never hangs)."""
+    _force_unavailable(monkeypatch, tmp_path)
+    assert _eval._node_modules_dir() is None
+    assert _eval._resolve_core() is None
     assert _eval.is_available() is False
     with pytest.raises(_eval.EvaluatorUnavailable):
         _eval.evaluate_selectors({"atoms": [], "relations": [], "types": []}, ["Node"])
@@ -51,7 +71,7 @@ def test_unavailable_raises(monkeypatch, tmp_path):
 
 def test_empty_selector_list_is_noop(monkeypatch, tmp_path):
     """An empty batch returns [] before any bridge work — even when unavailable."""
-    monkeypatch.setenv("SPYTIAL_CORE_NODE_PATH", str(tmp_path))  # force unavailable
+    _force_unavailable(monkeypatch, tmp_path)
     assert _eval.is_available() is False
     assert _eval.evaluate_selectors({}, []) == []  # still a clean no-op
 

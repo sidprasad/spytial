@@ -4,9 +4,15 @@
 // the datum with the windowless spytial-core evaluator (the `./evaluator` entry,
 // spytial-core>=2.9.2), and writes {ok, vocabulary, results} JSON to stdout. A
 // malformed or nonsense selector never aborts the run -- its outcome is captured
-// in its own result entry. `spytial-core` is resolved via NODE_PATH, set by the
-// Python side (see _eval.py).
-const { JSONDataInstance, SGraphQueryEvaluator } = require("spytial-core/evaluator");
+// in its own result entry.
+//
+// The evaluator module is chosen by the Python side (see _eval.py):
+//   * SPYTIAL_EVALUATOR_MODULE -- an absolute path to the vendored, self-contained
+//     evaluator shipped in the wheel (the default; no npm install needed), or
+//   * the bare "spytial-core/evaluator" specifier resolved via NODE_PATH, when the
+//     user points SPYTIAL_CORE_NODE_PATH at their own spytial-core install.
+const evaluatorModule = process.env.SPYTIAL_EVALUATOR_MODULE || "spytial-core/evaluator";
+const { JSONDataInstance, SGraphQueryEvaluator } = require(evaluatorModule);
 
 function readStdin() {
   return new Promise((resolve, reject) => {

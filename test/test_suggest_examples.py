@@ -605,7 +605,7 @@ def test_enrich_draft_runs_selector_tier_with_examples(monkeypatch):
 
 @pytest.mark.skipif(
     not _eval.is_available(),
-    reason="headless evaluator bridge unavailable (need node + SPYTIAL_CORE_NODE_PATH)",
+    reason="headless evaluator bridge unavailable (need a node runtime on PATH)",
 )
 def test_end_to_end_single_example():
     model = FakeModel(
@@ -639,7 +639,7 @@ def test_end_to_end_single_example():
 
 @pytest.mark.skipif(
     not _eval.is_available(),
-    reason="headless evaluator bridge unavailable (need node + SPYTIAL_CORE_NODE_PATH)",
+    reason="headless evaluator bridge unavailable (need a node runtime on PATH)",
 )
 def test_end_to_end_instance_set():
     # 'next' resolves on lists of both lengths; a bogus relation resolves on neither.

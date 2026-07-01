@@ -19,11 +19,19 @@ crashes ``suggest()``.
 
 Resolving the JS side
 ---------------------
-``node`` is found on ``PATH`` (override with ``SPYTIAL_NODE``). ``spytial-core``
-is resolved via ``NODE_PATH``: set ``SPYTIAL_CORE_NODE_PATH`` to a directory that
-contains ``node_modules/spytial-core`` (e.g. ``npm install spytial-core`` in a
-cache dir). Shipping a vendored copy in the wheel so this Just Works for a plain
-``pip install`` is a deliberate follow-up, not a blocker for the feature.
+``node`` is found on ``PATH`` (override with ``SPYTIAL_NODE``). The evaluator
+itself is resolved in priority order:
+
+1. ``SPYTIAL_CORE_NODE_PATH`` -- a directory containing ``node_modules/spytial-core``
+   (e.g. ``npm install spytial-core`` in a cache dir). For power users who want to
+   run against their own spytial-core; resolved via ``NODE_PATH``.
+2. The **vendored** self-contained evaluator shipped in the wheel
+   (``_vendor/spytial-core-evaluator.js``). This is the default, so a plain
+   ``pip install`` needs no npm install and no env var -- only a ``node`` binary.
+   It is a single bundled file (spytial-core>=2.10.1's ``./evaluator`` build), so
+   it loads by absolute path with no sibling ``node_modules``.
+
+So the only hard requirement is a ``node`` runtime; everything else degrades.
 """
 
 from __future__ import annotations
@@ -37,6 +45,9 @@ from pathlib import Path
 from typing import List, Optional
 
 _SHIM = Path(__file__).parent / "_eval_selectors.js"
+# The self-contained evaluator vendored from spytial-core (see _vendor/README.md).
+# Absent only in an unusual install that stripped package data.
+_VENDORED_EVALUATOR = Path(__file__).parent / "_vendor" / "spytial-core-evaluator.js"
 
 # How long node may take before we give up on a batch. Generous; evaluation of a
 # handful of selectors over a small witness is milliseconds.
@@ -84,17 +95,38 @@ def _node_bin() -> Optional[str]:
     return os.environ.get("SPYTIAL_NODE") or shutil.which("node")
 
 
-def _node_path() -> Optional[str]:
-    """A directory containing ``node_modules/spytial-core``, or None."""
+def _node_modules_dir() -> Optional[str]:
+    """A ``node_modules`` dir containing ``spytial-core``, from the env override."""
     candidate = os.environ.get("SPYTIAL_CORE_NODE_PATH")
     if candidate and (Path(candidate) / "node_modules" / "spytial-core").is_dir():
         return str(Path(candidate) / "node_modules")
     return None
 
 
+def _vendored_evaluator() -> Optional[str]:
+    """The vendored self-contained evaluator shipped in the wheel, or None."""
+    return str(_VENDORED_EVALUATOR) if _VENDORED_EVALUATOR.is_file() else None
+
+
+def _resolve_core() -> Optional[dict]:
+    """How the shim should load the evaluator, as env vars for the subprocess.
+
+    Prefers an explicit ``SPYTIAL_CORE_NODE_PATH`` install (bare specifier resolved
+    via ``NODE_PATH``) over the vendored file (required by absolute path). Returns
+    ``None`` when neither is resolvable.
+    """
+    node_modules = _node_modules_dir()
+    if node_modules is not None:
+        return {"NODE_PATH": node_modules}
+    vendored = _vendored_evaluator()
+    if vendored is not None:
+        return {"SPYTIAL_EVALUATOR_MODULE": vendored}
+    return None
+
+
 def is_available() -> bool:
-    """Whether the bridge can run right now (node present and core resolvable)."""
-    return bool(_node_bin()) and _node_path() is not None and _SHIM.is_file()
+    """Whether the bridge can run right now (node present and evaluator resolvable)."""
+    return bool(_node_bin()) and _resolve_core() is not None and _SHIM.is_file()
 
 
 def evaluate_selectors(datum, selectors: List[str]) -> List[SelectorVerdict]:
@@ -108,15 +140,16 @@ def evaluate_selectors(datum, selectors: List[str]) -> List[SelectorVerdict]:
     if not selectors:
         return []  # nothing to evaluate -- no bridge needed
     node = _node_bin()
-    node_path = _node_path()
-    if not node or node_path is None or not _SHIM.is_file():
+    core_env = _resolve_core()
+    if not node or core_env is None or not _SHIM.is_file():
         raise EvaluatorUnavailable(
-            "headless selector evaluation needs node and a resolvable spytial-core; "
-            "set SPYTIAL_CORE_NODE_PATH to a dir containing node_modules/spytial-core "
-            "(npm install spytial-core)."
+            "headless selector evaluation needs a node runtime and a spytial-core "
+            "evaluator. spytial ships a vendored evaluator, so normally only node is "
+            "required (install it, or set SPYTIAL_NODE); to use your own spytial-core, "
+            "set SPYTIAL_CORE_NODE_PATH to a dir containing node_modules/spytial-core."
         )
 
-    env = {**os.environ, "NODE_PATH": node_path}
+    env = {**os.environ, **core_env}
     payload = json.dumps({"datum": datum, "selectors": list(selectors)})
     try:
         proc = subprocess.run(
