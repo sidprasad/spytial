@@ -721,6 +721,31 @@ def test_enrich_filters_out_of_vocab_directions():
     assert any(s.kwargs["directions"] == ["above"] for s in _of(draft, "orientation"))
 
 
+def test_enrich_honors_falsy_callable_provider():
+    # A provider whose __bool__/__len__ is falsy must still resolve — "off" is None or
+    # False only, not truthiness. Regression for the callable provider slot.
+    payload = {"shapes": [_shape("escalation", "orientation", directions=["above"])]}
+
+    class _FalsyProvider(_FakeProvider):
+        def __len__(self):
+            return 0  # makes the instance falsy
+
+    prov = _FalsyProvider(payload)
+    assert not prov  # falsy...
+    draft = suggest(Ticket, enrich=prov)
+    assert any(  # ...yet honored, not silently skipped
+        s.kwargs["directions"] == ["above"] for s in _of(draft, "orientation")
+    )
+
+
+def test_enrich_none_and_false_are_off():
+    # The only two "off" values — neither runs a provider nor leaves an enrich note.
+    for off in (None, False):
+        draft = suggest(Ticket, enrich=off)
+        assert not _llm_rows(draft)
+        assert not any("enrich" in n.lower() for n in draft.notes)
+
+
 def test_enrich_dedups_against_deterministic():
     # The rules already orient `escalation` below; an identical model suggestion is
     # not added a second time.

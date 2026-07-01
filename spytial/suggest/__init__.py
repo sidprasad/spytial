@@ -96,7 +96,7 @@ def suggest(
             ``(prompt, *, schema) -> dict`` — a function, or a built-in like
             :class:`~spytial.suggest.ClaudeCode` / :class:`~spytial.suggest.Codex` to
             enrich from a subscription instead of a metered key. ``None`` (default)
-            leaves the draft static. Enrichment suggests the
+            or ``False`` leaves the draft static. Enrichment suggests the
             *spatial shape* of the structure (orientation directions per field,
             ``cyclic`` for ring-like links, ``group`` for collections) where the
             deterministic rules fall back to a flat ``below``; the model only chooses
@@ -128,7 +128,11 @@ def suggest(
     reg = registry if registry is not None else DEFAULT_REGISTRY
     class_info = build_class_info(cls, instance=sample)
     draft = build_draft(class_info, reg)
-    if enrich:
+    # ``None``/``False`` mean "no enrichment"; everything else is a provider spec.
+    # Use identity checks, not truthiness — a callable provider whose ``__bool__``
+    # (or ``__len__``) is falsy must still resolve, since the contract accepts *any*
+    # callable.
+    if enrich is not None and enrich is not False:
         # Resolve the provider up front: a bad spec (no llm / unknown id / wrong
         # type) degrades to the static draft with a note rather than raising.
         try:
