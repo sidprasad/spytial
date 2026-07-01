@@ -129,13 +129,39 @@ llm keys set anthropic           # llm owns key management; spytial doesn't
 ```
 
 ```python
-draft = suggest(Ticket, enrich=True)              # uses your default llm model
-draft = suggest(Ticket, enrich=True, enrich_model="claude-sonnet-4-6")
+draft = suggest(Ticket, enrich="claude-sonnet-4-6")   # a named llm model
+draft = suggest(Ticket, enrich="llama3.2")            # a local model via llm-ollama
 ```
 
-It depends on [`llm`](https://llm.datasette.io/) (Simon Willison's) rather than a
-single provider SDK, so you choose the model — Claude, GPT, Gemini, a local model
-via Ollama — and `llm` handles the keys.
+You always say **what** to enrich with; there is no ambient default. A string is a
+model id resolved through [`llm`](https://llm.datasette.io/) (Simon Willison's), so
+you pick the model (Claude, GPT, Gemini, a local model via Ollama) and `llm` owns
+the keys.
+
+A **provider is just a callable** `(prompt, *, schema) -> dict`. So you can enrich
+from a **subscription** instead of a metered key — the built-in `ClaudeCode` and
+`Codex` providers run the respective CLI on your existing plan:
+
+```python
+from spytial.suggest import ClaudeCode, Codex
+
+draft = suggest(Ticket, enrich=ClaudeCode(model="sonnet"))   # your Claude Max/Pro sub
+draft = suggest(Ticket, enrich=Codex())                      # your ChatGPT plan (codex)
+```
+
+Or write your own in a few lines — anything callable with that signature works,
+including a bare function (use `instruct_json` / `extract_json` for a text-only
+backend):
+
+```python
+from spytial.suggest.providers import instruct_json, extract_json
+
+def my_provider(prompt, *, schema):
+    text = call_some_model(instruct_json(prompt, schema))
+    return extract_json(text)
+
+draft = suggest(Ticket, enrich=my_provider)
+```
 
 It suggests **shape**: an `orientation` direction per structural field, `cyclic`
 for ring-like links, and `group` for collections. So a field named `escalation`
@@ -145,20 +171,25 @@ the selector.** It chooses a direction from a fixed vocabulary; spytial builds t
 selector from the field, reusing the same render-verified forms the deterministic
 rules emit. That's what keeps it schema-level and safe:
 
-- **Type-level first.** It reasons over the class's fields, so `enrich=True` needs
-  no instance.
+- **Type-level first.** It reasons over the class's fields, so `enrich=` needs no
+  instance.
 - **You pick.** Enriched rows are tagged `source="llm"` (a `model` chip in the
   notebook panel) and stay **off by default** — candidates beside the
   deterministic ones, never applied behind your back.
-- **It can't break `suggest()`.** No `llm` installed, no model configured, or a
-  malformed response each degrade to the static draft with a note in
-  `draft.notes` — never an exception. Choices that name an unknown field or an
-  out-of-vocabulary direction are dropped.
+- **It can't break `suggest()`.** An unresolvable `enrich=` spec (no `llm`
+  installed, an unknown model id, a non-provider value) or a malformed response
+  each degrade to the static draft with a note in `draft.notes` — never an
+  exception. Choices that name an unknown field or an out-of-vocabulary direction
+  are dropped.
 
-Letting the model write actual selectors is a separate, future extension: a
-selector can only be *validated* by evaluating it over a data instance (the
-engine has no schema-only mode), so that tier belongs with a **set of example
-instances** to check against — not here, where there may be no instance at all.
+When you pass example instances (`suggest(obj, enrich=...)` or
+`suggest(Cls, examples=[a, b, ...], enrich=...)`), a second tier lets the model
+**author selector expressions** for relational cases the shape tier can't reach —
+each admitted only if it evaluates cleanly, at the right arity, on *every* example.
+A selector can only be validated by running it over data (the engine has no
+schema-only mode), which is why that tier needs the examples and the shape tier
+above does not. It runs headlessly on a vendored spytial-core evaluator, so it
+needs only a `node` runtime.
 
 ## Limits
 
