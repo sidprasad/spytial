@@ -904,6 +904,56 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Optional: LLM enrichment">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#use-your-claude-max-pro-subscription-no-api-key" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Use your Claude Max / Pro subscription (no API key)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#use-your-chatgpt-plan-codex" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Use your ChatGPT plan (Codex)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#use-an-api-key-or-a-fully-local-model-via-llm" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Use an API key, or a fully-local model (via llm)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#bring-your-own" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Bring your own
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -1057,6 +1107,56 @@
       
     </span>
   </a>
+  
+    <nav class="md-nav" aria-label="Optional: LLM enrichment">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#use-your-claude-max-pro-subscription-no-api-key" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Use your Claude Max / Pro subscription (no API key)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#use-your-chatgpt-plan-codex" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Use your ChatGPT plan (Codex)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#use-an-api-key-or-a-fully-local-model-via-llm" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Use an API key, or a fully-local model (via llm)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#bring-your-own" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Bring your own
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
       
@@ -1239,31 +1339,47 @@ palette:</p>
 <h2 id="optional-llm-enrichment">Optional: LLM enrichment</h2>
 <p>The deterministic rules key off a fixed name vocabulary — <code>left</code>/<code>right</code>,
 <code>next</code>/<code>prev</code>, <code>parent</code>/<code>children</code> — and fall back to a flat <code>below</code> for any
-self-reference they don't recognize. The optional enrichment layer asks a model
-to suggest the <em>spatial shape</em> of those fields instead, behind the
-<code>[suggest-llm]</code> extra:</p>
-<div class="highlight"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;spytial_diagramming[suggest-llm]&quot;</span>
-llm<span class="w"> </span>install<span class="w"> </span>llm-anthropic<span class="w">        </span><span class="c1"># or llm-gemini, llm-openai, llm-ollama, …</span>
-llm<span class="w"> </span>keys<span class="w"> </span><span class="nb">set</span><span class="w"> </span>anthropic<span class="w">           </span><span class="c1"># llm owns key management; spytial doesn&#39;t</span>
-</code></pre></div>
-<div class="highlight"><pre><span></span><code><span class="n">draft</span> <span class="o">=</span> <span class="n">suggest</span><span class="p">(</span><span class="n">Ticket</span><span class="p">,</span> <span class="n">enrich</span><span class="o">=</span><span class="s2">&quot;claude-sonnet-4-6&quot;</span><span class="p">)</span>   <span class="c1"># a named llm model</span>
-<span class="n">draft</span> <span class="o">=</span> <span class="n">suggest</span><span class="p">(</span><span class="n">Ticket</span><span class="p">,</span> <span class="n">enrich</span><span class="o">=</span><span class="s2">&quot;llama3.2&quot;</span><span class="p">)</span>            <span class="c1"># a local model via llm-ollama</span>
-</code></pre></div>
-<p>You always say <strong>what</strong> to enrich with; there is no ambient default. A string is a
-model id resolved through <a href="https://llm.datasette.io/"><code>llm</code></a> (Simon Willison's), so
-you pick the model (Claude, GPT, Gemini, a local model via Ollama) and <code>llm</code> owns
-the keys.</p>
-<p>A <strong>provider is just a callable</strong> <code>(prompt, *, schema) -&gt; dict</code>. So you can enrich
-from a <strong>subscription</strong> instead of a metered key — the built-in <code>ClaudeCode</code> and
-<code>Codex</code> providers run the respective CLI on your existing plan:</p>
-<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">spytial.suggest</span><span class="w"> </span><span class="kn">import</span> <span class="n">ClaudeCode</span><span class="p">,</span> <span class="n">Codex</span>
+self-reference they don't recognize. The optional enrichment layer asks a model to
+suggest the <em>spatial shape</em> of those fields instead.</p>
+<p>You pass <strong><code>enrich=</code></strong> to say <em>what</em> to enrich with — there is no ambient default.
+It's either a model-id <strong>string</strong> (routed through the <a href="https://llm.datasette.io/"><code>llm</code></a>
+library) or a <strong>provider</strong>: any callable <code>(prompt, *, schema) -&gt; dict</code>. Pick the
+backend that matches how you pay for models:</p>
+<h3 id="use-your-claude-max-pro-subscription-no-api-key">Use your Claude Max / Pro subscription (no API key)</h3>
+<p>Requires only the <code>claude</code> CLI (Claude Code) installed and signed in to your plan —
+the same login you already use. <code>ClaudeCode</code> shells out to it, so you need <strong>no
+<code>[suggest-llm]</code> extra and no API key</strong>:</p>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">spytial.suggest</span><span class="w"> </span><span class="kn">import</span> <span class="n">suggest</span><span class="p">,</span> <span class="n">ClaudeCode</span>
 
-<span class="n">draft</span> <span class="o">=</span> <span class="n">suggest</span><span class="p">(</span><span class="n">Ticket</span><span class="p">,</span> <span class="n">enrich</span><span class="o">=</span><span class="n">ClaudeCode</span><span class="p">(</span><span class="n">model</span><span class="o">=</span><span class="s2">&quot;sonnet&quot;</span><span class="p">))</span>   <span class="c1"># your Claude Max/Pro sub</span>
-<span class="n">draft</span> <span class="o">=</span> <span class="n">suggest</span><span class="p">(</span><span class="n">Ticket</span><span class="p">,</span> <span class="n">enrich</span><span class="o">=</span><span class="n">Codex</span><span class="p">())</span>                      <span class="c1"># your ChatGPT plan (codex)</span>
+<span class="n">draft</span> <span class="o">=</span> <span class="n">suggest</span><span class="p">(</span><span class="n">Ticket</span><span class="p">,</span> <span class="n">enrich</span><span class="o">=</span><span class="n">ClaudeCode</span><span class="p">())</span>               <span class="c1"># model=&quot;sonnet&quot; by default</span>
+<span class="n">draft</span> <span class="o">=</span> <span class="n">suggest</span><span class="p">(</span><span class="n">Ticket</span><span class="p">,</span> <span class="n">enrich</span><span class="o">=</span><span class="n">ClaudeCode</span><span class="p">(</span><span class="n">model</span><span class="o">=</span><span class="s2">&quot;opus&quot;</span><span class="p">))</span>   <span class="c1"># opus for best quality</span>
 </code></pre></div>
-<p>Or write your own in a few lines — anything callable with that signature works,
-including a bare function (use <code>instruct_json</code> / <code>extract_json</code> for a text-only
-backend):</p>
+<blockquote>
+<p><strong>Stay on your subscription:</strong> if <code>ANTHROPIC_API_KEY</code> is set in your environment,
+the <code>claude</code> CLI uses <em>that</em> (metered API billing) instead of your Max plan. Unset
+it to bill against the subscription. <code>model=</code> accepts anything <code>claude --model</code>
+takes (<code>sonnet</code>, <code>opus</code>, <code>haiku</code>, or a full model id).</p>
+</blockquote>
+<h3 id="use-your-chatgpt-plan-codex">Use your ChatGPT plan (Codex)</h3>
+<p>Same idea with the <code>codex</code> CLI (included in ChatGPT Plus/Pro), which has <em>native</em>
+JSON-schema output:</p>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">spytial.suggest</span><span class="w"> </span><span class="kn">import</span> <span class="n">suggest</span><span class="p">,</span> <span class="n">Codex</span>
+
+<span class="n">draft</span> <span class="o">=</span> <span class="n">suggest</span><span class="p">(</span><span class="n">Ticket</span><span class="p">,</span> <span class="n">enrich</span><span class="o">=</span><span class="n">Codex</span><span class="p">())</span>          <span class="c1"># needs the `codex` CLI, signed in</span>
+</code></pre></div>
+<h3 id="use-an-api-key-or-a-fully-local-model-via-llm">Use an API key, or a fully-local model (via <code>llm</code>)</h3>
+<p>A <strong>string</strong> is a model id resolved through <code>llm</code> (Simon Willison's), which owns key
+management — spytial never sees a key. This covers metered APIs <em>and</em> local models:</p>
+<div class="highlight"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;spytial_diagramming[suggest-llm]&quot;</span>
+llm<span class="w"> </span>install<span class="w"> </span>llm-anthropic<span class="w">        </span><span class="c1"># or llm-openai, llm-gemini, llm-ollama, …</span>
+llm<span class="w"> </span>keys<span class="w"> </span><span class="nb">set</span><span class="w"> </span>anthropic<span class="w">           </span><span class="c1"># only for hosted APIs; Ollama needs no key</span>
+</code></pre></div>
+<div class="highlight"><pre><span></span><code><span class="n">draft</span> <span class="o">=</span> <span class="n">suggest</span><span class="p">(</span><span class="n">Ticket</span><span class="p">,</span> <span class="n">enrich</span><span class="o">=</span><span class="s2">&quot;claude-sonnet-4-6&quot;</span><span class="p">)</span>   <span class="c1"># a metered API model</span>
+<span class="n">draft</span> <span class="o">=</span> <span class="n">suggest</span><span class="p">(</span><span class="n">Ticket</span><span class="p">,</span> <span class="n">enrich</span><span class="o">=</span><span class="s2">&quot;llama3.2&quot;</span><span class="p">)</span>            <span class="c1"># local via Ollama — nothing leaves your machine</span>
+</code></pre></div>
+<h3 id="bring-your-own">Bring your own</h3>
+<p>A provider is just a callable, so a few lines wire up any backend. <code>instruct_json</code> /
+<code>extract_json</code> handle the JSON round-trip for a text-only model:</p>
 <div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">spytial.suggest.providers</span><span class="w"> </span><span class="kn">import</span> <span class="n">instruct_json</span><span class="p">,</span> <span class="n">extract_json</span>
 
 <span class="k">def</span><span class="w"> </span><span class="nf">my_provider</span><span class="p">(</span><span class="n">prompt</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">schema</span><span class="p">):</span>
@@ -1272,6 +1388,11 @@ backend):</p>
 
 <span class="n">draft</span> <span class="o">=</span> <span class="n">suggest</span><span class="p">(</span><span class="n">Ticket</span><span class="p">,</span> <span class="n">enrich</span><span class="o">=</span><span class="n">my_provider</span><span class="p">)</span>
 </code></pre></div>
+<p><em>What leaves your machine:</em> only schema-level <strong>names</strong> — class/field/type/relation
+names and counts, never your field <em>values</em> (those are used locally to validate
+selectors). With a local model (<code>enrich="llama3.2"</code>) nothing leaves at all. The
+<code>ClaudeCode</code>/<code>Codex</code> subscription providers are for individual, local use — for a
+hosted or multi-user service use an API-key model instead.</p>
 <p>It suggests <strong>shape</strong>: an <code>orientation</code> direction per structural field, <code>cyclic</code>
 for ring-like links, and <code>group</code> for collections. So a field named <code>escalation</code>
 — which the rules can only lay out <code>below</code> — gets a model-proposed <code>above</code>,
