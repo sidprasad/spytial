@@ -268,6 +268,19 @@ class Group(SpytialAnnotation):
 
     Usage (selector-based):
         Grouped = Annotated[MyType, Group(selector='items', name='mygroup')]
+
+    For a selector-based group, ``addEdge`` controls the edge drawn between the
+    group's key and the group itself. For a binary selector with tuples
+    ``(a, b), (a, c), (a, d)`` the group is keyed by ``a`` and contains
+    ``{b, c, d}``:
+
+        - ``'none'``      -> draw nothing (default)
+        - ``'togroup'``   -> edge from the key into the group (a -> group)
+        - ``'fromgroup'`` -> edge from the group back to the key (group -> a)
+
+    Legacy ``addEdge=True`` is still accepted and maps to ``'togroup'``.
+
+        Grouped = Annotated[MyType, Group(selector='...', name='g', addEdge='togroup')]
     """
 
     _annotation_type = "group"

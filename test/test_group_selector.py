@@ -32,6 +32,31 @@ def test_field_based_group_still_works():
     assert constraint['groupOn'] == 0
     assert constraint['addToGroup'] == 1
 
+def test_selector_group_addedge_direction():
+    """addEdge accepts the spytial-core >=2.10 direction values and serializes through."""
+    for direction in ('none', 'togroup', 'fromgroup'):
+        my_obj = [1, 2, 3]
+        annotate_group(
+            my_obj,
+            selector='{b : Basket, a : Fruit | a in b.fruit}',
+            name='byBasket',
+            addEdge=direction,
+        )
+        constraint = collect_decorators(my_obj)['constraints'][0]['group']
+        assert constraint['addEdge'] == direction
+
+        yaml_output = serialize_to_yaml_string(collect_decorators(my_obj))
+        assert f'addEdge: {direction}' in yaml_output
+
+
+def test_selector_group_addedge_legacy_boolean():
+    """Legacy addEdge=True still validates (spytial-core maps it to 'togroup')."""
+    my_obj = [1, 2, 3]
+    annotate_group(my_obj, selector='{x : Item | x.hot}', name='hot', addEdge=True)
+    constraint = collect_decorators(my_obj)['constraints'][0]['group']
+    assert constraint['addEdge'] is True
+
+
 def test_group_decorator_with_selector():
     """Test the group decorator with selector parameters."""
     my_dict = {'a': 1, 'b': 2}
