@@ -6399,6 +6399,17 @@ IntList = Annotated[list[int], Orientation(selector='items', directions=['horizo
     Tree = Annotated[TreeNode, Group(field='children', groupOn=0, addToGroup=1)]</p>
 <p>Usage (selector-based):
     Grouped = Annotated[MyType, Group(selector='items', name='mygroup')]</p>
+<p>For a selector-based group, <code>addEdge</code> controls the edge drawn between the
+group's key and the group itself. For a binary selector with tuples
+<code>(a, b), (a, c), (a, d)</code> the group is keyed by <code>a</code> and contains
+<code>{b, c, d}</code>:</p>
+<div class="highlight"><pre><span></span><code>- ``&#39;none&#39;``      -&gt; draw nothing (default)
+- ``&#39;togroup&#39;``   -&gt; edge from the key into the group (a -&gt; group)
+- ``&#39;fromgroup&#39;`` -&gt; edge from the group back to the key (group -&gt; a)
+</code></pre></div>
+<p>Legacy <code>addEdge=True</code> is still accepted and maps to <code>'togroup'</code>.</p>
+<div class="highlight"><pre><span></span><code>Grouped = Annotated[MyType, Group(selector=&#39;...&#39;, name=&#39;g&#39;, addEdge=&#39;togroup&#39;)]
+</code></pre></div>
 
 
 
@@ -10271,6 +10282,17 @@ IntList = Annotated[list[int], Orientation(selector='items', directions=['horizo
     Tree = Annotated[TreeNode, Group(field='children', groupOn=0, addToGroup=1)]</p>
 <p>Usage (selector-based):
     Grouped = Annotated[MyType, Group(selector='items', name='mygroup')]</p>
+<p>For a selector-based group, <code>addEdge</code> controls the edge drawn between the
+group's key and the group itself. For a binary selector with tuples
+<code>(a, b), (a, c), (a, d)</code> the group is keyed by <code>a</code> and contains
+<code>{b, c, d}</code>:</p>
+<div class="highlight"><pre><span></span><code>- ``&#39;none&#39;``      -&gt; draw nothing (default)
+- ``&#39;togroup&#39;``   -&gt; edge from the key into the group (a -&gt; group)
+- ``&#39;fromgroup&#39;`` -&gt; edge from the group back to the key (group -&gt; a)
+</code></pre></div>
+<p>Legacy <code>addEdge=True</code> is still accepted and maps to <code>'togroup'</code>.</p>
+<div class="highlight"><pre><span></span><code>Grouped = Annotated[MyType, Group(selector=&#39;...&#39;, name=&#39;g&#39;, addEdge=&#39;togroup&#39;)]
+</code></pre></div>
 
 
 
