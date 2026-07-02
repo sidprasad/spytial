@@ -655,14 +655,53 @@ def test_enrich_bad_spec_degrades_with_note():
 
 def test_enrich_orientation_for_unfamiliar_field():
     # The provider picks a direction (above); spytial supplies the field-form selector.
+    # The model is the primary shape author, so its pick is enabled by default.
     payload = {"shapes": [_shape("escalation", "orientation", directions=["above"])]}
     draft = suggest(Ticket, enrich=_FakeProvider(payload))
     assert any(
         s.kwargs == {"selector": _edge("escalation"), "directions": ["above"]}
         and s.source == "llm"
-        and not s.enabled_by_default
+        and s.enabled_by_default
         for s in _of(draft, "orientation")
     )
+
+
+def test_enrich_shape_wins_and_demotes_rule_to_backup():
+    # LLM `above` beats the deterministic `below` for `escalation`: the model's row is
+    # the enabled suggestion, and the built-in `below` steps down to a backup
+    # alternative (kept, disabled) rather than vanishing.
+    payload = {"shapes": [_shape("escalation", "orientation", directions=["above"])]}
+    draft = suggest(Ticket, enrich=_FakeProvider(payload))
+    enabled = [s for s in draft.suggestions if s.directive == "orientation"
+               and s.source_field == "escalation"]
+    assert [(s.source, s.kwargs["directions"]) for s in enabled] == [("llm", ["above"])]
+    demoted = [s for s in draft.alternatives
+               if s.directive == "orientation" and s.source == "rule"
+               and s.kwargs["directions"] == ["below"]]
+    assert demoted and demoted[0].enabled_by_default is False
+
+
+def test_enrich_abstain_demotes_rule_shape():
+    # A deliberate `none` means the model owns the field and chose no shape — the
+    # built-in `below` is demoted to a backup, and nothing is enabled in its place.
+    payload = {"shapes": [_shape("escalation", "none")]}
+    draft = suggest(Ticket, enrich=_FakeProvider(payload))
+    assert not any(s.directive == "orientation" and s.source_field == "escalation"
+                   for s in draft.suggestions)
+    assert any(s.directive == "orientation" and s.source == "rule"
+               and s.source_field == "escalation" for s in draft.alternatives)
+
+
+def test_enrich_agreement_keeps_builtin_no_duplicate():
+    # When the model agrees with the deterministic rule (`below` == `below`), keep the
+    # built-in enabled — no relabelled llm duplicate, no demotion.
+    payload = {"shapes": [_shape("escalation", "orientation", directions=["below"])]}
+    draft = suggest(Ticket, enrich=_FakeProvider(payload))
+    assert not _of(draft, "orientation")  # no llm orientation row added
+    kept = [s for s in draft.suggestions if s.directive == "orientation"
+            and s.source_field == "escalation"]
+    assert [(s.source, s.enabled_by_default) for s in kept] == [("rule", True)]
+    assert not draft.alternatives  # nothing demoted
 
 
 def test_enrich_orientation_over_container_uses_children_selector():
