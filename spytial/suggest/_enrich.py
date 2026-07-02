@@ -23,10 +23,16 @@ companion tier in :mod:`spytial.suggest._enrich_from_examples`, which activates 
 example instances are available and validates every candidate by evaluating it over
 each of them.
 
-Enriched rows are tagged ``source="llm"``, stay off by default (you pick), and every
-failure path — an unresolvable provider, a malformed model response — degrades to the
-static draft with a note. Enrichment can never crash ``suggest()``. The provider (how
-to reach a model) is chosen by the caller via ``enrich=`` and resolved in
+In enrich mode the model is the *primary* shape author. When the call succeeds its
+choice for a structural field wins: it becomes the enabled suggestion and the built-in
+rule it competed with is demoted to a backup alternative — kept and visible, one toggle
+away, but off. A field the model abstains on (``none``) gets no shape, and its built-in
+shape steps down too: the model owns the field even when it deliberately chooses
+nothing. The deterministic rules only come back as the active default when the whole
+provider call fails — every failure path (an unresolvable provider, a malformed model
+response) degrades to the static draft with a note, and enrichment can never crash
+``suggest()``. Enriched rows stay tagged ``source="llm"``. The provider (how to reach a
+model) is chosen by the caller via ``enrich=`` and resolved in
 :mod:`spytial.suggest.providers`; this module just calls ``provider(prompt, schema=)``.
 """
 
@@ -171,12 +177,24 @@ def _ask_shapes(provider, ci: ClassInfo, fields: List) -> List[dict]:
 
 
 def _apply_shapes(draft: SpecDraft, ci: ClassInfo, fields: List, shapes: List) -> None:
-    """Turn validated shape choices into off-by-default, model-tagged suggestions.
+    """Let the model's shape choice win per structural field; demote the rule it beats.
 
-    Every selector is built by spytial from the field (the render-verified form the
-    deterministic rules use), never by the model. Choices that name an unknown field,
-    an out-of-vocabulary direction, or a constraint that doesn't fit the field's kind
-    are dropped — schema-level validation, no datum required.
+    The model is the primary shape author here. For each structural field it addressed:
+
+    * a **valid shape** becomes the enabled suggestion, and the built-in
+      orientation/cyclic it competed with is moved to ``draft.alternatives`` (a backup —
+      off, but one toggle away). If the model's shape is identical to the built-in's, the
+      built-in is left enabled instead (agreement, no churn, no duplicate row).
+    * an **explicit ``none``** (deliberate abstain) demotes the built-in shape too and
+      adds nothing — the model owns the field and chose no shape.
+    * an **invalid non-``none``** entry (a model slip: a direction that filtered to
+      empty, a ``group`` on a scalar) is ignored and the built-in shape stays enabled.
+
+    Every selector is still built by spytial from the field (the render-verified form the
+    deterministic rules use), never by the model. Choices that name an unknown field, an
+    out-of-vocabulary direction, or a constraint that doesn't fit the field's kind are
+    dropped — schema-level validation, no datum required. Fields the model doesn't
+    address at all keep their built-in shape untouched.
     """
     by_name = {f.name: f for f in fields}
     cls = ci.cls.__name__
@@ -187,13 +205,65 @@ def _apply_shapes(draft: SpecDraft, ci: ClassInfo, fields: List, shapes: List) -
         if f is None:
             continue  # model named a field we didn't analyze — drop it
         sug = _shape_to_suggestion(ci, cls, f, sh)
-        if sug is None:
+        builtins = _builtin_shape_rows_for_field(draft, ci, f)
+
+        if sug is not None:
+            # The model proposed a valid shape. If a built-in already says exactly this,
+            # leave it enabled (both agree) rather than relabel and duplicate.
+            if any(_same_shape(b, sug) for b in builtins):
+                continue
+            _demote(draft, builtins)  # the built-in shape becomes a backup alternative
+            key = _key(sug)
+            if key in seen:
+                continue
+            seen.add(key)
+            draft.suggestions.append(sug)
+        elif sh.get("constraint") == "none":
+            # Deliberate abstain: the model owns the field and picked no shape, so the
+            # built-in shape steps down to a backup as well (LLM wins, even as 'nothing').
+            _demote(draft, builtins)
+        # else: an invalid non-'none' entry — a model slip; leave the built-in enabled.
+
+
+def _builtin_shape_rows_for_field(draft: SpecDraft, ci: ClassInfo, f) -> List[Suggestion]:
+    """Deterministic orientation/cyclic rows whose shape the model now owns for ``f``.
+
+    A scalar self-reference carries ``source_field=f.name``; a container's derived
+    (parent, child) edge carries ``source_field=None`` and is matched by its selector
+    (the ``_children_selector`` form ``rules.child_container`` emits), so a plain-list
+    sequence's orientation — a different selector, and not a self-ref field — is left
+    alone.
+    """
+    cls = ci.cls.__name__
+    child_sel = (
+        _children_selector(cls, f.name, f.container) if f.container in _CONTAINERS else None
+    )
+    rows: List[Suggestion] = []
+    for s in draft.suggestions:
+        if s.source != "rule" or s.directive not in ("orientation", "cyclic"):
             continue
-        key = _key(sug)
-        if key in seen:
-            continue  # don't duplicate a directive the deterministic rules emitted
-        seen.add(key)
-        draft.suggestions.append(sug)
+        if s.source_field == f.name or (
+            s.source_field is None
+            and child_sel is not None
+            and s.kwargs.get("selector") == child_sel
+        ):
+            rows.append(s)
+    return rows
+
+
+def _demote(draft: SpecDraft, rows: List[Suggestion]) -> None:
+    """Move built-in shape rows out of the enabled set into backup alternatives."""
+    for s in rows:
+        try:
+            draft.suggestions.remove(s)
+        except ValueError:
+            continue  # already moved (shared by two shape choices) — skip
+        s.enabled_by_default = False
+        draft.alternatives.append(s)
+
+
+def _same_shape(a: Suggestion, b: Suggestion) -> bool:
+    return a.directive == b.directive and a.kwargs == b.kwargs
 
 
 def _shape_to_suggestion(ci: ClassInfo, cls: str, f, sh: dict) -> Optional[Suggestion]:
@@ -230,13 +300,15 @@ def _shape_to_suggestion(ci: ClassInfo, cls: str, f, sh: dict) -> Optional[Sugge
     else:
         return None  # 'none' or anything unrecognized — abstain
 
+    # The model is the primary shape author, so its pick is enabled by default; the
+    # built-in it beats is demoted to a backup in _apply_shapes.
     return Suggestion(
         kind,
         kwargs,
-        "low",
+        "medium",
         rationale,
         source_field,
-        enabled_by_default=False,
+        enabled_by_default=True,
         source="llm",
     )
 

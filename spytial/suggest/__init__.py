@@ -98,10 +98,13 @@ def suggest(
             enrich from a subscription instead of a metered key. ``None`` (default)
             or ``False`` leaves the draft static. Enrichment suggests the
             *spatial shape* of the structure (orientation directions per field,
-            ``cyclic`` for ring-like links, ``group`` for collections) where the
-            deterministic rules fall back to a flat ``below``; the model only chooses
-            the shape and spytial supplies the render-verified selector. Enriched rows
-            are tagged ``source="llm"`` and stay off by default — candidates you pick.
+            ``cyclic`` for ring-like links, ``group`` for collections). In this mode the
+            model is the *primary* shape author — even for fields the built-in rules
+            already name: its choice wins and is enabled, and the rule it beats is
+            demoted to a backup alternative (kept, off, one toggle away). The
+            deterministic shape returns as the active default only if the whole provider
+            call fails. The model only chooses the shape; spytial supplies the
+            render-verified selector. Enriched rows are tagged ``source="llm"``.
             When examples are available it additionally authors *selectors* for
             relational cases the shape tier can't express, validating each by
             evaluating it over every example. A spec that can't be resolved (``llm``
