@@ -118,40 +118,63 @@ def color_by_status(field, cls_info):
 
 The deterministic rules key off a fixed name vocabulary — `left`/`right`,
 `next`/`prev`, `parent`/`children` — and fall back to a flat `below` for any
-self-reference they don't recognize. The optional enrichment layer asks a model
-to suggest the *spatial shape* of those fields instead, behind the
-`[suggest-llm]` extra:
+self-reference they don't recognize. The optional enrichment layer asks a model to
+suggest the *spatial shape* of those fields instead.
+
+You pass **`enrich=`** to say *what* to enrich with — there is no ambient default.
+It's either a model-id **string** (routed through the [`llm`](https://llm.datasette.io/)
+library) or a **provider**: any callable `(prompt, *, schema) -> dict`. Pick the
+backend that matches how you pay for models:
+
+### Use your Claude Max / Pro subscription (no API key)
+
+Requires only the `claude` CLI (Claude Code) installed and signed in to your plan —
+the same login you already use. `ClaudeCode` shells out to it, so you need **no
+`[suggest-llm]` extra and no API key**:
+
+```python
+from spytial.suggest import suggest, ClaudeCode
+
+draft = suggest(Ticket, enrich=ClaudeCode())               # model="sonnet" by default
+draft = suggest(Ticket, enrich=ClaudeCode(model="opus"))   # opus for best quality
+```
+
+> **Stay on your subscription:** if `ANTHROPIC_API_KEY` is set in your environment,
+> the `claude` CLI uses *that* (metered API billing) instead of your Max plan. Unset
+> it to bill against the subscription. `model=` accepts anything `claude --model`
+> takes (`sonnet`, `opus`, `haiku`, or a full model id).
+
+### Use your ChatGPT plan (Codex)
+
+Same idea with the `codex` CLI (included in ChatGPT Plus/Pro), which has *native*
+JSON-schema output:
+
+```python
+from spytial.suggest import suggest, Codex
+
+draft = suggest(Ticket, enrich=Codex())          # needs the `codex` CLI, signed in
+```
+
+### Use an API key, or a fully-local model (via `llm`)
+
+A **string** is a model id resolved through `llm` (Simon Willison's), which owns key
+management — spytial never sees a key. This covers metered APIs *and* local models:
 
 ```bash
 pip install "spytial_diagramming[suggest-llm]"
-llm install llm-anthropic        # or llm-gemini, llm-openai, llm-ollama, …
-llm keys set anthropic           # llm owns key management; spytial doesn't
+llm install llm-anthropic        # or llm-openai, llm-gemini, llm-ollama, …
+llm keys set anthropic           # only for hosted APIs; Ollama needs no key
 ```
 
 ```python
-draft = suggest(Ticket, enrich="claude-sonnet-4-6")   # a named llm model
-draft = suggest(Ticket, enrich="llama3.2")            # a local model via llm-ollama
+draft = suggest(Ticket, enrich="claude-sonnet-4-6")   # a metered API model
+draft = suggest(Ticket, enrich="llama3.2")            # local via Ollama — nothing leaves your machine
 ```
 
-You always say **what** to enrich with; there is no ambient default. A string is a
-model id resolved through [`llm`](https://llm.datasette.io/) (Simon Willison's), so
-you pick the model (Claude, GPT, Gemini, a local model via Ollama) and `llm` owns
-the keys.
+### Bring your own
 
-A **provider is just a callable** `(prompt, *, schema) -> dict`. So you can enrich
-from a **subscription** instead of a metered key — the built-in `ClaudeCode` and
-`Codex` providers run the respective CLI on your existing plan:
-
-```python
-from spytial.suggest import ClaudeCode, Codex
-
-draft = suggest(Ticket, enrich=ClaudeCode(model="sonnet"))   # your Claude Max/Pro sub
-draft = suggest(Ticket, enrich=Codex())                      # your ChatGPT plan (codex)
-```
-
-Or write your own in a few lines — anything callable with that signature works,
-including a bare function (use `instruct_json` / `extract_json` for a text-only
-backend):
+A provider is just a callable, so a few lines wire up any backend. `instruct_json` /
+`extract_json` handle the JSON round-trip for a text-only model:
 
 ```python
 from spytial.suggest.providers import instruct_json, extract_json
@@ -162,6 +185,12 @@ def my_provider(prompt, *, schema):
 
 draft = suggest(Ticket, enrich=my_provider)
 ```
+
+*What leaves your machine:* only schema-level **names** — class/field/type/relation
+names and counts, never your field *values* (those are used locally to validate
+selectors). With a local model (`enrich="llama3.2"`) nothing leaves at all. The
+`ClaudeCode`/`Codex` subscription providers are for individual, local use — for a
+hosted or multi-user service use an API-key model instead.
 
 It suggests **shape**: an `orientation` direction per structural field, `cyclic`
 for ring-like links, and `group` for collections. So a field named `escalation`
