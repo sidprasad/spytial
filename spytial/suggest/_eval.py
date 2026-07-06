@@ -76,6 +76,12 @@ class SelectorVerdict:
     arity: int  # max arity of the result; 0 means a singleton / scalar / none
     error: Optional[str] = None  # message when ok is False
     pretty: Optional[str] = None  # human-readable rendering of the result
+    # Static-analyzer verdict (present only when the evaluator build exposes it):
+    # the fold status (unsat/tautology/empty/ill-typed/unknown) and its reason. It's
+    # the *why* behind a rejection -- a provable empty, an arity/type mismatch -- which
+    # plain evaluation can't articulate. Used to give the model repair feedback.
+    static_status: Optional[str] = None
+    static_reason: Optional[str] = None
 
     @property
     def resolves(self) -> bool:
@@ -89,6 +95,29 @@ class SelectorVerdict:
         is the complementary static check.)
         """
         return self.ok and not self.empty and self.arity >= 1
+
+    @property
+    def diagnostic(self) -> Optional[str]:
+        """A short, human reason this selector isn't usable -- for repair feedback.
+
+        Prefers the static analyzer's reason (it explains *why*: a provable empty, an
+        arity or type mismatch), then falls back to what evaluation alone revealed.
+        Returns ``None`` when the selector resolves cleanly -- nothing to repair.
+        """
+        if self.resolves:
+            return None
+        if self.static_reason:
+            return self.static_reason
+        if not self.ok:
+            return f"did not evaluate ({self.error})" if self.error else "did not parse"
+        if self.empty:
+            return "resolved to the empty set on this example"
+        if self.arity < 1:
+            return (
+                "resolved to an atom literal (arity 0), not a relation -- most likely "
+                "an unknown or misspelled name"
+            )
+        return None
 
 
 def _node_bin() -> Optional[str]:
@@ -187,6 +216,7 @@ def _to_verdict(r: dict) -> SelectorVerdict:
     threw = r.get("threw")
     is_error = bool(r.get("isError")) or threw is not None
     error = r.get("error") or threw
+    static = r.get("static") or {}
     return SelectorVerdict(
         selector=r.get("selector", ""),
         ok=not is_error,
@@ -194,4 +224,6 @@ def _to_verdict(r: dict) -> SelectorVerdict:
         arity=int(r.get("arity", 0)),
         error=error,
         pretty=r.get("pretty") if r.get("pretty") is not None else r.get("value"),
+        static_status=static.get("status"),
+        static_reason=static.get("reason"),
     )

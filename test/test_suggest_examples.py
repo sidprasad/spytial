@@ -61,6 +61,23 @@ class FakeModel:
         return {"selectors": self.candidates}
 
 
+class RepairModel:
+    """A provider that answers with a different candidate list per call (a repair queue).
+
+    Each call pops the next round's response; once the queue is exhausted it repeats the
+    last one. Records prompts so a test can assert the diagnostics were threaded back in.
+    """
+
+    def __init__(self, rounds):
+        self.rounds = list(rounds)
+        self.prompts = []
+
+    def __call__(self, prompt, *, schema):
+        self.prompts.append(prompt)
+        idx = min(len(self.prompts) - 1, len(self.rounds) - 1)
+        return {"selectors": self.rounds[idx]}
+
+
 def _v(selector, ok=True, empty=False, arity=2):
     return _eval.SelectorVerdict(selector=selector, ok=ok, empty=empty, arity=arity)
 
@@ -587,6 +604,119 @@ def test_enrich_draft_runs_selector_tier_with_examples(monkeypatch):
 
 
 # --------------------------------------------------------------------------- #
+# Counterexample-guided repair loop (fake model + stubbed evaluator)
+# --------------------------------------------------------------------------- #
+
+
+def test_repair_loop_fixes_a_rejected_selector(monkeypatch):
+    # Round 1 proposes a hallucinated bareword ('frends' -> arity-0 echo, doesn't
+    # resolve); round 2 returns a selector that does. The loop must re-ask and admit it.
+    _stub_eval(monkeypatch, {"frends": (True, False, 0), "next": (True, False, 2)})
+    model = RepairModel(
+        [
+            [{"directive": "orientation", "selector": "frends",
+              "directions": ["right"], "why": "guess"}],
+            [{"directive": "orientation", "selector": "next",
+              "directions": ["right"], "why": "fixed"}],
+        ]
+    )
+    draft = _draft()
+    sel.enrich_from_examples(draft, _ci(), model, [_instance()])
+    assert [s.kwargs["selector"] for s in _llm(draft)] == ["next"]
+    assert len(model.prompts) == 2  # proposed, then repaired
+    # the repair prompt carried the rejected selector and its diagnostic
+    assert "frends" in model.prompts[1]
+    assert "arity 0" in model.prompts[1]
+
+
+def test_repair_feedback_uses_static_reason(monkeypatch):
+    # A statically provable-empty selector: evaluation says "empty", the analyzer says
+    # *why*. The repair prompt should carry the analyzer's reason, not a generic one.
+    def fake_evaluate(datum, selectors):
+        out = []
+        for s in selectors:
+            if s == "NoneType & LLNode":
+                out.append(
+                    _eval.SelectorVerdict(
+                        selector=s, ok=True, empty=True, arity=0,
+                        static_status="empty",
+                        static_reason="expression is provably the empty set",
+                    )
+                )
+            else:
+                out.append(_v(s))
+        return out
+
+    monkeypatch.setattr(_eval, "is_available", lambda: True)
+    monkeypatch.setattr(_eval, "evaluate_selectors", fake_evaluate)
+    model = RepairModel(
+        [
+            [{"directive": "orientation", "selector": "NoneType & LLNode",
+              "directions": ["right"], "why": "x"}],
+            [{"directive": "orientation", "selector": "next",
+              "directions": ["right"], "why": "fixed"}],
+        ]
+    )
+    draft = _draft()
+    sel.enrich_from_examples(draft, _ci(), model, [_instance()])
+    assert [s.kwargs["selector"] for s in _llm(draft)] == ["next"]
+    assert "provably the empty set" in model.prompts[1]
+
+
+def test_no_repair_when_a_round_admits_something(monkeypatch):
+    # Round 1 admits 'next' (and also proposes a bad one). Since something landed, the
+    # loop stops — it does not spend a repair round on the leftover reject.
+    _stub_eval(monkeypatch, {"next": (True, False, 2), "frends": (True, False, 0)})
+    model = RepairModel(
+        [
+            [
+                {"directive": "orientation", "selector": "next",
+                 "directions": ["right"], "why": "ok"},
+                {"directive": "orientation", "selector": "frends",
+                 "directions": ["right"], "why": "bad"},
+            ],
+            [{"directive": "orientation", "selector": "unreached",
+              "directions": ["right"], "why": "no"}],
+        ]
+    )
+    draft = _draft()
+    sel.enrich_from_examples(draft, _ci(), model, [_instance()])
+    assert [s.kwargs["selector"] for s in _llm(draft)] == ["next"]
+    assert len(model.prompts) == 1  # admitted something -> no repair round
+
+
+def test_repair_budget_is_a_single_retry(monkeypatch):
+    # The model never fixes it. The loop must stop after _MAX_SELECTOR_ROUNDS asks,
+    # not grind forever.
+    _stub_eval(monkeypatch, {"frends": (True, False, 0)})
+    bad = [{"directive": "orientation", "selector": "frends",
+            "directions": ["right"], "why": "x"}]
+    model = RepairModel([bad, bad, bad])
+    draft = _draft()
+    sel.enrich_from_examples(draft, _ci(), model, [_instance()])
+    assert _llm(draft) == []
+    assert len(model.prompts) == sel._MAX_SELECTOR_ROUNDS
+
+
+def test_repair_feedback_reports_arity_mismatch(monkeypatch):
+    # A selector that resolves but at the wrong arity (1, not the edge's 2) should be
+    # fed back as an arity mismatch, not a generic "empty".
+    _stub_eval(monkeypatch, {"value.univ": (True, False, 1), "next": (True, False, 2)})
+    model = RepairModel(
+        [
+            [{"directive": "orientation", "selector": "value.univ",
+              "directions": ["right"], "why": "x"}],
+            [{"directive": "orientation", "selector": "next",
+              "directions": ["right"], "why": "fixed"}],
+        ]
+    )
+    draft = _draft()
+    sel.enrich_from_examples(draft, _ci(), model, [_instance()])
+    assert [s.kwargs["selector"] for s in _llm(draft)] == ["next"]
+    assert "arity 1" in model.prompts[1] and "needs an edge" in model.prompts[1]
+
+
+# --------------------------------------------------------------------------- #
 # End-to-end with the REAL evaluator (skips without the bridge)
 # --------------------------------------------------------------------------- #
 
@@ -652,3 +782,26 @@ def test_end_to_end_instance_set():
     kept = {s.kwargs.get("selector") for s in _llm(draft)}
     assert kept == {"next"}
     assert any("all 2 example instances" in n for n in draft.notes)
+
+
+@pytest.mark.skipif(
+    not _eval.is_available(),
+    reason="headless evaluator bridge unavailable (need a node runtime on PATH)",
+)
+def test_end_to_end_repair_loop():
+    # Real evaluator: round 1 proposes an unknown relation (arity-0 echo -> rejected),
+    # round 2 fixes it. The real diagnostic ("arity 0 ... unknown name") must reach the
+    # repair prompt and the corrected selector must be admitted.
+    model = RepairModel(
+        [
+            [{"directive": "orientation", "selector": "bogusRel",
+              "directions": ["right"], "why": "guess"}],
+            [{"directive": "orientation", "selector": "next",
+              "directions": ["right"], "why": "fixed"}],
+        ]
+    )
+    draft = _draft()
+    sel.enrich_from_examples(draft, _ci(), model, [_instance()])
+    assert [s.kwargs["selector"] for s in _llm(draft)] == ["next"]
+    assert len(model.prompts) == 2  # proposed, then repaired with the real diagnostic
+    assert "bogusRel" in model.prompts[1]

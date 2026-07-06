@@ -9,12 +9,15 @@ builtin — no sibling `node_modules`.
 It lets `spytial.suggest`'s tier-2 selector validation ([`../_eval.py`](../_eval.py))
 run headlessly with just a `node` binary on the machine — no `npm install`, no
 `SPYTIAL_CORE_NODE_PATH`. The self-contained build was introduced in
-spytial-core 2.10.1 (tsup `noExternal`).
+spytial-core 2.10.1 (tsup `noExternal`); 2.11.0 additionally re-exports the static
+analyzer (`analyzeForgeExpression`) and the by-example synthesizers on the
+`./evaluator` entry, which the tier-2 bridge uses for the static gate and repair
+feedback.
 
 ## Regenerate (when bumping the pinned spytial-core)
 
 ```sh
-VERSION=2.10.1   # the spytial-core release to vendor
+VERSION=2.11.0   # the spytial-core release to vendor
 TMP=$(mktemp -d)
 ( cd "$TMP" && npm pack "spytial-core@$VERSION" && tar xzf "spytial-core-$VERSION.tgz" )
 cp "$TMP/package/dist/evaluator.js" spytial/suggest/_vendor/spytial-core-evaluator.js
@@ -28,4 +31,4 @@ grep -oE "require\(['\"][^'\"]+['\"]\)" spytial/suggest/_vendor/spytial-core-eva
   | grep -vE "require\(['\"](\.|node:)" | sort -u
 ```
 
-Pinned version: **spytial-core 2.10.1**.
+Pinned version: **spytial-core 2.11.0**.

@@ -41,6 +41,12 @@ from ..provider_system import CnDDataInstanceBuilder
 # kwarg vocabularies are pinned down; left out of this first cut deliberately.)
 _DIRECTIVE_ARITY = {"orientation": 2, "inferredEdge": 2}
 
+# Selector proposal rounds: one initial ask plus, when a whole round resolves nothing,
+# one counterexample-guided repair ask seeded with the per-selector diagnostics. Kept
+# small on purpose — each round is a model call, and the point is to salvage a near-miss,
+# not to grind. 2 = propose once, repair at most once.
+_MAX_SELECTOR_ROUNDS = 2
+
 _SELECTOR_SCHEMA = {
     "type": "object",
     "properties": {
@@ -134,24 +140,92 @@ def enrich_from_examples(
     if not vocab["relations"]:
         return  # no relations to author edges over — nothing for this tier to do
 
-    try:
-        candidates = _ask_selectors(provider, ci, vocab, len(datums))
-    except Exception as exc:  # noqa: BLE001 — bad model call/parse: disable tier
-        draft.notes.append(
-            "enrich: selector tier skipped "
-            f"(model call or response parse failed: {exc})."
-        )
-        return
-    if not candidates:
-        return
+    # Names already taken by a type/relation — an inferredEdge must not shadow one.
+    reserved = {n for n, _ in vocab["relations"]} | {t for t, _ in vocab["types"]}
+    seen = {s.dedup_key() for s in draft.suggestions}
+    kept = 0
+    feedback: Optional[str] = None
 
-    # De-dup selector strings so the bridge doesn't evaluate the same expression
-    # twice when two directives propose it.
-    selectors = list(
-        dict.fromkeys(s for s in (_as_str(c.get("selector")) for c in candidates) if s)
-    )
-    # Evaluate per example, tolerating an example whose datum the evaluator rejects —
-    # consistent with the build loop above. Degrade only if none can be evaluated.
+    # Propose, validate by evaluation, admit survivors — and when a whole round resolves
+    # *nothing*, feed the per-selector diagnostics back and let the model repair once.
+    # This is the counterexample-*guided* upgrade to plain generate-and-filter: a failing
+    # selector is no longer silently dropped; its reason (a provable empty, an arity
+    # mismatch, an unknown name) steers the next attempt. Still example-validated, still
+    # never-raises, still off-by-default.
+    for round_i in range(_MAX_SELECTOR_ROUNDS):
+        try:
+            candidates = _ask_selectors(
+                provider, ci, vocab, len(datums), feedback=feedback
+            )
+        except Exception as exc:  # noqa: BLE001 — bad model call/parse: disable tier
+            draft.notes.append(
+                "enrich: selector tier skipped "
+                f"(model call or response parse failed: {exc})."
+            )
+            return
+        if not candidates:
+            break
+
+        # De-dup selector strings so the bridge doesn't evaluate the same expression
+        # twice when two directives propose it.
+        selectors = list(
+            dict.fromkeys(
+                s for s in (_as_str(c.get("selector")) for c in candidates) if s
+            )
+        )
+        per_example, last_exc = _evaluate_per_example(datums, selectors)
+        if not per_example:
+            draft.notes.append(
+                "enrich: selector tier skipped "
+                f"(no example could be evaluated: {last_exc})."
+            )
+            return
+
+        resolves_on_all = _make_resolver(per_example)
+        round_kept = 0
+        rejects: List[str] = []
+        for cand in candidates:
+            try:
+                sug = _admit(cand, resolves_on_all, reserved)
+            except Exception:  # noqa: BLE001 — drop one bad candidate, keep batch
+                sug = None
+            if sug is not None:
+                if sug.dedup_key() in seen:
+                    continue
+                seen.add(sug.dedup_key())
+                draft.suggestions.append(sug)
+                round_kept += 1
+            else:
+                reason = _reject_reason(cand, per_example)
+                if reason:
+                    sel = _as_str(cand.get("selector")) or "(no selector)"
+                    rejects.append(f"- `{sel}`: {reason}")
+        kept += round_kept
+
+        # Stop once we've admitted something, have nothing actionable to repair, or have
+        # spent the round budget; otherwise hand the diagnostics back and try once more.
+        if round_kept or not rejects or round_i == _MAX_SELECTOR_ROUNDS - 1:
+            break
+        feedback = "\n".join(rejects)
+
+    if kept:
+        n = len(datums)
+        across = "the example instance" if n == 1 else f"all {n} example instances"
+        draft.notes.append(
+            f"enrich: added {kept} model-authored selector "
+            f"candidate(s), each validated over {across} "
+            "(off by default — review before enabling)."
+        )
+
+
+def _evaluate_per_example(datums: List, selectors: List[str]):
+    """Evaluate ``selectors`` over each datum; return ``(per_example, last_error)``.
+
+    Tolerates an example whose datum the evaluator rejects (mirrors the datum-build
+    loop): that example is skipped, and only an all-examples failure degrades the tier.
+    ``per_example[i]`` maps a selector string to its :class:`~._eval.SelectorVerdict`
+    on datum ``i``.
+    """
     per_example = []
     last_exc = None
     for d in datums:
@@ -161,43 +235,51 @@ def enrich_from_examples(
             )
         except _eval.EvaluatorUnavailable as exc:
             last_exc = exc
-    if not per_example:
-        draft.notes.append(
-            "enrich: selector tier skipped "
-            f"(no example could be evaluated: {last_exc})."
-        )
-        return
+    return per_example, last_exc
+
+
+def _make_resolver(per_example: List[dict]) -> Callable[[str, int], bool]:
+    """A predicate: does ``selector`` resolve at ``expected`` arity on *every* example?"""
 
     def resolves_on_all(selector: str, expected: int) -> bool:
-        """True iff the selector resolves at ``expected`` arity on every example."""
         for verdicts in per_example:
             v = verdicts.get(selector)
             if v is None or not v.resolves or v.arity != expected:
                 return False
         return True
 
-    # Names already taken by a type/relation — an inferredEdge must not shadow one.
-    reserved = {n for n, _ in vocab["relations"]} | {t for t, _ in vocab["types"]}
-    seen = {s.dedup_key() for s in draft.suggestions}
-    kept = 0
-    for cand in candidates:
-        try:
-            sug = _admit(cand, resolves_on_all, reserved)
-        except Exception:  # noqa: BLE001 — drop one bad candidate, keep batch
+    return resolves_on_all
+
+
+def _reject_reason(cand: dict, per_example: List[dict]) -> Optional[str]:
+    """Why a candidate failed, phrased for the model — one line of repair feedback.
+
+    Reports the first concrete problem across the examples: a resolve-but-wrong-arity
+    (the directive wanted an edge, the selector gave something else), or the verdict's
+    own :attr:`~._eval.SelectorVerdict.diagnostic` (a provable empty, a parse error, an
+    arity-0 unknown name). ``None`` when there's nothing actionable to say, so a row that
+    failed for a non-selector reason doesn't produce misleading feedback.
+    """
+    directive = cand.get("directive")
+    expected = _DIRECTIVE_ARITY.get(directive)
+    selector = _as_str(cand.get("selector"))
+    if not selector:
+        return "no selector expression was given"
+    if expected is None:
+        return f"unknown directive {directive!r}; use one of {list(_DIRECTIVE_ARITY)}"
+    for verdicts in per_example:
+        v = verdicts.get(selector)
+        if v is None:
             continue
-        if sug is None or sug.dedup_key() in seen:
-            continue
-        seen.add(sug.dedup_key())
-        draft.suggestions.append(sug)
-        kept += 1
-    if kept:
-        n = len(datums)
-        across = "the example instance" if n == 1 else f"all {n} example instances"
-        draft.notes.append(
-            f"enrich: added {kept} model-authored selector "
-            f"candidate(s), each validated over {across} "
-            "(off by default — review before enabling)."
-        )
+        if v.resolves and v.arity != expected:
+            return (
+                f"resolved at arity {v.arity}, but {directive} needs an edge "
+                f"(arity {expected})"
+            )
+        diag = v.diagnostic
+        if diag:
+            return diag
+    return None
 
 
 def _admit(
@@ -243,8 +325,19 @@ def _admit(
     )
 
 
-def _ask_selectors(provider, ci: ClassInfo, vocab: dict, n_examples: int) -> List[dict]:
-    """Prompt the provider for selectors grounded in the vocabulary; return the list."""
+def _ask_selectors(
+    provider,
+    ci: ClassInfo,
+    vocab: dict,
+    n_examples: int,
+    feedback: Optional[str] = None,
+) -> List[dict]:
+    """Prompt the provider for selectors grounded in the vocabulary; return the list.
+
+    ``feedback`` (when set) is the previous round's per-selector diagnostics: it turns
+    the ask into a repair, telling the model exactly how each earlier selector failed
+    on the data so it can fix rather than re-guess.
+    """
     types_line = ", ".join(f"{t} (#{n})" for t, n in vocab["types"]) or "(none)"
     rels_line = ", ".join(f"{name}/{arity}" for name, arity in vocab["relations"])
     fields = ", ".join(f.name for f in _structural_fields(ci)) or "(none detected)"
@@ -255,6 +348,14 @@ def _ask_selectors(provider, ci: ClassInfo, vocab: dict, n_examples: int) -> Lis
         fields=fields,
         n=n_examples,
     )
+    if feedback:
+        prompt += (
+            "\n\nYour previous selectors did NOT hold up when evaluated on the "
+            f"{n_examples} example(s). Here is what went wrong, per selector:\n"
+            f"{feedback}\n"
+            "Return corrected selectors that avoid these problems. Use ONLY the "
+            "vocabulary above; drop any selector you cannot fix."
+        )
     data = provider(prompt, schema=_SELECTOR_SCHEMA)
     out = data.get("selectors", [])
     return [c for c in out if isinstance(c, dict)]
