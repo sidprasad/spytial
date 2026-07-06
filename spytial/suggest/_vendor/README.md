@@ -29,3 +29,12 @@ grep -oE "require\(['\"][^'\"]+['\"]\)" spytial/suggest/_vendor/spytial-core-eva
 ```
 
 Pinned version: **spytial-core 2.10.1**.
+
+> **Prototype note (branch `suggest-static-gate-repair`).** This vendored bundle is
+> currently a **local dev build** of spytial-core (branch `suggest-surface-analyze-synth`,
+> ahead of any release), not the published 2.10.1 tarball. The only delta is that the
+> `./evaluator` entry now also re-exports `analyzeForgeExpression`, `synthesizeSelector`,
+> and `synthesizeBinaryRelation` (the static analyzer + FOIL-style synthesizers), which
+> the tier-2 bridge uses for the static gate / repair feedback. Before shipping: land that
+> re-export in spytial-core, cut a release, and re-vendor from npm via the recipe above so
+> this file matches a published version again.

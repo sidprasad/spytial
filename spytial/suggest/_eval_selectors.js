@@ -12,7 +12,17 @@
 //   * the bare "spytial-core/evaluator" specifier resolved via NODE_PATH, when the
 //     user points SPYTIAL_CORE_NODE_PATH at their own spytial-core install.
 const evaluatorModule = process.env.SPYTIAL_EVALUATOR_MODULE || "spytial-core/evaluator";
-const { JSONDataInstance, SGraphQueryEvaluator } = require(evaluatorModule);
+const mod = require(evaluatorModule);
+const { JSONDataInstance, SGraphQueryEvaluator } = mod;
+
+// The static analyzer is a cheap companion to evaluation: it folds a selector to
+// unsat / tautology / empty / ill-typed / unknown and, crucially, carries a
+// human-readable `reason` (e.g. "provably the empty set", an arity mismatch). It is
+// present only in evaluator builds that re-export it (the spytial-core ./evaluator
+// analyze/synth surface); older installs won't have it, so this stays optional and the
+// shim behaves exactly as before when it's absent.
+const analyzeForgeExpression =
+  typeof mod.analyzeForgeExpression === "function" ? mod.analyzeForgeExpression : null;
 
 function readStdin() {
   return new Promise((resolve, reject) => {
@@ -38,6 +48,23 @@ function evalOne(ev, sel) {
   }
 }
 
+// Static verdict for one selector. The data instance doubles as the schema (its
+// type lattice + relation column types drive the arity / type-disjointness checks),
+// so a datum is all the analyzer needs. Returns undefined when the analyzer isn't
+// available or has nothing to say, so callers only see a `static` field when it's real.
+function analyzeOne(sel, di) {
+  if (!analyzeForgeExpression) return undefined;
+  try {
+    const a = analyzeForgeExpression(sel, di);
+    if (!a || !a.status) return undefined;
+    const out = { status: a.status };
+    if (a.reason) out.reason = a.reason;
+    return out;
+  } catch (e) {
+    return undefined; // analysis is best-effort; never let it sink a selector
+  }
+}
+
 (async () => {
   try {
     const { datum, selectors } = JSON.parse(await readStdin());
@@ -51,7 +78,12 @@ function evalOne(ev, sel) {
       types: di.getTypes().map((t) => ({ id: t.id, atoms: t.atoms.length })),
       relations: di.getRelations().map((r) => ({ name: r.name, arity: r.types.length, tuples: r.tuples.length })),
     };
-    const results = (selectors || []).map((sel) => evalOne(ev, sel));
+    const results = (selectors || []).map((sel) => {
+      const out = evalOne(ev, sel);
+      const st = analyzeOne(sel, di);
+      if (st) out.static = st;
+      return out;
+    });
     process.stdout.write(JSON.stringify({ ok: true, vocabulary, results }));
   } catch (e) {
     process.stdout.write(JSON.stringify({ ok: false, error: String((e && e.message) || e) }));

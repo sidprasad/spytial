@@ -129,3 +129,45 @@ def test_vocabulary_is_reachable_for_grounding():
     # 'value' and 'next' are the relations build_instance emits for LLNode.
     (v,) = _eval.evaluate_selectors(datum, ["value"])
     assert v.ok and v.arity == 2  # value is a binary relation
+
+
+# --------------------------------------------------------------------------- #
+# Static analyzer verdict + repair diagnostic
+# --------------------------------------------------------------------------- #
+
+
+def test_verdict_diagnostic_reasons():
+    """`diagnostic` is the repair-feedback string; pure logic, no bridge needed."""
+    V = _eval.SelectorVerdict
+    # A clean, relational result has nothing to repair.
+    assert V("x", ok=True, empty=False, arity=2).diagnostic is None
+    # Data-dependent emptiness, an arity-0 hallucination, and a parse error each explain.
+    assert "empty set" in V("x", ok=True, empty=True, arity=0).diagnostic
+    assert "atom literal" in V("x", ok=True, empty=False, arity=0).diagnostic
+    assert "did not evaluate" in V(
+        "x", ok=False, empty=False, arity=0, error="parse boom"
+    ).diagnostic
+    # A static reason (the analyzer's *why*) is preferred over the generic fallback.
+    assert (
+        V("x", ok=True, empty=True, arity=0, static_reason="provably empty").diagnostic
+        == "provably empty"
+    )
+
+
+@requires_bridge
+def test_static_analyzer_supplies_a_reason():
+    """The bridge surfaces the static analyzer's verdict; a provable-empty carries a reason.
+
+    Exercises the analyze/synth surface re-exported on the ./evaluator entry: a real edge
+    stays quiet (nothing to fix), while `univ - univ` is folded to `empty` with a reason
+    that `diagnostic` then adopts.
+    """
+    datum = _linked_list_datum()
+    by = {
+        v.selector: v
+        for v in _eval.evaluate_selectors(datum, ["next", "univ - univ"])
+    }
+    assert by["next"].resolves and by["next"].diagnostic is None
+    empty = by["univ - univ"]
+    assert empty.static_status == "empty" and empty.static_reason
+    assert empty.diagnostic == empty.static_reason
