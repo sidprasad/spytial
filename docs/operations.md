@@ -53,7 +53,7 @@ from spytial import GroupEdge, LineStyle, TextStyle
 @spytial.group(
     selector='Team.members',
     name='Team',
-    addEdge=GroupEdge(direction='togroup', lineStyle=LineStyle(pattern='dashed')),
+    addEdge=GroupEdge(points='togroup', lineStyle=LineStyle(pattern='dashed')),
     textStyle=TextStyle(color='navy'),
 )
 ```

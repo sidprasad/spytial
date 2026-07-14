@@ -58,7 +58,7 @@ def test_selector_group_addedge_legacy_boolean():
 
 
 def test_selector_group_addedge_block_form():
-    """GroupEdge (spytial-core 3.0) styles the connector; direction -> points."""
+    """GroupEdge (spytial-core 3.0) styles the connector; `points` matches the YAML key."""
     from spytial import GroupEdge, LineStyle, TextStyle
 
     my_obj = [1, 2, 3]
@@ -67,7 +67,7 @@ def test_selector_group_addedge_block_form():
         selector='{b : Basket, a : Fruit | a in b.fruit}',
         name='byBasket',
         addEdge=GroupEdge(
-            direction='togroup',
+            points='togroup',
             lineStyle=LineStyle(pattern='dashed'),
             textStyle=TextStyle(size='small'),
         ),
@@ -88,7 +88,7 @@ def test_selector_group_addedge_block_form():
 
 
 def test_selector_group_addedge_block_dict_form():
-    """The dict escape hatch mirrors the YAML block (direction key is `points`)."""
+    """The dict escape hatch is the YAML block verbatim."""
     my_obj = [1, 2, 3]
     annotate_group(
         my_obj,

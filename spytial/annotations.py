@@ -167,28 +167,22 @@ class FillStyle(_StyleBlock):
 class GroupEdge(_StyleBlock):
     """Rich form of a selector-group's ``addEdge``: direction plus connector styling.
 
-    ``direction`` ('none'|'togroup'|'fromgroup') says which way the connector
-    between the group's key and the group points; ``lineStyle`` / ``textStyle``
-    style the connector edge and its label. Serializes to the YAML block form
-    ``addEdge: {points: <direction>, lineStyle: ..., textStyle: ...}``.
+    ``points`` ('none'|'togroup'|'fromgroup') says which way the connector
+    between the group's key and the group points — the same key the YAML block
+    uses; ``lineStyle`` / ``textStyle`` style the connector edge and its label.
+    Serializes to ``addEdge: {points: ..., lineStyle: ..., textStyle: ...}``.
     """
 
-    direction: str = "none"
+    points: str = "none"
     lineStyle: LineStyle = None
     textStyle: TextStyle = None
 
     def __post_init__(self):
-        _require_choice(self.direction, GROUP_EDGE_DIRECTIONS, "GroupEdge.direction")
+        _require_choice(self.points, GROUP_EDGE_DIRECTIONS, "GroupEdge.points")
         if isinstance(self.lineStyle, dict):
             object.__setattr__(self, "lineStyle", LineStyle(**self.lineStyle))
         if isinstance(self.textStyle, dict):
             object.__setattr__(self, "textStyle", TextStyle(**self.textStyle))
-
-    def to_dict(self):
-        out = super().to_dict()
-        # The YAML block carries the direction under `points`.
-        out["points"] = out.pop("direction", self.direction)
-        return out
 
 
 # Which kwargs of which annotation types are style blocks, and their shape.
@@ -240,12 +234,6 @@ def _coerce_style_blocks(annotation_type, kwargs):
                         _require_choice(value, GROUP_EDGE_DIRECTIONS, "group.addEdge")
                     out[key] = value
                     continue
-                if isinstance(value, dict):
-                    # The dict escape hatch mirrors the YAML block, whose
-                    # direction key is `points`; the dataclass calls it direction.
-                    value = dict(value)
-                    if "points" in value and "direction" not in value:
-                        value["direction"] = value.pop("points")
             value = _coerce_block(block_cls, value, f"{annotation_type}.{key}")
         out[key] = value
     if annotation_type in ("attribute", "tag"):
@@ -588,7 +576,7 @@ class Group(SpytialAnnotation):
     style the group's own label with a top-level ``textStyle``:
 
         Grouped = Annotated[MyType, Group(selector='...', name='g',
-            addEdge=GroupEdge(direction='togroup', lineStyle=LineStyle(pattern='dashed')),
+            addEdge=GroupEdge(points='togroup', lineStyle=LineStyle(pattern='dashed')),
             textStyle=TextStyle(color='navy'))]
     """
 

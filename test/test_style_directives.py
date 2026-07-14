@@ -333,7 +333,7 @@ def test_cross_form_dedup():
         lambda: LineStyle(weight=-1),
         lambda: TextStyle(size="huge"),
         lambda: BorderStyle(width=0),
-        lambda: GroupEdge(direction="both"),
+        lambda: GroupEdge(points="both"),
         lambda: spytial.edgeStyle(field="x", lineStyle={"colour": "red"}),
         lambda: spytial.edgeStyle(field="x", lineStyle="red"),
         lambda: spytial.atomStyle(borderStyle={"width": -2}),
