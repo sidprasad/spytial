@@ -828,10 +828,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#atomcolor-edgecolor-color" class="md-nav__link">
+  <a href="#atomstyle-edgestyle-styling" class="md-nav__link">
     <span class="md-ellipsis">
       
-        atomColor / edgeColor — color
+        atomStyle / edgeStyle — styling
       
     </span>
   </a>
@@ -1201,10 +1201,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#atomcolor-edgecolor-color" class="md-nav__link">
+  <a href="#atomstyle-edgestyle-styling" class="md-nav__link">
     <span class="md-ellipsis">
       
-        atomColor / edgeColor — color
+        atomStyle / edgeStyle — styling
       
     </span>
   </a>
@@ -1352,21 +1352,67 @@ arguments. The sections below break each one into its parts.</p>
 <ol>
 <li><strong><code>selector</code></strong> — the relation (or atoms) whose members are grouped.</li>
 <li><strong><code>name</code></strong> — the label drawn on the bounding box.</li>
+<li><strong><code>addEdge</code></strong> <em>(optional)</em> — the connector between the group's key and the
+   group: <code>'none'</code> (default), <code>'togroup'</code>, or <code>'fromgroup'</code>. To also style the
+   connector, pass a <code>GroupEdge</code> instead of a bare string.</li>
+<li><strong><code>textStyle</code></strong> <em>(optional)</em> — styles the group's own label.</li>
 </ol>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">spytial</span><span class="w"> </span><span class="kn">import</span> <span class="n">GroupEdge</span><span class="p">,</span> <span class="n">LineStyle</span><span class="p">,</span> <span class="n">TextStyle</span>
+
+<span class="nd">@spytial</span><span class="o">.</span><span class="n">group</span><span class="p">(</span>
+    <span class="n">selector</span><span class="o">=</span><span class="s1">&#39;Team.members&#39;</span><span class="p">,</span>
+    <span class="n">name</span><span class="o">=</span><span class="s1">&#39;Team&#39;</span><span class="p">,</span>
+    <span class="n">addEdge</span><span class="o">=</span><span class="n">GroupEdge</span><span class="p">(</span><span class="n">points</span><span class="o">=</span><span class="s1">&#39;togroup&#39;</span><span class="p">,</span> <span class="n">lineStyle</span><span class="o">=</span><span class="n">LineStyle</span><span class="p">(</span><span class="n">pattern</span><span class="o">=</span><span class="s1">&#39;dashed&#39;</span><span class="p">)),</span>
+    <span class="n">textStyle</span><span class="o">=</span><span class="n">TextStyle</span><span class="p">(</span><span class="n">color</span><span class="o">=</span><span class="s1">&#39;navy&#39;</span><span class="p">),</span>
+<span class="p">)</span>
+</code></pre></div>
 <h2 id="directives">Directives</h2>
 <h3 id="attribute-show-a-field-as-inline-text"><code>attribute</code> — show a field as inline text</h3>
 <ol>
 <li><strong><code>field</code></strong> — the field to fold into the node as a label (instead of a separate
    box and arrow).</li>
+<li><strong><code>textStyle</code></strong> <em>(optional)</em> — styles this attribute's line
+   (<code>TextStyle(size=..., color=...)</code>).</li>
 </ol>
 <div class="highlight"><pre><span></span><code><span class="nd">@spytial</span><span class="o">.</span><span class="n">attribute</span><span class="p">(</span><span class="n">field</span><span class="o">=</span><span class="s1">&#39;value&#39;</span><span class="p">)</span>
+<span class="nd">@spytial</span><span class="o">.</span><span class="n">attribute</span><span class="p">(</span><span class="n">field</span><span class="o">=</span><span class="s1">&#39;weight&#39;</span><span class="p">,</span> <span class="n">textStyle</span><span class="o">=</span><span class="n">spytial</span><span class="o">.</span><span class="n">TextStyle</span><span class="p">(</span><span class="n">size</span><span class="o">=</span><span class="s1">&#39;small&#39;</span><span class="p">))</span>
 </code></pre></div>
-<h3 id="atomcolor-edgecolor-color"><code>atomColor</code> / <code>edgeColor</code> — color</h3>
+<h3 id="atomstyle-edgestyle-styling"><code>atomStyle</code> / <code>edgeStyle</code> — styling</h3>
+<p>Styling is built from small <strong>style blocks</strong> (import them from <code>spytial</code>):</p>
 <ul>
-<li><code>atomColor</code>: <strong><code>selector</code></strong> (which atoms) + <strong><code>value</code></strong> (the color).</li>
-<li><code>edgeColor</code>: <strong><code>field</code></strong> (which relation) + <strong><code>value</code></strong> (the color), plus optional
-  <code>style</code>, <code>weight</code>, <code>filter</code>.</li>
+<li><code>LineStyle(color, pattern, weight, highlight)</code> — a drawn edge line;
+  <code>pattern</code> is <code>'solid'</code>, <code>'dashed'</code>, or <code>'dotted'</code>, <code>weight</code> is a number &gt; 0.</li>
+<li><code>TextStyle(size, color)</code> — any label; <code>size</code> is <code>'small'</code>/<code>'normal'</code>/<code>'large'</code>.</li>
+<li><code>BorderStyle(color, width)</code> / <code>FillStyle(color)</code> — an atom's outline and interior.</li>
 </ul>
+<p>Every field is optional — set only what you mean. Plain dicts with the same
+keys work everywhere the blocks do.</p>
+<ul>
+<li><code>atomStyle</code>: <strong><code>selector</code></strong> (which atoms; omit for all) + any of
+  <strong><code>borderStyle</code></strong>, <strong><code>fillStyle</code></strong>, <strong><code>textStyle</code></strong>.</li>
+<li><code>edgeStyle</code>: <strong><code>field</code></strong> (which relation) + any of <strong><code>lineStyle</code></strong>,
+  <strong><code>textStyle</code></strong> (the edge's label), <strong><code>showLabel</code></strong>, <strong><code>hidden</code></strong>, plus
+  optional <code>selector</code> / <code>filter</code>.</li>
+</ul>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">spytial</span><span class="w"> </span><span class="kn">import</span> <span class="n">LineStyle</span><span class="p">,</span> <span class="n">TextStyle</span><span class="p">,</span> <span class="n">BorderStyle</span><span class="p">,</span> <span class="n">FillStyle</span>
+
+<span class="nd">@spytial</span><span class="o">.</span><span class="n">edgeStyle</span><span class="p">(</span><span class="n">field</span><span class="o">=</span><span class="s1">&#39;next&#39;</span><span class="p">,</span> <span class="n">lineStyle</span><span class="o">=</span><span class="n">LineStyle</span><span class="p">(</span><span class="n">color</span><span class="o">=</span><span class="s1">&#39;crimson&#39;</span><span class="p">,</span> <span class="n">pattern</span><span class="o">=</span><span class="s1">&#39;dashed&#39;</span><span class="p">))</span>
+<span class="nd">@spytial</span><span class="o">.</span><span class="n">atomStyle</span><span class="p">(</span><span class="n">selector</span><span class="o">=</span><span class="s1">&#39;Node&#39;</span><span class="p">,</span> <span class="n">borderStyle</span><span class="o">=</span><span class="n">BorderStyle</span><span class="p">(</span><span class="n">color</span><span class="o">=</span><span class="s1">&#39;steelblue&#39;</span><span class="p">),</span>
+                   <span class="n">fillStyle</span><span class="o">=</span><span class="n">FillStyle</span><span class="p">(</span><span class="n">color</span><span class="o">=</span><span class="s1">&#39;#eef6ff&#39;</span><span class="p">))</span>
+</code></pre></div>
+<blockquote>
+<p><strong>Migrating from 2.x:</strong> <code>atomColor</code> and <code>edgeColor</code> still work but are
+deprecated — they are rewritten to <code>atomStyle</code> / <code>edgeStyle</code> and raise a
+<code>DeprecationWarning</code>. The mapping: <code>edgeColor</code>'s <code>value</code> → <code>lineStyle.color</code>,
+<code>style</code> → <code>lineStyle.pattern</code>, <code>weight</code> → <code>lineStyle.weight</code>; <code>atomColor</code>'s
+<code>value</code> → <code>borderStyle.color</code> (the legacy directive colored the <strong>border</strong>,
+not the fill — reach for <code>fillStyle</code> only if you want a filled look).</p>
+<p><strong>Breaking in spytial-core 3.0:</strong> two style rules that set the same property
+of the same edge/atom to <em>different</em> values now raise a <code>StyleCollisionError</code>
+at render time (2.x silently kept the first). Set each property in exactly one
+matching rule. spytial warns at spec-collection time for the statically
+detectable case (identical <code>field</code>/<code>selector</code>/<code>filter</code>).</p>
+</blockquote>
 <h3 id="hideatom-hidefield-remove-things-from-the-picture"><code>hideAtom</code> / <code>hideField</code> — remove things from the picture</h3>
 <ul>
 <li><code>hideAtom</code>: <strong><code>selector</code></strong> (the atoms to hide).</li>
@@ -1376,6 +1422,9 @@ arguments. The sections below break each one into its parts.</p>
 <ol>
 <li><strong><code>selector</code></strong> — the pairs to connect.</li>
 <li><strong><code>name</code></strong> — the label for the new edge.</li>
+<li><strong><code>lineStyle</code></strong> / <strong><code>textStyle</code></strong> <em>(optional)</em> — style the drawn edge and its
+   label (same blocks as <code>edgeStyle</code>; the inline <code>color</code>/<code>style</code>/<code>weight</code>
+   arguments are deprecated).</li>
 </ol>
 <div class="highlight"><pre><span></span><code><span class="nd">@spytial</span><span class="o">.</span><span class="n">inferredEdge</span><span class="p">(</span>
     <span class="n">selector</span><span class="o">=</span><span class="s1">&#39;{ x : Vertex, y : Vertex | y in x.neighbors }&#39;</span><span class="p">,</span>  <span class="c1"># which pairs</span>
@@ -1387,6 +1436,8 @@ arguments. The sections below break each one into its parts.</p>
 <li><strong><code>toTag</code></strong> — the type to tag.</li>
 <li><strong><code>name</code></strong> — the label name.</li>
 <li><strong><code>value</code></strong> — the field/expression to show.</li>
+<li><strong><code>textStyle</code></strong> <em>(optional)</em> — styles this tag's line
+   (<code>TextStyle(size=..., color=...)</code>).</li>
 </ol>
 <h3 id="size-icon-adjust-drawing"><code>size</code> / <code>icon</code> — adjust drawing</h3>
 <ul>
@@ -1416,7 +1467,7 @@ arguments. The sections below break each one into its parts.</p>
 <p><strong>Conditionally</strong>, with <code>apply_if</code>:</p>
 <div class="highlight"><pre><span></span><code><span class="nd">@spytial</span><span class="o">.</span><span class="n">apply_if</span><span class="p">(</span>
     <span class="k">lambda</span> <span class="bp">cls</span><span class="p">:</span> <span class="bp">cls</span><span class="o">.</span><span class="vm">__name__</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s1">&#39;Node&#39;</span><span class="p">),</span>
-    <span class="n">spytial</span><span class="o">.</span><span class="n">atomColor</span><span class="p">(</span><span class="n">selector</span><span class="o">=</span><span class="s1">&#39;self&#39;</span><span class="p">,</span> <span class="n">value</span><span class="o">=</span><span class="s1">&#39;lightblue&#39;</span><span class="p">),</span>
+    <span class="n">spytial</span><span class="o">.</span><span class="n">atomStyle</span><span class="p">(</span><span class="n">selector</span><span class="o">=</span><span class="s1">&#39;self&#39;</span><span class="p">,</span> <span class="n">borderStyle</span><span class="o">=</span><span class="n">spytial</span><span class="o">.</span><span class="n">BorderStyle</span><span class="p">(</span><span class="n">color</span><span class="o">=</span><span class="s1">&#39;lightblue&#39;</span><span class="p">)),</span>
 <span class="p">)</span>
 <span class="k">class</span><span class="w"> </span><span class="nc">Node</span><span class="p">:</span>
     <span class="o">...</span>

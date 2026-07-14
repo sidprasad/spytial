@@ -1277,7 +1277,7 @@ and maps them to directives:</p>
 </tr>
 <tr>
 <td>an <code>Enum</code>-typed field</td>
-<td>one <code>atomColor</code> per member (off by default)</td>
+<td>one <code>atomStyle</code> per member (off by default)</td>
 </tr>
 <tr>
 <td>children that can be <code>None</code></td>
@@ -1319,9 +1319,9 @@ palette:</p>
 <span class="k">def</span><span class="w"> </span><span class="nf">color_by_status</span><span class="p">(</span><span class="n">field</span><span class="p">,</span> <span class="n">cls_info</span><span class="p">):</span>
     <span class="k">if</span> <span class="n">field</span><span class="o">.</span><span class="n">name</span> <span class="o">==</span> <span class="s1">&#39;status&#39;</span> <span class="ow">and</span> <span class="n">field</span><span class="o">.</span><span class="n">enum_members</span><span class="p">:</span>
         <span class="k">return</span> <span class="p">[</span><span class="n">Suggestion</span><span class="p">(</span>
-            <span class="n">directive</span><span class="o">=</span><span class="s1">&#39;atomColor&#39;</span><span class="p">,</span>
+            <span class="n">directive</span><span class="o">=</span><span class="s1">&#39;atomStyle&#39;</span><span class="p">,</span>
             <span class="n">kwargs</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;selector&#39;</span><span class="p">:</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="se">{{</span><span class="s1"> x : </span><span class="si">{</span><span class="n">cls_info</span><span class="o">.</span><span class="n">cls</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s1"> | @:(x.status) = active </span><span class="se">}}</span><span class="s1">&#39;</span><span class="p">,</span>
-                    <span class="s1">&#39;value&#39;</span><span class="p">:</span> <span class="s1">&#39;seagreen&#39;</span><span class="p">},</span>
+                    <span class="s1">&#39;borderStyle&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;color&#39;</span><span class="p">:</span> <span class="s1">&#39;seagreen&#39;</span><span class="p">}},</span>
             <span class="n">confidence</span><span class="o">=</span><span class="s1">&#39;high&#39;</span><span class="p">,</span>
             <span class="n">rationale</span><span class="o">=</span><span class="s1">&#39;active status → green&#39;</span><span class="p">,</span>
             <span class="n">source_field</span><span class="o">=</span><span class="s1">&#39;status&#39;</span><span class="p">,</span>
