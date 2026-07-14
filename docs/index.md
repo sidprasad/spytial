@@ -86,7 +86,7 @@ Full details and arguments are in [Operations](operations.md).
 | Operation | What it does |
 | --- | --- |
 | `attribute` | Show a field as a label inside the node |
-| `atomColor` · `edgeColor` | Color nodes / edges |
+| `atomStyle` · `edgeStyle` | Style nodes / edges (border, fill, line, labels) |
 | `hideAtom` · `hideField` | Hide nodes / fields |
 | `tag` | Add a computed label to matching nodes |
 | `inferredEdge` | Draw a derived edge between nodes |

@@ -18,10 +18,12 @@ _ORDER = [
     "cyclic",
     "align",
     "group",
-    "atomColor",
+    "atomStyle",
+    "atomColor",  # legacy alias of atomStyle; user heuristics may still emit it
     "size",
     "icon",
-    "edgeColor",
+    "edgeStyle",
+    "edgeColor",  # legacy alias of edgeStyle
     "attribute",
     "hideField",
     "hideAtom",
@@ -31,7 +33,18 @@ _ORDER = [
     "flag",
 ]
 # Kwargs render in this order when present; everything else follows.
-_KW_ORDER = ["selector", "field", "name", "directions", "direction", "value"]
+_KW_ORDER = [
+    "selector",
+    "field",
+    "name",
+    "directions",
+    "direction",
+    "value",
+    "fillStyle",
+    "borderStyle",
+    "lineStyle",
+    "textStyle",
+]
 
 
 def _is_constraint(directive: str) -> bool:

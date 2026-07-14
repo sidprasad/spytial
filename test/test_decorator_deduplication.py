@@ -3,6 +3,8 @@
 Tests to ensure decorator deduplication reduces redundant YAML rules.
 """
 
+import pytest
+
 from spytial.annotations import (
     annotate_orientation,
     collect_decorators,
@@ -27,6 +29,7 @@ def test_duplicate_object_annotations_are_deduplicated():
     assert yaml_out.count('orientation:') == 1
 
 
+@pytest.mark.filterwarnings("ignore::DeprecationWarning")
 def test_class_and_instance_duplicates_are_deduplicated():
     """If identical annotations appear at the class and instance level, they should be collapsed."""
 
@@ -37,7 +40,7 @@ def test_class_and_instance_duplicates_are_deduplicated():
     t = Thing()
     # Apply same annotation to instance
     annotate_orientation(t, selector='items', directions=['horizontal'])
-    # Also add a duplicate directive
+    # Also add a duplicate directive (legacy form; registers as atomStyle)
     from spytial.annotations import annotate_atomColor
     annotate_atomColor(t, selector='items', value='blue')
     annotate_atomColor(t, selector='items', value='blue')
@@ -46,9 +49,9 @@ def test_class_and_instance_duplicates_are_deduplicated():
 
     # Orientation should be deduplicated (one from class, one from instance -> one total)
     assert sum(1 for c in decorators['constraints'] if 'orientation' in c) == 1
-    # atomColor directives should also be deduplicated
-    assert sum(1 for d in decorators['directives'] if 'atomColor' in d) == 1
+    # The desugared atomStyle directives should also be deduplicated
+    assert sum(1 for d in decorators['directives'] if 'atomStyle' in d) == 1
 
     yaml_out = serialize_to_yaml_string(decorators)
     assert yaml_out.count('orientation:') == 1
-    assert yaml_out.count('atomColor:') == 1
+    assert yaml_out.count('atomStyle:') == 1

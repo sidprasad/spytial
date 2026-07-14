@@ -47,6 +47,7 @@ def test_object_annotations_builtin_types():
     assert len(other_decorators['constraints']) == 0
     print("✓ Built-in types annotation works")
 
+@pytest.mark.filterwarnings("ignore::DeprecationWarning")
 def test_class_and_object_annotations_combined():
     """Test that class-level and object-level annotations work together."""
     print("=== Testing Class + Object Annotations ===")
@@ -73,42 +74,45 @@ def test_class_and_object_annotations_combined():
     # tree2 should have class + object annotations
     tree2_decorators = collect_decorators(tree2)
     assert len(tree2_decorators['constraints']) == 3  # orientation + cyclic + group
-    assert len(tree2_decorators['directives']) == 1   # atomColor
+    assert len(tree2_decorators['directives']) == 1   # atomStyle (from legacy atomColor)
     
     print("✓ Class + object annotations combine correctly")
 
+@pytest.mark.filterwarnings("ignore::DeprecationWarning")
 def test_general_annotate_function():
     """Test the general annotate function."""
     print("=== Testing General annotate() Function ===")
-    
+
     my_dict = {'a': 1, 'b': 2}
-    
-    # Use general annotate function
+
+    # Use general annotate function (legacy atomColor registers as atomStyle)
     annotate(my_dict, 'atomColor', selector='keys', value='blue')
     annotate(my_dict, 'orientation', selector='layout', directions=['vertical'])
-    
+
     decorators = collect_decorators(my_dict)
     assert len(decorators['constraints']) == 1
     assert len(decorators['directives']) == 1
-    assert decorators['directives'][0]['atomColor']['value'] == 'blue'
+    assert decorators['directives'][0]['atomStyle']['borderStyle']['color'] == 'blue'
     print("✓ General annotate() function works")
 
+@pytest.mark.filterwarnings("ignore::DeprecationWarning")
 def test_yaml_serialization():
     """Test that annotations serialize properly to YAML."""
     print("=== Testing YAML Serialization ===")
-    
+
     my_list = [1, 2, 3]
     annotate_orientation(my_list, selector='items', directions=['horizontal'])
     annotate_atomColor(my_list, selector='nums', value='green')
-    
+
     decorators = collect_decorators(my_list)
     yaml_output = serialize_to_yaml_string(decorators)
-    
-    # Basic checks
+
+    # Basic checks (legacy atomColor serializes as an atomStyle borderStyle)
     assert 'constraints:' in yaml_output
     assert 'directives:' in yaml_output
     assert 'orientation:' in yaml_output
-    assert 'atomColor:' in yaml_output
+    assert 'atomStyle:' in yaml_output
+    assert 'borderStyle:' in yaml_output
     assert 'horizontal' in yaml_output
     assert 'green' in yaml_output
     print("✓ YAML serialization works")
@@ -217,11 +221,12 @@ def test_self_reference_in_selectors():
     obj2_decorators = collect_decorators(obj2)
     assert len(obj2_decorators['constraints']) == 0
     
-    # Test simple 'self' reference
-    obj2 = atomColor(selector='self', value='red')(obj2)
+    # Test simple 'self' reference (legacy atomColor registers as atomStyle)
+    with pytest.deprecated_call():
+        obj2 = atomColor(selector='self', value='red')(obj2)
     obj2_decorators = collect_decorators(obj2)
     assert len(obj2_decorators['directives']) == 1
-    directive = obj2_decorators['directives'][0]['atomColor']
+    directive = obj2_decorators['directives'][0]['atomStyle']
     assert directive['selector'] != 'self'  # Should be transformed
     assert 'obj_' in directive['selector']  # Should contain object ID
     

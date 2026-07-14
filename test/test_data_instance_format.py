@@ -1,5 +1,5 @@
 """
-Tests that build_instance() output matches the spytial-core v2.10.1 IJsonDataInstance format.
+Tests that build_instance() output matches the spytial-core v3.0.1 IJsonDataInstance format.
 
 See spytial-core/docs/JSON_DATA_INSTANCE.md for the canonical spec.
 """

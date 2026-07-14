@@ -57,6 +57,52 @@ def test_selector_group_addedge_legacy_boolean():
     assert constraint['addEdge'] is True
 
 
+def test_selector_group_addedge_block_form():
+    """GroupEdge (spytial-core 3.0) styles the connector; direction -> points."""
+    from spytial import GroupEdge, LineStyle, TextStyle
+
+    my_obj = [1, 2, 3]
+    annotate_group(
+        my_obj,
+        selector='{b : Basket, a : Fruit | a in b.fruit}',
+        name='byBasket',
+        addEdge=GroupEdge(
+            direction='togroup',
+            lineStyle=LineStyle(pattern='dashed'),
+            textStyle=TextStyle(size='small'),
+        ),
+        textStyle=TextStyle(color='navy'),
+    )
+    constraint = collect_decorators(my_obj)['constraints'][0]['group']
+    assert constraint['addEdge'] == {
+        'points': 'togroup',
+        'lineStyle': {'pattern': 'dashed'},
+        'textStyle': {'size': 'small'},
+    }
+    # The group's own label styling is a sibling of addEdge.
+    assert constraint['textStyle'] == {'color': 'navy'}
+
+    yaml_output = serialize_to_yaml_string(collect_decorators(my_obj))
+    assert 'points: togroup' in yaml_output
+    assert 'pattern: dashed' in yaml_output
+
+
+def test_selector_group_addedge_block_dict_form():
+    """The dict escape hatch mirrors the YAML block (direction key is `points`)."""
+    my_obj = [1, 2, 3]
+    annotate_group(
+        my_obj,
+        selector='{x : Item | x.hot}',
+        name='hot',
+        addEdge={'points': 'fromgroup', 'lineStyle': {'color': 'red'}},
+    )
+    constraint = collect_decorators(my_obj)['constraints'][0]['group']
+    assert constraint['addEdge'] == {
+        'points': 'fromgroup',
+        'lineStyle': {'color': 'red'},
+    }
+
+
 def test_group_decorator_with_selector():
     """Test the group decorator with selector parameters."""
     my_dict = {'a': 1, 'b': 2}

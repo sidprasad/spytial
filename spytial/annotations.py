@@ -6,7 +6,9 @@
 import yaml
 import re
 import json
+import warnings
 import weakref
+from dataclasses import dataclass, fields as _dataclass_fields
 
 
 class NoAliasDumper(yaml.Dumper):
@@ -27,30 +29,330 @@ CONSTRAINT_TYPES = {
         },  # Legacy, more ergonomic
         {
             "required": ["selector", "name"],
-            "optional": ["addEdge"],
+            "optional": ["addEdge", "textStyle"],
         },  # Selector-based group constraint
     ],
 }
 
 DIRECTIVE_TYPES = {
+    # Legacy 2.x form; desugars to atomStyle (value -> borderStyle.color).
     "atomColor": ["selector", "value"],
+    "atomStyle": {
+        "required": [],
+        "optional": ["selector", "fillStyle", "borderStyle", "textStyle"],
+    },
     "size": ["selector", "height", "width"],
     "icon": ["selector", "path", "showLabels"],
+    # Legacy 2.x form; desugars to edgeStyle (value -> lineStyle.color,
+    # style -> lineStyle.pattern, weight -> lineStyle.weight).
     "edgeColor": {
         "required": ["field", "value"],
         "optional": ["selector", "filter", "style", "weight", "showLabel", "hidden"],
     },
+    "edgeStyle": {
+        "required": ["field"],
+        "optional": ["selector", "filter", "lineStyle", "textStyle", "showLabel", "hidden"],
+    },
     "projection": ["sig"],
-    "attribute": {"required": ["field"], "optional": ["selector", "filter"]},
+    "attribute": {"required": ["field"], "optional": ["selector", "filter", "textSize"]},
     "hideField": {"required": ["field"], "optional": ["selector", "filter"]},
     "hideAtom": ["selector"],
     "inferredEdge": {
         "required": ["name", "selector"],
-        "optional": ["color", "style", "weight"],
+        # color/style/weight are the legacy inline form; they desugar to lineStyle.
+        "optional": ["color", "style", "weight", "lineStyle", "textStyle"],
     },
-    "tag": {"required": ["toTag", "name", "value"], "optional": []},
+    "tag": {"required": ["toTag", "name", "value"], "optional": ["textSize"]},
     "flag": ["name"],
 }
+
+# =============================================
+# Style blocks (spytial-core 3.0 style system)
+# =============================================
+#
+# spytial-core 3.0 combined the flat edge/atom styling directives into
+# `edgeStyle` / `atomStyle` with nested style blocks. The blocks below are the
+# Python-side vocabulary for those YAML blocks: small frozen dataclasses that
+# validate at construction and flatten to sparse dicts at registration. Plain
+# dicts with the same keys are accepted everywhere and coerced through the same
+# dataclass, so there is exactly one validator per block shape.
+#
+# spytial-core itself silently drops invalid block leaves, so this
+# author-time strictness is the only place a typo is ever surfaced.
+
+LINE_PATTERNS = ("solid", "dashed", "dotted")
+TEXT_SIZES = ("small", "normal", "large")
+GROUP_EDGE_DIRECTIONS = ("none", "togroup", "fromgroup")
+
+
+def _require_choice(value, choices, what):
+    if value is not None and value not in choices:
+        raise ValueError(f"{what} must be one of {', '.join(choices)}; got {value!r}")
+
+
+def _require_positive(value, what):
+    if value is None:
+        return
+    if isinstance(value, bool) or not isinstance(value, (int, float)) or value <= 0:
+        raise ValueError(f"{what} must be a number greater than 0; got {value!r}")
+
+
+@dataclass(frozen=True)
+class _StyleBlock:
+    """Base for style blocks: sparse to_dict() emitting only the fields set."""
+
+    def to_dict(self):
+        out = {}
+        for f in _dataclass_fields(self):
+            value = getattr(self, f.name)
+            if value is None:
+                continue
+            if isinstance(value, _StyleBlock):
+                value = value.to_dict()
+            out[f.name] = value
+        return out
+
+
+@dataclass(frozen=True)
+class LineStyle(_StyleBlock):
+    """Styling for a drawn edge line (edgeStyle, inferredEdge, GroupEdge connector).
+
+    All fields optional: color (CSS color), pattern ('solid'|'dashed'|'dotted'),
+    weight (number > 0), highlight (CSS color).
+    """
+
+    color: str = None
+    pattern: str = None
+    weight: float = None
+    highlight: str = None
+
+    def __post_init__(self):
+        _require_choice(self.pattern, LINE_PATTERNS, "LineStyle.pattern")
+        _require_positive(self.weight, "LineStyle.weight")
+
+
+@dataclass(frozen=True)
+class TextStyle(_StyleBlock):
+    """Styling for a label (edge labels, atom labels, group labels).
+
+    All fields optional: size ('small'|'normal'|'large'), color (CSS color).
+    """
+
+    size: str = None
+    color: str = None
+
+    def __post_init__(self):
+        _require_choice(self.size, TEXT_SIZES, "TextStyle.size")
+
+
+@dataclass(frozen=True)
+class BorderStyle(_StyleBlock):
+    """Styling for an atom's border: color (CSS color), width (number > 0)."""
+
+    color: str = None
+    width: float = None
+
+    def __post_init__(self):
+        _require_positive(self.width, "BorderStyle.width")
+
+
+@dataclass(frozen=True)
+class FillStyle(_StyleBlock):
+    """Styling for an atom's interior fill: color (CSS color)."""
+
+    color: str = None
+
+
+@dataclass(frozen=True)
+class GroupEdge(_StyleBlock):
+    """Rich form of a selector-group's ``addEdge``: direction plus connector styling.
+
+    ``direction`` ('none'|'togroup'|'fromgroup') says which way the connector
+    between the group's key and the group points; ``lineStyle`` / ``textStyle``
+    style the connector edge and its label. Serializes to the YAML block form
+    ``addEdge: {points: <direction>, lineStyle: ..., textStyle: ...}``.
+    """
+
+    direction: str = "none"
+    lineStyle: LineStyle = None
+    textStyle: TextStyle = None
+
+    def __post_init__(self):
+        _require_choice(self.direction, GROUP_EDGE_DIRECTIONS, "GroupEdge.direction")
+        if isinstance(self.lineStyle, dict):
+            object.__setattr__(self, "lineStyle", LineStyle(**self.lineStyle))
+        if isinstance(self.textStyle, dict):
+            object.__setattr__(self, "textStyle", TextStyle(**self.textStyle))
+
+    def to_dict(self):
+        out = super().to_dict()
+        # The YAML block carries the direction under `points`.
+        out["points"] = out.pop("direction", self.direction)
+        return out
+
+
+# Which kwargs of which annotation types are style blocks, and their shape.
+_STYLE_BLOCK_FIELDS = {
+    "edgeStyle": {"lineStyle": LineStyle, "textStyle": TextStyle},
+    "atomStyle": {
+        "fillStyle": FillStyle,
+        "borderStyle": BorderStyle,
+        "textStyle": TextStyle,
+    },
+    "inferredEdge": {"lineStyle": LineStyle, "textStyle": TextStyle},
+    "group": {"addEdge": GroupEdge, "textStyle": TextStyle},
+}
+
+
+def _coerce_block(block_cls, value, context):
+    """Coerce a style-block value (instance or dict) to its sparse dict form."""
+    if isinstance(value, block_cls):
+        return value.to_dict()
+    if isinstance(value, dict):
+        try:
+            return block_cls(**value).to_dict()
+        except TypeError:
+            valid = ", ".join(f.name for f in _dataclass_fields(block_cls))
+            unknown = [k for k in value if k not in {f.name for f in _dataclass_fields(block_cls)}]
+            raise ValueError(
+                f"Unknown key(s) {unknown} in {context}; valid keys: {valid}"
+            ) from None
+    raise ValueError(
+        f"{context} must be a {block_cls.__name__} or a dict; got {type(value).__name__}"
+    )
+
+
+def _coerce_style_blocks(annotation_type, kwargs):
+    """Return a fresh kwargs dict with style blocks flattened to sparse dicts.
+
+    Always copies (registries must never alias caller-held dicts) and validates
+    block payloads and scalar enums (textSize, bare addEdge directions).
+    """
+    block_fields = _STYLE_BLOCK_FIELDS.get(annotation_type, {})
+    out = {}
+    for key, value in kwargs.items():
+        block_cls = block_fields.get(key)
+        if block_cls is not None and value is not None:
+            if annotation_type == "group" and key == "addEdge":
+                # Bare direction string / legacy bool passes through untouched.
+                if isinstance(value, (str, bool)):
+                    if isinstance(value, str):
+                        _require_choice(value, GROUP_EDGE_DIRECTIONS, "group.addEdge")
+                    out[key] = value
+                    continue
+                if isinstance(value, dict):
+                    # The dict escape hatch mirrors the YAML block, whose
+                    # direction key is `points`; the dataclass calls it direction.
+                    value = dict(value)
+                    if "points" in value and "direction" not in value:
+                        value["direction"] = value.pop("points")
+            value = _coerce_block(block_cls, value, f"{annotation_type}.{key}")
+        out[key] = value
+    if annotation_type in ("attribute", "tag"):
+        _require_choice(out.get("textSize"), TEXT_SIZES, f"{annotation_type}.textSize")
+    return out
+
+
+def _drop_invalid_legacy(value, ok, what):
+    """Legacy desugar mirrors core's lenience: drop bad values (visibly), don't raise."""
+    if value is None or ok(value):
+        return value
+    warnings.warn(
+        f"Ignoring invalid {what} {value!r}; the rendered output falls back to the default.",
+        UserWarning,
+        stacklevel=4,
+    )
+    return None
+
+
+def _legacy_line_style(color=None, style=None, weight=None):
+    """Build a lineStyle dict from legacy flat keys, normalizing like core does."""
+    pattern = None
+    if style is not None:
+        normalized = style.strip().lower() if isinstance(style, str) else style
+        pattern = _drop_invalid_legacy(
+            normalized, lambda v: v in LINE_PATTERNS, "edge style/pattern"
+        )
+    weight = _drop_invalid_legacy(
+        weight,
+        lambda v: not isinstance(v, bool) and isinstance(v, (int, float)) and v > 0,
+        "edge weight",
+    )
+    return LineStyle(color=color, pattern=pattern, weight=weight).to_dict()
+
+
+def _desugar_legacy_style(annotation_type, kwargs, *, stacklevel=3):
+    """Rewrite deprecated 2.x style forms into their 3.0 equivalents.
+
+    Returns a (annotation_type, kwargs) pair; non-legacy input passes through
+    unchanged, so the rewrite is idempotent. Validates the *legacy* schema
+    before rewriting so legacy authoring errors keep their legacy messages.
+    """
+    if annotation_type == "edgeColor":
+        validate_fields("edgeColor", kwargs, DIRECTIVE_TYPES["edgeColor"])
+        warnings.warn(
+            "edgeColor is deprecated as of spytial-core 3.0; use edgeStyle with "
+            "lineStyle=LineStyle(color=...) instead (this call is rewritten to edgeStyle).",
+            DeprecationWarning,
+            stacklevel=stacklevel,
+        )
+        new_kwargs = {"field": kwargs["field"]}
+        for key in ("selector", "filter"):
+            if kwargs.get(key) is not None:
+                new_kwargs[key] = kwargs[key]
+        line_style = _legacy_line_style(
+            color=kwargs["value"], style=kwargs.get("style"), weight=kwargs.get("weight")
+        )
+        if line_style:
+            new_kwargs["lineStyle"] = line_style
+        for key in ("showLabel", "hidden"):
+            if kwargs.get(key) is not None:
+                new_kwargs[key] = kwargs[key]
+        return "edgeStyle", new_kwargs
+
+    if annotation_type == "atomColor":
+        validate_fields("atomColor", kwargs, DIRECTIVE_TYPES["atomColor"])
+        warnings.warn(
+            "atomColor is deprecated as of spytial-core 3.0; use atomStyle with "
+            "borderStyle=BorderStyle(color=...) instead (this call is rewritten to "
+            "atomStyle; the legacy value colored the border, not the fill).",
+            DeprecationWarning,
+            stacklevel=stacklevel,
+        )
+        return "atomStyle", {
+            "selector": kwargs["selector"],
+            "borderStyle": BorderStyle(color=kwargs["value"]).to_dict(),
+        }
+
+    if annotation_type == "inferredEdge" and any(
+        kwargs.get(key) is not None for key in ("color", "style", "weight")
+    ):
+        if kwargs.get("lineStyle") is not None:
+            raise ValueError(
+                "inferredEdge got both the deprecated inline color/style/weight "
+                "and a lineStyle block; use lineStyle only."
+            )
+        validate_fields("inferredEdge", kwargs, DIRECTIVE_TYPES["inferredEdge"])
+        warnings.warn(
+            "inferredEdge's inline color/style/weight are deprecated as of "
+            "spytial-core 3.0; use lineStyle=LineStyle(...) instead.",
+            DeprecationWarning,
+            stacklevel=stacklevel,
+        )
+        new_kwargs = {
+            key: value
+            for key, value in kwargs.items()
+            if key not in ("color", "style", "weight") and value is not None
+        }
+        line_style = _legacy_line_style(
+            color=kwargs.get("color"), style=kwargs.get("style"), weight=kwargs.get("weight")
+        )
+        if line_style:
+            new_kwargs["lineStyle"] = line_style
+        return "inferredEdge", new_kwargs
+
+    return annotation_type, kwargs
+
 
 # Object-level annotation storage attribute name
 OBJECT_ANNOTATIONS_ATTR = "__spytial_object_annotations__"
@@ -281,6 +583,13 @@ class Group(SpytialAnnotation):
     Legacy ``addEdge=True`` is still accepted and maps to ``'togroup'``.
 
         Grouped = Annotated[MyType, Group(selector='...', name='g', addEdge='togroup')]
+
+    To also style the connector, pass a ``GroupEdge`` (spytial-core 3.0), and
+    style the group's own label with a top-level ``textStyle``:
+
+        Grouped = Annotated[MyType, Group(selector='...', name='g',
+            addEdge=GroupEdge(direction='togroup', lineStyle=LineStyle(pattern='dashed')),
+            textStyle=TextStyle(color='navy'))]
     """
 
     _annotation_type = "group"
@@ -292,7 +601,7 @@ class Group(SpytialAnnotation):
         if hold == "never":
             kwargs["hold"] = hold
         # Accept either field-based or selector-based parameters
-        super().__init__(**kwargs)
+        super().__init__(**_coerce_style_blocks("group", kwargs))
 
 
 # =============================================
@@ -300,19 +609,54 @@ class Group(SpytialAnnotation):
 # =============================================
 
 
-class AtomColor(SpytialAnnotation):
+class AtomStyle(SpytialAnnotation):
     """
-    Atom color directive.
+    Atom style directive (spytial-core 3.0).
+
+    Styles an atom's border, interior fill, and label independently.
 
     Usage:
-        ColoredList = Annotated[list[int], AtomColor(selector='self', value='blue')]
+        Styled = Annotated[list[int], AtomStyle(selector='self', borderStyle=BorderStyle(color='blue'))]
+        Filled = Annotated[Tree, AtomStyle(selector='Node', fillStyle=FillStyle(color='#eef6ff'),
+                                           textStyle=TextStyle(size='large'))]
     """
 
-    _annotation_type = "atomColor"
+    _annotation_type = "atomStyle"
     _is_constraint = False
 
+    def __init__(
+        self,
+        *,
+        selector: str = None,
+        fillStyle=None,
+        borderStyle=None,
+        textStyle=None,
+    ):
+        kwargs = {}
+        if selector is not None:
+            kwargs["selector"] = selector
+        if fillStyle is not None:
+            kwargs["fillStyle"] = fillStyle
+        if borderStyle is not None:
+            kwargs["borderStyle"] = borderStyle
+        if textStyle is not None:
+            kwargs["textStyle"] = textStyle
+        super().__init__(**_coerce_style_blocks("atomStyle", kwargs))
+
+
+class AtomColor(AtomStyle):
+    """
+    Deprecated legacy atom color directive; use AtomStyle instead.
+
+    Rewrites to an atomStyle entry with ``value`` as the border color (the
+    legacy directive colored the border, not the fill).
+    """
+
     def __init__(self, *, selector: str, value: str):
-        super().__init__(selector=selector, value=value)
+        _, kwargs = _desugar_legacy_style(
+            "atomColor", {"selector": selector, "value": value}, stacklevel=3
+        )
+        super().__init__(**kwargs)
 
 
 class Size(SpytialAnnotation):
@@ -345,19 +689,59 @@ class Icon(SpytialAnnotation):
         super().__init__(selector=selector, path=path, showLabels=showLabels)
 
 
-class EdgeColor(SpytialAnnotation):
+class EdgeStyle(SpytialAnnotation):
     """
-    Edge color directive.
+    Edge style directive (spytial-core 3.0).
+
+    Styles the edges of a field/relation: the drawn line via ``lineStyle``,
+    the edge's label via ``textStyle``, plus the showLabel/hidden flags.
 
     Usage:
-        ColoredEdges = Annotated[Tree, EdgeColor(field='children', value='red')]
-        StyledEdges = Annotated[Tree, EdgeColor(field='Uses', value='#d10000', style='dashed', weight=3, showLabel=False)]
-        FilteredEdges = Annotated[Tree, EdgeColor(field='link', value='blue', filter='link & Active')]
-        HiddenEdges = Annotated[Tree, EdgeColor(field='internal', value='gray', hidden=True)]
+        StyledEdges = Annotated[Tree, EdgeStyle(field='children',
+                                                lineStyle=LineStyle(color='red', pattern='dashed'))]
+        LabeledEdges = Annotated[Tree, EdgeStyle(field='Uses',
+                                                 lineStyle=LineStyle(color='#d10000', weight=3),
+                                                 textStyle=TextStyle(size='small'), showLabel=True)]
+        HiddenEdges = Annotated[Tree, EdgeStyle(field='internal', hidden=True)]
     """
 
-    _annotation_type = "edgeColor"
+    _annotation_type = "edgeStyle"
     _is_constraint = False
+
+    def __init__(
+        self,
+        *,
+        field: str,
+        selector: str = None,
+        filter: str = None,
+        lineStyle=None,
+        textStyle=None,
+        showLabel: bool = None,
+        hidden: bool = None,
+    ):
+        kwargs = {"field": field}
+        if selector is not None:
+            kwargs["selector"] = selector
+        if filter is not None:
+            kwargs["filter"] = filter
+        if lineStyle is not None:
+            kwargs["lineStyle"] = lineStyle
+        if textStyle is not None:
+            kwargs["textStyle"] = textStyle
+        if showLabel is not None:
+            kwargs["showLabel"] = showLabel
+        if hidden is not None:
+            kwargs["hidden"] = hidden
+        super().__init__(**_coerce_style_blocks("edgeStyle", kwargs))
+
+
+class EdgeColor(EdgeStyle):
+    """
+    Deprecated legacy edge color directive; use EdgeStyle instead.
+
+    Rewrites to an edgeStyle entry: ``value`` -> lineStyle.color,
+    ``style`` -> lineStyle.pattern, ``weight`` -> lineStyle.weight.
+    """
 
     def __init__(
         self,
@@ -371,19 +755,20 @@ class EdgeColor(SpytialAnnotation):
         showLabel: bool = None,
         hidden: bool = None,
     ):
-        kwargs = {"field": field, "value": value}
+        legacy = {"field": field, "value": value}
         if selector is not None:
-            kwargs["selector"] = selector
+            legacy["selector"] = selector
         if filter is not None:
-            kwargs["filter"] = filter
+            legacy["filter"] = filter
         if style is not None:
-            kwargs["style"] = style
+            legacy["style"] = style
         if weight is not None:
-            kwargs["weight"] = weight
+            legacy["weight"] = weight
         if showLabel is not None:
-            kwargs["showLabel"] = showLabel
+            legacy["showLabel"] = showLabel
         if hidden is not None:
-            kwargs["hidden"] = hidden
+            legacy["hidden"] = hidden
+        _, kwargs = _desugar_legacy_style("edgeColor", legacy, stacklevel=3)
         super().__init__(**kwargs)
 
 
@@ -450,22 +835,35 @@ class Attribute(SpytialAnnotation):
     _annotation_type = "attribute"
     _is_constraint = False
 
-    def __init__(self, *, field: str, selector: str = None, filter: str = None):
+    def __init__(
+        self,
+        *,
+        field: str,
+        selector: str = None,
+        filter: str = None,
+        textSize: str = None,
+    ):
         kwargs = {"field": field}
         if selector is not None:
             kwargs["selector"] = selector
         if filter is not None:
             kwargs["filter"] = filter
-        super().__init__(**kwargs)
+        if textSize is not None:
+            kwargs["textSize"] = textSize
+        super().__init__(**_coerce_style_blocks("attribute", kwargs))
 
 
 class InferredEdge(SpytialAnnotation):
     """
     Inferred edge directive.
 
+    Styling uses the shared lineStyle/textStyle blocks (spytial-core 3.0); the
+    inline color/style/weight keys are deprecated and rewritten into lineStyle.
+
     Usage:
         WithEdges = Annotated[Graph, InferredEdge(name='connection', selector='nodes')]
-        StyledEdges = Annotated[Graph, InferredEdge(name='ancestor', selector='^parent', color='gray', style='dotted', weight=2)]
+        StyledEdges = Annotated[Graph, InferredEdge(name='ancestor', selector='^parent',
+                                                    lineStyle=LineStyle(color='gray', pattern='dotted'))]
     """
 
     _annotation_type = "inferredEdge"
@@ -479,6 +877,8 @@ class InferredEdge(SpytialAnnotation):
         color: str = None,
         style: str = None,
         weight: int = None,
+        lineStyle=None,
+        textStyle=None,
     ):
         kwargs = {"name": name, "selector": selector}
         if color is not None:
@@ -487,7 +887,12 @@ class InferredEdge(SpytialAnnotation):
             kwargs["style"] = style
         if weight is not None:
             kwargs["weight"] = weight
-        super().__init__(**kwargs)
+        if lineStyle is not None:
+            kwargs["lineStyle"] = lineStyle
+        if textStyle is not None:
+            kwargs["textStyle"] = textStyle
+        _, kwargs = _desugar_legacy_style("inferredEdge", kwargs, stacklevel=3)
+        super().__init__(**_coerce_style_blocks("inferredEdge", kwargs))
 
 
 class Flag(SpytialAnnotation):
@@ -527,8 +932,11 @@ class Tag(SpytialAnnotation):
     _annotation_type = "tag"
     _is_constraint = False
 
-    def __init__(self, *, toTag: str, name: str, value: str):
-        super().__init__(toTag=toTag, name=name, value=value)
+    def __init__(self, *, toTag: str, name: str, value: str, textSize: str = None):
+        kwargs = {"toTag": toTag, "name": name, "value": value}
+        if textSize is not None:
+            kwargs["textSize"] = textSize
+        super().__init__(**_coerce_style_blocks("tag", kwargs))
 
 
 def extract_spytial_annotations(type_hint):
@@ -645,6 +1053,12 @@ def annotate_type_alias(type_alias, annotation_type, **kwargs):
     :param kwargs: The annotation parameters.
     :return: The type alias (for chaining).
     """
+    # Rewrite deprecated 2.x style forms and flatten style blocks.
+    annotation_type, kwargs = _desugar_legacy_style(
+        annotation_type, kwargs, stacklevel=3
+    )
+    kwargs = _coerce_style_blocks(annotation_type, kwargs)
+
     key = _normalize_type_alias_key(type_alias)
 
     if key not in _TYPE_ALIAS_ANNOTATION_REGISTRY:
@@ -868,6 +1282,14 @@ def _create_decorator(constraint_type):
     """
 
     def decorator(**kwargs):
+        # Rewrite deprecated 2.x style forms once, at the authoring site, so the
+        # deprecation warning points at the user's line and fires once even if
+        # the returned decorator is applied to many targets.
+        effective_type, kwargs = _desugar_legacy_style(
+            constraint_type, kwargs, stacklevel=2
+        )
+        kwargs = _coerce_style_blocks(effective_type, kwargs)
+
         def unified_decorator(target):
             # Check if target is a class (type) or an object instance
             if isinstance(target, type):
@@ -878,35 +1300,35 @@ def _create_decorator(constraint_type):
                     target.__spytial_registry__ = {"constraints": [], "directives": []}
 
                 # Determine if it's a constraint or directive
-                if constraint_type in CONSTRAINT_TYPES:
+                if effective_type in CONSTRAINT_TYPES:
                     # Validate fields for constraints
                     validate_fields(
-                        constraint_type, kwargs, CONSTRAINT_TYPES[constraint_type]
+                        effective_type, kwargs, CONSTRAINT_TYPES[effective_type]
                     )
-                    entry = {constraint_type: kwargs}
+                    entry = {effective_type: kwargs}
                     target.__spytial_registry__["constraints"].append(entry)
-                elif constraint_type in DIRECTIVE_TYPES:
+                elif effective_type in DIRECTIVE_TYPES:
                     # Validate fields for directives
                     validate_fields(
-                        constraint_type, kwargs, DIRECTIVE_TYPES[constraint_type]
+                        effective_type, kwargs, DIRECTIVE_TYPES[effective_type]
                     )
 
                     # Special handling for flag directives - store as scalar
-                    if constraint_type == "flag" and "name" in kwargs:
-                        entry = {constraint_type: kwargs["name"]}
+                    if effective_type == "flag" and "name" in kwargs:
+                        entry = {effective_type: kwargs["name"]}
                     else:
-                        entry = {constraint_type: kwargs}
+                        entry = {effective_type: kwargs}
 
                     target.__spytial_registry__["directives"].append(entry)
                 else:
                     raise ValueError(
-                        f"Unknown type '{constraint_type}' for sPyTial decorator."
+                        f"Unknown type '{effective_type}' for sPyTial decorator."
                     )
 
                 return target
             else:
                 # Object annotation (new ergonomic behavior)
-                return _annotate_object(target, constraint_type, **kwargs)
+                return _annotate_object(target, effective_type, **kwargs)
 
         return unified_decorator
 
@@ -918,10 +1340,12 @@ orientation = _create_decorator("orientation")
 cyclic = _create_decorator("cyclic")
 align = _create_decorator("align")
 group = _create_decorator("group")
-atomColor = _create_decorator("atomColor")
+atomColor = _create_decorator("atomColor")  # deprecated: rewrites to atomStyle
+atomStyle = _create_decorator("atomStyle")
 size = _create_decorator("size")
 icon = _create_decorator("icon")
-edgeColor = _create_decorator("edgeColor")
+edgeColor = _create_decorator("edgeColor")  # deprecated: rewrites to edgeStyle
+edgeStyle = _create_decorator("edgeStyle")
 projection = _create_decorator("projection")
 attribute = _create_decorator("attribute")
 hideField = _create_decorator("hideField")
@@ -960,6 +1384,13 @@ def _annotate_object(obj, annotation_type, **kwargs):
     :param kwargs: The annotation parameters.
     :return: The annotated object (for chaining).
     """
+    # Rewrite deprecated 2.x style forms and flatten style blocks. Idempotent,
+    # so the decorator path (already desugared) doesn't warn twice.
+    annotation_type, kwargs = _desugar_legacy_style(
+        annotation_type, kwargs, stacklevel=4
+    )
+    kwargs = _coerce_style_blocks(annotation_type, kwargs)
+
     registry = _ensure_object_registry(obj)
 
     # Get or create unique ID for this object to enable self-reference
@@ -1021,8 +1452,13 @@ def annotate_group(obj, **kwargs):
 
 
 def annotate_atomColor(obj, **kwargs):
-    """Apply atomColor annotation to a specific object."""
+    """Apply atomColor annotation to a specific object (deprecated; use annotate_atomStyle)."""
     return _annotate_object(obj, "atomColor", **kwargs)
+
+
+def annotate_atomStyle(obj, **kwargs):
+    """Apply atomStyle annotation to a specific object."""
+    return _annotate_object(obj, "atomStyle", **kwargs)
 
 
 def annotate_size(obj, **kwargs):
@@ -1036,8 +1472,13 @@ def annotate_icon(obj, **kwargs):
 
 
 def annotate_edgeColor(obj, **kwargs):
-    """Apply edgeColor annotation to a specific object."""
+    """Apply edgeColor annotation to a specific object (deprecated; use annotate_edgeStyle)."""
     return _annotate_object(obj, "edgeColor", **kwargs)
+
+
+def annotate_edgeStyle(obj, **kwargs):
+    """Apply edgeStyle annotation to a specific object."""
+    return _annotate_object(obj, "edgeStyle", **kwargs)
 
 
 def annotate_projection(obj, **kwargs):
@@ -1110,6 +1551,63 @@ def apply_if(condition, *decorators):
         return cls
 
     return decorator
+
+
+# Match keys per style directive: two entries with identical match keys style
+# the same edges/atoms, so differing leaf values are a guaranteed collision.
+_STYLE_MATCH_KEYS = {
+    "edgeStyle": ("field", "selector", "filter"),
+    "atomStyle": ("selector",),
+}
+
+
+def _iter_style_leaves(payload, prefix=()):
+    for key, value in payload.items():
+        if isinstance(value, dict):
+            yield from _iter_style_leaves(value, prefix + (key,))
+        else:
+            yield prefix + (key,), value
+
+
+def _warn_style_conflicts(directives):
+    """Advisory for guaranteed spytial-core 3.0 StyleCollisionErrors.
+
+    Core 3.0 hard-errors when two style rules set the same property of the
+    same edge/atom to different values (2.x silently first-won). Python can't
+    evaluate selectors, so this only flags the syntactically certain case:
+    identical match keys, same leaf, different values. Everything else is
+    caught by core at render time.
+    """
+    seen = {}
+    for entry in directives:
+        if not isinstance(entry, dict):
+            continue
+        for directive_type, payload in entry.items():
+            match_fields = _STYLE_MATCH_KEYS.get(directive_type)
+            if match_fields is None or not isinstance(payload, dict):
+                continue
+            match_key = tuple(payload.get(field) for field in match_fields)
+            style_payload = {
+                key: value
+                for key, value in payload.items()
+                if key not in match_fields
+            }
+            for leaf, value in _iter_style_leaves(style_payload):
+                key = (directive_type, match_key, leaf)
+                previous = seen.setdefault(key, value)
+                if previous != value:
+                    where = ", ".join(
+                        f"{f}={v!r}" for f, v in zip(match_fields, match_key) if v is not None
+                    )
+                    warnings.warn(
+                        f"Conflicting {directive_type} rules ({where or 'match-all'}): "
+                        f"'{'.'.join(leaf)}' is set to both {previous!r} and {value!r}. "
+                        "spytial-core 3.0 raises a StyleCollisionError for this at "
+                        "render time — set each style property in exactly one rule.",
+                        UserWarning,
+                        stacklevel=3,
+                    )
+    return directives
 
 
 def _deduplicate_entries(entries):
@@ -1199,6 +1697,10 @@ def collect_decorators(obj, type_hint=None):
     combined_registry["directives"] = _deduplicate_entries(
         combined_registry["directives"]
     )
+
+    # Surface guaranteed 3.0 style collisions early (identical rules already
+    # deduped above, so anything flagged here is a genuine disagreement).
+    _warn_style_conflicts(combined_registry["directives"])
 
     return combined_registry
 
