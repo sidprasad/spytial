@@ -121,15 +121,24 @@ def test_inferred_edge_blocks():
     ]
 
 
-def test_attribute_and_tag_text_size():
-    @spytial.attribute(field="weight", textSize="small")
-    @spytial.tag(toTag="Person", name="age", value="age", textSize="large")
+def test_attribute_and_tag_text_style():
+    # spytial-core 3.1: attribute/tag lines take the shared textStyle block.
+    @spytial.attribute(field="weight", textStyle=TextStyle(size="small"))
+    @spytial.tag(toTag="Person", name="age", value="age",
+                 textStyle=TextStyle(size="large", color="gray"))
     class T:
         pass
 
     assert _directives(T()) == [
-        {"tag": {"toTag": "Person", "name": "age", "value": "age", "textSize": "large"}},
-        {"attribute": {"field": "weight", "textSize": "small"}},
+        {
+            "tag": {
+                "toTag": "Person",
+                "name": "age",
+                "value": "age",
+                "textStyle": {"size": "large", "color": "gray"},
+            }
+        },
+        {"attribute": {"field": "weight", "textStyle": {"size": "small"}}},
     ]
 
 
@@ -337,8 +346,8 @@ def test_cross_form_dedup():
         lambda: spytial.edgeStyle(field="x", lineStyle={"colour": "red"}),
         lambda: spytial.edgeStyle(field="x", lineStyle="red"),
         lambda: spytial.atomStyle(borderStyle={"width": -2}),
-        lambda: spytial.attribute(field="x", textSize="mega"),
-        lambda: spytial.tag(toTag="T", name="n", value="v", textSize="mega"),
+        lambda: spytial.attribute(field="x", textStyle={"size": "mega"}),
+        lambda: spytial.tag(toTag="T", name="n", value="v", textStyle={"size": "mega"}),
         lambda: spytial.group(selector="s", name="g", addEdge="sideways"),
     ],
 )

@@ -64,10 +64,12 @@ from spytial import GroupEdge, LineStyle, TextStyle
 
 1. **`field`** — the field to fold into the node as a label (instead of a separate
    box and arrow).
-2. **`textSize`** *(optional)* — `'small'`, `'normal'` (default), or `'large'`.
+2. **`textStyle`** *(optional)* — styles this attribute's line
+   (`TextStyle(size=..., color=...)`).
 
 ```python
 @spytial.attribute(field='value')
+@spytial.attribute(field='weight', textStyle=spytial.TextStyle(size='small'))
 ```
 
 ### `atomStyle` / `edgeStyle` — styling
@@ -134,7 +136,8 @@ from spytial import LineStyle, TextStyle, BorderStyle, FillStyle
 1. **`toTag`** — the type to tag.
 2. **`name`** — the label name.
 3. **`value`** — the field/expression to show.
-4. **`textSize`** *(optional)* — `'small'`, `'normal'` (default), or `'large'`.
+4. **`textStyle`** *(optional)* — styles this tag's line
+   (`TextStyle(size=..., color=...)`).
 
 ### `size` / `icon` — adjust drawing
 

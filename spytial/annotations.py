@@ -54,7 +54,7 @@ DIRECTIVE_TYPES = {
         "optional": ["selector", "filter", "lineStyle", "textStyle", "showLabel", "hidden"],
     },
     "projection": ["sig"],
-    "attribute": {"required": ["field"], "optional": ["selector", "filter", "textSize"]},
+    "attribute": {"required": ["field"], "optional": ["selector", "filter", "textStyle"]},
     "hideField": {"required": ["field"], "optional": ["selector", "filter"]},
     "hideAtom": ["selector"],
     "inferredEdge": {
@@ -62,7 +62,7 @@ DIRECTIVE_TYPES = {
         # color/style/weight are the legacy inline form; they desugar to lineStyle.
         "optional": ["color", "style", "weight", "lineStyle", "textStyle"],
     },
-    "tag": {"required": ["toTag", "name", "value"], "optional": ["textSize"]},
+    "tag": {"required": ["toTag", "name", "value"], "optional": ["textStyle"]},
     "flag": ["name"],
 }
 
@@ -195,6 +195,9 @@ _STYLE_BLOCK_FIELDS = {
     },
     "inferredEdge": {"lineStyle": LineStyle, "textStyle": TextStyle},
     "group": {"addEdge": GroupEdge, "textStyle": TextStyle},
+    # spytial-core 3.1: attribute/tag lines take the shared textStyle block.
+    "attribute": {"textStyle": TextStyle},
+    "tag": {"textStyle": TextStyle},
 }
 
 
@@ -220,7 +223,7 @@ def _coerce_style_blocks(annotation_type, kwargs):
     """Return a fresh kwargs dict with style blocks flattened to sparse dicts.
 
     Always copies (registries must never alias caller-held dicts) and validates
-    block payloads and scalar enums (textSize, bare addEdge directions).
+    block payloads and bare addEdge direction strings.
     """
     block_fields = _STYLE_BLOCK_FIELDS.get(annotation_type, {})
     out = {}
@@ -236,8 +239,6 @@ def _coerce_style_blocks(annotation_type, kwargs):
                     continue
             value = _coerce_block(block_cls, value, f"{annotation_type}.{key}")
         out[key] = value
-    if annotation_type in ("attribute", "tag"):
-        _require_choice(out.get("textSize"), TEXT_SIZES, f"{annotation_type}.textSize")
     return out
 
 
@@ -829,15 +830,15 @@ class Attribute(SpytialAnnotation):
         field: str,
         selector: str = None,
         filter: str = None,
-        textSize: str = None,
+        textStyle=None,
     ):
         kwargs = {"field": field}
         if selector is not None:
             kwargs["selector"] = selector
         if filter is not None:
             kwargs["filter"] = filter
-        if textSize is not None:
-            kwargs["textSize"] = textSize
+        if textStyle is not None:
+            kwargs["textStyle"] = textStyle
         super().__init__(**_coerce_style_blocks("attribute", kwargs))
 
 
@@ -920,10 +921,10 @@ class Tag(SpytialAnnotation):
     _annotation_type = "tag"
     _is_constraint = False
 
-    def __init__(self, *, toTag: str, name: str, value: str, textSize: str = None):
+    def __init__(self, *, toTag: str, name: str, value: str, textStyle=None):
         kwargs = {"toTag": toTag, "name": name, "value": value}
-        if textSize is not None:
-            kwargs["textSize"] = textSize
+        if textStyle is not None:
+            kwargs["textStyle"] = textStyle
         super().__init__(**_coerce_style_blocks("tag", kwargs))
 
 

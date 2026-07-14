@@ -17,7 +17,7 @@ feedback. The 3.0 style-system major left this entry's API unchanged.
 ## Regenerate (when bumping the pinned spytial-core)
 
 ```sh
-VERSION=3.0.1   # the spytial-core release to vendor
+VERSION=3.1.0   # the spytial-core release to vendor
 TMP=$(mktemp -d)
 ( cd "$TMP" && npm pack "spytial-core@$VERSION" && tar xzf "spytial-core-$VERSION.tgz" )
 cp "$TMP/package/dist/evaluator.js" spytial/suggest/_vendor/spytial-core-evaluator.js
@@ -31,4 +31,4 @@ grep -oE "require\(['\"][^'\"]+['\"]\)" spytial/suggest/_vendor/spytial-core-eva
   | grep -vE "require\(['\"](\.|node:)" | sort -u
 ```
 
-Pinned version: **spytial-core 3.0.1**.
+Pinned version: **spytial-core 3.1.0**.
