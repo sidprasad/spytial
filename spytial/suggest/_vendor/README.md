@@ -12,12 +12,12 @@ run headlessly with just a `node` binary on the machine — no `npm install`, no
 spytial-core 2.10.1 (tsup `noExternal`); 2.11.0 additionally re-exports the static
 analyzer (`analyzeForgeExpression`) and the by-example synthesizers on the
 `./evaluator` entry, which the tier-2 bridge uses for the static gate and repair
-feedback.
+feedback. The 3.0 style-system major left this entry's API unchanged.
 
 ## Regenerate (when bumping the pinned spytial-core)
 
 ```sh
-VERSION=2.11.0   # the spytial-core release to vendor
+VERSION=3.1.0   # the spytial-core release to vendor
 TMP=$(mktemp -d)
 ( cd "$TMP" && npm pack "spytial-core@$VERSION" && tar xzf "spytial-core-$VERSION.tgz" )
 cp "$TMP/package/dist/evaluator.js" spytial/suggest/_vendor/spytial-core-evaluator.js
@@ -31,4 +31,4 @@ grep -oE "require\(['\"][^'\"]+['\"]\)" spytial/suggest/_vendor/spytial-core-eva
   | grep -vE "require\(['\"](\.|node:)" | sort -u
 ```
 
-Pinned version: **spytial-core 2.11.0**.
+Pinned version: **spytial-core 3.1.0**.

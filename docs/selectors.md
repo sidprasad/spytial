@@ -21,7 +21,7 @@ Before laying anything out, Spytial turns your object into a graph:
 A selector selects either **one thing or two**:
 
 - A **unary** selector selects a **set** of atoms — e.g. `TreeNode`,
-  `{ x : TreeNode | … }`. Operations that act on atoms (`hideAtom`, `atomColor`)
+  `{ x : TreeNode | … }`. Operations that act on atoms (`hideAtom`, `atomStyle`)
   take a unary selector.
 - A **binary** selector selects a **set of `(source, dest)` tuples** — e.g. `left`,
   `~left`, `{ x : TreeNode, y : TreeNode | … }`. Operations that act on edges

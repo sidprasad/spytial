@@ -338,7 +338,7 @@ def scalar_attribute(field: FieldInfo, ci: ClassInfo) -> List[Suggestion]:
 
 
 # --------------------------------------------------------------------------- #
-# R7 — enum field → atomColor per member
+# R7 — enum field → atomStyle per member
 # --------------------------------------------------------------------------- #
 @heuristic(scope="field", priority=10)
 def enum_color(field: FieldInfo, ci: ClassInfo) -> List[Suggestion]:
@@ -351,8 +351,10 @@ def enum_color(field: FieldInfo, ci: ClassInfo) -> List[Suggestion]:
         selector = enum_member_selector(type_name, field.name, member)
         out.append(
             Suggestion(
-                "atomColor",
-                {"selector": selector, "value": color},
+                "atomStyle",
+                # borderStyle, not fillStyle: matches the look legacy atomColor
+                # produced (its value colored the border).
+                {"selector": selector, "borderStyle": {"color": color}},
                 "medium",
                 f"{field.name} = {member} → {color} (palette is a guess; edit to taste)",
                 field.name,

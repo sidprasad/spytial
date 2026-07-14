@@ -15,7 +15,7 @@ from ._model import ClassInfo, SpecDraft, Suggestion
 
 # Directives where at most one may apply to a given field. If several land on the
 # same field, the best wins and the rest become toggled-off alternatives. Others
-# (e.g. atomColor, one per enum member) are additive and all kept.
+# (e.g. atomStyle, one per enum member) are additive and all kept.
 EXCLUSIVE_DIRECTIVES = {"orientation", "cyclic", "align", "attribute", "hideField"}
 
 

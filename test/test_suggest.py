@@ -398,15 +398,19 @@ def test_enum_color_is_speculative():
     enabled = draft.to_registry(enabled_only=True)
     full = draft.to_registry(enabled_only=False)
     # off by default (palette is a guess), but present when speculative shown
-    assert not _entries(enabled, "atomColor")
-    assert len(_entries(full, "atomColor")) == 2
+    assert not _entries(enabled, "atomStyle")
+    entries = _entries(full, "atomStyle")
+    assert len(entries) == 2
+    # spytial-core 3.0 form: the palette color lands on the border block,
+    # matching the look legacy atomColor produced.
+    assert all(e["borderStyle"]["color"] for e in entries)
 
 
 def test_enum_selector_joins_through_name_relation():
     # @:(x.color) reads the enum atom's display label, not the member name; the
     # selector must join through the member's `name` relation to match.
     full = suggest(RBNode, instance=_rb_instance()).to_registry(enabled_only=False)
-    selectors = [p["selector"] for p in _entries(full, "atomColor")]
+    selectors = [p["selector"] for p in _entries(full, "atomStyle")]
     assert selectors and all(".color.name) =" in s for s in selectors)
 
 

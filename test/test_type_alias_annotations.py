@@ -28,13 +28,13 @@ class TestAnnotatedTypeAliases:
         StyledList = Annotated[
             list[str],
             spytial.Orientation(selector="items", directions=["vertical"]),
-            spytial.AtomColor(selector="self", value="blue"),
+            spytial.AtomStyle(selector="self", borderStyle=spytial.BorderStyle(color="blue")),
             spytial.Size(selector="items", height=50, width=100),
         ]
 
         annotations = spytial.extract_spytial_annotations(StyledList)
         assert len(annotations["constraints"]) == 1  # Orientation
-        assert len(annotations["directives"]) == 2  # AtomColor, Size
+        assert len(annotations["directives"]) == 2  # AtomStyle, Size
 
     def test_all_constraint_classes(self):
         """Test all constraint annotation classes."""
@@ -51,13 +51,16 @@ class TestAnnotatedTypeAliases:
         ann4 = spytial.Group(field="children", groupOn=0, addToGroup=1)
         assert ann4._annotation_type == "group"
 
+    @pytest.mark.filterwarnings("ignore::DeprecationWarning")
     def test_all_directive_classes(self):
         """Test all directive annotation classes."""
         directives = [
             spytial.AtomColor(selector="x", value="red"),
+            spytial.AtomStyle(selector="x", borderStyle=spytial.BorderStyle(color="red")),
             spytial.Size(selector="x", height=10, width=10),
             spytial.Icon(selector="x", path="icon.svg"),
             spytial.EdgeColor(field="edge", value="blue"),
+            spytial.EdgeStyle(field="edge", lineStyle=spytial.LineStyle(color="blue")),
             spytial.HideField(field="_private"),
             spytial.HideAtom(selector="hidden"),
             spytial.Projection(sig="MySig"),
@@ -73,7 +76,7 @@ class TestAnnotatedTypeAliases:
         """Test get_base_type helper function."""
         StyledList = Annotated[
             list[str],
-            spytial.AtomColor(selector="self", value="blue"),
+            spytial.AtomStyle(selector="self", borderStyle=spytial.BorderStyle(color="blue")),
         ]
 
         base = spytial.get_base_type(StyledList)
@@ -125,21 +128,34 @@ class TestAnnotatedTypeAliases:
         # Flag uses scalar format, not dict
         assert entry == {"flag": "debug"}
 
+    @pytest.mark.filterwarnings("ignore::DeprecationWarning")
     def test_optional_parameters(self):
         """Test annotations with optional parameters."""
-        # EdgeColor with optional selector
+        # Legacy EdgeColor rewrites to an edgeStyle entry
         ec1 = spytial.EdgeColor(field="children", value="red")
         assert "selector" not in ec1.kwargs
+        assert ec1.to_entry() == {
+            "edgeStyle": {"field": "children", "lineStyle": {"color": "red"}}
+        }
 
         ec2 = spytial.EdgeColor(field="children", value="red", selector="Tree")
         assert ec2.kwargs["selector"] == "Tree"
 
-        # InferredEdge with optional color
+        # New EdgeStyle with optional blocks
+        es = spytial.EdgeStyle(
+            field="children", lineStyle=spytial.LineStyle(color="red")
+        )
+        assert es.to_entry() == {
+            "edgeStyle": {"field": "children", "lineStyle": {"color": "red"}}
+        }
+
+        # InferredEdge with optional styling: inline color desugars to lineStyle
         ie1 = spytial.InferredEdge(name="link", selector="nodes")
         assert "color" not in ie1.kwargs
+        assert "lineStyle" not in ie1.kwargs
 
         ie2 = spytial.InferredEdge(name="link", selector="nodes", color="blue")
-        assert ie2.kwargs["color"] == "blue"
+        assert ie2.kwargs["lineStyle"] == {"color": "blue"}
 
 
 class TestLegacyTypeAliasRegistry:
@@ -160,6 +176,7 @@ class TestLegacyTypeAliasRegistry:
         assert annotations is not None
         assert len(annotations["constraints"]) == 1
 
+    @pytest.mark.filterwarnings("ignore::DeprecationWarning")
     def test_legacy_clear(self):
         """Test legacy clear function."""
         IntList = list[int]

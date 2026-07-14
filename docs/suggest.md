@@ -52,7 +52,7 @@ and maps them to directives:
 | `next` (+ `prev`) of the same type | `orientation` right (reverse link hidden) |
 | `parent` / back-pointer | `hideField` if child edges exist, else `orientation` above |
 | a scalar (`value`, `key`, `name`, …) | `attribute` — folded into the node |
-| an `Enum`-typed field | one `atomColor` per member (off by default) |
+| an `Enum`-typed field | one `atomStyle` per member (off by default) |
 | children that can be `None` | `hideAtom(selector='NoneType')` |
 
 Two choices worth knowing:
@@ -97,9 +97,9 @@ from spytial.suggest import heuristic, Suggestion
 def color_by_status(field, cls_info):
     if field.name == 'status' and field.enum_members:
         return [Suggestion(
-            directive='atomColor',
+            directive='atomStyle',
             kwargs={'selector': f'{{ x : {cls_info.cls.__name__} | @:(x.status) = active }}',
-                    'value': 'seagreen'},
+                    'borderStyle': {'color': 'seagreen'}},
             confidence='high',
             rationale='active status → green',
             source_field='status',
