@@ -103,6 +103,31 @@ def test_selector_group_addedge_block_dict_form():
     }
 
 
+def test_group_decorator_documents_addedge_directions():
+    """@group takes **kwargs, so its docstring is the only place help() can show
+    the addEdge surface. Keep the three directions discoverable from the decorator."""
+    doc = group.__doc__
+    assert doc, "@group needs a docstring; **kwargs tells help() nothing"
+    for direction in ('none', 'togroup', 'fromgroup'):
+        assert f"'{direction}'" in doc
+    assert 'GroupEdge' in doc
+    assert 'textStyle' in doc
+    # help() reports the decorator by name, not as the factory's inner function.
+    assert group.__name__ == 'group'
+
+
+def test_field_group_rejects_showlabel():
+    """Core's GroupByField never reads showLabel (it derives label visibility from
+    negation), so accepting it silently would promise something core drops."""
+    import io, contextlib
+
+    my_list = [1, 2, 3]
+    buf = io.StringIO()
+    with contextlib.redirect_stdout(buf):
+        annotate_group(my_list, field='elements', groupOn=0, addToGroup=1, showLabel=True)
+    assert 'showLabel' in buf.getvalue()
+
+
 def test_group_decorator_with_selector():
     """Test the group decorator with selector parameters."""
     my_dict = {'a': 1, 'b': 2}

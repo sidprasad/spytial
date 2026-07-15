@@ -58,6 +58,18 @@ from spytial import GroupEdge, LineStyle, TextStyle
 )
 ```
 
+### `hold` — invert any constraint
+
+Every constraint takes an optional **`hold`**. It defaults to `'always'`; pass
+`'never'` to require the opposite — the layout must *not* satisfy the
+constraint. It's how you say "these must not be grouped" or "y is never below
+x", rather than leaving the relationship unconstrained.
+
+```python
+@spytial.orientation(selector='children', directions=['below'], hold='never')
+@spytial.group(selector='Team.members', name='Team', hold='never')
+```
+
 ## Directives
 
 ### `attribute` — show a field as inline text
