@@ -7677,9 +7677,9 @@ Filtered = Annotated[MyType, Attribute(field='status', filter='status &amp; Acti
 inline color/style/weight keys are deprecated and rewritten into lineStyle.</p>
 <p><code>draw</code> (spytial-core 3.2) is <code>'&lt;end&gt; -&gt; &lt;end&gt;'</code>, each end <code>'_'</code> (the
 atom itself) or the name of a group constraint, in which case that end
-attaches to the hull of the group keyed by the end's atom -- giving
-group-to-group and node-to-group edges. <code>'_ -&gt; _'</code> means the same as
-omitting it.</p>
+attaches to that group's hull -- giving group-to-group and node-to-group
+edges. A keyed group (binary selector) is picked by the end's atom; a unary
+group is attached to directly. <code>'_ -&gt; _'</code> means the same as omitting it.</p>
 
 
 <details class="usage" open>
@@ -11999,9 +11999,9 @@ Filtered = Annotated[MyType, Attribute(field='status', filter='status &amp; Acti
 inline color/style/weight keys are deprecated and rewritten into lineStyle.</p>
 <p><code>draw</code> (spytial-core 3.2) is <code>'&lt;end&gt; -&gt; &lt;end&gt;'</code>, each end <code>'_'</code> (the
 atom itself) or the name of a group constraint, in which case that end
-attaches to the hull of the group keyed by the end's atom -- giving
-group-to-group and node-to-group edges. <code>'_ -&gt; _'</code> means the same as
-omitting it.</p>
+attaches to that group's hull -- giving group-to-group and node-to-group
+edges. A keyed group (binary selector) is picked by the end's atom; a unary
+group is attached to directly. <code>'_ -&gt; _'</code> means the same as omitting it.</p>
 
 
 <details class="usage" open>
