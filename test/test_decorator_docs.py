@@ -301,3 +301,72 @@ def test_error_names_the_vocabulary():
     with pytest.raises(ValueError) as e:
         spytial.align(selector="a", direction="left")(type("T", (), {}))
     assert "horizontal" in str(e.value) and "vertical" in str(e.value)
+
+
+# --------------------------------------------------------------------------- #
+# inferredEdge draw (spytial-core 3.2)
+# --------------------------------------------------------------------------- #
+
+
+@pytest.mark.parametrize(
+    "draw",
+    ["regions -> regions", "_ -> regions", "regions -> _", "_ -> _", " regions->regions "],
+)
+def test_draw_accepts_the_forms_core_parses(draw):
+    @spytial.group(selector="{ t : Team, m : Member | m in t.members }", name="regions")
+    @spytial.inferredEdge(name="link", selector="{a:T,b:T|b = a.parent}", draw=draw)
+    class Target:
+        pass
+
+    entry = Target.__spytial_registry__["directives"][0]["inferredEdge"]
+    assert entry["draw"] == draw
+
+
+@pytest.mark.parametrize(
+    "draw",
+    [
+        "regions",           # no arrow
+        "a -> b -> c",       # more than one arrow
+        "-> regions",        # empty source
+        "regions ->",        # empty target
+        42,                  # not a string
+    ],
+)
+def test_draw_rejects_shapes_core_cannot_parse(draw):
+    """Core throws on these too, but only once the spec reaches the browser —
+    the shape is checkable here, so the error lands on the offending line."""
+    with pytest.raises(ValueError, match="inferredEdge.draw"):
+        spytial.inferredEdge(name="link", selector="x.y", draw=draw)(type("T", (), {}))
+
+
+def test_draw_is_validated_on_the_class_form_too():
+    with pytest.raises(ValueError, match="inferredEdge.draw"):
+        spytial.InferredEdge(name="link", selector="x.y", draw="regions")
+
+
+def test_draw_class_form_round_trips():
+    ann = spytial.InferredEdge(name="link", selector="x.y", draw="regions -> _")
+    assert ann.to_entry()["inferredEdge"]["draw"] == "regions -> _"
+
+
+def test_draw_is_optional():
+    """A plain node-to-node inferred edge must not acquire a draw key."""
+
+    @spytial.inferredEdge(name="link", selector="x.y")
+    class Target:
+        pass
+
+    assert "draw" not in Target.__spytial_registry__["directives"][0]["inferredEdge"]
+
+
+def test_draw_group_name_is_left_to_core():
+    """Whether a named group exists needs the whole spec — and the group may be
+    declared on another class — so that check is core's, not ours."""
+
+    @spytial.inferredEdge(name="link", selector="x.y", draw="declared_elsewhere -> _")
+    class Target:
+        pass
+
+    assert Target.__spytial_registry__["directives"][0]["inferredEdge"]["draw"] == (
+        "declared_elsewhere -> _"
+    )

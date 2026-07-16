@@ -145,6 +145,7 @@ from spytial import LineStyle, TextStyle, BorderStyle, FillStyle
 3. **`lineStyle`** / **`textStyle`** *(optional)* — style the drawn edge and its
    label (same blocks as `edgeStyle`; the inline `color`/`style`/`weight`
    arguments are deprecated).
+4. **`draw`** *(optional)* — where each end attaches. See below.
 
 ```python
 @spytial.inferredEdge(
@@ -152,6 +153,36 @@ from spytial import LineStyle, TextStyle, BorderStyle, FillStyle
     name='edge',                                               # edge label
 )
 ```
+
+#### `draw` — attach an end to a group's hull
+
+By default an inferred edge runs atom-to-atom. **`draw`** is a string
+`'<end> -> <end>'` where each end is either `'_'` (the atom itself) or the
+**name of a `group` constraint** — in which case that end attaches to the hull
+of the group *keyed by that end's atom*. This is what makes group-to-group and
+node-to-group edges expressible.
+
+```python
+# A binary group selector: one group per Team, keyed by the Team atom.
+@spytial.group(selector='{ t : Team, l : list | l in t.members }', name='regions')
+@spytial.inferredEdge(
+    name='reports to',
+    selector='{ a : Team, b : Team | b = a.parent }',
+    draw='regions -> regions',   # hull to hull, rather than node to node
+)
+```
+
+`'_ -> regions'` runs from the atom to a group's hull; `'_ -> _'` means the same
+as omitting `draw`. The edge's own selector still ranges over atoms either way —
+and with `draw`, a unary edge selector is allowed, its atom feeding both ends.
+
+> **The referenced group must be keyed** — that is, declared with a *binary*
+> selector, whose first element becomes the key. `draw` resolves each end by
+> looking up the group of that name keyed by that end's atom, so a group built
+> from a unary selector (`selector='Team.members'`) has no key for any end to
+> match, and the edge is dropped without drawing anything. A group *name* that
+> matches no `group` constraint at all is a hard error at render time; an atom
+> that keys no group of that name is reported in the browser console.
 
 ### `tag` — attach a computed label
 

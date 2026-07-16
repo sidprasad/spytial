@@ -64,7 +64,8 @@ DIRECTIVE_TYPES = {
     "inferredEdge": {
         "required": ["name", "selector"],
         # color/style/weight are the legacy inline form; they desugar to lineStyle.
-        "optional": ["color", "style", "weight", "lineStyle", "textStyle"],
+        # draw (spytial-core 3.2) attaches an end to a group's hull.
+        "optional": ["color", "style", "weight", "lineStyle", "textStyle", "draw"],
     },
     "tag": {"required": ["toTag", "name", "value"], "optional": ["textStyle"]},
     "flag": ["name"],
@@ -282,23 +283,61 @@ _ENUM_VALUES = {
 }
 
 
-def _validate_enum_values(annotation_type, kwargs):
-    """Reject kwarg values outside the closed set core recognises.
+def _validate_draw(draw):
+    """Check the shape of an inferredEdge ``draw``: ``<end> -> <end>``.
+
+    Mirrors core's parseInferredEdgeDraw. Core does reject a malformed draw —
+    but only once the spec reaches the browser, so checking the shape here puts
+    the error on the offending line instead. Whether a named group *exists* is
+    not checkable here: it needs the whole spec, and a draw may reference a
+    group declared on another class, so core keeps that check.
+    """
+    if not isinstance(draw, str):
+        raise ValueError(
+            "inferredEdge.draw must be a string of the form '<end> -> <end>' "
+            f"(each end '_' or a group name); got {draw!r}"
+        )
+    ends = draw.split("->")
+    if len(ends) != 2:
+        raise ValueError(
+            "inferredEdge.draw must contain exactly one '->' "
+            f"(e.g. 'regions -> regions' or '_ -> regions'); got {draw!r}"
+        )
+    if not all(end.strip() for end in ends):
+        raise ValueError(
+            f"inferredEdge.draw has an empty endpoint in {draw!r}; "
+            "each end must be '_' (the atom itself) or a group name"
+        )
+
+
+# (annotation type, kwarg) -> a checker, for values with more shape than a
+# closed set.
+_VALUE_VALIDATORS = {
+    ("inferredEdge", "draw"): _validate_draw,
+}
+
+
+def _validate_values(annotation_type, kwargs):
+    """Reject kwarg values core cannot read.
 
     Shared by every authoring form, so ``@spytial.align(direction='left')`` and
     ``Align(direction='left')`` fail the same way — with the vocabulary named,
     since the usual mistake is reaching for another constraint's words.
     """
     for key, value in kwargs.items():
-        choices = _ENUM_VALUES.get((annotation_type, key))
-        if choices is None or value is None:
+        if value is None:
             continue
-        for item in value if isinstance(value, (list, tuple)) else (value,):
-            if item not in choices:
-                raise ValueError(
-                    f"{annotation_type}.{key} must be one of "
-                    f"{', '.join(choices)}; got {item!r}"
-                )
+        choices = _ENUM_VALUES.get((annotation_type, key))
+        if choices is not None:
+            for item in value if isinstance(value, (list, tuple)) else (value,):
+                if item not in choices:
+                    raise ValueError(
+                        f"{annotation_type}.{key} must be one of "
+                        f"{', '.join(choices)}; got {item!r}"
+                    )
+        checker = _VALUE_VALIDATORS.get((annotation_type, key))
+        if checker is not None:
+            checker(value)
 
 
 def _validate_hold(hold):
@@ -332,7 +371,7 @@ def _prepare_kwargs(annotation_type, kwargs, *, stacklevel):
     )
     kwargs = _coerce_style_blocks(annotation_type, kwargs)
     kwargs = _normalize_hold(annotation_type, kwargs)
-    _validate_enum_values(annotation_type, kwargs)
+    _validate_values(annotation_type, kwargs)
     return annotation_type, kwargs
 
 
@@ -612,7 +651,7 @@ class SpytialAnnotation:
     def __init__(self, **kwargs):
         # Every subclass funnels here, so the Annotated[...] form gets the same
         # vocabulary check as the **kwargs paths without restating it per class.
-        _validate_enum_values(self._annotation_type, kwargs)
+        _validate_values(self._annotation_type, kwargs)
         self.kwargs = kwargs
 
     def to_entry(self):
@@ -999,10 +1038,18 @@ class InferredEdge(SpytialAnnotation):
     Styling uses the shared lineStyle/textStyle blocks (spytial-core 3.0); the
     inline color/style/weight keys are deprecated and rewritten into lineStyle.
 
+    ``draw`` (spytial-core 3.2) is ``'<end> -> <end>'``, each end ``'_'`` (the
+    atom itself) or the name of a group constraint, in which case that end
+    attaches to the hull of the group keyed by the end's atom -- giving
+    group-to-group and node-to-group edges. ``'_ -> _'`` means the same as
+    omitting it.
+
     Usage:
         WithEdges = Annotated[Graph, InferredEdge(name='connection', selector='nodes')]
         StyledEdges = Annotated[Graph, InferredEdge(name='ancestor', selector='^parent',
                                                     lineStyle=LineStyle(color='gray', pattern='dotted'))]
+        HullEdges = Annotated[Graph, InferredEdge(name='reports to', selector='^parent',
+                                                  draw='regions -> regions')]
     """
 
     _annotation_type = "inferredEdge"
@@ -1018,6 +1065,7 @@ class InferredEdge(SpytialAnnotation):
         weight: int = None,
         lineStyle=None,
         textStyle=None,
+        draw: str = None,
     ):
         kwargs = {"name": name, "selector": selector}
         if color is not None:
@@ -1030,6 +1078,8 @@ class InferredEdge(SpytialAnnotation):
             kwargs["lineStyle"] = lineStyle
         if textStyle is not None:
             kwargs["textStyle"] = textStyle
+        if draw is not None:
+            kwargs["draw"] = draw
         _, kwargs = _desugar_legacy_style("inferredEdge", kwargs, stacklevel=3)
         super().__init__(**_coerce_style_blocks("inferredEdge", kwargs))
 
@@ -1789,9 +1839,35 @@ inferredEdge = _create_decorator(
     - ``selector`` -- the pairs to connect.
     - ``lineStyle`` -- LineStyle(color=..., pattern=..., weight=..., highlight=...).
     - ``textStyle`` -- TextStyle(size=..., color=...) -- the edge's label.
+    - ``draw`` -- where each end attaches (spytial-core 3.2). See below.
 
     The inline ``color`` / ``style`` / ``weight`` keys are the deprecated 2.x
     form; they still parse and are rewritten into ``lineStyle``.
+
+    ``draw`` is a string ``'<end> -> <end>'``. Each end is either ``'_'`` (the
+    atom itself -- the default) or the name of a ``group`` constraint, in which
+    case that end attaches to the hull of the group *keyed by the end's atom*.
+    That is what makes group-to-group and node-to-group edges expressible:
+
+        # binary group selector -> one group per Team, keyed by the Team atom
+        @spytial.group(selector='{ t : Team, l : list | l in t.members }',
+                       name='regions')
+        @spytial.inferredEdge(
+            name='reports to',
+            selector='{ a : Team, b : Team | b = a.parent }',
+            draw='regions -> regions',   # hull to hull
+        )
+
+    ``'_ -> regions'`` draws from the atom to a group's hull, and
+    ``'_ -> _'`` means the same as omitting ``draw``. The edge's selector still
+    ranges over atoms either way; with ``draw``, a unary edge selector is
+    allowed and its atom feeds both ends.
+
+    The group named by an end must be *keyed* -- declared with a binary
+    selector, whose first element is the key. A group built from a unary
+    selector has no key for an end to match, and the edge is dropped without
+    drawing. A name matching no ``group`` constraint at all is an error at
+    render time, when the whole spec is known.
     """,
 )
 
