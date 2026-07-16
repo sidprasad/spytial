@@ -105,7 +105,7 @@ def test_reused_id_does_not_leak():
 
 def test_fresh_builtins_never_inherit_phantom_annotations():
     a = {"x": 1}
-    annotate_orientation(a, selector="k", directions=["horizontal"])
+    annotate_orientation(a, selector="k", directions=["left"])
     assert len(collect_decorators(a)["constraints"]) == 1
 
     # Many fresh, never-annotated builtins must all come back clean — even if
@@ -131,8 +131,8 @@ def test_set_annotation_evicted_after_gc():
 def test_distinct_builtins_keep_independent_annotations():
     a = [1, 2, 3]
     b = [1, 2, 3]  # equal but distinct object
-    annotate_orientation(a, selector="a", directions=["horizontal"])
-    annotate_orientation(b, selector="b", directions=["vertical"])
+    annotate_orientation(a, selector="a", directions=["left"])
+    annotate_orientation(b, selector="b", directions=["below"])
 
     a_sel = collect_decorators(a)["constraints"][0]["orientation"]["selector"]
     b_sel = collect_decorators(b)["constraints"][0]["orientation"]["selector"]
@@ -144,7 +144,7 @@ def test_distinct_builtins_keep_independent_annotations():
 
 def test_reset_object_ids_clears_annotation_registry():
     a = [1, 2]
-    annotate_orientation(a, selector="items", directions=["horizontal"])
+    annotate_orientation(a, selector="items", directions=["left"])
     assert collect_decorators(a)["constraints"]
 
     reset_object_ids()

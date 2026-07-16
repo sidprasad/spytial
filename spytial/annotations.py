@@ -246,7 +246,59 @@ def _coerce_style_blocks(annotation_type, kwargs):
     return out
 
 
+# The closed value sets spytial-core recognises, mirroring its unions in
+# layout/layoutspec.ts: RelativeDirection, RotationDirection, AlignDirection, and
+# the two flag names parseDirectives acts on.
+#
+# Those unions are TypeScript types, so they are erased at runtime and nothing
+# downstream re-checks them. An unrecognised value is kept by the parser and then
+# quietly does the wrong thing: an out-of-vocab orientation direction matches no
+# case and the constraint evaporates, a misspelled cyclic direction reads as
+# 'clockwise' (so a typo'd 'counterclockwise' silently spins the other way), and
+# an unknown flag name does nothing. Only align is checked by core itself.
+# Authoring time is the one place these can surface, so they are checked here.
+ORIENTATION_DIRECTIONS = (
+    "above",
+    "below",
+    "left",
+    "right",
+    "directlyAbove",
+    "directlyBelow",
+    "directlyLeft",
+    "directlyRight",
+)
+ROTATION_DIRECTIONS = ("clockwise", "counterclockwise")
+ALIGN_DIRECTIONS = ("horizontal", "vertical")
+FLAG_NAMES = ("hideDisconnected", "hideDisconnectedBuiltIns")
 CONSTRAINT_HOLDS = ("always", "never")
+
+# (annotation type, kwarg) -> the values core accepts for it. List-valued kwargs
+# are checked element-wise.
+_ENUM_VALUES = {
+    ("orientation", "directions"): ORIENTATION_DIRECTIONS,
+    ("cyclic", "direction"): ROTATION_DIRECTIONS,
+    ("align", "direction"): ALIGN_DIRECTIONS,
+    ("flag", "name"): FLAG_NAMES,
+}
+
+
+def _validate_enum_values(annotation_type, kwargs):
+    """Reject kwarg values outside the closed set core recognises.
+
+    Shared by every authoring form, so ``@spytial.align(direction='left')`` and
+    ``Align(direction='left')`` fail the same way — with the vocabulary named,
+    since the usual mistake is reaching for another constraint's words.
+    """
+    for key, value in kwargs.items():
+        choices = _ENUM_VALUES.get((annotation_type, key))
+        if choices is None or value is None:
+            continue
+        for item in value if isinstance(value, (list, tuple)) else (value,):
+            if item not in choices:
+                raise ValueError(
+                    f"{annotation_type}.{key} must be one of "
+                    f"{', '.join(choices)}; got {item!r}"
+                )
 
 
 def _validate_hold(hold):
@@ -260,6 +312,28 @@ def _validate_hold(hold):
     if hold not in CONSTRAINT_HOLDS:
         raise ValueError(f"hold must be 'always' or 'never', got {hold!r}")
     return hold
+
+
+def _prepare_kwargs(annotation_type, kwargs, *, stacklevel):
+    """The authoring-time gate every ``**kwargs`` path shares.
+
+    Desugars legacy forms, flattens style blocks, then rejects anything core
+    cannot read. There are three of these paths — the decorator, the object
+    registry, and the type-alias registry — and each one that open-codes this
+    sequence is a path a later check can be forgotten on. Returns the possibly
+    rewritten ``(annotation_type, kwargs)``.
+
+    Idempotent: the decorator-on-object path runs it twice. ``_warn_if_noop`` is
+    deliberately *not* here — it fires once per authoring site, which is a
+    per-path decision.
+    """
+    annotation_type, kwargs = _desugar_legacy_style(
+        annotation_type, kwargs, stacklevel=stacklevel
+    )
+    kwargs = _coerce_style_blocks(annotation_type, kwargs)
+    kwargs = _normalize_hold(annotation_type, kwargs)
+    _validate_enum_values(annotation_type, kwargs)
+    return annotation_type, kwargs
 
 
 def _normalize_hold(annotation_type, kwargs):
@@ -516,7 +590,7 @@ _OBJECT_ID_COUNTER = 0
 #   import spytial
 #
 #   IntList = Annotated[list[int],
-#       spytial.Orientation(selector='items', directions=['horizontal']),
+#       spytial.Orientation(selector='items', directions=['left']),
 #       spytial.AtomColor(selector='self', value='blue')
 #   ]
 #
@@ -536,6 +610,9 @@ class SpytialAnnotation:
     _is_constraint: bool = True
 
     def __init__(self, **kwargs):
+        # Every subclass funnels here, so the Annotated[...] form gets the same
+        # vocabulary check as the **kwargs paths without restating it per class.
+        _validate_enum_values(self._annotation_type, kwargs)
         self.kwargs = kwargs
 
     def to_entry(self):
@@ -961,8 +1038,12 @@ class Flag(SpytialAnnotation):
     """
     Flag directive.
 
+    ``name`` is one of the two whole-diagram switches core acts on:
+    'hideDisconnected' (drop atoms with no edges) or
+    'hideDisconnectedBuiltIns' (drop only disconnected built-in atoms).
+
     Usage:
-        Flagged = Annotated[MyType, Flag(name='debug')]
+        Flagged = Annotated[MyType, Flag(name='hideDisconnected')]
     """
 
     _annotation_type = "flag"
@@ -1104,22 +1185,19 @@ def annotate_type_alias(type_alias, annotation_type, **kwargs):
         IntList = list[int]
 
         # Annotate it
-        annotate_type_alias(IntList, 'orientation', selector='items', directions=['horizontal'])
+        annotate_type_alias(IntList, 'orientation', selector='items', directions=['left'])
         annotate_type_alias(IntList, 'atomColor', selector='self', value='blue')
 
         # Or use the convenience functions:
-        annotate_type_alias_orientation(IntList, selector='items', directions=['horizontal'])
+        annotate_type_alias_orientation(IntList, selector='items', directions=['left'])
 
     :param type_alias: The type alias to annotate (e.g., list[int], MyClass, etc.)
     :param annotation_type: The type of annotation ('orientation', 'group', etc.)
     :param kwargs: The annotation parameters.
     :return: The type alias (for chaining).
     """
-    # Rewrite deprecated 2.x style forms and flatten style blocks.
-    annotation_type, kwargs = _desugar_legacy_style(
-        annotation_type, kwargs, stacklevel=3
-    )
-    kwargs = _coerce_style_blocks(annotation_type, kwargs)
+    annotation_type, kwargs = _prepare_kwargs(annotation_type, kwargs, stacklevel=3)
+    _warn_if_noop(annotation_type, stacklevel=3)
 
     key = _normalize_type_alias_key(type_alias)
 
@@ -1350,11 +1428,9 @@ def _create_decorator(constraint_type, doc=None):
         # Rewrite deprecated 2.x style forms once, at the authoring site, so the
         # deprecation warning points at the user's line and fires once even if
         # the returned decorator is applied to many targets.
-        effective_type, kwargs = _desugar_legacy_style(
+        effective_type, kwargs = _prepare_kwargs(
             constraint_type, kwargs, stacklevel=2
         )
-        kwargs = _coerce_style_blocks(effective_type, kwargs)
-        kwargs = _normalize_hold(effective_type, kwargs)
 
         def unified_decorator(target):
             # Check if target is a class (type) or an object instance
@@ -1784,11 +1860,7 @@ def _annotate_object(obj, annotation_type, **kwargs):
     """
     # Rewrite deprecated 2.x style forms and flatten style blocks. Idempotent,
     # so the decorator path (already desugared) doesn't warn twice.
-    annotation_type, kwargs = _desugar_legacy_style(
-        annotation_type, kwargs, stacklevel=4
-    )
-    kwargs = _coerce_style_blocks(annotation_type, kwargs)
-    kwargs = _normalize_hold(annotation_type, kwargs)
+    annotation_type, kwargs = _prepare_kwargs(annotation_type, kwargs, stacklevel=4)
     _warn_if_noop(annotation_type, stacklevel=4)
 
     registry = _ensure_object_registry(obj)

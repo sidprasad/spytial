@@ -219,3 +219,85 @@ def test_non_noop_decorators_do_not_warn():
             pass
 
     assert not [w for w in caught if issubclass(w.category, DeprecationWarning)]
+
+
+# --------------------------------------------------------------------------- #
+# Closed value sets
+#
+# Core's RelativeDirection / RotationDirection / AlignDirection unions are
+# TypeScript types, erased at runtime, so nothing downstream re-checks them.
+# Only align is validated by core itself; the rest silently misbehave, which is
+# why these are checked at authoring time.
+# --------------------------------------------------------------------------- #
+
+
+BAD_VALUES = [
+    ("orientation", {"selector": "e", "directions": ["bogus"]}),
+    # The classic mix-up: align's axis words used as orientation directions.
+    ("orientation", {"selector": "e", "directions": ["horizontal"]}),
+    ("orientation", {"selector": "e", "directions": ["below", "vertical"]}),
+    ("cyclic", {"selector": "e", "direction": "widdershins"}),
+    # ...and orientation's placement words used as an align axis.
+    ("align", {"selector": "a", "direction": "left"}),
+    ("flag", {"name": "debug"}),
+]
+
+
+@pytest.mark.parametrize("name, kwargs", BAD_VALUES)
+def test_decorator_rejects_out_of_vocab_values(name, kwargs):
+    with pytest.raises(ValueError, match="must be one of"):
+        getattr(spytial, name)(**kwargs)(type("T", (), {}))
+
+
+@pytest.mark.parametrize("name, kwargs", BAD_VALUES)
+def test_object_path_rejects_out_of_vocab_values(name, kwargs):
+    with pytest.raises(ValueError, match="must be one of"):
+        spytial.annotate([1, 2], name, **kwargs)
+
+
+@pytest.mark.parametrize("name, kwargs", BAD_VALUES)
+def test_type_alias_path_rejects_out_of_vocab_values(name, kwargs):
+    """The type-alias registry is a third authoring path with its own call into
+    validation — it has drifted from the other two before."""
+    with pytest.raises(ValueError, match="must be one of"):
+        spytial.annotate_type_alias(list[float], name, **kwargs)
+
+
+@pytest.mark.parametrize(
+    "cls, kwargs",
+    [
+        ("Orientation", {"selector": "e", "directions": ["horizontal"]}),
+        ("Cyclic", {"selector": "e", "direction": "widdershins"}),
+        ("Align", {"selector": "a", "direction": "left"}),
+        ("Flag", {"name": "debug"}),
+    ],
+)
+def test_annotated_class_form_rejects_out_of_vocab_values(cls, kwargs):
+    """The Annotated[...] classes validate through the same shared check, so the
+    two authoring forms cannot disagree about what a valid value is."""
+    with pytest.raises(ValueError, match="must be one of"):
+        getattr(spytial, cls)(**kwargs)
+
+
+@pytest.mark.parametrize(
+    "name, kwargs",
+    [
+        ("orientation", {"selector": "e", "directions": ["directlyAbove", "above"]}),
+        ("orientation", {"selector": "e", "directions": ["directlyBelow"]}),
+        ("cyclic", {"selector": "e", "direction": "counterclockwise"}),
+        ("align", {"selector": "a", "direction": "vertical"}),
+        ("flag", {"name": "hideDisconnectedBuiltIns"}),
+    ],
+)
+def test_every_value_core_reads_is_accepted(name, kwargs):
+    """The check must not be narrower than core: each of these reaches a real
+    case in core's layout switch."""
+    getattr(spytial, name)(**kwargs)(type("T", (), {}))
+
+
+def test_error_names_the_vocabulary():
+    """The usual mistake is reaching for another constraint's words, so the
+    message has to say which words are valid here."""
+    with pytest.raises(ValueError) as e:
+        spytial.align(selector="a", direction="left")(type("T", (), {}))
+    assert "horizontal" in str(e.value) and "vertical" in str(e.value)

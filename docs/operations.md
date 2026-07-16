@@ -18,8 +18,9 @@ arguments. The sections below break each one into its parts.
 
 1. **`selector`** — the edges to orient.
 2. **`directions`** — where the target sits relative to its source, as a list
-   (e.g. `['below', 'left']`). Common values: `above`, `below`, `left`, `right`,
-   and the adjacency variants `directlyLeft` / `directlyRight`.
+   (e.g. `['below', 'left']`). One of `above`, `below`, `left`, `right`, or the
+   adjacency variants `directlyAbove`, `directlyBelow`, `directlyLeft`,
+   `directlyRight`, which also require that nothing sits in between.
 
 ```python
 @spytial.orientation(
@@ -31,12 +32,21 @@ arguments. The sections below break each one into its parts.
 ### `align` — line atoms up on a shared axis
 
 1. **`selector`** — the atoms to align.
-2. **`direction`** — the axis to share.
+2. **`direction`** — the axis to share: `'horizontal'` or `'vertical'`.
 
 ### `cyclic` — arrange atoms in a ring
 
 1. **`selector`** — the atoms/edges forming the cycle.
-2. **`direction`** — which way the ring runs.
+2. **`direction`** — which way the ring runs: `'clockwise'` or
+   `'counterclockwise'`.
+
+> These value sets are closed, and spytial checks them where you write them. The
+> easy mistake is borrowing another constraint's words — `align` takes the *axis*
+> (`horizontal`/`vertical`) while `orientation` takes *placements*
+> (`above`/`left`/…), and swapping them is not an error spytial-core reports: an
+> unknown orientation direction just quietly drops the constraint, and a
+> misspelled `cyclic` direction reads as `clockwise`. Same for `flag`, which acts
+> on exactly `hideDisconnected` and `hideDisconnectedBuiltIns`.
 
 ### `group` — enclose atoms in a labelled region
 

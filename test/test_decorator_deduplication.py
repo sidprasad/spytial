@@ -17,8 +17,8 @@ from spytial.annotations import (
 def test_duplicate_object_annotations_are_deduplicated():
     """Applying the same annotation twice to an object should result in a single entry."""
     my_list = [1, 2, 3]
-    annotate_orientation(my_list, selector='items', directions=['horizontal'])
-    annotate_orientation(my_list, selector='items', directions=['horizontal'])
+    annotate_orientation(my_list, selector='items', directions=['left'])
+    annotate_orientation(my_list, selector='items', directions=['left'])
 
     decorators = collect_decorators(my_list)
     # Only one orientation constraint should remain
@@ -33,13 +33,13 @@ def test_duplicate_object_annotations_are_deduplicated():
 def test_class_and_instance_duplicates_are_deduplicated():
     """If identical annotations appear at the class and instance level, they should be collapsed."""
 
-    @orientation(selector='items', directions=['horizontal'])
+    @orientation(selector='items', directions=['left'])
     class Thing:
         pass
 
     t = Thing()
     # Apply same annotation to instance
-    annotate_orientation(t, selector='items', directions=['horizontal'])
+    annotate_orientation(t, selector='items', directions=['left'])
     # Also add a duplicate directive (legacy form; registers as atomStyle)
     from spytial.annotations import annotate_atomColor
     annotate_atomColor(t, selector='items', value='blue')

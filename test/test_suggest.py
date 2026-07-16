@@ -764,6 +764,29 @@ def test_enrich_filters_out_of_vocab_directions():
     assert any(s.kwargs["directions"] == ["above"] for s in _of(draft, "orientation"))
 
 
+def test_enrich_keeps_the_directly_variants():
+    # The vocabulary is sourced from the canonical set rather than restated; it
+    # used to omit directlyAbove/directlyBelow, so a model proposing either had
+    # a direction core handles filtered out from under it.
+    payload = {
+        "shapes": [
+            _shape("escalation", "orientation", directions=["directlyAbove"])
+        ]
+    }
+    draft = suggest(Ticket, enrich=_FakeProvider(payload))
+    assert any(
+        s.kwargs["directions"] == ["directlyAbove"] for s in _of(draft, "orientation")
+    )
+
+
+def test_enrich_vocabulary_is_the_canonical_one():
+    from spytial.annotations import ORIENTATION_DIRECTIONS, ROTATION_DIRECTIONS
+    from spytial.suggest._enrich import _ORIENT_DIRS, _CYCLIC_DIRS
+
+    assert _ORIENT_DIRS == ORIENTATION_DIRECTIONS
+    assert _CYCLIC_DIRS == ROTATION_DIRECTIONS
+
+
 def test_enrich_honors_falsy_callable_provider():
     # A provider whose __bool__/__len__ is falsy must still resolve — "off" is None or
     # False only, not truthiness. Regression for the callable provider slot.

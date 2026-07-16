@@ -15,12 +15,12 @@ import spytial
 
 # Define annotated type aliases with spatial constraints
 IntList = Annotated[list[int],
-    spytial.Orientation(selector='items', directions=['horizontal']),
+    spytial.Orientation(selector='items', directions=['left']),
     spytial.AtomColor(selector='self', value='steelblue')
 ]
 
 VerticalList = Annotated[list[str],
-    spytial.Orientation(selector='items', directions=['vertical']),
+    spytial.Orientation(selector='items', directions=['below']),
     spytial.AtomColor(selector='items', value='coral'),
     spytial.Size(selector='items', height=40, width=60)
 ]
@@ -101,7 +101,7 @@ Example Usage:
    
    # Define annotated types
    IntList = Annotated[list[int],
-       spytial.Orientation(selector='items', directions=['horizontal']),
+       spytial.Orientation(selector='items', directions=['left']),
        spytial.AtomColor(selector='self', value='blue')
    ]
    

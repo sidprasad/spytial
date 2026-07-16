@@ -106,7 +106,7 @@ import spytial
 
 # Test object-level spatial annotations
 my_list = [1, 2, 3, 4, 5]
-spytial.annotate_orientation(my_list, selector='items', directions=['horizontal'])
+spytial.annotate_orientation(my_list, selector='items', directions=['left'])
 result = spytial.diagram(my_list, method='file', auto_open=False)
 print(f"Generated object annotation diagram: {result}")
 print("✓ Object annotations work")

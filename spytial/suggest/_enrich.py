@@ -41,14 +41,19 @@ from __future__ import annotations
 import json
 from typing import Any, List, Optional
 
+from ..annotations import ORIENTATION_DIRECTIONS, ROTATION_DIRECTIONS
 from ._model import ClassInfo, SpecDraft, Suggestion
 from .rules import _children_selector, _edge_selector
 
 # Render-verified spatial vocabularies the model picks from. Validated in Python
 # (not just declared in the schema) so a provider that ignores nested enums can't
 # slip an unknown token into a directive.
-_ORIENT_DIRS = ("below", "above", "left", "right", "directlyRight", "directlyLeft")
-_CYCLIC_DIRS = ("clockwise", "counterclockwise")
+#
+# Sourced from the canonical sets rather than restated: this list used to omit
+# directlyAbove/directlyBelow, so a model that correctly proposed either had it
+# silently filtered out.
+_ORIENT_DIRS = ORIENTATION_DIRECTIONS
+_CYCLIC_DIRS = ROTATION_DIRECTIONS
 _CONTAINERS = ("list", "tuple", "set", "dict")
 
 _SHAPE_SCHEMA = {
