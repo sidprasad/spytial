@@ -93,6 +93,66 @@ def test_hold_always_stays_out_of_the_spec():
     assert "hold" not in Target.__spytial_registry__["constraints"][0]["group"]
 
 
+@pytest.mark.parametrize(
+    "name, kwargs",
+    [
+        ("orientation", {"selector": "e", "directions": ["below"]}),
+        ("cyclic", {"selector": "e", "direction": "clockwise"}),
+        ("align", {"selector": "a", "direction": "horizontal"}),
+        ("group", {"selector": "Team.members", "name": "Team"}),
+    ],
+)
+def test_explicit_hold_always_is_dropped_like_the_class_form(name, kwargs):
+    """The Annotated[...] classes omit hold='always'; the kwargs paths must too,
+    so the same spec doesn't depend on which form authored it."""
+    decorator = getattr(spytial, name)
+
+    @decorator(hold="always", **kwargs)
+    class Target:
+        pass
+
+    assert "hold" not in Target.__spytial_registry__["constraints"][0][name]
+
+
+@pytest.mark.parametrize("bad", ["neevr", "", "true", True, None])
+@pytest.mark.parametrize(
+    "name, kwargs",
+    [
+        ("orientation", {"selector": "e", "directions": ["below"]}),
+        ("cyclic", {"selector": "e", "direction": "clockwise"}),
+        ("align", {"selector": "a", "direction": "horizontal"}),
+        ("group", {"selector": "Team.members", "name": "Team"}),
+    ],
+)
+def test_unrecognised_hold_is_rejected_not_passed_through(name, kwargs, bad):
+    """Core negates on exactly 'never' and reads anything else as 'not negated',
+    so a typo would silently leave the constraint positive. Fail at authoring."""
+    decorator = getattr(spytial, name)
+
+    with pytest.raises(ValueError, match="hold must be 'always' or 'never'"):
+
+        @decorator(hold=bad, **kwargs)
+        class Target:
+            pass
+
+
+def test_unrecognised_hold_is_rejected_on_the_object_path():
+    """annotate()/decorator-on-object funnel through _annotate_object, which is a
+    separate choke point from the decorator's own."""
+    with pytest.raises(ValueError, match="hold must be 'always' or 'never'"):
+        spytial.annotate([1, 2], "cyclic", selector="x", direction="clockwise", hold="nope")
+
+    with pytest.raises(ValueError, match="hold must be 'always' or 'never'"):
+        spytial.cyclic(selector="x", direction="clockwise", hold="nope")([1, 2])
+
+
+def test_object_path_drops_hold_always():
+    from spytial.annotations import collect_decorators
+
+    obj = spytial.annotate([1, 2], "cyclic", selector="x", direction="clockwise", hold="always")
+    assert "hold" not in collect_decorators(obj)["constraints"][0]["cyclic"]
+
+
 # --------------------------------------------------------------------------- #
 # projection — a no-op in spytial-core
 # --------------------------------------------------------------------------- #

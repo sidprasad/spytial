@@ -246,6 +246,40 @@ def _coerce_style_blocks(annotation_type, kwargs):
     return out
 
 
+CONSTRAINT_HOLDS = ("always", "never")
+
+
+def _validate_hold(hold):
+    """Reject a `hold` value core would not recognise.
+
+    Core negates a constraint on exactly ``hold: never`` and treats every other
+    value as "not negated" (layoutspec.ts parseConstraints). A typo would
+    therefore leave the constraint positive — the inverse of what was written —
+    with nothing to show for it, so it has to fail here or not at all.
+    """
+    if hold not in CONSTRAINT_HOLDS:
+        raise ValueError(f"hold must be 'always' or 'never', got {hold!r}")
+    return hold
+
+
+def _normalize_hold(annotation_type, kwargs):
+    """Validate `hold` and drop the default on the ``**kwargs`` paths.
+
+    The Annotated[...] constraint classes take ``hold`` as a real parameter and
+    do this in ``__init__``; the decorator and object paths take it as an opaque
+    kwarg, where ``validate_fields`` only checks that the *key* is allowed. This
+    gives those paths the same contract: reject what core cannot read, and omit
+    ``always``, which carries no information.
+
+    Idempotent — the decorator-on-object path normalizes twice.
+    """
+    if "hold" not in kwargs or annotation_type not in CONSTRAINT_TYPES:
+        return kwargs
+    if _validate_hold(kwargs["hold"]) == "always":
+        return {k: v for k, v in kwargs.items() if k != "hold"}
+    return kwargs
+
+
 # Annotations spytial-core's layout-spec parser does not read at all. Unlike the
 # legacy style forms below, there is nothing to rewrite them into — they simply
 # have no effect on the diagram, so say so at the authoring site rather than let
@@ -536,8 +570,7 @@ class Orientation(SpytialAnnotation):
     _is_constraint = True
 
     def __init__(self, *, selector: str, directions: list, hold: str = "always"):
-        if hold not in ("always", "never"):
-            raise ValueError(f"hold must be 'always' or 'never', got {hold!r}")
+        _validate_hold(hold)
         kwargs = dict(selector=selector, directions=directions)
         if hold == "never":
             kwargs["hold"] = hold
@@ -556,8 +589,7 @@ class Cyclic(SpytialAnnotation):
     _is_constraint = True
 
     def __init__(self, *, selector: str, direction: str, hold: str = "always"):
-        if hold not in ("always", "never"):
-            raise ValueError(f"hold must be 'always' or 'never', got {hold!r}")
+        _validate_hold(hold)
         kwargs = dict(selector=selector, direction=direction)
         if hold == "never":
             kwargs["hold"] = hold
@@ -579,8 +611,7 @@ class Align(SpytialAnnotation):
     _is_constraint = True
 
     def __init__(self, *, selector: str, direction: str, hold: str = "always"):
-        if hold not in ("always", "never"):
-            raise ValueError(f"hold must be 'always' or 'never', got {hold!r}")
+        _validate_hold(hold)
         kwargs = dict(selector=selector, direction=direction)
         if hold == "never":
             kwargs["hold"] = hold
@@ -622,8 +653,7 @@ class Group(SpytialAnnotation):
     _is_constraint = True
 
     def __init__(self, *, hold: str = "always", **kwargs):
-        if hold not in ("always", "never"):
-            raise ValueError(f"hold must be 'always' or 'never', got {hold!r}")
+        _validate_hold(hold)
         if hold == "never":
             kwargs["hold"] = hold
         # Accept either field-based or selector-based parameters
@@ -1324,6 +1354,7 @@ def _create_decorator(constraint_type, doc=None):
             constraint_type, kwargs, stacklevel=2
         )
         kwargs = _coerce_style_blocks(effective_type, kwargs)
+        kwargs = _normalize_hold(effective_type, kwargs)
 
         def unified_decorator(target):
             # Check if target is a class (type) or an object instance
@@ -1757,6 +1788,7 @@ def _annotate_object(obj, annotation_type, **kwargs):
         annotation_type, kwargs, stacklevel=4
     )
     kwargs = _coerce_style_blocks(annotation_type, kwargs)
+    kwargs = _normalize_hold(annotation_type, kwargs)
     _warn_if_noop(annotation_type, stacklevel=4)
 
     registry = _ensure_object_registry(obj)
