@@ -22,7 +22,7 @@ def test_object_annotations_basic():
     
     # Test with a list
     my_list = [1, 2, 3]
-    annotate_orientation(my_list, selector='items', directions=['horizontal'])
+    annotate_orientation(my_list, selector='items', directions=['left'])
     
     decorators = collect_decorators(my_list)
     assert len(decorators['constraints']) == 1
@@ -87,7 +87,7 @@ def test_general_annotate_function():
 
     # Use general annotate function (legacy atomColor registers as atomStyle)
     annotate(my_dict, 'atomColor', selector='keys', value='blue')
-    annotate(my_dict, 'orientation', selector='layout', directions=['vertical'])
+    annotate(my_dict, 'orientation', selector='layout', directions=['below'])
 
     decorators = collect_decorators(my_dict)
     assert len(decorators['constraints']) == 1
@@ -101,7 +101,7 @@ def test_yaml_serialization():
     print("=== Testing YAML Serialization ===")
 
     my_list = [1, 2, 3]
-    annotate_orientation(my_list, selector='items', directions=['horizontal'])
+    annotate_orientation(my_list, selector='items', directions=['left'])
     annotate_atomColor(my_list, selector='nums', value='green')
 
     decorators = collect_decorators(my_list)
@@ -113,7 +113,7 @@ def test_yaml_serialization():
     assert 'orientation:' in yaml_output
     assert 'atomStyle:' in yaml_output
     assert 'borderStyle:' in yaml_output
-    assert 'horizontal' in yaml_output
+    assert 'left' in yaml_output
     assert 'green' in yaml_output
     print("✓ YAML serialization works")
 

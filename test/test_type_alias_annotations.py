@@ -13,21 +13,21 @@ class TestAnnotatedTypeAliases:
     def test_basic_orientation_annotation(self):
         """Test basic Orientation annotation with Annotated."""
         IntList = Annotated[
-            list[int], spytial.Orientation(selector="items", directions=["horizontal"])
+            list[int], spytial.Orientation(selector="items", directions=["left"])
         ]
 
         annotations = spytial.extract_spytial_annotations(IntList)
         assert annotations is not None
         assert len(annotations["constraints"]) == 1
         assert annotations["constraints"][0]["orientation"]["directions"] == [
-            "horizontal"
+            "left"
         ]
 
     def test_multiple_annotations(self):
         """Test multiple annotations on same type."""
         StyledList = Annotated[
             list[str],
-            spytial.Orientation(selector="items", directions=["vertical"]),
+            spytial.Orientation(selector="items", directions=["below"]),
             spytial.AtomStyle(selector="self", borderStyle=spytial.BorderStyle(color="blue")),
             spytial.Size(selector="items", height=50, width=100),
         ]
@@ -45,7 +45,7 @@ class TestAnnotatedTypeAliases:
         ann2 = spytial.Cyclic(selector="x", direction="clockwise")
         assert ann2._annotation_type == "cyclic"
 
-        ann3 = spytial.Align(selector="x", direction="left")
+        ann3 = spytial.Align(selector="x", direction="horizontal")
         assert ann3._annotation_type == "align"
 
         ann4 = spytial.Group(field="children", groupOn=0, addToGroup=1)
@@ -66,7 +66,7 @@ class TestAnnotatedTypeAliases:
             spytial.Projection(sig="MySig"),
             spytial.Attribute(field="value"),
             spytial.InferredEdge(name="link", selector="nodes"),
-            spytial.Flag(name="debug"),
+            spytial.Flag(name="hideDisconnected"),
         ]
 
         for d in directives:
@@ -94,11 +94,11 @@ class TestAnnotatedTypeAliases:
 
     def test_annotation_repr(self):
         """Test annotation repr for debugging."""
-        ann = spytial.Orientation(selector="items", directions=["horizontal"])
+        ann = spytial.Orientation(selector="items", directions=["left"])
         repr_str = repr(ann)
         assert "Orientation" in repr_str
         assert "items" in repr_str
-        assert "horizontal" in repr_str
+        assert "left" in repr_str
 
     def test_complex_nested_types(self):
         """Test annotations on complex nested types."""
@@ -115,18 +115,18 @@ class TestAnnotatedTypeAliases:
 
     def test_to_entry_format(self):
         """Test that to_entry produces correct format."""
-        ann = spytial.Orientation(selector="items", directions=["horizontal"])
+        ann = spytial.Orientation(selector="items", directions=["left"])
         entry = ann.to_entry()
 
-        assert entry == {"orientation": {"selector": "items", "directions": ["horizontal"]}}
+        assert entry == {"orientation": {"selector": "items", "directions": ["left"]}}
 
     def test_flag_to_entry_special_format(self):
         """Test that Flag directive uses scalar format."""
-        flag = spytial.Flag(name="debug")
+        flag = spytial.Flag(name="hideDisconnected")
         entry = flag.to_entry()
 
         # Flag uses scalar format, not dict
-        assert entry == {"flag": "debug"}
+        assert entry == {"flag": "hideDisconnected"}
 
     @pytest.mark.filterwarnings("ignore::DeprecationWarning")
     def test_optional_parameters(self):
@@ -169,7 +169,7 @@ class TestLegacyTypeAliasRegistry:
         """Test legacy annotate_type_alias function still works."""
         IntList = list[int]
         spytial.annotate_type_alias(
-            IntList, "orientation", selector="items", directions=["horizontal"]
+            IntList, "orientation", selector="items", directions=["left"]
         )
         annotations = spytial.get_type_alias_annotations(IntList)
 

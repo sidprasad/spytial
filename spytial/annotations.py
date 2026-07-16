@@ -18,18 +18,22 @@ class NoAliasDumper(yaml.Dumper):
 
 # Registry to store constraints and directives
 # This is now class-level, not global
+# `hold` is valid on every constraint: core reads `hold: never` off the inner
+# block and flips the constraint to its negation (layoutspec.ts parseConstraints).
 CONSTRAINT_TYPES = {
-    "cyclic": ["selector", "direction"],
-    "orientation": ["selector", "directions"],
-    "align": ["selector", "direction"],
+    "cyclic": {"required": ["selector", "direction"], "optional": ["hold"]},
+    "orientation": {"required": ["selector", "directions"], "optional": ["hold"]},
+    "align": {"required": ["selector", "direction"], "optional": ["hold"]},
     "group": [
         {
             "required": ["field", "groupOn", "addToGroup"],
-            "optional": ["selector", "showLabel"],
+            # No showLabel: core builds GroupByField(field, groupOn, addToGroup,
+            # selector, negated) and derives label visibility from negation alone.
+            "optional": ["selector", "hold"],
         },  # Legacy, more ergonomic
         {
             "required": ["selector", "name"],
-            "optional": ["addEdge", "textStyle"],
+            "optional": ["addEdge", "textStyle", "hold"],
         },  # Selector-based group constraint
     ],
 }
@@ -60,7 +64,8 @@ DIRECTIVE_TYPES = {
     "inferredEdge": {
         "required": ["name", "selector"],
         # color/style/weight are the legacy inline form; they desugar to lineStyle.
-        "optional": ["color", "style", "weight", "lineStyle", "textStyle"],
+        # draw (spytial-core 3.2) attaches an end to a group's hull.
+        "optional": ["color", "style", "weight", "lineStyle", "textStyle", "draw"],
     },
     "tag": {"required": ["toTag", "name", "value"], "optional": ["textStyle"]},
     "flag": ["name"],
@@ -240,6 +245,177 @@ def _coerce_style_blocks(annotation_type, kwargs):
             value = _coerce_block(block_cls, value, f"{annotation_type}.{key}")
         out[key] = value
     return out
+
+
+# The closed value sets spytial-core recognises, mirroring its unions in
+# layout/layoutspec.ts: RelativeDirection, RotationDirection, AlignDirection, and
+# the two flag names parseDirectives acts on.
+#
+# Those unions are TypeScript types, so they are erased at runtime and nothing
+# downstream re-checks them. An unrecognised value is kept by the parser and then
+# quietly does the wrong thing: an out-of-vocab orientation direction matches no
+# case and the constraint evaporates, a misspelled cyclic direction reads as
+# 'clockwise' (so a typo'd 'counterclockwise' silently spins the other way), and
+# an unknown flag name does nothing. Only align is checked by core itself.
+# Authoring time is the one place these can surface, so they are checked here.
+ORIENTATION_DIRECTIONS = (
+    "above",
+    "below",
+    "left",
+    "right",
+    "directlyAbove",
+    "directlyBelow",
+    "directlyLeft",
+    "directlyRight",
+)
+ROTATION_DIRECTIONS = ("clockwise", "counterclockwise")
+ALIGN_DIRECTIONS = ("horizontal", "vertical")
+FLAG_NAMES = ("hideDisconnected", "hideDisconnectedBuiltIns")
+CONSTRAINT_HOLDS = ("always", "never")
+
+# (annotation type, kwarg) -> the values core accepts for it. List-valued kwargs
+# are checked element-wise.
+_ENUM_VALUES = {
+    ("orientation", "directions"): ORIENTATION_DIRECTIONS,
+    ("cyclic", "direction"): ROTATION_DIRECTIONS,
+    ("align", "direction"): ALIGN_DIRECTIONS,
+    ("flag", "name"): FLAG_NAMES,
+}
+
+
+def _validate_draw(draw):
+    """Check the shape of an inferredEdge ``draw``: ``<end> -> <end>``.
+
+    Mirrors core's parseInferredEdgeDraw. Core does reject a malformed draw —
+    but only once the spec reaches the browser, so checking the shape here puts
+    the error on the offending line instead. Whether a named group *exists* is
+    not checkable here: it needs the whole spec, and a draw may reference a
+    group declared on another class, so core keeps that check.
+    """
+    if not isinstance(draw, str):
+        raise ValueError(
+            "inferredEdge.draw must be a string of the form '<end> -> <end>' "
+            f"(each end '_' or a group name); got {draw!r}"
+        )
+    ends = draw.split("->")
+    if len(ends) != 2:
+        raise ValueError(
+            "inferredEdge.draw must contain exactly one '->' "
+            f"(e.g. 'regions -> regions' or '_ -> regions'); got {draw!r}"
+        )
+    if not all(end.strip() for end in ends):
+        raise ValueError(
+            f"inferredEdge.draw has an empty endpoint in {draw!r}; "
+            "each end must be '_' (the atom itself) or a group name"
+        )
+
+
+# (annotation type, kwarg) -> a checker, for values with more shape than a
+# closed set.
+_VALUE_VALIDATORS = {
+    ("inferredEdge", "draw"): _validate_draw,
+}
+
+
+def _validate_values(annotation_type, kwargs):
+    """Reject kwarg values core cannot read.
+
+    Shared by every authoring form, so ``@spytial.align(direction='left')`` and
+    ``Align(direction='left')`` fail the same way — with the vocabulary named,
+    since the usual mistake is reaching for another constraint's words.
+    """
+    for key, value in kwargs.items():
+        if value is None:
+            continue
+        choices = _ENUM_VALUES.get((annotation_type, key))
+        if choices is not None:
+            for item in value if isinstance(value, (list, tuple)) else (value,):
+                if item not in choices:
+                    raise ValueError(
+                        f"{annotation_type}.{key} must be one of "
+                        f"{', '.join(choices)}; got {item!r}"
+                    )
+        checker = _VALUE_VALIDATORS.get((annotation_type, key))
+        if checker is not None:
+            checker(value)
+
+
+def _validate_hold(hold):
+    """Reject a `hold` value core would not recognise.
+
+    Core negates a constraint on exactly ``hold: never`` and treats every other
+    value as "not negated" (layoutspec.ts parseConstraints). A typo would
+    therefore leave the constraint positive — the inverse of what was written —
+    with nothing to show for it, so it has to fail here or not at all.
+    """
+    if hold not in CONSTRAINT_HOLDS:
+        raise ValueError(f"hold must be 'always' or 'never', got {hold!r}")
+    return hold
+
+
+def _prepare_kwargs(annotation_type, kwargs, *, stacklevel):
+    """The authoring-time gate every ``**kwargs`` path shares.
+
+    Desugars legacy forms, flattens style blocks, then rejects anything core
+    cannot read. There are three of these paths — the decorator, the object
+    registry, and the type-alias registry — and each one that open-codes this
+    sequence is a path a later check can be forgotten on. Returns the possibly
+    rewritten ``(annotation_type, kwargs)``.
+
+    Idempotent: the decorator-on-object path runs it twice. ``_warn_if_noop`` is
+    deliberately *not* here — it fires once per authoring site, which is a
+    per-path decision.
+    """
+    annotation_type, kwargs = _desugar_legacy_style(
+        annotation_type, kwargs, stacklevel=stacklevel
+    )
+    kwargs = _coerce_style_blocks(annotation_type, kwargs)
+    kwargs = _normalize_hold(annotation_type, kwargs)
+    _validate_values(annotation_type, kwargs)
+    return annotation_type, kwargs
+
+
+def _normalize_hold(annotation_type, kwargs):
+    """Validate `hold` and drop the default on the ``**kwargs`` paths.
+
+    The Annotated[...] constraint classes take ``hold`` as a real parameter and
+    do this in ``__init__``; the decorator and object paths take it as an opaque
+    kwarg, where ``validate_fields`` only checks that the *key* is allowed. This
+    gives those paths the same contract: reject what core cannot read, and omit
+    ``always``, which carries no information.
+
+    Idempotent — the decorator-on-object path normalizes twice.
+    """
+    if "hold" not in kwargs or annotation_type not in CONSTRAINT_TYPES:
+        return kwargs
+    if _validate_hold(kwargs["hold"]) == "always":
+        return {k: v for k, v in kwargs.items() if k != "hold"}
+    return kwargs
+
+
+# Annotations spytial-core's layout-spec parser does not read at all. Unlike the
+# legacy style forms below, there is nothing to rewrite them into — they simply
+# have no effect on the diagram, so say so at the authoring site rather than let
+# the spec look like it applied.
+_NOOP_ANNOTATIONS = {
+    "projection": (
+        "projection has no effect: spytial-core's layout-spec parser does not read it. "
+        "Projection is a pre-layout transform over the data instance, driven by the "
+        "viewer's projection controls, not a layout directive. Remove the annotation."
+    ),
+}
+
+
+def _warn_if_noop(annotation_type, *, stacklevel):
+    """Warn at the authoring site for annotations spytial-core silently ignores.
+
+    Called from each path exactly once (the decorator's class branch, the object
+    path's ``_annotate_object``, and the ``Annotated[...]`` class's ``__init__``),
+    so a single authoring site produces a single warning.
+    """
+    message = _NOOP_ANNOTATIONS.get(annotation_type)
+    if message is not None:
+        warnings.warn(message, DeprecationWarning, stacklevel=stacklevel)
 
 
 def _drop_invalid_legacy(value, ok, what):
@@ -453,7 +629,7 @@ _OBJECT_ID_COUNTER = 0
 #   import spytial
 #
 #   IntList = Annotated[list[int],
-#       spytial.Orientation(selector='items', directions=['horizontal']),
+#       spytial.Orientation(selector='items', directions=['left']),
 #       spytial.AtomColor(selector='self', value='blue')
 #   ]
 #
@@ -473,6 +649,9 @@ class SpytialAnnotation:
     _is_constraint: bool = True
 
     def __init__(self, **kwargs):
+        # Every subclass funnels here, so the Annotated[...] form gets the same
+        # vocabulary check as the **kwargs paths without restating it per class.
+        _validate_values(self._annotation_type, kwargs)
         self.kwargs = kwargs
 
     def to_entry(self):
@@ -493,17 +672,21 @@ class Orientation(SpytialAnnotation):
     """
     Orientation constraint for spatial layout.
 
+    ``directions`` are the placement words -- above/below/left/right and the
+    adjacency variants directlyAbove/directlyBelow/directlyLeft/directlyRight.
+    (horizontal/vertical are Align's vocabulary, not this one; core matches no
+    case for them here and the constraint would be dropped.)
+
     Usage:
         from typing import Annotated
-        IntList = Annotated[list[int], Orientation(selector='items', directions=['horizontal'])]
+        IntList = Annotated[list[int], Orientation(selector='items', directions=['left'])]
     """
 
     _annotation_type = "orientation"
     _is_constraint = True
 
     def __init__(self, *, selector: str, directions: list, hold: str = "always"):
-        if hold not in ("always", "never"):
-            raise ValueError(f"hold must be 'always' or 'never', got {hold!r}")
+        _validate_hold(hold)
         kwargs = dict(selector=selector, directions=directions)
         if hold == "never":
             kwargs["hold"] = hold
@@ -522,8 +705,7 @@ class Cyclic(SpytialAnnotation):
     _is_constraint = True
 
     def __init__(self, *, selector: str, direction: str, hold: str = "always"):
-        if hold not in ("always", "never"):
-            raise ValueError(f"hold must be 'always' or 'never', got {hold!r}")
+        _validate_hold(hold)
         kwargs = dict(selector=selector, direction=direction)
         if hold == "never":
             kwargs["hold"] = hold
@@ -534,16 +716,18 @@ class Align(SpytialAnnotation):
     """
     Alignment constraint.
 
+    ``direction`` is the shared axis: 'horizontal' or 'vertical'. Core rejects
+    anything else as internally inconsistent.
+
     Usage:
-        AlignedList = Annotated[list[int], Align(selector='items', direction='left')]
+        AlignedList = Annotated[list[int], Align(selector='items', direction='horizontal')]
     """
 
     _annotation_type = "align"
     _is_constraint = True
 
     def __init__(self, *, selector: str, direction: str, hold: str = "always"):
-        if hold not in ("always", "never"):
-            raise ValueError(f"hold must be 'always' or 'never', got {hold!r}")
+        _validate_hold(hold)
         kwargs = dict(selector=selector, direction=direction)
         if hold == "never":
             kwargs["hold"] = hold
@@ -585,8 +769,7 @@ class Group(SpytialAnnotation):
     _is_constraint = True
 
     def __init__(self, *, hold: str = "always", **kwargs):
-        if hold not in ("always", "never"):
-            raise ValueError(f"hold must be 'always' or 'never', got {hold!r}")
+        _validate_hold(hold)
         if hold == "never":
             kwargs["hold"] = hold
         # Accept either field-based or selector-based parameters
@@ -799,16 +982,22 @@ class HideAtom(SpytialAnnotation):
 
 class Projection(SpytialAnnotation):
     """
-    Projection directive.
+    Deprecated projection directive; it has no effect.
+
+    spytial-core's layout-spec parser does not read ``projection`` — projecting
+    over a sig is a pre-layout transform on the data instance, driven by the
+    viewer's projection controls, rather than something a layout spec declares.
+    Authoring one emits YAML that core discards, so remove it.
 
     Usage:
-        Projected = Annotated[MyType, Projection(sig='MySig')]
+        Projected = Annotated[MyType, Projection(sig='MySig')]  # no-op
     """
 
     _annotation_type = "projection"
     _is_constraint = False
 
     def __init__(self, *, sig: str):
+        _warn_if_noop("projection", stacklevel=3)
         super().__init__(sig=sig)
 
 
@@ -849,10 +1038,18 @@ class InferredEdge(SpytialAnnotation):
     Styling uses the shared lineStyle/textStyle blocks (spytial-core 3.0); the
     inline color/style/weight keys are deprecated and rewritten into lineStyle.
 
+    ``draw`` (spytial-core 3.2) is ``'<end> -> <end>'``, each end ``'_'`` (the
+    atom itself) or the name of a group constraint, in which case that end
+    attaches to the hull of the group keyed by the end's atom -- giving
+    group-to-group and node-to-group edges. ``'_ -> _'`` means the same as
+    omitting it.
+
     Usage:
         WithEdges = Annotated[Graph, InferredEdge(name='connection', selector='nodes')]
         StyledEdges = Annotated[Graph, InferredEdge(name='ancestor', selector='^parent',
                                                     lineStyle=LineStyle(color='gray', pattern='dotted'))]
+        HullEdges = Annotated[Graph, InferredEdge(name='reports to', selector='^parent',
+                                                  draw='regions -> regions')]
     """
 
     _annotation_type = "inferredEdge"
@@ -868,6 +1065,7 @@ class InferredEdge(SpytialAnnotation):
         weight: int = None,
         lineStyle=None,
         textStyle=None,
+        draw: str = None,
     ):
         kwargs = {"name": name, "selector": selector}
         if color is not None:
@@ -880,6 +1078,8 @@ class InferredEdge(SpytialAnnotation):
             kwargs["lineStyle"] = lineStyle
         if textStyle is not None:
             kwargs["textStyle"] = textStyle
+        if draw is not None:
+            kwargs["draw"] = draw
         _, kwargs = _desugar_legacy_style("inferredEdge", kwargs, stacklevel=3)
         super().__init__(**_coerce_style_blocks("inferredEdge", kwargs))
 
@@ -888,8 +1088,12 @@ class Flag(SpytialAnnotation):
     """
     Flag directive.
 
+    ``name`` is one of the two whole-diagram switches core acts on:
+    'hideDisconnected' (drop atoms with no edges) or
+    'hideDisconnectedBuiltIns' (drop only disconnected built-in atoms).
+
     Usage:
-        Flagged = Annotated[MyType, Flag(name='debug')]
+        Flagged = Annotated[MyType, Flag(name='hideDisconnected')]
     """
 
     _annotation_type = "flag"
@@ -1031,22 +1235,19 @@ def annotate_type_alias(type_alias, annotation_type, **kwargs):
         IntList = list[int]
 
         # Annotate it
-        annotate_type_alias(IntList, 'orientation', selector='items', directions=['horizontal'])
+        annotate_type_alias(IntList, 'orientation', selector='items', directions=['left'])
         annotate_type_alias(IntList, 'atomColor', selector='self', value='blue')
 
         # Or use the convenience functions:
-        annotate_type_alias_orientation(IntList, selector='items', directions=['horizontal'])
+        annotate_type_alias_orientation(IntList, selector='items', directions=['left'])
 
     :param type_alias: The type alias to annotate (e.g., list[int], MyClass, etc.)
     :param annotation_type: The type of annotation ('orientation', 'group', etc.)
     :param kwargs: The annotation parameters.
     :return: The type alias (for chaining).
     """
-    # Rewrite deprecated 2.x style forms and flatten style blocks.
-    annotation_type, kwargs = _desugar_legacy_style(
-        annotation_type, kwargs, stacklevel=3
-    )
-    kwargs = _coerce_style_blocks(annotation_type, kwargs)
+    annotation_type, kwargs = _prepare_kwargs(annotation_type, kwargs, stacklevel=3)
+    _warn_if_noop(annotation_type, stacklevel=3)
 
     key = _normalize_type_alias_key(type_alias)
 
@@ -1262,11 +1463,14 @@ def validate_fields(type_, kwargs, valid_fields):
             print(f"Warning: Unknown fields for '{type_}': {', '.join(unknown_fields)}")
 
 
-def _create_decorator(constraint_type):
+def _create_decorator(constraint_type, doc=None):
     """
     Create a decorator function for a specific constraint or directive type.
     This now works for both classes and objects in a more Pythonic way.
     :param constraint_type: The type of constraint or directive (e.g., 'cyclic', 'orientation').
+    :param doc: Docstring for the returned decorator. Everything these decorators
+        accept is a ``**kwargs`` key, so ``help()`` and IDE hovers have nothing to
+        show unless the accepted keys are spelled out here.
     :return: A decorator function that works on both classes and objects.
     """
 
@@ -1274,15 +1478,17 @@ def _create_decorator(constraint_type):
         # Rewrite deprecated 2.x style forms once, at the authoring site, so the
         # deprecation warning points at the user's line and fires once even if
         # the returned decorator is applied to many targets.
-        effective_type, kwargs = _desugar_legacy_style(
+        effective_type, kwargs = _prepare_kwargs(
             constraint_type, kwargs, stacklevel=2
         )
-        kwargs = _coerce_style_blocks(effective_type, kwargs)
 
         def unified_decorator(target):
             # Check if target is a class (type) or an object instance
             if isinstance(target, type):
                 # Class decoration (original behavior)
+                # The object branch warns via _annotate_object instead, so a
+                # given authoring site never warns twice.
+                _warn_if_noop(effective_type, stacklevel=3)
                 # Check if this CLASS (not inherited) has its own registry
                 if "__spytial_registry__" not in target.__dict__:
                     # Create a new registry for this class
@@ -1321,27 +1527,382 @@ def _create_decorator(constraint_type):
 
         return unified_decorator
 
+    decorator.__name__ = constraint_type
+    decorator.__qualname__ = constraint_type
+    decorator.__doc__ = doc
     return decorator
 
 
 # Create individual decorator functions for each constraint and directive type
-orientation = _create_decorator("orientation")
-cyclic = _create_decorator("cyclic")
-align = _create_decorator("align")
-group = _create_decorator("group")
-atomColor = _create_decorator("atomColor")  # deprecated: rewrites to atomStyle
-atomStyle = _create_decorator("atomStyle")
-size = _create_decorator("size")
-icon = _create_decorator("icon")
-edgeColor = _create_decorator("edgeColor")  # deprecated: rewrites to edgeStyle
-edgeStyle = _create_decorator("edgeStyle")
-projection = _create_decorator("projection")
-attribute = _create_decorator("attribute")
-hideField = _create_decorator("hideField")
-hideAtom = _create_decorator("hideAtom")
-inferredEdge = _create_decorator("inferredEdge")
-tag = _create_decorator("tag")
-flag = _create_decorator("flag")
+#
+# Everything these take is a **kwargs key, so the docstring is the only thing
+# help() and IDE hovers can show. Each one lists the keys spytial-core actually
+# reads -- no more, no less.
+
+_HOLD_DOC = """
+    ``hold='never'`` inverts the constraint: the layout must *not* satisfy it.
+    """
+
+orientation = _create_decorator(
+    "orientation",
+    doc="""Place a relation's target relative to its source.
+
+    Usage:
+        @spytial.orientation(
+            selector='{ x : TreeNode, y : TreeNode | x.left = y }',
+            directions=['below', 'left'],
+        )
+
+    Accepted keys:
+
+    - ``selector`` -- the edges to orient (a binary selector: source, target).
+    - ``directions`` -- a list of placement words applied to every matched pair:
+
+        - ``'above'``, ``'below'``, ``'left'``, ``'right'``
+        - ``'directlyAbove'``, ``'directlyBelow'``, ``'directlyLeft'``,
+          ``'directlyRight'`` -- also require adjacency (nothing in between)
+
+      These are Orientation's vocabulary; 'horizontal'/'vertical' belong to
+      ``align`` and match nothing here.
+    - ``hold`` -- 'always' (default) or 'never'.
+    """
+    + _HOLD_DOC,
+)
+
+cyclic = _create_decorator(
+    "cyclic",
+    doc="""Arrange atoms evenly around a ring.
+
+    Usage:
+        @spytial.cyclic(selector='{ x : Node, y : Node | x.next = y }',
+                        direction='clockwise')
+
+    Accepted keys:
+
+    - ``selector`` -- the edges forming the cycle.
+    - ``direction`` -- ``'clockwise'`` or ``'counterclockwise'``; fixes the
+      traversal order around the ring. Required here, though core would
+      default it to 'clockwise'.
+    - ``hold`` -- 'always' (default) or 'never'.
+
+    Two cyclic constraints on the same selector with different directions are a
+    hard error in core, not a silent pick.
+    """
+    + _HOLD_DOC,
+)
+
+align = _create_decorator(
+    "align",
+    doc="""Line atoms up on a shared axis.
+
+    Usage:
+        @spytial.align(selector='{ x : Cell, y : Cell | y in x.row }',
+                       direction='horizontal')
+
+    Accepted keys:
+
+    - ``selector`` -- the atoms to align.
+    - ``direction`` -- the shared axis: ``'horizontal'`` or ``'vertical'``.
+      Core rejects any other value as internally inconsistent. (The placement
+      words above/below/left/right belong to ``orientation``.)
+    - ``hold`` -- 'always' (default) or 'never'.
+    """
+    + _HOLD_DOC,
+)
+group = _create_decorator(
+    "group",
+    doc="""Enclose atoms in a labelled region.
+
+    Usage (selector-based):
+        @spytial.group(selector='Team.members', name='Team')
+
+    Usage (field-based, legacy):
+        @spytial.group(field='children', groupOn=0, addToGroup=1)
+
+    A binary selector matching tuples (a, b), (a, c), (a, d) keys the group on
+    ``a`` and fills it with {b, c, d}; each distinct key gets its own region. A
+    unary selector puts every atom it matches into one region.
+
+    Accepted keys (selector-based):
+
+    - ``selector`` -- the relation (or atoms) to group.
+    - ``name`` -- the label drawn on the region.
+    - ``addEdge`` -- the connector between the group's key and the group:
+
+        - ``'none'`` (default) -- draw nothing
+        - ``'togroup'``   -- edge from the key into the group (a -> group)
+        - ``'fromgroup'`` -- edge from the group back to the key (group -> a)
+
+      Legacy ``addEdge=True`` is still accepted and means ``'togroup'``.
+
+    - ``textStyle`` -- styles the group's own label, e.g. TextStyle(color='navy').
+    - ``hold`` -- 'always' (default) or 'never'. With 'never' the selected
+      members must *not* form a group. ``name`` stays required here, though
+      core would synthesize one for a negated group.
+
+    To style the connector as well as aim it, pass a ``GroupEdge`` instead of a
+    bare string; ``points`` carries the direction:
+
+        @spytial.group(
+            selector='Team.members',
+            name='Team',
+            addEdge=GroupEdge(
+                points='fromgroup',
+                lineStyle=LineStyle(pattern='dashed', color='grey'),
+                textStyle=TextStyle(size='small'),
+            ),
+            textStyle=TextStyle(color='navy'),
+        )
+    """,
+)
+atomColor = _create_decorator(  # deprecated: rewrites to atomStyle
+    "atomColor",
+    doc="""Deprecated. Color an atom's border; rewritten to ``atomStyle``.
+
+    Raises a DeprecationWarning and becomes
+    ``atomStyle(selector=..., borderStyle=BorderStyle(color=value))`` --
+    the legacy directive tinted the *outline*, not the interior. For a filled
+    look, use ``atomStyle`` with a ``fillStyle`` block instead.
+
+    Accepted keys: ``selector``, ``value`` (a CSS color).
+    """,
+)
+
+atomStyle = _create_decorator(
+    "atomStyle",
+    doc="""Style an atom's outline, interior, and label.
+
+    Usage:
+        @spytial.atomStyle(
+            selector='Node',
+            borderStyle=BorderStyle(color='steelblue'),
+            fillStyle=FillStyle(color='#eef6ff'),
+        )
+
+    Accepted keys (all optional -- set only what you mean):
+
+    - ``selector`` -- which atoms; omit to match every atom.
+    - ``borderStyle`` -- BorderStyle(color=..., width=...) -- the outline.
+    - ``fillStyle`` -- FillStyle(color=...) -- the interior.
+    - ``textStyle`` -- TextStyle(size=..., color=...) -- the atom's label;
+      ``size`` is 'small' | 'normal' | 'large'.
+
+    Plain dicts with the same keys work wherever the blocks do.
+
+    Two rules that set the same property of the same atom to different values
+    raise a StyleCollisionError at render time (spytial-core 3.0) rather than
+    silently keeping one. Set each property in exactly one matching rule.
+    """,
+)
+
+size = _create_decorator(
+    "size",
+    doc="""Fix an atom's drawn dimensions.
+
+    Usage:
+        @spytial.size(selector='Node', height=50, width=50)
+
+    Accepted keys: ``selector``, ``height``, ``width``.
+    Height and width are required and must be greater than 0.
+    """,
+)
+
+icon = _create_decorator(
+    "icon",
+    doc="""Draw atoms as an icon instead of a plain box.
+
+    Usage:
+        @spytial.icon(selector='{ n : Node | n.is_dir = True }',
+                      path='fa:folder', showLabels=True)
+
+    Accepted keys:
+
+    - ``selector`` -- which atoms get the icon.
+    - ``path`` -- the icon source.
+    - ``showLabels`` -- keep the atom's label alongside the icon. Required here
+      (unlike the Icon class, which defaults it to True); core reads a missing
+      showLabels as False.
+    """,
+)
+
+edgeColor = _create_decorator(  # deprecated: rewrites to edgeStyle
+    "edgeColor",
+    doc="""Deprecated. Color a relation's edges; rewritten to ``edgeStyle``.
+
+    Raises a DeprecationWarning and becomes ``edgeStyle`` with a ``lineStyle``
+    block: ``value`` -> lineStyle.color, ``style`` -> lineStyle.pattern,
+    ``weight`` -> lineStyle.weight.
+
+    Accepted keys: ``field``, ``value``, and optionally ``selector``,
+    ``filter``, ``style``, ``weight``, ``showLabel``, ``hidden``.
+    """,
+)
+
+edgeStyle = _create_decorator(
+    "edgeStyle",
+    doc="""Style the edges of a relation.
+
+    Usage:
+        @spytial.edgeStyle(field='next',
+                           lineStyle=LineStyle(color='crimson', pattern='dashed'))
+        @spytial.edgeStyle(field='internal', hidden=True)
+
+    Accepted keys:
+
+    - ``field`` -- the relation whose edges this styles. Edge styling matches on
+      ``field``; a ``selector`` alone will not select edges.
+    - ``selector`` -- optional unary selector narrowing which source atoms match.
+    - ``filter`` -- optional tuple filter for n-ary relations.
+    - ``lineStyle`` -- LineStyle(color=..., pattern=..., weight=..., highlight=...);
+      ``pattern`` is 'solid' | 'dashed' | 'dotted', ``weight`` is a number > 0.
+    - ``textStyle`` -- TextStyle(size=..., color=...) -- the edge's label.
+    - ``showLabel`` -- whether the edge's label is drawn.
+    - ``hidden`` -- drop the edge entirely.
+
+    Two rules that set the same property of the same edge to different values
+    raise a StyleCollisionError at render time (spytial-core 3.0).
+    """,
+)
+
+projection = _create_decorator(
+    "projection",
+    doc="""Deprecated. Has no effect on the diagram.
+
+    spytial-core's layout-spec parser does not read ``projection``: projecting
+    over a sig is a pre-layout transform on the data instance, driven by the
+    viewer's projection controls, not something a layout spec declares. This
+    emits YAML that core discards, so remove it.
+
+    Accepted keys: ``sig``.
+    """,
+)
+
+attribute = _create_decorator(
+    "attribute",
+    doc="""Fold a field into its source atom as inline text.
+
+    Shows the field's value as a line inside the node, instead of drawing a
+    separate box and arrow for it.
+
+    Usage:
+        @spytial.attribute(field='value')
+        @spytial.attribute(field='weight', textStyle=TextStyle(size='small'))
+
+    Accepted keys:
+
+    - ``field`` -- the field to fold in.
+    - ``selector`` -- optional; which source atoms this applies to.
+    - ``filter`` -- optional tuple filter, e.g. only tuples where a flag is True.
+    - ``textStyle`` -- TextStyle(size=..., color=...) -- styles this line.
+    """,
+)
+
+hideField = _create_decorator(
+    "hideField",
+    doc="""Suppress a relation's edges and attributes.
+
+    Usage:
+        @spytial.hideField(field='_private')
+        @spytial.hideField(field='debug', filter='debug & Production')
+
+    Accepted keys: ``field``, plus optional ``selector`` and ``filter``.
+    """,
+)
+
+hideAtom = _create_decorator(
+    "hideAtom",
+    doc="""Remove selected atoms from the diagram.
+
+    Usage:
+        @spytial.hideAtom(selector='{ n : Node | n.internal }')
+
+    Accepted keys: ``selector``.
+    """,
+)
+
+inferredEdge = _create_decorator(
+    "inferredEdge",
+    doc="""Draw an edge that is not a field of the data.
+
+    Materializes a derived relation as a labelled edge.
+
+    Usage:
+        @spytial.inferredEdge(
+            selector='{ x : Vertex, y : Vertex | y in x.neighbors }',
+            name='edge',
+            lineStyle=LineStyle(color='grey', pattern='dotted'),
+        )
+
+    Accepted keys:
+
+    - ``name`` -- the label for the drawn edge.
+    - ``selector`` -- the pairs to connect.
+    - ``lineStyle`` -- LineStyle(color=..., pattern=..., weight=..., highlight=...).
+    - ``textStyle`` -- TextStyle(size=..., color=...) -- the edge's label.
+    - ``draw`` -- where each end attaches (spytial-core 3.2). See below.
+
+    The inline ``color`` / ``style`` / ``weight`` keys are the deprecated 2.x
+    form; they still parse and are rewritten into ``lineStyle``.
+
+    ``draw`` is a string ``'<end> -> <end>'``. Each end is either ``'_'`` (the
+    atom itself -- the default) or the name of a ``group`` constraint, in which
+    case that end attaches to the hull of the group *keyed by the end's atom*.
+    That is what makes group-to-group and node-to-group edges expressible:
+
+        # binary group selector -> one group per Team, keyed by the Team atom
+        @spytial.group(selector='{ t : Team, l : list | l in t.members }',
+                       name='regions')
+        @spytial.inferredEdge(
+            name='reports to',
+            selector='{ a : Team, b : Team | b = a.parent }',
+            draw='regions -> regions',   # hull to hull
+        )
+
+    ``'_ -> regions'`` draws from the atom to a group's hull, and
+    ``'_ -> _'`` means the same as omitting ``draw``. The edge's selector still
+    ranges over atoms either way; with ``draw``, a unary edge selector is
+    allowed and its atom feeds both ends.
+
+    The group named by an end must be *keyed* -- declared with a binary
+    selector, whose first element is the key. A group built from a unary
+    selector has no key for an end to match, and the edge is dropped without
+    drawing. A name matching no ``group`` constraint at all is an error at
+    render time, when the whole spec is known.
+    """,
+)
+
+tag = _create_decorator(
+    "tag",
+    doc="""Attach a computed label to a type's atoms.
+
+    Usage:
+        @spytial.tag(toTag='Node', name='depth', value='n.depth',
+                     textStyle=TextStyle(size='small'))
+
+    Accepted keys:
+
+    - ``toTag`` -- the type to tag.
+    - ``name`` -- the label's name.
+    - ``value`` -- the field or expression to show.
+    - ``textStyle`` -- TextStyle(size=..., color=...) -- styles this line.
+    """,
+)
+
+flag = _create_decorator(
+    "flag",
+    doc="""Flip a whole-diagram rendering switch.
+
+    Usage:
+        @spytial.flag(name='hideDisconnected')
+
+    Accepted keys: ``name``. Core acts on exactly two values:
+
+    - ``'hideDisconnected'`` -- drop atoms that have no edges.
+    - ``'hideDisconnectedBuiltIns'`` -- drop only disconnected built-in atoms.
+
+    Any other name parses and does nothing.
+    """,
+)
 
 
 def _ensure_object_registry(obj):
@@ -1375,10 +1936,8 @@ def _annotate_object(obj, annotation_type, **kwargs):
     """
     # Rewrite deprecated 2.x style forms and flatten style blocks. Idempotent,
     # so the decorator path (already desugared) doesn't warn twice.
-    annotation_type, kwargs = _desugar_legacy_style(
-        annotation_type, kwargs, stacklevel=4
-    )
-    kwargs = _coerce_style_blocks(annotation_type, kwargs)
+    annotation_type, kwargs = _prepare_kwargs(annotation_type, kwargs, stacklevel=4)
+    _warn_if_noop(annotation_type, stacklevel=4)
 
     registry = _ensure_object_registry(obj)
 

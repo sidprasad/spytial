@@ -18,8 +18,9 @@ arguments. The sections below break each one into its parts.
 
 1. **`selector`** — the edges to orient.
 2. **`directions`** — where the target sits relative to its source, as a list
-   (e.g. `['below', 'left']`). Common values: `above`, `below`, `left`, `right`,
-   and the adjacency variants `directlyLeft` / `directlyRight`.
+   (e.g. `['below', 'left']`). One of `above`, `below`, `left`, `right`, or the
+   adjacency variants `directlyAbove`, `directlyBelow`, `directlyLeft`,
+   `directlyRight`, which also require that nothing sits in between.
 
 ```python
 @spytial.orientation(
@@ -31,12 +32,21 @@ arguments. The sections below break each one into its parts.
 ### `align` — line atoms up on a shared axis
 
 1. **`selector`** — the atoms to align.
-2. **`direction`** — the axis to share.
+2. **`direction`** — the axis to share: `'horizontal'` or `'vertical'`.
 
 ### `cyclic` — arrange atoms in a ring
 
 1. **`selector`** — the atoms/edges forming the cycle.
-2. **`direction`** — which way the ring runs.
+2. **`direction`** — which way the ring runs: `'clockwise'` or
+   `'counterclockwise'`.
+
+> These value sets are closed, and spytial checks them where you write them. The
+> easy mistake is borrowing another constraint's words — `align` takes the *axis*
+> (`horizontal`/`vertical`) while `orientation` takes *placements*
+> (`above`/`left`/…), and swapping them is not an error spytial-core reports: an
+> unknown orientation direction just quietly drops the constraint, and a
+> misspelled `cyclic` direction reads as `clockwise`. Same for `flag`, which acts
+> on exactly `hideDisconnected` and `hideDisconnectedBuiltIns`.
 
 ### `group` — enclose atoms in a labelled region
 
@@ -56,6 +66,18 @@ from spytial import GroupEdge, LineStyle, TextStyle
     addEdge=GroupEdge(points='togroup', lineStyle=LineStyle(pattern='dashed')),
     textStyle=TextStyle(color='navy'),
 )
+```
+
+### `hold` — invert any constraint
+
+Every constraint takes an optional **`hold`**. It defaults to `'always'`; pass
+`'never'` to require the opposite — the layout must *not* satisfy the
+constraint. It's how you say "these must not be grouped" or "y is never below
+x", rather than leaving the relationship unconstrained.
+
+```python
+@spytial.orientation(selector='children', directions=['below'], hold='never')
+@spytial.group(selector='Team.members', name='Team', hold='never')
 ```
 
 ## Directives
@@ -123,6 +145,7 @@ from spytial import LineStyle, TextStyle, BorderStyle, FillStyle
 3. **`lineStyle`** / **`textStyle`** *(optional)* — style the drawn edge and its
    label (same blocks as `edgeStyle`; the inline `color`/`style`/`weight`
    arguments are deprecated).
+4. **`draw`** *(optional)* — where each end attaches. See below.
 
 ```python
 @spytial.inferredEdge(
@@ -130,6 +153,36 @@ from spytial import LineStyle, TextStyle, BorderStyle, FillStyle
     name='edge',                                               # edge label
 )
 ```
+
+#### `draw` — attach an end to a group's hull
+
+By default an inferred edge runs atom-to-atom. **`draw`** is a string
+`'<end> -> <end>'` where each end is either `'_'` (the atom itself) or the
+**name of a `group` constraint** — in which case that end attaches to the hull
+of the group *keyed by that end's atom*. This is what makes group-to-group and
+node-to-group edges expressible.
+
+```python
+# A binary group selector: one group per Team, keyed by the Team atom.
+@spytial.group(selector='{ t : Team, l : list | l in t.members }', name='regions')
+@spytial.inferredEdge(
+    name='reports to',
+    selector='{ a : Team, b : Team | b = a.parent }',
+    draw='regions -> regions',   # hull to hull, rather than node to node
+)
+```
+
+`'_ -> regions'` runs from the atom to a group's hull; `'_ -> _'` means the same
+as omitting `draw`. The edge's own selector still ranges over atoms either way —
+and with `draw`, a unary edge selector is allowed, its atom feeding both ends.
+
+> **The referenced group must be keyed** — that is, declared with a *binary*
+> selector, whose first element becomes the key. `draw` resolves each end by
+> looking up the group of that name keyed by that end's atom, so a group built
+> from a unary selector (`selector='Team.members'`) has no key for any end to
+> match, and the edge is dropped without drawing anything. A group *name* that
+> matches no `group` constraint at all is a hard error at render time; an atom
+> that keys no group of that name is reported in the browser console.
 
 ### `tag` — attach a computed label
 
