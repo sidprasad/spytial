@@ -6898,12 +6898,16 @@ attached to type aliases using typing.Annotated.</p>
 
 
         <p>Orientation constraint for spatial layout.</p>
+<p><code>directions</code> are the placement words -- above/below/left/right and the
+adjacency variants directlyAbove/directlyBelow/directlyLeft/directlyRight.
+(horizontal/vertical are Align's vocabulary, not this one; core matches no
+case for them here and the constraint would be dropped.)</p>
 
 
 <details class="usage" open>
   <summary>Usage</summary>
   <p>from typing import Annotated
-IntList = Annotated[list[int], Orientation(selector='items', directions=['horizontal'])]</p>
+IntList = Annotated[list[int], Orientation(selector='items', directions=['left'])]</p>
 </details>
 
 
@@ -7005,11 +7009,13 @@ IntList = Annotated[list[int], Orientation(selector='items', directions=['horizo
 
 
         <p>Alignment constraint.</p>
+<p><code>direction</code> is the shared axis: 'horizontal' or 'vertical'. Core rejects
+anything else as internally inconsistent.</p>
 
 
 <details class="usage" open>
   <summary>Usage</summary>
-  <p>AlignedList = Annotated[list[int], Align(selector='items', direction='left')]</p>
+  <p>AlignedList = Annotated[list[int], Align(selector='items', direction='horizontal')]</p>
 </details>
 
 
@@ -7555,12 +7561,16 @@ Filtered = Annotated[MyClass, HideField(field='debug', filter='debug &amp; Produ
 
 
 
-        <p>Projection directive.</p>
+        <p>Deprecated projection directive; it has no effect.</p>
+<p>spytial-core's layout-spec parser does not read <code>projection</code> — projecting
+over a sig is a pre-layout transform on the data instance, driven by the
+viewer's projection controls, rather than something a layout spec declares.
+Authoring one emits YAML that core discards, so remove it.</p>
 
 
 <details class="usage" open>
   <summary>Usage</summary>
-  <p>Projected = Annotated[MyType, Projection(sig='MySig')]</p>
+  <p>Projected = Annotated[MyType, Projection(sig='MySig')]  # no-op</p>
 </details>
 
 
@@ -7665,13 +7675,20 @@ Filtered = Annotated[MyType, Attribute(field='status', filter='status &amp; Acti
         <p>Inferred edge directive.</p>
 <p>Styling uses the shared lineStyle/textStyle blocks (spytial-core 3.0); the
 inline color/style/weight keys are deprecated and rewritten into lineStyle.</p>
+<p><code>draw</code> (spytial-core 3.2) is <code>'&lt;end&gt; -&gt; &lt;end&gt;'</code>, each end <code>'_'</code> (the
+atom itself) or the name of a group constraint, in which case that end
+attaches to the hull of the group keyed by the end's atom -- giving
+group-to-group and node-to-group edges. <code>'_ -&gt; _'</code> means the same as
+omitting it.</p>
 
 
 <details class="usage" open>
   <summary>Usage</summary>
   <p>WithEdges = Annotated[Graph, InferredEdge(name='connection', selector='nodes')]
 StyledEdges = Annotated[Graph, InferredEdge(name='ancestor', selector='^parent',
-                                            lineStyle=LineStyle(color='gray', pattern='dotted'))]</p>
+                                            lineStyle=LineStyle(color='gray', pattern='dotted'))]
+HullEdges = Annotated[Graph, InferredEdge(name='reports to', selector='^parent',
+                                          draw='regions -&gt; regions')]</p>
 </details>
 
 
@@ -7778,11 +7795,14 @@ attribute values to nodes based on selector evaluation.</p>
 
 
         <p>Flag directive.</p>
+<p><code>name</code> is one of the two whole-diagram switches core acts on:
+'hideDisconnected' (drop atoms with no edges) or
+'hideDisconnectedBuiltIns' (drop only disconnected built-in atoms).</p>
 
 
 <details class="usage" open>
   <summary>Usage</summary>
-  <p>Flagged = Annotated[MyType, Flag(name='debug')]</p>
+  <p>Flagged = Annotated[MyType, Flag(name='hideDisconnected')]</p>
 </details>
 
 
@@ -9253,10 +9273,10 @@ type annotation matches a registered type alias, these annotations are applied.<
   <h4 id="spytial.annotate_type_alias--define-a-type-alias">Define a type alias</h4>
 <p>IntList = list[int]</p>
 <h4 id="spytial.annotate_type_alias--annotate-it">Annotate it</h4>
-<p>annotate_type_alias(IntList, 'orientation', selector='items', directions=['horizontal'])
+<p>annotate_type_alias(IntList, 'orientation', selector='items', directions=['left'])
 annotate_type_alias(IntList, 'atomColor', selector='self', value='blue')</p>
 <h4 id="spytial.annotate_type_alias--or-use-the-convenience-functions">Or use the convenience functions:</h4>
-<p>annotate_type_alias_orientation(IntList, selector='items', directions=['horizontal'])</p>
+<p>annotate_type_alias_orientation(IntList, selector='items', directions=['left'])</p>
 </details>        <p>:param type_alias: The type alias to annotate (e.g., list[int], MyClass, etc.)
 :param annotation_type: The type of annotation ('orientation', 'group', etc.)
 :param kwargs: The annotation parameters.
@@ -11200,12 +11220,16 @@ attached to type aliases using typing.Annotated.</p>
 
 
         <p>Orientation constraint for spatial layout.</p>
+<p><code>directions</code> are the placement words -- above/below/left/right and the
+adjacency variants directlyAbove/directlyBelow/directlyLeft/directlyRight.
+(horizontal/vertical are Align's vocabulary, not this one; core matches no
+case for them here and the constraint would be dropped.)</p>
 
 
 <details class="usage" open>
   <summary>Usage</summary>
   <p>from typing import Annotated
-IntList = Annotated[list[int], Orientation(selector='items', directions=['horizontal'])]</p>
+IntList = Annotated[list[int], Orientation(selector='items', directions=['left'])]</p>
 </details>
 
 
@@ -11307,11 +11331,13 @@ IntList = Annotated[list[int], Orientation(selector='items', directions=['horizo
 
 
         <p>Alignment constraint.</p>
+<p><code>direction</code> is the shared axis: 'horizontal' or 'vertical'. Core rejects
+anything else as internally inconsistent.</p>
 
 
 <details class="usage" open>
   <summary>Usage</summary>
-  <p>AlignedList = Annotated[list[int], Align(selector='items', direction='left')]</p>
+  <p>AlignedList = Annotated[list[int], Align(selector='items', direction='horizontal')]</p>
 </details>
 
 
@@ -11857,12 +11883,16 @@ Filtered = Annotated[MyClass, HideField(field='debug', filter='debug &amp; Produ
 
 
 
-        <p>Projection directive.</p>
+        <p>Deprecated projection directive; it has no effect.</p>
+<p>spytial-core's layout-spec parser does not read <code>projection</code> — projecting
+over a sig is a pre-layout transform on the data instance, driven by the
+viewer's projection controls, rather than something a layout spec declares.
+Authoring one emits YAML that core discards, so remove it.</p>
 
 
 <details class="usage" open>
   <summary>Usage</summary>
-  <p>Projected = Annotated[MyType, Projection(sig='MySig')]</p>
+  <p>Projected = Annotated[MyType, Projection(sig='MySig')]  # no-op</p>
 </details>
 
 
@@ -11967,13 +11997,20 @@ Filtered = Annotated[MyType, Attribute(field='status', filter='status &amp; Acti
         <p>Inferred edge directive.</p>
 <p>Styling uses the shared lineStyle/textStyle blocks (spytial-core 3.0); the
 inline color/style/weight keys are deprecated and rewritten into lineStyle.</p>
+<p><code>draw</code> (spytial-core 3.2) is <code>'&lt;end&gt; -&gt; &lt;end&gt;'</code>, each end <code>'_'</code> (the
+atom itself) or the name of a group constraint, in which case that end
+attaches to the hull of the group keyed by the end's atom -- giving
+group-to-group and node-to-group edges. <code>'_ -&gt; _'</code> means the same as
+omitting it.</p>
 
 
 <details class="usage" open>
   <summary>Usage</summary>
   <p>WithEdges = Annotated[Graph, InferredEdge(name='connection', selector='nodes')]
 StyledEdges = Annotated[Graph, InferredEdge(name='ancestor', selector='^parent',
-                                            lineStyle=LineStyle(color='gray', pattern='dotted'))]</p>
+                                            lineStyle=LineStyle(color='gray', pattern='dotted'))]
+HullEdges = Annotated[Graph, InferredEdge(name='reports to', selector='^parent',
+                                          draw='regions -&gt; regions')]</p>
 </details>
 
 
@@ -12022,11 +12059,14 @@ StyledEdges = Annotated[Graph, InferredEdge(name='ancestor', selector='^parent',
 
 
         <p>Flag directive.</p>
+<p><code>name</code> is one of the two whole-diagram switches core acts on:
+'hideDisconnected' (drop atoms with no edges) or
+'hideDisconnectedBuiltIns' (drop only disconnected built-in atoms).</p>
 
 
 <details class="usage" open>
   <summary>Usage</summary>
-  <p>Flagged = Annotated[MyType, Flag(name='debug')]</p>
+  <p>Flagged = Annotated[MyType, Flag(name='hideDisconnected')]</p>
 </details>
 
 
@@ -12196,10 +12236,10 @@ type annotation matches a registered type alias, these annotations are applied.<
   <h4 id="spytial.annotations.annotate_type_alias--define-a-type-alias">Define a type alias</h4>
 <p>IntList = list[int]</p>
 <h4 id="spytial.annotations.annotate_type_alias--annotate-it">Annotate it</h4>
-<p>annotate_type_alias(IntList, 'orientation', selector='items', directions=['horizontal'])
+<p>annotate_type_alias(IntList, 'orientation', selector='items', directions=['left'])
 annotate_type_alias(IntList, 'atomColor', selector='self', value='blue')</p>
 <h4 id="spytial.annotations.annotate_type_alias--or-use-the-convenience-functions">Or use the convenience functions:</h4>
-<p>annotate_type_alias_orientation(IntList, selector='items', directions=['horizontal'])</p>
+<p>annotate_type_alias_orientation(IntList, selector='items', directions=['left'])</p>
 </details>        <p>:param type_alias: The type alias to annotate (e.g., list[int], MyClass, etc.)
 :param annotation_type: The type of annotation ('orientation', 'group', etc.)
 :param kwargs: The annotation parameters.

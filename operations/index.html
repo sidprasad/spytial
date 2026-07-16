@@ -799,6 +799,17 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#hold-invert-any-constraint" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        hold — invert any constraint
+      
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -857,6 +868,23 @@
       
     </span>
   </a>
+  
+    <nav class="md-nav" aria-label="inferredEdge — draw a derived edge">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#draw-attach-an-end-to-a-groups-hull" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        draw — attach an end to a group's hull
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
         
@@ -1172,6 +1200,17 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#hold-invert-any-constraint" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        hold — invert any constraint
+      
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -1230,6 +1269,23 @@
       
     </span>
   </a>
+  
+    <nav class="md-nav" aria-label="inferredEdge — draw a derived edge">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#draw-attach-an-end-to-a-groups-hull" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        draw — attach an end to a group's hull
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
         
@@ -1330,8 +1386,9 @@ arguments. The sections below break each one into its parts.</p>
 <ol>
 <li><strong><code>selector</code></strong> — the edges to orient.</li>
 <li><strong><code>directions</code></strong> — where the target sits relative to its source, as a list
-   (e.g. <code>['below', 'left']</code>). Common values: <code>above</code>, <code>below</code>, <code>left</code>, <code>right</code>,
-   and the adjacency variants <code>directlyLeft</code> / <code>directlyRight</code>.</li>
+   (e.g. <code>['below', 'left']</code>). One of <code>above</code>, <code>below</code>, <code>left</code>, <code>right</code>, or the
+   adjacency variants <code>directlyAbove</code>, <code>directlyBelow</code>, <code>directlyLeft</code>,
+   <code>directlyRight</code>, which also require that nothing sits in between.</li>
 </ol>
 <div class="highlight"><pre><span></span><code><span class="nd">@spytial</span><span class="o">.</span><span class="n">orientation</span><span class="p">(</span>
     <span class="n">selector</span><span class="o">=</span><span class="s1">&#39;{ x : TreeNode, y : TreeNode | x.left = y }&#39;</span><span class="p">,</span>  <span class="c1"># which edges</span>
@@ -1341,13 +1398,23 @@ arguments. The sections below break each one into its parts.</p>
 <h3 id="align-line-atoms-up-on-a-shared-axis"><code>align</code> — line atoms up on a shared axis</h3>
 <ol>
 <li><strong><code>selector</code></strong> — the atoms to align.</li>
-<li><strong><code>direction</code></strong> — the axis to share.</li>
+<li><strong><code>direction</code></strong> — the axis to share: <code>'horizontal'</code> or <code>'vertical'</code>.</li>
 </ol>
 <h3 id="cyclic-arrange-atoms-in-a-ring"><code>cyclic</code> — arrange atoms in a ring</h3>
 <ol>
 <li><strong><code>selector</code></strong> — the atoms/edges forming the cycle.</li>
-<li><strong><code>direction</code></strong> — which way the ring runs.</li>
+<li><strong><code>direction</code></strong> — which way the ring runs: <code>'clockwise'</code> or
+   <code>'counterclockwise'</code>.</li>
 </ol>
+<blockquote>
+<p>These value sets are closed, and spytial checks them where you write them. The
+easy mistake is borrowing another constraint's words — <code>align</code> takes the <em>axis</em>
+(<code>horizontal</code>/<code>vertical</code>) while <code>orientation</code> takes <em>placements</em>
+(<code>above</code>/<code>left</code>/…), and swapping them is not an error spytial-core reports: an
+unknown orientation direction just quietly drops the constraint, and a
+misspelled <code>cyclic</code> direction reads as <code>clockwise</code>. Same for <code>flag</code>, which acts
+on exactly <code>hideDisconnected</code> and <code>hideDisconnectedBuiltIns</code>.</p>
+</blockquote>
 <h3 id="group-enclose-atoms-in-a-labelled-region"><code>group</code> — enclose atoms in a labelled region</h3>
 <ol>
 <li><strong><code>selector</code></strong> — the relation (or atoms) whose members are grouped.</li>
@@ -1365,6 +1432,14 @@ arguments. The sections below break each one into its parts.</p>
     <span class="n">addEdge</span><span class="o">=</span><span class="n">GroupEdge</span><span class="p">(</span><span class="n">points</span><span class="o">=</span><span class="s1">&#39;togroup&#39;</span><span class="p">,</span> <span class="n">lineStyle</span><span class="o">=</span><span class="n">LineStyle</span><span class="p">(</span><span class="n">pattern</span><span class="o">=</span><span class="s1">&#39;dashed&#39;</span><span class="p">)),</span>
     <span class="n">textStyle</span><span class="o">=</span><span class="n">TextStyle</span><span class="p">(</span><span class="n">color</span><span class="o">=</span><span class="s1">&#39;navy&#39;</span><span class="p">),</span>
 <span class="p">)</span>
+</code></pre></div>
+<h3 id="hold-invert-any-constraint"><code>hold</code> — invert any constraint</h3>
+<p>Every constraint takes an optional <strong><code>hold</code></strong>. It defaults to <code>'always'</code>; pass
+<code>'never'</code> to require the opposite — the layout must <em>not</em> satisfy the
+constraint. It's how you say "these must not be grouped" or "y is never below
+x", rather than leaving the relationship unconstrained.</p>
+<div class="highlight"><pre><span></span><code><span class="nd">@spytial</span><span class="o">.</span><span class="n">orientation</span><span class="p">(</span><span class="n">selector</span><span class="o">=</span><span class="s1">&#39;children&#39;</span><span class="p">,</span> <span class="n">directions</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;below&#39;</span><span class="p">],</span> <span class="n">hold</span><span class="o">=</span><span class="s1">&#39;never&#39;</span><span class="p">)</span>
+<span class="nd">@spytial</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="n">selector</span><span class="o">=</span><span class="s1">&#39;Team.members&#39;</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s1">&#39;Team&#39;</span><span class="p">,</span> <span class="n">hold</span><span class="o">=</span><span class="s1">&#39;never&#39;</span><span class="p">)</span>
 </code></pre></div>
 <h2 id="directives">Directives</h2>
 <h3 id="attribute-show-a-field-as-inline-text"><code>attribute</code> — show a field as inline text</h3>
@@ -1425,12 +1500,39 @@ detectable case (identical <code>field</code>/<code>selector</code>/<code>filter
 <li><strong><code>lineStyle</code></strong> / <strong><code>textStyle</code></strong> <em>(optional)</em> — style the drawn edge and its
    label (same blocks as <code>edgeStyle</code>; the inline <code>color</code>/<code>style</code>/<code>weight</code>
    arguments are deprecated).</li>
+<li><strong><code>draw</code></strong> <em>(optional)</em> — where each end attaches. See below.</li>
 </ol>
 <div class="highlight"><pre><span></span><code><span class="nd">@spytial</span><span class="o">.</span><span class="n">inferredEdge</span><span class="p">(</span>
     <span class="n">selector</span><span class="o">=</span><span class="s1">&#39;{ x : Vertex, y : Vertex | y in x.neighbors }&#39;</span><span class="p">,</span>  <span class="c1"># which pairs</span>
     <span class="n">name</span><span class="o">=</span><span class="s1">&#39;edge&#39;</span><span class="p">,</span>                                               <span class="c1"># edge label</span>
 <span class="p">)</span>
 </code></pre></div>
+<h4 id="draw-attach-an-end-to-a-groups-hull"><code>draw</code> — attach an end to a group's hull</h4>
+<p>By default an inferred edge runs atom-to-atom. <strong><code>draw</code></strong> is a string
+<code>'&lt;end&gt; -&gt; &lt;end&gt;'</code> where each end is either <code>'_'</code> (the atom itself) or the
+<strong>name of a <code>group</code> constraint</strong> — in which case that end attaches to the hull
+of the group <em>keyed by that end's atom</em>. This is what makes group-to-group and
+node-to-group edges expressible.</p>
+<div class="highlight"><pre><span></span><code><span class="c1"># A binary group selector: one group per Team, keyed by the Team atom.</span>
+<span class="nd">@spytial</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="n">selector</span><span class="o">=</span><span class="s1">&#39;{ t : Team, l : list | l in t.members }&#39;</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s1">&#39;regions&#39;</span><span class="p">)</span>
+<span class="nd">@spytial</span><span class="o">.</span><span class="n">inferredEdge</span><span class="p">(</span>
+    <span class="n">name</span><span class="o">=</span><span class="s1">&#39;reports to&#39;</span><span class="p">,</span>
+    <span class="n">selector</span><span class="o">=</span><span class="s1">&#39;{ a : Team, b : Team | b = a.parent }&#39;</span><span class="p">,</span>
+    <span class="n">draw</span><span class="o">=</span><span class="s1">&#39;regions -&gt; regions&#39;</span><span class="p">,</span>   <span class="c1"># hull to hull, rather than node to node</span>
+<span class="p">)</span>
+</code></pre></div>
+<p><code>'_ -&gt; regions'</code> runs from the atom to a group's hull; <code>'_ -&gt; _'</code> means the same
+as omitting <code>draw</code>. The edge's own selector still ranges over atoms either way —
+and with <code>draw</code>, a unary edge selector is allowed, its atom feeding both ends.</p>
+<blockquote>
+<p><strong>The referenced group must be keyed</strong> — that is, declared with a <em>binary</em>
+selector, whose first element becomes the key. <code>draw</code> resolves each end by
+looking up the group of that name keyed by that end's atom, so a group built
+from a unary selector (<code>selector='Team.members'</code>) has no key for any end to
+match, and the edge is dropped without drawing anything. A group <em>name</em> that
+matches no <code>group</code> constraint at all is a hard error at render time; an atom
+that keys no group of that name is reported in the browser console.</p>
+</blockquote>
 <h3 id="tag-attach-a-computed-label"><code>tag</code> — attach a computed label</h3>
 <ol>
 <li><strong><code>toTag</code></strong> — the type to tag.</li>
