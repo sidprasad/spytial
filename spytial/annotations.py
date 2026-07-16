@@ -1040,9 +1040,9 @@ class InferredEdge(SpytialAnnotation):
 
     ``draw`` (spytial-core 3.2) is ``'<end> -> <end>'``, each end ``'_'`` (the
     atom itself) or the name of a group constraint, in which case that end
-    attaches to the hull of the group keyed by the end's atom -- giving
-    group-to-group and node-to-group edges. ``'_ -> _'`` means the same as
-    omitting it.
+    attaches to that group's hull -- giving group-to-group and node-to-group
+    edges. A keyed group (binary selector) is picked by the end's atom; a unary
+    group is attached to directly. ``'_ -> _'`` means the same as omitting it.
 
     Usage:
         WithEdges = Annotated[Graph, InferredEdge(name='connection', selector='nodes')]
@@ -1846,8 +1846,8 @@ inferredEdge = _create_decorator(
 
     ``draw`` is a string ``'<end> -> <end>'``. Each end is either ``'_'`` (the
     atom itself -- the default) or the name of a ``group`` constraint, in which
-    case that end attaches to the hull of the group *keyed by the end's atom*.
-    That is what makes group-to-group and node-to-group edges expressible:
+    case that end attaches to that group's hull. That is what makes
+    group-to-group and node-to-group edges expressible:
 
         # binary group selector -> one group per Team, keyed by the Team atom
         @spytial.group(selector='{ t : Team, l : list | l in t.members }',
@@ -1863,11 +1863,20 @@ inferredEdge = _create_decorator(
     ranges over atoms either way; with ``draw``, a unary edge selector is
     allowed and its atom feeds both ends.
 
-    The group named by an end must be *keyed* -- declared with a binary
-    selector, whose first element is the key. A group built from a unary
-    selector has no key for an end to match, and the edge is dropped without
-    drawing. A name matching no ``group`` constraint at all is an error at
-    render time, when the whole spec is known.
+    Which group an end lands on depends on the named constraint's selector. A
+    *keyed* group -- declared with a binary selector, whose first element is the
+    key -- builds one group per key, and the end's atom picks which one. A
+    *unary* group is a single group, so the end attaches to it directly and its
+    atom plays no part (spytial-core 3.2.2; before that the edge was silently
+    dropped).
+
+    ``draw`` never decides which edges exist -- the selector does. So when both
+    ends land on the same group, the edge is kept and drawn as a self-loop on
+    that hull.
+
+    A name matching no ``group`` constraint at all is an error at render time,
+    when the whole spec is known. So is a name meaning both a keyed group and a
+    single group: with no key in play there is no way to pick between them.
     """,
 )
 
