@@ -9,6 +9,7 @@ import ast
 import enum
 import importlib
 import inspect
+import sys
 from typing import Any, Callable, Dict, List, Optional, Tuple, Type
 
 # Import base classes from domain-relationalizers
@@ -44,6 +45,32 @@ def _invoke_custom_reifier(fn, atom, relations, reify_atom, register):
     if len(positional) >= 4:
         return fn(atom, relations, reify_atom, register)
     return fn(atom, relations, reify_atom)
+
+
+# One level of walk nesting costs 3-4 Python stack frames (measured: 3 for
+# dicts, 4 for lists and dataclasses). Dividing the interpreter's frame budget
+# by 8 leaves roughly a 2x margin for the caller's own stack, so the walker's
+# own guard always trips before CPython's — the former raises one clean error,
+# the latter unwinds thousands of frames. Floored so this never allows less
+# than the historical fixed limit of 100, and capped because a deliberately
+# huge recursionlimit can outrun the actual C stack.
+_FRAMES_PER_LEVEL = 8
+_MIN_WALK_DEPTH = 100
+_MAX_WALK_DEPTH = 1000
+
+
+def default_max_depth() -> int:
+    """Deepest nesting :meth:`CnDDataInstanceBuilder._walk` will follow.
+
+    Derived from ``sys.getrecursionlimit()`` at call time, so raising the
+    interpreter's limit raises this too: 100 on a stock CPython (limit 1000),
+    375 at a limit of 3000. Tracked for removal in sidprasad/spytial#131,
+    which makes the walk iterative and drops the ceiling entirely.
+    """
+    return max(
+        _MIN_WALK_DEPTH,
+        min(_MAX_WALK_DEPTH, sys.getrecursionlimit() // _FRAMES_PER_LEVEL),
+    )
 
 
 def _resolve_named(module_name: Optional[str], qualname: Optional[str]) -> Optional[Any]:
@@ -173,6 +200,9 @@ class CnDDataInstanceBuilder:
         self._persistent_atom_labels: Dict[str, str] = {}
         self._collected_decorators = {"constraints": [], "directives": []}
         self._current_depth = 0  # Track current recursion depth
+        # Refreshed per build_instance so a caller who raises the interpreter's
+        # recursion limit gets a deeper walk without rebuilding the builder.
+        self._max_depth = default_max_depth()
         # Extensibility mechanism: custom reifiers for specific types
         self._custom_reifiers = {}
         self._type_label_counters = {}  # Per-type counters for fallback labels
@@ -197,6 +227,7 @@ class CnDDataInstanceBuilder:
         self._build_identity_objects = {}
         self._collected_decorators = {"constraints": [], "directives": []}
         self._current_depth = 0  # Reset depth
+        self._max_depth = default_max_depth()
         # Persist placeholder counters across builds when atom IDs are also
         # being persisted — otherwise every frame's "first new atom of type X"
         # gets index 0, collapsing distinct atoms onto the same TypeN label.
@@ -245,9 +276,13 @@ class CnDDataInstanceBuilder:
         try:
             root_atom_id = self._walk(obj)
         except Exception as e:
-            print(f"Error during data instance building: {e}")
-            print("Object:", obj)
-            raise
+            # Report the object by type, never by repr: the failures that reach
+            # here are usually deep or cyclic structures, whose repr is a
+            # screenful at best and can itself raise while formatting.
+            raise type(e)(
+                f"{e} (while building a data instance for a "
+                f"{type(obj).__name__})"
+            ).with_traceback(e.__traceback__) from None
 
         # Cache the root so a later reify() call can reconstruct the same
         # object even when the graph is cyclic (topology alone can't pick the
@@ -455,11 +490,22 @@ class CnDDataInstanceBuilder:
             self._id_counter += 1
         return self._seen[oid]
 
-    def _walk(self, obj: Any, max_depth: int = 100) -> str:
-        """Walk an object using the appropriate provider."""
+    def _walk(self, obj: Any, max_depth: Optional[int] = None) -> str:
+        """Walk an object using the appropriate provider.
+
+        ``max_depth`` defaults to :func:`default_max_depth`, derived from the
+        interpreter's recursion limit so this guard trips before CPython's.
+        """
+        if max_depth is None:
+            max_depth = self._max_depth
         self._current_depth += 1
         if self._current_depth > max_depth:
-            raise RecursionError("Maximum recursion depth exceeded")
+            raise RecursionError(
+                f"Object nests deeper than {max_depth} levels, the limit for "
+                f"this interpreter (sys.getrecursionlimit() = "
+                f"{sys.getrecursionlimit()}). Raise the recursion limit to "
+                f"walk deeper."
+            )
 
         oid = id(obj)
         if oid in self._seen:
