@@ -13,17 +13,31 @@ from .dict_relationalizer import DictRelationalizer
 from .list_relationalizer import ListRelationalizer
 from .tuple_relationalizer import TupleRelationalizer
 from .set_relationalizer import SetRelationalizer
+from .range_relationalizer import RangeRelationalizer
 from .dataclass_relationalizer import DataclassRelationalizer
 from .generic_object_relationalizer import GenericObjectRelationalizer
 from .fallback_relationalizer import FallbackRelationalizer
+from .reference_relationalizer import (
+    EnumRelationalizer,
+    FunctionRelationalizer,
+    TypeRelationalizer,
+    ModuleRelationalizer,
+)
 
 # Store relationalizers and priorities for later registration
+# Reference relationalizers sit above PrimitiveRelationalizer (10) so that
+# IntEnum/StrEnum members route to enum-by-name instead of the int/str path.
 _BUILTIN_RELATIONALIZERS = [
+    (EnumRelationalizer, 11),
+    (FunctionRelationalizer, 11),
+    (TypeRelationalizer, 11),
+    (ModuleRelationalizer, 11),
     (PrimitiveRelationalizer, 10),
     (DictRelationalizer, 9),
     (ListRelationalizer, 8),
     (TupleRelationalizer, 8),
     (SetRelationalizer, 8),
+    (RangeRelationalizer, 8),
     (DataclassRelationalizer, 7),
     (GenericObjectRelationalizer, 5),
     (FallbackRelationalizer, 1),
@@ -45,8 +59,13 @@ __all__ = [
     "ListRelationalizer",
     "TupleRelationalizer",
     "SetRelationalizer",
+    "RangeRelationalizer",
     "DataclassRelationalizer",
     "GenericObjectRelationalizer",
     "FallbackRelationalizer",
+    "EnumRelationalizer",
+    "FunctionRelationalizer",
+    "TypeRelationalizer",
+    "ModuleRelationalizer",
     "register_builtin_relationalizers",
 ]

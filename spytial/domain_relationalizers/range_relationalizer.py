@@ -1,0 +1,27 @@
+"""Relationalizer for range objects."""
+
+from typing import Any, List, Tuple
+from .base import RelationalizerBase, Atom, Relation
+
+
+class RangeRelationalizer(RelationalizerBase):
+    """Handles range objects as start/stop/step structure."""
+
+    def can_handle(self, obj: Any) -> bool:
+        return isinstance(obj, range)
+
+    def relationalize(self, obj: Any, walker_func) -> Tuple[List[Atom], List[Relation]]:
+        obj_id = walker_func._get_id(obj)
+        typ = type(obj).__name__
+        caller_namespace = getattr(walker_func, "_caller_namespace", None)
+        label = self._make_label_with_fallback(
+            obj, typ, caller_namespace, obj_id, walker_func
+        )
+        atom = Atom(id=obj_id, type=typ, label=label)
+
+        relations = []
+        for name in ("start", "stop", "step"):
+            vid = walker_func(getattr(obj, name))
+            relations.append(Relation(name, [obj_id, vid]))
+
+        return [atom], relations

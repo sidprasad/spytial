@@ -5,6 +5,8 @@ This module provides a pluggable system for converting Python objects
 into CnD-compatible atom/relation representations using relationalizers.
 """
 
+import ast
+import enum
 import importlib
 import inspect
 from typing import Any, Callable, Dict, List, Optional, Tuple, Type
@@ -44,14 +46,14 @@ def _invoke_custom_reifier(fn, atom, relations, reify_atom, register):
     return fn(atom, relations, reify_atom)
 
 
-def _resolve_class(module_name: Optional[str], qualname: Optional[str]) -> Optional[type]:
-    """Resolve a class object from its module + qualified name.
+def _resolve_named(module_name: Optional[str], qualname: Optional[str]) -> Optional[Any]:
+    """Resolve any module attribute from its module + qualified name.
 
-    Returns ``None`` when the class can't be located — defined in a closure or
+    Returns ``None`` when the object can't be located — defined in a closure or
     comprehension (``<locals>`` in the qualname), module not importable, or the
-    dotted path doesn't resolve to a class. Callers fall back to a structural
-    proxy in that case. In the same-process / round-trip-to-host setting the
-    class is always importable (including ``__main__`` for REPL/script code).
+    dotted path doesn't resolve. In the same-process / round-trip-to-host
+    setting the module is always importable (including ``__main__`` for
+    REPL/script code).
     """
     if not module_name or not qualname or "<locals>" in qualname:
         return None
@@ -65,6 +67,16 @@ def _resolve_class(module_name: Optional[str], qualname: Optional[str]) -> Optio
             obj = getattr(obj, part)
         except AttributeError:
             return None
+    return obj
+
+
+def _resolve_class(module_name: Optional[str], qualname: Optional[str]) -> Optional[type]:
+    """Resolve a class object from its module + qualified name.
+
+    Type-filtering wrapper over :func:`_resolve_named`; callers on the
+    instance-rebuild path fall back to a structural proxy on ``None``.
+    """
+    obj = _resolve_named(module_name, qualname)
     return obj if isinstance(obj, type) else None
 
 
@@ -360,12 +372,27 @@ class CnDDataInstanceBuilder:
         For primitives, uses value-based lookup to avoid race conditions with memory addresses.
         For objects, uses memory-based ID with spytial registry fallback.
         """
-        # For primitive types, always use value-based ID (no memory address confusion)
-        if isinstance(obj, (int, float, bool)) or obj is None:
+        # For primitive types, always use value-based ID (no memory address
+        # confusion). Enum members (incl. IntEnum/StrEnum) are excluded: they
+        # are singletons handled by reference, and a value-based ID would
+        # collide with the plain int/str atom carrying the same value.
+        if isinstance(obj, enum.Enum):
+            pass
+        elif isinstance(obj, (int, float, bool)) or obj is None:
             return str(obj)
         elif isinstance(obj, str):
             # For strings, use quoted representation to distinguish from other IDs
             return f'"{obj}"'
+        elif isinstance(obj, complex):
+            return str(obj)
+        elif isinstance(obj, bytes):
+            # bytes repr starts with b' so it cannot collide with quoted str IDs
+            return repr(obj)
+        elif obj is NotImplemented or obj is Ellipsis:
+            return str(obj)
+        # NOTE: bytearray stays on the memory-based path below — it is mutable,
+        # and a value-based ID would alias equal-but-distinct bytearrays into
+        # one reified object.
 
         # For non-primitive objects, use memory-based ID with caching
         oid = id(obj)
@@ -544,7 +571,23 @@ class CnDDataInstanceBuilder:
         """
         type_map = {}
 
-        BUILTINTYPES = {"int", "float", "str", "bool", "NoneType", "object"}
+        BUILTINTYPES = {
+            "int",
+            "float",
+            "complex",
+            "str",
+            "bytes",
+            "bytearray",
+            "bool",
+            "NoneType",
+            "NotImplementedType",
+            "ellipsis",
+            "range",
+            "function",
+            "module",
+            "type",
+            "object",
+        }
 
         # Iterate over all atoms to populate the type map
         for atom in atoms:
@@ -644,10 +687,39 @@ class CnDDataInstanceBuilder:
             atom_type = atom["type"]
             atom_label = atom["label"]
 
-            if atom_type in {"str", "int", "float", "bool", "NoneType"}:
+            if atom_type in {
+                "str",
+                "int",
+                "float",
+                "complex",
+                "bool",
+                "NoneType",
+                "bytes",
+                "bytearray",
+                "NotImplementedType",
+                "ellipsis",
+            }:
                 obj = self._reify_primitive(atom_type, atom_label)
                 reconstructed[atom_id] = obj
                 return obj
+
+            # Reference atoms: named singletons recorded by importable
+            # identity (functions, classes, modules). Return the very object
+            # the name resolves to — reference semantics, not reconstruction.
+            ref_import = atom.get("__ref_import__")
+            if isinstance(ref_import, str):
+                try:
+                    obj = importlib.import_module(ref_import)
+                    reconstructed[atom_id] = obj
+                    return obj
+                except Exception:
+                    pass  # unimportable — fall through to generic handling
+            ref_qualname = atom.get("__ref_qualname__")
+            if isinstance(ref_qualname, str):
+                obj = _resolve_named(atom.get("__ref_module__"), ref_qualname)
+                if obj is not None:
+                    reconstructed[atom_id] = obj
+                    return obj
 
             relations_for_atom = relation_map.get(atom_id, {})
 
@@ -689,6 +761,8 @@ class CnDDataInstanceBuilder:
                     register,
                     frozen=(atom_type == "frozenset"),
                 )
+            elif atom_type == "range":
+                obj = self._reify_range(relations_for_atom, reify_atom)
             else:
                 obj = self._reify_generic_object(
                     atom, relations_for_atom, reify_atom, register
@@ -781,6 +855,18 @@ class CnDDataInstanceBuilder:
             return atom_label.lower() == "true"
         elif atom_type == "NoneType":
             return None
+        elif atom_type == "complex":
+            # complex() parses its own str form, including inf/nan components
+            return complex(atom_label)
+        elif atom_type == "bytes":
+            # The label is the b'...' literal emitted by PrimitiveRelationalizer
+            return ast.literal_eval(atom_label)
+        elif atom_type == "bytearray":
+            return bytearray(ast.literal_eval(atom_label))
+        elif atom_type == "NotImplementedType":
+            return NotImplemented
+        elif atom_type == "ellipsis":
+            return Ellipsis
         else:
             raise ValueError(f"Unknown primitive type: {atom_type}")
 
@@ -903,6 +989,24 @@ class CnDDataInstanceBuilder:
             result.add(reify_atom(target_id))
         return result
 
+    def _reify_range(self, relations: Dict, reify_atom) -> range:
+        """Reconstruct a range from its ``start``/``stop``/``step`` relations.
+
+        Matches both RangeRelationalizer's output and the relation names the
+        generic-object capture produced before it existed, so older data
+        instances reify identically.
+        """
+
+        def part(name: str, default: int) -> int:
+            targets = relations.get(name, [])
+            if not targets:
+                return default
+            value = reify_atom(targets[0])
+            return value if isinstance(value, int) else default
+
+        step = part("step", 1)
+        return range(part("start", 0), part("stop", 0), step if step != 0 else 1)
+
     def _reify_generic_object(
         self, atom: Dict, relations: Dict, reify_atom, register
     ) -> Any:
@@ -949,6 +1053,14 @@ class CnDDataInstanceBuilder:
 
         # Preferred path: rebuild the genuine class instance.
         cls = _resolve_class(atom.get("__module__"), atom.get("__qualname__"))
+        if cls is not None and issubclass(cls, enum.Enum):
+            # Reference semantics: an enum member is a singleton. Look it up by
+            # name (the atom label) instead of rebuilding a hollow instance, so
+            # ``is`` and the member's real repr both hold.
+            try:
+                return cls[atom["label"]]
+            except KeyError:
+                pass  # unknown member name — fall through to the proxy path
         if cls is not None:
             try:
                 obj = object.__new__(cls)

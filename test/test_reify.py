@@ -9,6 +9,8 @@ These cover the regression reported as sidprasad/spytial#90:
 * rootId is honoured even when topology alone would pick a different atom
 """
 
+import enum
+import math
 from dataclasses import dataclass, field
 from typing import List, Optional
 
@@ -455,3 +457,113 @@ def test_reify_skips_property_setter_that_rejects_value():
     # rather than aborting the whole reconstruction.
     out = CnDDataInstanceBuilder().reify(di)
     assert type(out) is Account
+
+
+# ---------------------------------------------------------------------------
+# Leaf primitives: complex, bytes, bytearray, range, NotImplemented, Ellipsis
+# ---------------------------------------------------------------------------
+
+
+def _rt(value):
+    b = CnDDataInstanceBuilder()
+    return b.reify(b.build_instance(value))
+
+
+def test_reify_complex_value():
+    assert _rt(complex(1, -2)) == complex(1, -2)
+    assert _rt(complex(float("inf"), 1.5)) == complex(float("inf"), 1.5)
+
+
+def test_reify_bytes_value():
+    assert _rt(b"ab\x00\xff") == b"ab\x00\xff"
+    assert _rt(b"") == b""
+
+
+def test_reify_bytearray_is_fresh_mutable_copy():
+    ba = bytearray(b"mut")
+    out = _rt(ba)
+    assert isinstance(out, bytearray) and out == ba and out is not ba
+
+
+def test_reify_equal_bytearrays_stay_distinct_objects():
+    # Mutable: two equal bytearrays must not collapse onto one atom/object.
+    pair = [bytearray(b"x"), bytearray(b"x")]
+    out = _rt(pair)
+    assert out == pair and out[0] is not out[1]
+
+
+def test_reify_singletons():
+    assert _rt(NotImplemented) is NotImplemented
+    assert _rt(...) is ...
+
+
+def test_reify_range():
+    assert _rt(range(5)) == range(5)
+    assert _rt(range(1, 10, 2)) == range(1, 10, 2)
+    assert _rt(range(10, 0, -3)) == range(10, 0, -3)
+
+
+# ---------------------------------------------------------------------------
+# Reference semantics: enum members, functions, classes, modules reify to the
+# identical object, not a reconstruction.
+# ---------------------------------------------------------------------------
+
+
+class Fruit(enum.Enum):
+    APPLE = 1
+    BANANA = 2
+
+
+class Priority(enum.IntEnum):
+    LOW = 1
+    HIGH = 2
+
+
+def top_level_helper(x):
+    return x
+
+
+def test_reify_enum_member_is_singleton():
+    assert _rt(Fruit.APPLE) is Fruit.APPLE
+
+
+def test_reify_intenum_routes_to_enum_not_int():
+    # IntEnum members are isinstance(int); the enum relationalizer must
+    # outrank the primitive one or they'd come back as plain ints.
+    out = _rt(Priority.HIGH)
+    assert out is Priority.HIGH and type(out) is Priority
+
+
+def test_reify_function_by_reference():
+    assert _rt(top_level_helper) is top_level_helper
+
+
+def test_reify_builtin_function_by_reference():
+    assert _rt(len) is len
+    assert _rt(math.sqrt) is math.sqrt
+
+
+def test_reify_builtin_bound_method_falls_back_to_proxy():
+    # [].append has __module__ = None; resolving its qualname would return the
+    # unbound descriptor, so it gets no reference metadata and proxies instead.
+    lst = [1]
+    out = _rt(lst.append)
+    assert out is not lst.append and not callable(out)
+
+
+def test_reify_class_object_by_reference():
+    assert _rt(dict) is dict
+    assert _rt(Fruit) is Fruit
+
+
+def test_reify_module_by_reference():
+    assert _rt(math) is math
+
+
+def test_reify_lambda_falls_back_to_proxy():
+    # No importable name — reference metadata is withheld and the structural
+    # proxy fallback still returns *something* rather than raising.
+    fn = lambda x: x  # noqa: E731
+    out = _rt(fn)
+    assert out is not fn and not callable(out)
+    assert type(out).__name__ == "function"
