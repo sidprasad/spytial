@@ -254,19 +254,12 @@ CASES = [
     pytest.param(lambda: WithDefault("n"), id="dc_default"),
     pytest.param(lambda: FrozenPoint(1, 2), id="dc_frozen"),
     pytest.param(lambda: NoReprField(5), id="dc_norepr_field"),
-    # Underscore fields are skipped by DataclassRelationalizer. With the
-    # default value the class attribute masks the gap …
+    # Underscore-prefixed fields are ordinary declared fields. The override
+    # case is the one that catches a name-based skip: with the default value
+    # the class attribute would mask a missing field, but an instance value
+    # of 99 cannot be recovered from the class default of 7.
     pytest.param(lambda: HiddenField(1), id="dc_underscore_default"),
-    # … but an instance-specific value is lost: repr falls back to the class
-    # default (7), not the value the instance held (99).
-    pytest.param(
-        lambda: HiddenField(1, 99),
-        id="dc_underscore_override",
-        marks=_unsupported(
-            "underscore-prefixed dataclass fields are not relationalized; "
-            "reify restores only the class-level default"
-        ),
-    ),
+    pytest.param(lambda: HiddenField(1, 99), id="dc_underscore_override"),
     # --- ordinary user-defined objects ------------------------------------
     pytest.param(lambda: Rect(3, 4), id="obj_with_property"),
     pytest.param(lambda: Slotted(1, "b"), id="obj_slotted"),

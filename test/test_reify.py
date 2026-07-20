@@ -543,6 +543,35 @@ def test_reify_builtin_function_by_reference():
     assert _rt(math.sqrt) is math.sqrt
 
 
+@dataclass
+class UnderscoreNode:
+    value: int
+    _next: Optional["UnderscoreNode"] = None
+
+
+@dataclass
+class WithUnderscoreDefault:
+    shown: int
+    _secret: int = 7
+
+
+def test_underscore_dataclass_fields_are_relationalized():
+    # A `_`-prefixed field is declared schema, not a privacy boundary. Skipping
+    # it used to erase the whole chain: this list drew as one node, no edges.
+    head = UnderscoreNode(1, UnderscoreNode(2, UnderscoreNode(3)))
+    di = CnDDataInstanceBuilder().build_instance(head)
+    assert {r["name"] for r in di["relations"]} == {"value", "_next"}
+    assert sum(1 for a in di["atoms"] if a["type"] == "UnderscoreNode") == 3
+
+
+def test_reify_recovers_underscore_field_instance_value():
+    # The class default (7) must not stand in for the instance's value (99).
+    obj = WithUnderscoreDefault(1, 99)
+    out = _rt(obj)
+    assert out._secret == 99
+    assert repr(out) == repr(obj)
+
+
 def test_reify_builtin_bound_method_falls_back_to_proxy():
     # [].append has __module__ = None; resolving its qualname would return the
     # unbound descriptor, so it gets no reference metadata and proxies instead.
