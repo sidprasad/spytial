@@ -9,6 +9,8 @@ These cover the regression reported as sidprasad/spytial#90:
 * rootId is honoured even when topology alone would pick a different atom
 """
 
+import enum
+import math
 from dataclasses import dataclass, field
 from typing import List, Optional
 
@@ -455,3 +457,194 @@ def test_reify_skips_property_setter_that_rejects_value():
     # rather than aborting the whole reconstruction.
     out = CnDDataInstanceBuilder().reify(di)
     assert type(out) is Account
+
+
+# ---------------------------------------------------------------------------
+# Leaf primitives: complex, bytes, bytearray, range, NotImplemented, Ellipsis
+# ---------------------------------------------------------------------------
+
+
+def _rt(value):
+    b = CnDDataInstanceBuilder()
+    return b.reify(b.build_instance(value))
+
+
+def test_reify_complex_value():
+    assert _rt(complex(1, -2)) == complex(1, -2)
+    assert _rt(complex(float("inf"), 1.5)) == complex(float("inf"), 1.5)
+
+
+def test_reify_bytes_value():
+    assert _rt(b"ab\x00\xff") == b"ab\x00\xff"
+    assert _rt(b"") == b""
+
+
+def test_reify_bytearray_is_fresh_mutable_copy():
+    ba = bytearray(b"mut")
+    out = _rt(ba)
+    assert isinstance(out, bytearray) and out == ba and out is not ba
+
+
+def test_reify_equal_bytearrays_stay_distinct_objects():
+    # Mutable: two equal bytearrays must not collapse onto one atom/object.
+    pair = [bytearray(b"x"), bytearray(b"x")]
+    out = _rt(pair)
+    assert out == pair and out[0] is not out[1]
+
+
+def test_reify_singletons():
+    assert _rt(NotImplemented) is NotImplemented
+    assert _rt(...) is ...
+
+
+def test_reify_range():
+    assert _rt(range(5)) == range(5)
+    assert _rt(range(1, 10, 2)) == range(1, 10, 2)
+    assert _rt(range(10, 0, -3)) == range(10, 0, -3)
+
+
+# ---------------------------------------------------------------------------
+# Reference semantics: enum members, functions, classes, modules reify to the
+# identical object, not a reconstruction.
+# ---------------------------------------------------------------------------
+
+
+class Fruit(enum.Enum):
+    APPLE = 1
+    BANANA = 2
+
+
+class Priority(enum.IntEnum):
+    LOW = 1
+    HIGH = 2
+
+
+def top_level_helper(x):
+    return x
+
+
+def test_reify_enum_member_is_singleton():
+    assert _rt(Fruit.APPLE) is Fruit.APPLE
+
+
+def test_reify_intenum_routes_to_enum_not_int():
+    # IntEnum members are isinstance(int); the enum relationalizer must
+    # outrank the primitive one or they'd come back as plain ints.
+    out = _rt(Priority.HIGH)
+    assert out is Priority.HIGH and type(out) is Priority
+
+
+def test_reify_function_by_reference():
+    assert _rt(top_level_helper) is top_level_helper
+
+
+def test_reify_builtin_function_by_reference():
+    assert _rt(len) is len
+    assert _rt(math.sqrt) is math.sqrt
+
+
+@dataclass
+class UnderscoreNode:
+    value: int
+    _next: Optional["UnderscoreNode"] = None
+
+
+@dataclass
+class WithUnderscoreDefault:
+    shown: int
+    _secret: int = 7
+
+
+def test_underscore_dataclass_fields_are_relationalized():
+    # A `_`-prefixed field is declared schema, not a privacy boundary. Skipping
+    # it used to erase the whole chain: this list drew as one node, no edges.
+    head = UnderscoreNode(1, UnderscoreNode(2, UnderscoreNode(3)))
+    di = CnDDataInstanceBuilder().build_instance(head)
+    assert {r["name"] for r in di["relations"]} == {"value", "_next"}
+    assert sum(1 for a in di["atoms"] if a["type"] == "UnderscoreNode") == 3
+
+
+def test_reify_recovers_underscore_field_instance_value():
+    # The class default (7) must not stand in for the instance's value (99).
+    obj = WithUnderscoreDefault(1, 99)
+    out = _rt(obj)
+    assert out._secret == 99
+    assert repr(out) == repr(obj)
+
+
+def test_reify_builtin_bound_method_falls_back_to_proxy():
+    # [].append has __module__ = None; resolving its qualname would return the
+    # unbound descriptor, so it gets no reference metadata and proxies instead.
+    lst = [1]
+    out = _rt(lst.append)
+    assert out is not lst.append and not callable(out)
+
+
+def test_reify_class_object_by_reference():
+    assert _rt(dict) is dict
+    assert _rt(Fruit) is Fruit
+
+
+def test_reify_module_by_reference():
+    assert _rt(math) is math
+
+
+# Module-level rebinding, which is the only place the hazard is real: a
+# function or class defined inside a test carries "<locals>" in its qualname
+# and is rejected before the identity check ever runs.
+
+
+def rebindable():
+    return "ORIGINAL"
+
+
+alias_of_rebindable = rebindable  # keeps __qualname__ == "rebindable"
+
+
+def rebindable():  # noqa: F811 — the rebinding is the point
+    return "REBOUND"
+
+
+class Shade(enum.Enum):
+    DARK = 1
+
+
+original_shade = Shade.DARK
+
+
+class Shade(enum.Enum):  # noqa: F811 — the rebinding is the point
+    DARK = 99
+
+
+def test_alias_and_rebind_really_diverge():
+    # Guards the fixtures above: if these ever stopped diverging, the two
+    # tests below would pass vacuously.
+    assert alias_of_rebindable() == "ORIGINAL" and rebindable() == "REBOUND"
+    assert alias_of_rebindable.__qualname__ == "rebindable"
+    assert original_shade.value == 1 and Shade.DARK.value == 99
+
+
+def test_reify_refuses_reference_when_name_was_rebound():
+    # The alias's recorded qualname no longer leads back to it. Resolving that
+    # name at reify time returns the *second* function: not a proxy, but a
+    # different callable that silently behaves differently.
+    out = _rt(alias_of_rebindable)
+    assert out is not alias_of_rebindable
+    assert not callable(out), "must not hand back the rebound function"
+
+
+def test_reify_refuses_enum_reference_when_class_was_rebound():
+    # Same hazard through a class: looking DARK up on whatever Shade resolves
+    # to now yields a same-named member of a different enum (99, not 1).
+    out = _rt(original_shade)
+    assert out is not Shade.DARK
+    assert getattr(out, "value", None) != 99
+
+
+def test_reify_lambda_falls_back_to_proxy():
+    # No importable name — reference metadata is withheld and the structural
+    # proxy fallback still returns *something* rather than raising.
+    fn = lambda x: x  # noqa: E731
+    out = _rt(fn)
+    assert out is not fn and not callable(out)
+    assert type(out).__name__ == "function"

@@ -23,10 +23,18 @@ class Atom:
     id: str
     type: str
     label: str
+    # Optional extra keys merged into the emitted dict — used by reference
+    # relationalizers to record a value's own importable identity (e.g.
+    # __ref_module__/__ref_qualname__). spytial-core ignores unknown keys,
+    # matching the existing __module__/__qualname__ convention set by _walk.
+    meta: Optional[Dict[str, str]] = None
 
     def to_dict(self) -> Dict[str, str]:
         """Convert atom to dictionary format expected by CnD."""
-        return {"id": self.id, "type": self.type, "label": self.label}
+        d = {"id": self.id, "type": self.type, "label": self.label}
+        if self.meta:
+            d.update(self.meta)
+        return d
 
 
 @dataclasses.dataclass

@@ -23,11 +23,18 @@ class DataclassRelationalizer(RelationalizerBase):
 
         atom = Atom(id=obj_id, type=typ, label=label)
 
+        # Every declared field is relationalized, including underscore-prefixed
+        # ones. A dataclass field is schema, not a privacy boundary: Python
+        # decides fields by annotation alone, and `_x` participates in
+        # __init__, __repr__, and __eq__ like any other. Skipping them dropped
+        # structure from the diagram (a `_next` pointer drew no edge) and let
+        # reify silently restore the class-level default in place of the
+        # instance's real value. Hiding a field is a display decision, so it
+        # belongs in a directive rather than here.
         relations = []
         for field in dataclasses.fields(obj):
-            if not field.name.startswith("_"):
-                value = getattr(obj, field.name)
-                vid = walker_func(value)
-                relations.append(Relation(field.name, [obj_id, vid]))
+            value = getattr(obj, field.name)
+            vid = walker_func(value)
+            relations.append(Relation(field.name, [obj_id, vid]))
 
         return [atom], relations

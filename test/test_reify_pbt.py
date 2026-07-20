@@ -15,7 +15,8 @@ value's textual form — exactly the inspection string a REPL would print.
 
 Scope of the generated values (what the round-trip is *designed* to recover):
 
-* Leaves: ``None``, ``bool``, ``int``, ``float`` (incl. ``nan``/``inf``), ``str``.
+* Leaves: ``None``, ``bool``, ``int``, ``float`` (incl. ``nan``/``inf``),
+  ``complex``, ``str``, ``bytes``.
 * Order-stable containers: ``list``, ``tuple``, and ``dict`` (insertion-ordered).
 * ``dict`` keys: primitives, ``None``, and **tuples of those** all round-trip —
   ``DictRelationalizer`` walks every key structurally, so a complex key keeps
@@ -25,9 +26,12 @@ Scope of the generated values (what the round-trip is *designed* to recover):
   insertion/resize history), so they are kept out of the ``repr``-stable
   generator and covered by element recovery instead (see the set property and
   ``test_reify.py`` for frozensets), not ``repr``-string equality.
-* ``bytes`` and the documented long tail (enums, ``int``/``str`` subclasses,
-  numpy) are out of scope — they fall back to the attribute-bag proxy and are
-  intentionally not generated here.
+* Enum members, functions, classes, and modules reify by *reference* (the
+  datum records an importable identity; reify returns the identical object)
+  and are covered by direct tests in ``test_reify.py``, not generated here.
+* The remaining long tail (``int``/``str`` subclasses, numpy) is out of
+  scope — those fall back to the attribute-bag proxy and are intentionally
+  not generated here.
 """
 
 from collections import Counter
@@ -48,13 +52,17 @@ def _roundtrip(value):
 # ---------------------------------------------------------------------------
 
 # Leaves whose repr is a pure function of the value. nan/inf are kept: their
-# repr ('nan'/'inf') round-trips even though `==` would not.
+# repr ('nan'/'inf') round-trips even though `==` would not. complex parses
+# its own str form back (including inf/nan components), and bytes travel as
+# their b'...' literal in the atom label.
 atoms = st.one_of(
     st.none(),
     st.booleans(),
     st.integers(),
     st.floats(allow_nan=True, allow_infinity=True),
+    st.complex_numbers(allow_nan=True, allow_infinity=True),
     st.text(),
+    st.binary(),
 )
 
 # Hashable values usable as dict keys and set elements: primitives, None, and
@@ -70,7 +78,9 @@ hashable_atoms = st.recursive(
         st.booleans(),
         st.integers(),
         st.floats(allow_nan=False, allow_infinity=True),
+        st.complex_numbers(allow_nan=False, allow_infinity=True),
         st.text(),
+        st.binary(),
     ),
     lambda children: st.lists(children).map(tuple),
     max_leaves=8,

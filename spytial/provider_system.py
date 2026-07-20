@@ -5,8 +5,11 @@ This module provides a pluggable system for converting Python objects
 into CnD-compatible atom/relation representations using relationalizers.
 """
 
+import ast
+import enum
 import importlib
 import inspect
+import sys
 from typing import Any, Callable, Dict, List, Optional, Tuple, Type
 
 # Import base classes from domain-relationalizers
@@ -44,14 +47,40 @@ def _invoke_custom_reifier(fn, atom, relations, reify_atom, register):
     return fn(atom, relations, reify_atom)
 
 
-def _resolve_class(module_name: Optional[str], qualname: Optional[str]) -> Optional[type]:
-    """Resolve a class object from its module + qualified name.
+# One level of walk nesting costs 3-4 Python stack frames (measured: 3 for
+# dicts, 4 for lists and dataclasses). Dividing the interpreter's frame budget
+# by 8 leaves roughly a 2x margin for the caller's own stack, so the walker's
+# own guard always trips before CPython's — the former raises one clean error,
+# the latter unwinds thousands of frames. Floored so this never allows less
+# than the historical fixed limit of 100, and capped because a deliberately
+# huge recursionlimit can outrun the actual C stack.
+_FRAMES_PER_LEVEL = 8
+_MIN_WALK_DEPTH = 100
+_MAX_WALK_DEPTH = 1000
 
-    Returns ``None`` when the class can't be located — defined in a closure or
+
+def default_max_depth() -> int:
+    """Deepest nesting :meth:`CnDDataInstanceBuilder._walk` will follow.
+
+    Derived from ``sys.getrecursionlimit()`` at call time, so raising the
+    interpreter's limit raises this too: 100 on a stock CPython (limit 1000),
+    375 at a limit of 3000. Tracked for removal in sidprasad/spytial#131,
+    which makes the walk iterative and drops the ceiling entirely.
+    """
+    return max(
+        _MIN_WALK_DEPTH,
+        min(_MAX_WALK_DEPTH, sys.getrecursionlimit() // _FRAMES_PER_LEVEL),
+    )
+
+
+def _resolve_named(module_name: Optional[str], qualname: Optional[str]) -> Optional[Any]:
+    """Resolve any module attribute from its module + qualified name.
+
+    Returns ``None`` when the object can't be located — defined in a closure or
     comprehension (``<locals>`` in the qualname), module not importable, or the
-    dotted path doesn't resolve to a class. Callers fall back to a structural
-    proxy in that case. In the same-process / round-trip-to-host setting the
-    class is always importable (including ``__main__`` for REPL/script code).
+    dotted path doesn't resolve. In the same-process / round-trip-to-host
+    setting the module is always importable (including ``__main__`` for
+    REPL/script code).
     """
     if not module_name or not qualname or "<locals>" in qualname:
         return None
@@ -65,6 +94,16 @@ def _resolve_class(module_name: Optional[str], qualname: Optional[str]) -> Optio
             obj = getattr(obj, part)
         except AttributeError:
             return None
+    return obj
+
+
+def _resolve_class(module_name: Optional[str], qualname: Optional[str]) -> Optional[type]:
+    """Resolve a class object from its module + qualified name.
+
+    Type-filtering wrapper over :func:`_resolve_named`; callers on the
+    instance-rebuild path fall back to a structural proxy on ``None``.
+    """
+    obj = _resolve_named(module_name, qualname)
     return obj if isinstance(obj, type) else None
 
 
@@ -161,6 +200,9 @@ class CnDDataInstanceBuilder:
         self._persistent_atom_labels: Dict[str, str] = {}
         self._collected_decorators = {"constraints": [], "directives": []}
         self._current_depth = 0  # Track current recursion depth
+        # Refreshed per build_instance so a caller who raises the interpreter's
+        # recursion limit gets a deeper walk without rebuilding the builder.
+        self._max_depth = default_max_depth()
         # Extensibility mechanism: custom reifiers for specific types
         self._custom_reifiers = {}
         self._type_label_counters = {}  # Per-type counters for fallback labels
@@ -185,6 +227,7 @@ class CnDDataInstanceBuilder:
         self._build_identity_objects = {}
         self._collected_decorators = {"constraints": [], "directives": []}
         self._current_depth = 0  # Reset depth
+        self._max_depth = default_max_depth()
         # Persist placeholder counters across builds when atom IDs are also
         # being persisted — otherwise every frame's "first new atom of type X"
         # gets index 0, collapsing distinct atoms onto the same TypeN label.
@@ -233,9 +276,13 @@ class CnDDataInstanceBuilder:
         try:
             root_atom_id = self._walk(obj)
         except Exception as e:
-            print(f"Error during data instance building: {e}")
-            print("Object:", obj)
-            raise
+            # Report the object by type, never by repr: the failures that reach
+            # here are usually deep or cyclic structures, whose repr is a
+            # screenful at best and can itself raise while formatting.
+            raise type(e)(
+                f"{e} (while building a data instance for a "
+                f"{type(obj).__name__})"
+            ).with_traceback(e.__traceback__) from None
 
         # Cache the root so a later reify() call can reconstruct the same
         # object even when the graph is cyclic (topology alone can't pick the
@@ -360,12 +407,27 @@ class CnDDataInstanceBuilder:
         For primitives, uses value-based lookup to avoid race conditions with memory addresses.
         For objects, uses memory-based ID with spytial registry fallback.
         """
-        # For primitive types, always use value-based ID (no memory address confusion)
-        if isinstance(obj, (int, float, bool)) or obj is None:
+        # For primitive types, always use value-based ID (no memory address
+        # confusion). Enum members (incl. IntEnum/StrEnum) are excluded: they
+        # are singletons handled by reference, and a value-based ID would
+        # collide with the plain int/str atom carrying the same value.
+        if isinstance(obj, enum.Enum):
+            pass
+        elif isinstance(obj, (int, float, bool)) or obj is None:
             return str(obj)
         elif isinstance(obj, str):
             # For strings, use quoted representation to distinguish from other IDs
             return f'"{obj}"'
+        elif isinstance(obj, complex):
+            return str(obj)
+        elif isinstance(obj, bytes):
+            # bytes repr starts with b' so it cannot collide with quoted str IDs
+            return repr(obj)
+        elif obj is NotImplemented or obj is Ellipsis:
+            return str(obj)
+        # NOTE: bytearray stays on the memory-based path below — it is mutable,
+        # and a value-based ID would alias equal-but-distinct bytearrays into
+        # one reified object.
 
         # For non-primitive objects, use memory-based ID with caching
         oid = id(obj)
@@ -428,11 +490,22 @@ class CnDDataInstanceBuilder:
             self._id_counter += 1
         return self._seen[oid]
 
-    def _walk(self, obj: Any, max_depth: int = 100) -> str:
-        """Walk an object using the appropriate provider."""
+    def _walk(self, obj: Any, max_depth: Optional[int] = None) -> str:
+        """Walk an object using the appropriate provider.
+
+        ``max_depth`` defaults to :func:`default_max_depth`, derived from the
+        interpreter's recursion limit so this guard trips before CPython's.
+        """
+        if max_depth is None:
+            max_depth = self._max_depth
         self._current_depth += 1
         if self._current_depth > max_depth:
-            raise RecursionError("Maximum recursion depth exceeded")
+            raise RecursionError(
+                f"Object nests deeper than {max_depth} levels, the limit for "
+                f"this interpreter (sys.getrecursionlimit() = "
+                f"{sys.getrecursionlimit()}). Raise the recursion limit to "
+                f"walk deeper."
+            )
 
         oid = id(obj)
         if oid in self._seen:
@@ -544,7 +617,23 @@ class CnDDataInstanceBuilder:
         """
         type_map = {}
 
-        BUILTINTYPES = {"int", "float", "str", "bool", "NoneType", "object"}
+        BUILTINTYPES = {
+            "int",
+            "float",
+            "complex",
+            "str",
+            "bytes",
+            "bytearray",
+            "bool",
+            "NoneType",
+            "NotImplementedType",
+            "ellipsis",
+            "range",
+            "function",
+            "module",
+            "type",
+            "object",
+        }
 
         # Iterate over all atoms to populate the type map
         for atom in atoms:
@@ -644,10 +733,39 @@ class CnDDataInstanceBuilder:
             atom_type = atom["type"]
             atom_label = atom["label"]
 
-            if atom_type in {"str", "int", "float", "bool", "NoneType"}:
+            if atom_type in {
+                "str",
+                "int",
+                "float",
+                "complex",
+                "bool",
+                "NoneType",
+                "bytes",
+                "bytearray",
+                "NotImplementedType",
+                "ellipsis",
+            }:
                 obj = self._reify_primitive(atom_type, atom_label)
                 reconstructed[atom_id] = obj
                 return obj
+
+            # Reference atoms: named singletons recorded by importable
+            # identity (functions, classes, modules). Return the very object
+            # the name resolves to — reference semantics, not reconstruction.
+            ref_import = atom.get("__ref_import__")
+            if isinstance(ref_import, str):
+                try:
+                    obj = importlib.import_module(ref_import)
+                    reconstructed[atom_id] = obj
+                    return obj
+                except Exception:
+                    pass  # unimportable — fall through to generic handling
+            ref_qualname = atom.get("__ref_qualname__")
+            if isinstance(ref_qualname, str):
+                obj = _resolve_named(atom.get("__ref_module__"), ref_qualname)
+                if obj is not None:
+                    reconstructed[atom_id] = obj
+                    return obj
 
             relations_for_atom = relation_map.get(atom_id, {})
 
@@ -689,6 +807,8 @@ class CnDDataInstanceBuilder:
                     register,
                     frozen=(atom_type == "frozenset"),
                 )
+            elif atom_type == "range":
+                obj = self._reify_range(relations_for_atom, reify_atom)
             else:
                 obj = self._reify_generic_object(
                     atom, relations_for_atom, reify_atom, register
@@ -781,6 +901,18 @@ class CnDDataInstanceBuilder:
             return atom_label.lower() == "true"
         elif atom_type == "NoneType":
             return None
+        elif atom_type == "complex":
+            # complex() parses its own str form, including inf/nan components
+            return complex(atom_label)
+        elif atom_type == "bytes":
+            # The label is the b'...' literal emitted by PrimitiveRelationalizer
+            return ast.literal_eval(atom_label)
+        elif atom_type == "bytearray":
+            return bytearray(ast.literal_eval(atom_label))
+        elif atom_type == "NotImplementedType":
+            return NotImplemented
+        elif atom_type == "ellipsis":
+            return Ellipsis
         else:
             raise ValueError(f"Unknown primitive type: {atom_type}")
 
@@ -903,6 +1035,24 @@ class CnDDataInstanceBuilder:
             result.add(reify_atom(target_id))
         return result
 
+    def _reify_range(self, relations: Dict, reify_atom) -> range:
+        """Reconstruct a range from its ``start``/``stop``/``step`` relations.
+
+        Matches both RangeRelationalizer's output and the relation names the
+        generic-object capture produced before it existed, so older data
+        instances reify identically.
+        """
+
+        def part(name: str, default: int) -> int:
+            targets = relations.get(name, [])
+            if not targets:
+                return default
+            value = reify_atom(targets[0])
+            return value if isinstance(value, int) else default
+
+        step = part("step", 1)
+        return range(part("start", 0), part("stop", 0), step if step != 0 else 1)
+
     def _reify_generic_object(
         self, atom: Dict, relations: Dict, reify_atom, register
     ) -> Any:
@@ -949,6 +1099,14 @@ class CnDDataInstanceBuilder:
 
         # Preferred path: rebuild the genuine class instance.
         cls = _resolve_class(atom.get("__module__"), atom.get("__qualname__"))
+        if cls is not None and issubclass(cls, enum.Enum):
+            # An enum member reaching here means its verified __ref_qualname__
+            # was absent, so the name did not lead back to the member at
+            # capture time (a rebound enum class is the usual cause). Looking
+            # the label up on whatever this name resolves to now would hand
+            # back a same-named member of a different enum, which is precisely
+            # the substitution the verification exists to prevent. Proxy instead.
+            cls = None
         if cls is not None:
             try:
                 obj = object.__new__(cls)
