@@ -21,7 +21,7 @@
       
       
       <link rel="icon" href="../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
     
     
       
@@ -29,7 +29,7 @@
       
     
     
-      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
+      <link rel="stylesheet" href="../../assets/stylesheets/main.ec1eaa64.min.css">
       
         
         <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
@@ -3116,6 +3116,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#spytial.provider_system.default_max_depth" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        default_max_depth
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#spytial.provider_system.relationalizer" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -5518,6 +5529,17 @@
         
       </ul>
     </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#spytial.provider_system.default_max_depth" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        default_max_depth
+      
+    </span>
+  </a>
   
 </li>
         
@@ -13693,6 +13715,28 @@ values that fall back to a structural proxy render as
 <div class="doc doc-object doc-function">
 
 
+<h3 id="spytial.provider_system.default_max_depth" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-function"></code>            <code class="highlight language-python"><span class="n">default_max_depth</span><span class="p">()</span></code>
+
+</h3>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Deepest nesting :meth:<code>CnDDataInstanceBuilder._walk</code> will follow.</p>
+<p>Derived from <code>sys.getrecursionlimit()</code> at call time, so raising the
+interpreter's limit raises this too: 100 on a stock CPython (limit 1000),
+375 at a limit of 3000. Tracked for removal in sidprasad/spytial#131,
+which makes the walk iterative and drops the ceiling entirely.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
 <h3 id="spytial.provider_system.relationalizer" class="doc doc-heading">
 <code class="doc-symbol doc-symbol-heading doc-symbol-function"></code>            <code class="highlight language-python"><span class="n">relationalizer</span><span class="p">(</span><span class="bp">cls</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">priority</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span></code>
 
@@ -14227,7 +14271,7 @@ Returns 'inline' in notebooks, 'browser' otherwise.</p>
       <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.tabs", "navigation.top", "toc.follow", "content.code.copy"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
     
     
-      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      <script src="../../assets/javascripts/bundle.d7400e89.min.js"></script>
       
         <script src="../../javascripts/playground-newtab.js"></script>
       
