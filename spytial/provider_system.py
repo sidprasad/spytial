@@ -1100,13 +1100,13 @@ class CnDDataInstanceBuilder:
         # Preferred path: rebuild the genuine class instance.
         cls = _resolve_class(atom.get("__module__"), atom.get("__qualname__"))
         if cls is not None and issubclass(cls, enum.Enum):
-            # Reference semantics: an enum member is a singleton. Look it up by
-            # name (the atom label) instead of rebuilding a hollow instance, so
-            # ``is`` and the member's real repr both hold.
-            try:
-                return cls[atom["label"]]
-            except KeyError:
-                pass  # unknown member name — fall through to the proxy path
+            # An enum member reaching here means its verified __ref_qualname__
+            # was absent, so the name did not lead back to the member at
+            # capture time (a rebound enum class is the usual cause). Looking
+            # the label up on whatever this name resolves to now would hand
+            # back a same-named member of a different enum, which is precisely
+            # the substitution the verification exists to prevent. Proxy instead.
+            cls = None
         if cls is not None:
             try:
                 obj = object.__new__(cls)

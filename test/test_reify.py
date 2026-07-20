@@ -589,6 +589,58 @@ def test_reify_module_by_reference():
     assert _rt(math) is math
 
 
+# Module-level rebinding, which is the only place the hazard is real: a
+# function or class defined inside a test carries "<locals>" in its qualname
+# and is rejected before the identity check ever runs.
+
+
+def rebindable():
+    return "ORIGINAL"
+
+
+alias_of_rebindable = rebindable  # keeps __qualname__ == "rebindable"
+
+
+def rebindable():  # noqa: F811 — the rebinding is the point
+    return "REBOUND"
+
+
+class Shade(enum.Enum):
+    DARK = 1
+
+
+original_shade = Shade.DARK
+
+
+class Shade(enum.Enum):  # noqa: F811 — the rebinding is the point
+    DARK = 99
+
+
+def test_alias_and_rebind_really_diverge():
+    # Guards the fixtures above: if these ever stopped diverging, the two
+    # tests below would pass vacuously.
+    assert alias_of_rebindable() == "ORIGINAL" and rebindable() == "REBOUND"
+    assert alias_of_rebindable.__qualname__ == "rebindable"
+    assert original_shade.value == 1 and Shade.DARK.value == 99
+
+
+def test_reify_refuses_reference_when_name_was_rebound():
+    # The alias's recorded qualname no longer leads back to it. Resolving that
+    # name at reify time returns the *second* function: not a proxy, but a
+    # different callable that silently behaves differently.
+    out = _rt(alias_of_rebindable)
+    assert out is not alias_of_rebindable
+    assert not callable(out), "must not hand back the rebound function"
+
+
+def test_reify_refuses_enum_reference_when_class_was_rebound():
+    # Same hazard through a class: looking DARK up on whatever Shade resolves
+    # to now yields a same-named member of a different enum (99, not 1).
+    out = _rt(original_shade)
+    assert out is not Shade.DARK
+    assert getattr(out, "value", None) != 99
+
+
 def test_reify_lambda_falls_back_to_proxy():
     # No importable name — reference metadata is withheld and the structural
     # proxy fallback still returns *something* rather than raising.
