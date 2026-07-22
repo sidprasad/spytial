@@ -322,6 +322,18 @@ def test_cannot_reply_raises_with_the_models_reason(monkeypatch):
         )
 
 
+@pytest.mark.parametrize("candidates", [None, 7, "not an array", {"bad": "shape"}])
+def test_malformed_candidates_raise_with_the_models_reason(monkeypatch, candidates):
+    _stub_eval(monkeypatch, {})
+    model = FakeAsk(
+        {"candidates": candidates, "cannot": "the provider could not translate it"}
+    )
+    with pytest.raises(AskError, match="the provider could not translate it"):
+        _ask.ask_draft(
+            _draft(), _ci(), "make it pretty", provider=model, examples=[_instance()]
+        )
+
+
 def test_unvalidatable_translation_raises_with_diagnostics(monkeypatch):
     # `value` resolves at arity 2 is the default; force arity 1 so orientation fails.
     _stub_eval(monkeypatch, {"int": (True, False, 1)})

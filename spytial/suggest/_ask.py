@@ -222,7 +222,12 @@ def ask_draft(
     seen_rows: set = set()
     for round_i in range(_MAX_ROUNDS):
         data = _call_provider(provider, ci, vocab, statement, len(datums), feedback)
-        candidates = [c for c in data.get("candidates", []) if isinstance(c, dict)]
+        raw_candidates = data.get("candidates", [])
+        candidates = (
+            [c for c in raw_candidates if isinstance(c, dict)]
+            if isinstance(raw_candidates, list)
+            else []
+        )
         cannot = _as_str(data.get("cannot")) or None
         if not candidates:
             break  # the model declined (or had nothing left to repair)
