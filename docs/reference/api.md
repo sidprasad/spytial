@@ -18,6 +18,10 @@ This section is generated directly from the Spytial source code using `mkdocstri
 
 ::: spytial.structured_input
 
+## Suggestion
+
+::: spytial.suggest
+
 ## Annotations
 
 ::: spytial.annotations
