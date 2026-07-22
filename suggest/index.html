@@ -957,6 +957,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#ask-for-a-directive-in-your-own-words" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Ask for a directive in your own words
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#limits" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1161,6 +1172,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#ask-for-a-directive-in-your-own-words" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Ask for a directive in your own words
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#limits" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1197,12 +1219,16 @@ directives — a lightweight scaffold you then edit, not a finished spec. By
 default it is pure static analysis: no LLM, no network, no extra dependencies
 (an optional model-backed enrichment layer is described <a href="#optional-llm-enrichment">below</a>).
 The whole point is to get you past the blank page.</p>
-<p>It lives in its own subpackage and is <strong>not</strong> imported by <code>spytial</code> itself, so
-you opt in:</p>
-<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">spytial.suggest</span><span class="w"> </span><span class="kn">import</span> <span class="n">suggest</span>
+<p>It lives in its own subpackage and is <strong>not</strong> imported by <code>spytial</code> itself —
+nothing loads until you reach for it. Both spellings work:</p>
+<div class="highlight"><pre><span></span><code><span class="kn">import</span><span class="w"> </span><span class="nn">spytial</span>
+
+<span class="n">draft</span> <span class="o">=</span> <span class="n">spytial</span><span class="o">.</span><span class="n">suggest</span><span class="p">(</span><span class="n">TreeNode</span><span class="p">)</span>      <span class="c1"># the subpackage is callable</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">draft</span><span class="o">.</span><span class="n">to_source</span><span class="p">())</span>
+</code></pre></div>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">spytial.suggest</span><span class="w"> </span><span class="kn">import</span> <span class="n">suggest</span>    <span class="c1"># or import the function</span>
 
 <span class="n">draft</span> <span class="o">=</span> <span class="n">suggest</span><span class="p">(</span><span class="n">TreeNode</span><span class="p">)</span>
-<span class="nb">print</span><span class="p">(</span><span class="n">draft</span><span class="o">.</span><span class="n">to_source</span><span class="p">())</span>
 </code></pre></div>
 <div class="highlight"><pre><span></span><code>@spytial.orientation(selector=&#39;left&#39;, directions=[&#39;below&#39;, &#39;left&#39;])   # left child of the same type → tree edge below-left
 @spytial.orientation(selector=&#39;right&#39;, directions=[&#39;below&#39;, &#39;right&#39;])  # right child of the same type → tree edge below-right
@@ -1420,6 +1446,56 @@ A selector can only be validated by running it over data (the engine has no
 schema-only mode), which is why that tier needs the examples and the shape tier
 above does not. It runs headlessly on a vendored spytial-core evaluator, so it
 needs only a <code>node</code> runtime.</p>
+<h2 id="ask-for-a-directive-in-your-own-words">Ask for a directive in your own words</h2>
+<p>The enrichment tiers propose on their own initiative. <code>ask=</code> is the other
+direction: <strong>you</strong> state what you want, in prose, and the model's only job is to
+translate it —</p>
+<div class="highlight"><pre><span></span><code><span class="kn">import</span><span class="w"> </span><span class="nn">spytial</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">spytial.suggest</span><span class="w"> </span><span class="kn">import</span> <span class="n">ClaudeCode</span>
+
+<span class="n">draft</span> <span class="o">=</span> <span class="n">spytial</span><span class="o">.</span><span class="n">suggest</span><span class="p">(</span>
+    <span class="n">tree</span><span class="p">,</span>
+    <span class="n">ask</span><span class="o">=</span><span class="s2">&quot;all binary tree children should be below their parents&quot;</span><span class="p">,</span>
+    <span class="n">enrich</span><span class="o">=</span><span class="n">ClaudeCode</span><span class="p">(),</span>          <span class="c1"># ask uses the same provider slot</span>
+<span class="p">)</span>
+<span class="n">draft</span><span class="o">.</span><span class="n">to_source</span><span class="p">()</span>
+<span class="c1"># @spytial.orientation(selector=&#39;left + right&#39;, directions=[&#39;below&#39;])  # ask: children hang below their parent</span>
+</code></pre></div>
+<p>A translation reaches the draft only after the full gauntlet:</p>
+<ol>
+<li><strong>Kind + vocabulary</strong> — the directive is one ask can author (<code>orientation</code>,
+   <code>cyclic</code>, <code>align</code>, <code>inferredEdge</code>, <code>hideAtom</code>, <code>atomStyle</code>), and its enum
+   kwargs are in the canonical sets.</li>
+<li><strong>Evaluation</strong> — the selector parses, is non-empty, and has the directive's
+   exact arity on <strong>every</strong> example instance, via the headless evaluator. A
+   failing round is fed back to the model once, with the per-candidate
+   diagnostics, for a repair attempt.</li>
+<li><strong>The authoring gate</strong> — the kwargs run the same validation the <code>@spytial.*</code>
+   decorators run, so an admitted row can't fail later in <code>apply()</code>.</li>
+</ol>
+<p>Because you asked, the ask is <strong>the key thing in the draft</strong> — authoritative on
+the ground it covers. Admitted rows come in <strong>enabled by default</strong> (a
+translation that lands on a row the rules already proposed just switches that
+row on), and an admitted <code>orientation</code>/<code>cyclic</code>/<code>align</code> row <strong>demotes every
+enabled geometric row that overlaps it</strong> — rule-proposed and model-proposed
+alike — to <code>draft.alternatives</code>, kept and one toggle away. Overlap isn't guessed
+from selector syntax: <code>(ask_sel) &amp; (rival_sel)</code> is itself a selector, and a
+non-empty intersection on any example means both constraints claim the same
+edges. So asking for <em>"children below parents"</em> on a binary tree replaces the
+rules' <code>below-left</code>/<code>below-right</code> pair with your plain <code>below</code>, instead of
+stacking a third constraint on the same edges. Styling and hiding rows don't
+fight the layout solver, so they are left alone.</p>
+<p>One ask is not necessarily one directive. A compound sentence — <em>"children
+below their parents, and color the leaves green"</em> — translates to several
+candidates (up to three), each admitted independently. What validates lands;
+a failed part is what the repair round retries; and anything still unvalidated
+after that is recorded in <code>draft.notes</code>, so no half of a request vanishes
+without a trace.</p>
+<p>Every failure, by contrast, is <strong>loud</strong>.
+No provider, no example instance to validate against, no <code>node</code> runtime, or a
+sentence of which <em>nothing</em> survives translation (<code>"make it pretty"</code>) raises
+<code>spytial.suggest.AskError</code> carrying the model's own reason or the per-candidate
+diagnostics — never a silently ignored request.</p>
 <h2 id="limits">Limits</h2>
 <p><code>suggest</code> infers structure from fields and references. It cannot recover
 structure that lives in <em>computation</em> — an array-backed heap whose tree is
