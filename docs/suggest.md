@@ -237,13 +237,52 @@ import spytial
 from spytial.suggest import ClaudeCode
 
 draft = spytial.suggest(
-    tree,
+    TreeNode,
     ask="all binary tree children should be below their parents",
     enrich=ClaudeCode(),          # ask uses the same provider slot
 )
 draft.to_source()
 # @spytial.orientation(selector='left + right', directions=['below'])  # ask: children hang below their parent
 ```
+
+Where did the instance come from? For a class-only ask, `suggest` lazily asks
+Hypothesis for one:
+
+```python
+from spytial.suggest import suggest
+
+# implicit strategy="auto"
+draft = suggest(TreeNode, ask="put every child below its parent", enrich=ClaudeCode())
+
+# the explicit spelling
+draft = suggest(
+    TreeNode,
+    ask="put every child below its parent",
+    strategy="auto",                         # st.from_type(TreeNode)
+    enrich=ClaudeCode(),
+)
+
+# preserve domain invariants with your own family of valid values
+draft = suggest(
+    RedBlackNode,
+    ask="put every child below its parent",
+    strategy=valid_red_black_trees(),
+    enrich=ClaudeCode(),
+)
+```
+
+Install this path with `pip install "spytial_diagramming[suggest-search]"`.
+Generation is bounded and deliberately modest: it finds a concrete witness so
+the model can see a real relational vocabulary and its selector can be executed.
+For recursive types it first tries to populate every recursive root field, then
+falls back to any non-leaf witness. This is not a proof over every value the
+strategy can generate.
+
+`examples=` has a different job. Those are particular, mandatory regression
+cases, and an authored selector must validate on every one. You can combine the
+two: `examples=[awkward_tree]` pins a case you care about, while
+`strategy=valid_trees()` contributes a generated witness. Passing an instance as
+the target is shorthand for a single fixed example.
 
 A translation reaches the draft only after the full gauntlet:
 

@@ -13,8 +13,10 @@ Pass ``instance=`` when a plain class can't be read statically (e.g. children
 default to ``None``), and ``registry=`` to run an isolated set of heuristics.
 Extend the rules with the :func:`heuristic` decorator.
 
-This subpackage is intentionally *not* imported by ``spytial`` itself: it adds
-no dependencies and stays dormant until you reach for it.
+This subpackage is intentionally *not* imported by ``spytial`` itself: the
+ordinary static path adds no dependencies and stays dormant until you reach for
+it.  Class-only ``ask=`` calls lazily use Hypothesis to derive a concrete
+witness; pass ``examples=`` or ``strategy=`` to control that witness set.
 """
 
 from __future__ import annotations
@@ -75,6 +77,7 @@ def suggest(
     *,
     instance: Any = None,
     examples: Optional[List[Any]] = None,
+    strategy: Any = None,
     registry: Optional[HeuristicRegistry] = None,
     enrich: Any = None,
     ask: Optional[str] = None,
@@ -92,6 +95,16 @@ def suggest(
             resolves on *every* example, so several instances narrow the gap toward
             "correct on all data". Defaults to ``[instance]`` (or the instance form of
             ``target``); pass more for the instance-set form. Ignored unless ``enrich``.
+        strategy: an optional Hypothesis strategy that supplies one generated witness
+            in addition to any fixed ``examples``. Pass ``"auto"`` to derive it with
+            ``hypothesis.strategies.from_type(target)``. If ``ask=`` is used with a
+            class and no instance/examples/strategy, ``"auto"`` is implied, so
+            ``suggest(TreeNode, ask=..., enrich=...)`` works directly for a type
+            Hypothesis can construct. Generation is bounded and provides a concrete
+            vocabulary for selector validation; it is not a proof over the whole
+            strategy. Requires the optional ``[suggest-search]`` extra. A failed
+            strategy degrades to a static-draft note unless ``ask=`` makes the witness
+            mandatory, in which case it raises :class:`AskError`.
         registry: an alternate :class:`HeuristicRegistry`; defaults to the global
             one populated with the built-in rules.
         enrich: turn on the optional LLM enrichment layer by saying *what* to enrich
@@ -127,13 +140,16 @@ def suggest(
             the ground it covers: an admitted orientation/cyclic/align row demotes
             every enabled geometric row whose selector overlaps its own (checked by
             evaluating the intersection over the examples) to ``draft.alternatives``.
-            Unlike enrichment, ``ask`` fails **loudly**: a missing provider, no example instance, no headless
-            evaluator, or a translation that can't be validated raises
+            Unlike enrichment, ``ask`` fails **loudly**: a missing provider, no
+            buildable fixed or generated witness, no headless evaluator, or a
+            translation that can't be validated raises
             :class:`AskError` with the reasons.
     """
     if ask is not None:
         if not isinstance(ask, str) or not ask.strip():
-            raise AskError("ask= must be a natural-language request (a non-empty string).")
+            raise AskError(
+                "ask= must be a natural-language request (a non-empty string)."
+            )
         ask = ask.strip()
         if enrich is None or enrich is False:
             raise AskError(
@@ -148,10 +164,36 @@ def suggest(
         instance = target if instance is None else instance
         cls = type(target)
 
-    # The example set drives selector validation (tier-2). Default it to the sampled
+    # Fixed examples drive selector validation (tier-2). Default to the sampled
     # instance so suggest(obj, enrich=...) just works; an explicit examples= list is
-    # the instance-set form. The introspection sample falls back to the first example.
+    # the instance-set form. A strategy adds one generated witness. Class-only ask
+    # implies strategy="auto": its selector translation needs a concrete datum even
+    # though the caller only named a type.
     example_objs = _coerce_examples(examples, instance)
+    strategy_note: Optional[str] = None
+    effective_strategy = strategy
+    if ask is not None and not example_objs and effective_strategy is None:
+        effective_strategy = "auto"
+    if effective_strategy is not None:
+        from ._strategy import StrategyError, find_witness
+
+        static_info = build_class_info(cls)
+        try:
+            witness = find_witness(cls, static_info, effective_strategy)
+        except StrategyError as exc:
+            if ask is not None:
+                raise AskError(f"ask: {exc}") from exc
+            strategy_note = f"strategy skipped: {exc}"
+        else:
+            example_objs.append(witness)
+            origin = (
+                "auto-derived"
+                if isinstance(effective_strategy, str) and effective_strategy == "auto"
+                else "supplied"
+            )
+            strategy_note = (
+                f"strategy: added one Hypothesis witness from the {origin} strategy."
+            )
     sample = (
         instance
         if instance is not None
@@ -161,6 +203,8 @@ def suggest(
     reg = registry if registry is not None else DEFAULT_REGISTRY
     class_info = build_class_info(cls, instance=sample)
     draft = build_draft(class_info, reg)
+    if strategy_note:
+        draft.notes.append(strategy_note)
     # ``None``/``False`` mean "no enrichment"; everything else is a provider spec.
     # Use identity checks, not truthiness — a callable provider whose ``__bool__``
     # (or ``__len__``) is falsy must still resolve, since the contract accepts *any*
@@ -187,9 +231,7 @@ def suggest(
         if ask is not None:
             from ._ask import ask_draft
 
-            ask_draft(
-                draft, class_info, ask, provider=provider, examples=example_objs
-            )
+            ask_draft(draft, class_info, ask, provider=provider, examples=example_objs)
     return draft
 
 
