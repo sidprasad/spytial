@@ -1454,13 +1454,47 @@ translate it —</p>
 <span class="kn">from</span><span class="w"> </span><span class="nn">spytial.suggest</span><span class="w"> </span><span class="kn">import</span> <span class="n">ClaudeCode</span>
 
 <span class="n">draft</span> <span class="o">=</span> <span class="n">spytial</span><span class="o">.</span><span class="n">suggest</span><span class="p">(</span>
-    <span class="n">tree</span><span class="p">,</span>
+    <span class="n">TreeNode</span><span class="p">,</span>
     <span class="n">ask</span><span class="o">=</span><span class="s2">&quot;all binary tree children should be below their parents&quot;</span><span class="p">,</span>
     <span class="n">enrich</span><span class="o">=</span><span class="n">ClaudeCode</span><span class="p">(),</span>          <span class="c1"># ask uses the same provider slot</span>
 <span class="p">)</span>
 <span class="n">draft</span><span class="o">.</span><span class="n">to_source</span><span class="p">()</span>
 <span class="c1"># @spytial.orientation(selector=&#39;left + right&#39;, directions=[&#39;below&#39;])  # ask: children hang below their parent</span>
 </code></pre></div>
+<p>Where did the instance come from? For a class-only ask, <code>suggest</code> lazily asks
+Hypothesis for one:</p>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">spytial.suggest</span><span class="w"> </span><span class="kn">import</span> <span class="n">suggest</span>
+
+<span class="c1"># implicit strategy=&quot;auto&quot;</span>
+<span class="n">draft</span> <span class="o">=</span> <span class="n">suggest</span><span class="p">(</span><span class="n">TreeNode</span><span class="p">,</span> <span class="n">ask</span><span class="o">=</span><span class="s2">&quot;put every child below its parent&quot;</span><span class="p">,</span> <span class="n">enrich</span><span class="o">=</span><span class="n">ClaudeCode</span><span class="p">())</span>
+
+<span class="c1"># the explicit spelling</span>
+<span class="n">draft</span> <span class="o">=</span> <span class="n">suggest</span><span class="p">(</span>
+    <span class="n">TreeNode</span><span class="p">,</span>
+    <span class="n">ask</span><span class="o">=</span><span class="s2">&quot;put every child below its parent&quot;</span><span class="p">,</span>
+    <span class="n">strategy</span><span class="o">=</span><span class="s2">&quot;auto&quot;</span><span class="p">,</span>                         <span class="c1"># st.from_type(TreeNode)</span>
+    <span class="n">enrich</span><span class="o">=</span><span class="n">ClaudeCode</span><span class="p">(),</span>
+<span class="p">)</span>
+
+<span class="c1"># preserve domain invariants with your own family of valid values</span>
+<span class="n">draft</span> <span class="o">=</span> <span class="n">suggest</span><span class="p">(</span>
+    <span class="n">RedBlackNode</span><span class="p">,</span>
+    <span class="n">ask</span><span class="o">=</span><span class="s2">&quot;put every child below its parent&quot;</span><span class="p">,</span>
+    <span class="n">strategy</span><span class="o">=</span><span class="n">valid_red_black_trees</span><span class="p">(),</span>
+    <span class="n">enrich</span><span class="o">=</span><span class="n">ClaudeCode</span><span class="p">(),</span>
+<span class="p">)</span>
+</code></pre></div>
+<p>Install this path with <code>pip install "spytial_diagramming[suggest-search]"</code>.
+Generation is bounded and deliberately modest: it finds a concrete witness so
+the model can see a real relational vocabulary and its selector can be executed.
+For recursive types it first tries to populate every recursive root field, then
+falls back to any non-leaf witness. This is not a proof over every value the
+strategy can generate.</p>
+<p><code>examples=</code> has a different job. Those are particular, mandatory regression
+cases, and an authored selector must validate on every one. You can combine the
+two: <code>examples=[awkward_tree]</code> pins a case you care about, while
+<code>strategy=valid_trees()</code> contributes a generated witness. Passing an instance as
+the target is shorthand for a single fixed example.</p>
 <p>A translation reaches the draft only after the full gauntlet:</p>
 <ol>
 <li><strong>Kind + vocabulary</strong> — the directive is one ask can author (<code>orientation</code>,
