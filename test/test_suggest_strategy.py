@@ -10,7 +10,7 @@ import pytest
 from hypothesis import strategies as st
 
 from spytial.suggest import AskError, build_class_info, suggest
-from spytial.suggest import _eval
+from spytial.suggest import _eval, _strategy
 from spytial.suggest._strategy import StrategyError, find_witness
 
 
@@ -19,6 +19,30 @@ class AutoTree:
     value: int
     left: Optional["AutoTree"] = None
     right: Optional["AutoTree"] = None
+
+
+@dataclass
+class PrivateLink:
+    """A recursive class whose only self-ref field is private (``_next``)."""
+
+    value: int
+    _next: Optional["PrivateLink"] = None
+
+
+@dataclass
+class Cell:
+    """A node-like sibling that Head points at (heterogeneous graph)."""
+
+    tag: int
+    cell: Optional["Cell"] = None
+
+
+@dataclass
+class Head:
+    """Its only self-ref field points at the *sibling* node type Cell, not Head."""
+
+    name: int
+    cell: Optional["Cell"] = None
 
 
 def _nodes(root):
@@ -72,6 +96,50 @@ def test_auto_strategy_finds_a_non_leaf_recursive_witness():
     assert len(_nodes(witness)) >= 3
 
 
+def test_private_only_self_ref_still_gets_a_non_leaf_witness():
+    # The recursive-branch gate (ClassInfo.self_ref_fields) counts the private
+    # `_next`, so this class enters witness population; the fully-populated tier
+    # has no *non-private* field to check and is skipped, but the nontrivial tier
+    # must still keep it from shrinking to a single-node leaf.
+    ci = build_class_info(PrivateLink)
+    assert ci.self_ref_fields == ["_next"]
+
+    witness = find_witness(PrivateLink, ci, "auto")
+
+    datum = _strategy.CnDDataInstanceBuilder().build_instance(witness)
+    link_atoms = sum(a.get("type") == "PrivateLink" for a in datum.get("atoms", []))
+    assert link_atoms >= 2  # not the degenerate one-node leaf
+
+
+def test_heterogeneous_sibling_node_gets_a_populated_witness():
+    # Head's only self-ref field points at the *sibling* node type Cell. The old
+    # root-only predicates could never satisfy fully_populated/nontrivial for such
+    # a graph and fell back to a leaf (Head(cell=None)); node_names now counts Cell
+    # atoms too, so the child relation is populated.
+    ci = build_class_info(Head)
+    assert ci.self_ref_fields == ["cell"]
+
+    witness = find_witness(Head, ci, "auto")
+
+    assert witness.cell is not None  # the sibling-typed child is populated
+
+
+def test_builder_failure_reads_as_a_builder_error_not_an_empty_search(monkeypatch):
+    class BrokenBuilder:
+        def build_instance(self, _obj):
+            raise RuntimeError("builder exploded")
+
+    monkeypatch.setattr(_strategy, "CnDDataInstanceBuilder", BrokenBuilder)
+
+    with pytest.raises(StrategyError) as excinfo:
+        find_witness(AutoTree, build_class_info(AutoTree), "auto")
+
+    message = str(excinfo.value)
+    assert "builder error" in message
+    assert "builder exploded" in message  # the real cause is carried, not masked
+    assert "within the search budget" not in message
+
+
 def test_explicit_strategy_supplies_the_witness():
     wanted = AutoTree(7, left=AutoTree(8))
 
@@ -80,9 +148,33 @@ def test_explicit_strategy_supplies_the_witness():
     assert witness is wanted
 
 
-def test_strategy_without_a_buildable_value_has_a_clear_error():
-    with pytest.raises(StrategyError, match="buildable AutoTree witness"):
+def test_empty_strategy_says_it_generated_nothing_not_budget_exhaustion():
+    # st.nothing() generates no values at all — an empty strategy, not a search
+    # that ran out of budget. The error should say so, not point at the budget.
+    with pytest.raises(StrategyError) as excinfo:
         find_witness(AutoTree, build_class_info(AutoTree), st.nothing())
+
+    message = str(excinfo.value)
+    assert "generated no usable values" in message
+    assert "within the search budget" not in message
+
+
+def test_non_strategy_argument_names_the_real_problem():
+    # Passing something that isn't a strategy must not be reported as a failed
+    # search over the type — the argument itself is wrong.
+    with pytest.raises(StrategyError) as excinfo:
+        find_witness(AutoTree, build_class_info(AutoTree), 42)
+
+    message = str(excinfo.value)
+    assert "not a valid Hypothesis strategy" in message
+    assert "within the search budget" not in message
+
+
+def test_wrong_type_strategy_genuinely_exhausts_the_search_budget():
+    # A valid strategy that simply never yields a buildable AutoTree is a real
+    # exhausted search — here the budget wording is the accurate one.
+    with pytest.raises(StrategyError, match="within the search budget"):
+        find_witness(AutoTree, build_class_info(AutoTree), st.integers())
 
 
 def test_unknown_strategy_string_has_a_clear_error():
