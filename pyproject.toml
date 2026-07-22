@@ -52,6 +52,11 @@ dev = [
 e2e = [
     "playwright>=1.40",
 ]
+# Optional bounded witness generation for class-only suggest(..., ask=...) and
+# explicit strategy= calls. The ordinary static suggest(Cls) path stays stdlib-only.
+suggest-search = [
+    "hypothesis>=6.0.0",
+]
 # Optional LLM enrichment layer for spytial.suggest (spatial-shape suggestions:
 # orientation / cyclic / group over structural fields). The static analyzer needs
 # none of this — it is stdlib-only and the default path.
