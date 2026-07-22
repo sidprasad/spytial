@@ -209,4 +209,20 @@ __all__ = [
     "apply_if",
     # Core version
     "get_spytial_core_version",
+    # Spec scaffolding (lazy — see __getattr__)
+    "suggest",
 ]
+
+
+def __getattr__(name):
+    # ``spytial.suggest`` stays out of the eager imports (it is optional
+    # machinery that must remain dormant until reached for), but the natural
+    # call spelling — ``spytial.suggest(tree, ask=..., enrich=...)`` — should
+    # work. PEP 562: load the subpackage on first attribute access; the module
+    # itself is callable (see spytial/suggest/__init__.py), so both the call
+    # form and ``spytial.suggest.SpecDraft`` behave.
+    if name == "suggest":
+        import importlib
+
+        return importlib.import_module("spytial.suggest")
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

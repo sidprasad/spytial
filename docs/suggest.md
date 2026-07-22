@@ -6,14 +6,20 @@ default it is pure static analysis: no LLM, no network, no extra dependencies
 (an optional model-backed enrichment layer is described [below](#optional-llm-enrichment)).
 The whole point is to get you past the blank page.
 
-It lives in its own subpackage and is **not** imported by `spytial` itself, so
-you opt in:
+It lives in its own subpackage and is **not** imported by `spytial` itself —
+nothing loads until you reach for it. Both spellings work:
 
 ```python
-from spytial.suggest import suggest
+import spytial
+
+draft = spytial.suggest(TreeNode)      # the subpackage is callable
+print(draft.to_source())
+```
+
+```python
+from spytial.suggest import suggest    # or import the function
 
 draft = suggest(TreeNode)
-print(draft.to_source())
 ```
 
 ```text
@@ -219,6 +225,63 @@ A selector can only be validated by running it over data (the engine has no
 schema-only mode), which is why that tier needs the examples and the shape tier
 above does not. It runs headlessly on a vendored spytial-core evaluator, so it
 needs only a `node` runtime.
+
+## Ask for a directive in your own words
+
+The enrichment tiers propose on their own initiative. `ask=` is the other
+direction: **you** state what you want, in prose, and the model's only job is to
+translate it —
+
+```python
+import spytial
+from spytial.suggest import ClaudeCode
+
+draft = spytial.suggest(
+    tree,
+    ask="all binary tree children should be below their parents",
+    enrich=ClaudeCode(),          # ask uses the same provider slot
+)
+draft.to_source()
+# @spytial.orientation(selector='left + right', directions=['below'])  # ask: children hang below their parent
+```
+
+A translation reaches the draft only after the full gauntlet:
+
+1. **Kind + vocabulary** — the directive is one ask can author (`orientation`,
+   `cyclic`, `align`, `inferredEdge`, `hideAtom`, `atomStyle`), and its enum
+   kwargs are in the canonical sets.
+2. **Evaluation** — the selector parses, is non-empty, and has the directive's
+   exact arity on **every** example instance, via the headless evaluator. A
+   failing round is fed back to the model once, with the per-candidate
+   diagnostics, for a repair attempt.
+3. **The authoring gate** — the kwargs run the same validation the `@spytial.*`
+   decorators run, so an admitted row can't fail later in `apply()`.
+
+Because you asked, the ask is **the key thing in the draft** — authoritative on
+the ground it covers. Admitted rows come in **enabled by default** (a
+translation that lands on a row the rules already proposed just switches that
+row on), and an admitted `orientation`/`cyclic`/`align` row **demotes every
+enabled geometric row that overlaps it** — rule-proposed and model-proposed
+alike — to `draft.alternatives`, kept and one toggle away. Overlap isn't guessed
+from selector syntax: `(ask_sel) & (rival_sel)` is itself a selector, and a
+non-empty intersection on any example means both constraints claim the same
+edges. So asking for *"children below parents"* on a binary tree replaces the
+rules' `below-left`/`below-right` pair with your plain `below`, instead of
+stacking a third constraint on the same edges. Styling and hiding rows don't
+fight the layout solver, so they are left alone.
+
+One ask is not necessarily one directive. A compound sentence — *"children
+below their parents, and color the leaves green"* — translates to several
+candidates (up to three), each admitted independently. What validates lands;
+a failed part is what the repair round retries; and anything still unvalidated
+after that is recorded in `draft.notes`, so no half of a request vanishes
+without a trace.
+
+Every failure, by contrast, is **loud**.
+No provider, no example instance to validate against, no `node` runtime, or a
+sentence of which *nothing* survives translation (`"make it pretty"`) raises
+`spytial.suggest.AskError` carrying the model's own reason or the per-candidate
+diagnostics — never a silently ignored request.
 
 ## Limits
 

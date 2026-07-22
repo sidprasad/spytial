@@ -19,9 +19,12 @@ no dependencies and stays dormant until you reach for it.
 
 from __future__ import annotations
 
+import sys as _sys
+import types as _types
 from typing import Any, List, Optional
 
 from . import rules  # noqa: F401  (import for the side effect of registering built-ins)
+from ._ask import AskError
 from ._model import ClassInfo, FieldInfo, SpecDraft, Suggestion
 from .introspect import build_class_info
 from .providers import (
@@ -46,6 +49,7 @@ __all__ = [
     "build_class_info",
     "EnrichProvider",
     "EnrichError",
+    "AskError",
     "LlmModel",
     "ClaudeCode",
     "Codex",
@@ -73,6 +77,7 @@ def suggest(
     examples: Optional[List[Any]] = None,
     registry: Optional[HeuristicRegistry] = None,
     enrich: Any = None,
+    ask: Optional[str] = None,
 ) -> SpecDraft:
     """Analyze a class and return a :class:`SpecDraft` of proposed directives.
 
@@ -110,7 +115,32 @@ def suggest(
             evaluating it over every example. A spec that can't be resolved (``llm``
             missing, unknown id) degrades to the static draft with a note — never
             raises.
+        ask: a natural-language layout request to translate into directive(s) —
+            e.g. ``ask="all binary tree children should be below their parents"``.
+            Uses the same provider as ``enrich`` (which is therefore required), and
+            admits a translation only after it passes the full gauntlet: known
+            directive kind with in-vocabulary kwargs, selector evaluated at the
+            right arity on *every* example, and the same authoring-time validation
+            the ``@spytial.*`` decorators run. Admitted rows are enabled by default
+            and tagged ``source="llm"``; a translation that matches an existing row
+            enables that row instead of duplicating it. The ask is authoritative on
+            the ground it covers: an admitted orientation/cyclic/align row demotes
+            every enabled geometric row whose selector overlaps its own (checked by
+            evaluating the intersection over the examples) to ``draft.alternatives``.
+            Unlike enrichment, ``ask`` fails **loudly**: a missing provider, no example instance, no headless
+            evaluator, or a translation that can't be validated raises
+            :class:`AskError` with the reasons.
     """
+    if ask is not None:
+        if not isinstance(ask, str) or not ask.strip():
+            raise AskError("ask= must be a natural-language request (a non-empty string).")
+        ask = ask.strip()
+        if enrich is None or enrich is False:
+            raise AskError(
+                "ask= needs a model: also pass enrich= — a model-id string, a "
+                "callable provider, or a built-in like ClaudeCode() / Codex()."
+            )
+
     if isinstance(target, type):
         cls = target
     else:
@@ -137,10 +167,15 @@ def suggest(
     # callable.
     if enrich is not None and enrich is not False:
         # Resolve the provider up front: a bad spec (no llm / unknown id / wrong
-        # type) degrades to the static draft with a note rather than raising.
+        # type) degrades to the static draft with a note rather than raising —
+        # unless the user asked, in which case the ask can't be honored: loud.
         try:
             provider = as_provider(enrich)
         except EnrichError as exc:
+            if ask is not None:
+                raise AskError(
+                    f"ask: cannot resolve the enrich= provider ({exc})."
+                ) from exc
             draft.notes.append(f"enrich skipped: {exc}")
             return draft
 
@@ -149,4 +184,27 @@ def suggest(
         draft = enrich_draft(
             draft, class_info, provider=provider, examples=example_objs
         )
+        if ask is not None:
+            from ._ask import ask_draft
+
+            ask_draft(
+                draft, class_info, ask, provider=provider, examples=example_objs
+            )
     return draft
+
+
+class _CallableModule(_types.ModuleType):
+    """Let ``spytial.suggest(...)`` be the call itself.
+
+    The natural spelling — ``spytial.suggest(tree, ask=..., enrich=...)`` — treats
+    this subpackage as the function. Swapping the module's class (the PEP 562-era
+    idiom; ``__class__`` assignment on modules is supported for exactly this) makes
+    the module callable while leaving every other access — ``from spytial.suggest
+    import suggest``, ``spytial.suggest.SpecDraft`` — untouched.
+    """
+
+    def __call__(self, *args, **kwargs):
+        return suggest(*args, **kwargs)
+
+
+_sys.modules[__name__].__class__ = _CallableModule
