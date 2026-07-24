@@ -123,6 +123,37 @@ def test_inherited_annotations_are_declared():
     assert rels["own"] == [["n0", "1"]]
 
 
+def test_annotation_names_are_read_per_class_not_inherited():
+    """The MRO walk needs each class's own annotations.
+
+    Reading them off the class attribute would re-attribute a base's fields at
+    every level, because `klass.__annotations__` falls back to an inherited
+    dict on a class that declares none of its own.
+    """
+    from spytial.domain_relationalizers.generic_object_relationalizer import (
+        _own_annotation_names,
+    )
+
+    class NoOwnAnnotations(Base):
+        pass
+
+    assert _own_annotation_names(Base) == ["inherited"]
+    assert _own_annotation_names(Derived) == ["own"]
+    assert _own_annotation_names(NoOwnAnnotations) == []
+
+
+def test_annotation_names_survive_an_unresolvable_forward_reference():
+    """Python 3.14 evaluates annotations on access; only the names are wanted."""
+    from spytial.domain_relationalizers.generic_object_relationalizer import (
+        _own_annotation_names,
+    )
+
+    class Forward:
+        later: "NeverDefinedAnywhere"  # noqa: F821
+
+    assert _own_annotation_names(Forward) == ["later"]
+
+
 def test_private_annotations_are_not_declared():
     """relationalize skips underscore names, so declaring one is unpopulatable."""
 

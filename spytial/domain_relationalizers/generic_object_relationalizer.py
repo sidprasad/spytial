@@ -15,6 +15,40 @@ import inspect
 from typing import Any, List, Tuple
 from .base import RelationalizerBase, Atom, Relation
 
+try:  # Python 3.14+ (PEP 649) exposes the annotation formats here.
+    import annotationlib
+except ImportError:  # pragma: no cover - the common path on older interpreters
+    annotationlib = None
+
+
+def _own_annotation_names(klass: type) -> List[str]:
+    """Names *klass* itself annotates, ignoring the ones it inherits.
+
+    Python 3.14 (PEP 649) keeps class annotations behind a lazily-called
+    annotate function, so ``vars(klass)`` no longer carries an
+    ``__annotations__`` entry and a plain dict lookup would report every class
+    as fieldless. ``inspect.get_annotations`` reads them through the runtime
+    API and, for a class, returns only that class's own annotations — which is
+    what the MRO walk wants, and why ``klass.__annotations__`` is not consulted
+    directly (it silently falls back to an inherited dict).
+
+    Only the names are used, so the unevaluated form is requested wherever the
+    interpreter offers the choice: under 3.14 the default format evaluates each
+    annotation, and an unresolvable forward reference would raise where a dict
+    lookup never could.
+    """
+    get_annotations = getattr(inspect, "get_annotations", None)
+    if get_annotations is None:  # Python < 3.10
+        return list(vars(klass).get("__annotations__", {}))
+
+    kwargs = {}
+    if annotationlib is not None:
+        kwargs["format"] = annotationlib.Format.STRING
+    try:
+        return list(get_annotations(klass, **kwargs))
+    except Exception:
+        return list(vars(klass).get("__annotations__", {}))
+
 
 class GenericObjectRelationalizer(RelationalizerBase):
     """Handles generic objects with __dict__ or __slots__."""
@@ -35,19 +69,15 @@ class GenericObjectRelationalizer(RelationalizerBase):
     def declared_relations(self, obj: Any) -> List[str]:
         """Annotated and slotted names across the MRO, set or not.
 
-        Reads ``vars(klass)`` rather than ``klass.__annotations__``: the latter
-        falls back to an inherited dict on a class that declares none of its
-        own, which would re-attribute a base's fields at every level. Private
-        names are filtered to match the skip rule in relationalize — declaring
-        one would emit a relation nothing can ever populate.
+        Private names are filtered to match the skip rule in relationalize —
+        declaring one would emit a relation nothing can ever populate.
         """
         names: List[str] = []
         for klass in type(obj).__mro__:
             if klass is object:
                 continue
-            attrs = vars(klass)
-            declared = list(attrs.get("__annotations__", {}))
-            slots = attrs.get("__slots__", ())
+            declared = _own_annotation_names(klass)
+            slots = vars(klass).get("__slots__", ())
             # __slots__ accepts a bare string for the single-slot case.
             declared.extend((slots,) if isinstance(slots, str) else slots)
             for name in declared:
