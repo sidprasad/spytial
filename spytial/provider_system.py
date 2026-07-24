@@ -187,6 +187,10 @@ class CnDDataInstanceBuilder:
         self._seen = {}
         self._atoms = []
         self._rels = {}
+        # Relation names declared by the types walked, in first-encounter
+        # order. Any that no instance populated is emitted as an empty
+        # relation, so the instance carries each type's declared shape.
+        self._declared_rels: List[str] = []
         self._id_counter = 0
         self._preserve_object_ids = preserve_object_ids
         self._identity_resolver = identity_resolver
@@ -223,6 +227,7 @@ class CnDDataInstanceBuilder:
         self._seen.clear()
         self._atoms.clear()
         self._rels.clear()
+        self._declared_rels.clear()
         self._id_counter = 0
         self._build_identity_objects = {}
         self._collected_decorators = {"constraints": [], "directives": []}
@@ -326,6 +331,24 @@ class CnDDataInstanceBuilder:
                     "name": rel_name,
                     "types": relation_types,
                     "tuples": typed_tuples,
+                }
+            )
+
+        # Declared by a walked type but populated by no instance. Emitting the
+        # relation empty keeps the instance faithful to the type's shape: a
+        # field is schema, so `b` should be a relation that happens to hold
+        # nothing rather than a name the datum has never heard of. Arity can't
+        # be measured without a tuple, so these default to binary like the
+        # empty case above.
+        for rel_name in self._declared_rels:
+            if rel_name in self._rels:
+                continue
+            relations.append(
+                {
+                    "id": rel_name,
+                    "name": rel_name,
+                    "types": ["object", "object"],
+                    "tuples": [],
                 }
             )
 
@@ -533,6 +556,19 @@ class CnDDataInstanceBuilder:
         relationalizer = RelationalizerRegistry.find_relationalizer(obj)
         if relationalizer is None:
             raise ValueError(f"No relationalizer found for object of type {type(obj)}")
+
+        # Record the relation names this object's type declares before asking
+        # for its contents, so a field no instance ever populates still reaches
+        # the data instance (as an empty relation) instead of vanishing.
+        try:
+            for declared_name in relationalizer.declared_relations(obj):
+                if declared_name not in self._declared_rels:
+                    self._declared_rels.append(declared_name)
+        except Exception:
+            # A third-party relationalizer's schema hook must not be able to
+            # fail a build that would otherwise succeed — same posture as
+            # decorator collection above.
+            pass
 
         # Get atoms and relations from relationalizer
         atoms_list, relations_list = relationalizer.relationalize(obj, self)

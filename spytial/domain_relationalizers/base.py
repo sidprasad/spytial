@@ -104,6 +104,31 @@ class RelationalizerBase(abc.ABC):
         """
         pass
 
+    def declared_relations(self, obj: Any) -> List[str]:
+        """
+        Return the relation names *obj*'s type declares, populated or not.
+
+        ``relationalize`` is extensional: it emits a tuple only where the
+        instance holds a value. A field that no walked instance populates
+        therefore leaves no trace at all, and a selector naming it resolves to
+        an arity-0 atom literal — indistinguishable from a misspelling. Naming
+        the field here lets the builder emit it as an empty relation instead,
+        so the data instance carries the type's shape and not only its
+        contents.
+
+        Args:
+            obj: The object whose type is being described
+
+        Returns:
+            Relation names declared by the type; the builder emits any that no
+            instance populated as a relation with no tuples.
+
+        Defaults to none. Containers and primitives have no declared schema,
+        and a relationalizer that renames fields (TupleRelationalizer emits
+        ``t0``, ``t1``, …) would otherwise declare names it never populates.
+        """
+        return []
+
     def _try_get_variable_name(
         self, obj: Any, caller_namespace: Optional[Dict] = None
     ) -> Optional[str]:
