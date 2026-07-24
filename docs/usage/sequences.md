@@ -4,10 +4,10 @@
 Sequence functionality is very much experimental.
 ```
 
-`spytial.sequence()` lets you record a series of snapshots of a data structure and play them back as an interactive step-by-step visualization. It is designed for two use cases:
+`spytial.sequence()` records a series of snapshots of a data structure. It plays the snapshots back as an interactive step-by-step visualization. The function is designed for two use cases:
 
-- **Algorithm tracing** — call `.record()` inside an algorithm as each step completes.
-- **Temporal snapshots** — record a structure at multiple points in time.
+- **Algorithm tracing**. Call `.record()` inside an algorithm as each step completes.
+- **Temporal snapshots**. Record a structure at multiple points in time.
 
 ## Basic usage
 
@@ -27,8 +27,8 @@ seq.diagram()
 
 `record()` accepts two optional keyword arguments that give frames semantic meaning in the viewer:
 
-- `label` — a short one-liner shown in the status bar (`Step 3 / 24 — rotate left at node 5`) and as the scrubber tooltip. Whitespace is stripped; truncated to 200 characters.
-- `note` — a longer description (multi-line OK) shown in a collapsible panel below the controls. Hidden on frames where no note was recorded.
+- `label`. A short single line shown in the status bar (`Step 3 / 24, rotate left at node 5`) and as the scrubber tooltip. Whitespace is stripped. The label is truncated to 200 characters.
+- `note`. A longer description (multiple lines permitted) shown in a collapsible panel below the controls. The note is hidden on frames where no note was recorded.
 
 ```python
 with spytial.sequence() as seq:
@@ -36,13 +36,13 @@ with spytial.sequence() as seq:
     rotate_left(tree, node)
     seq.record(tree, label="left-rotate at root",
                note="Promotes the right child so the new tree is height-balanced.")
-    seq.record(tree)  # no label / no note — viewer falls back to "Step 3 / 3"
+    seq.record(tree)  # no label and no note; viewer falls back to "Step 3 / 3"
 seq.diagram()
 ```
 
-Both arguments are optional and independent — a frame can have a label, a note, both, or neither. The zero-kwarg form (`seq.record(obj)`) keeps working unchanged.
+Both arguments are optional and independent. A frame can have a label, a note, both, or neither. The form with no keyword arguments (`seq.record(obj)`) continues to work unchanged.
 
-This is the recommended way to narrate algorithms. A typical pattern is to wrap `record()` in a helper that takes the label as its first argument:
+This method is recommended to narrate algorithms. A typical pattern wraps `record()` in a helper that takes the label as its first argument:
 
 ```python
 class RBTree:
@@ -72,11 +72,11 @@ The `sequence_policy` controls how the frontend positions atoms across frames:
 | `ignore_history` | Each frame is laid out independently |
 | `random_positioning` | Random placement each frame |
 
-The `sequence_policy=` argument sets the **initial** policy, but viewers can switch on the fly using a dropdown in the header — useful for comparing how each policy presents the same algorithm. Switching mid-sequence re-applies the previous → current transition with the new policy; on step 0 (which has no transition) the change takes effect on the next navigation.
+The `sequence_policy=` argument sets the **initial** policy. Viewers can switch policy with a dropdown in the header. This switch helps to compare how each policy presents the same algorithm. A switch mid-sequence re-applies the previous to current transition with the new policy. On step 0, which has no transition, the change takes effect on the next navigation.
 
 ## In-place mutation (most common)
 
-When the **same Python objects** are mutated between frames, atom IDs are stable automatically — no configuration needed. The recorder uses a single shared builder whose persistent ID table survives across `.record()` calls.
+When the **same Python objects** are mutated between frames, atom IDs are stable automatically. No configuration is needed. The recorder uses a single shared builder with a persistent ID table. The table survives across `.record()` calls.
 
 ```python
 class Node:
@@ -96,7 +96,7 @@ with spytial.sequence(sequence_policy="stability") as seq:
 seq.diagram()
 ```
 
-This pattern works well for BST insertion, sorting algorithms, graph BFS/DFS — any algorithm that operates on a shared mutable structure.
+This pattern works well for BST insertion, sorting algorithms, and graph BFS/DFS. It works for any algorithm that operates on a shared mutable structure.
 
 ## Snapshot / deepcopy workflow
 
@@ -116,11 +116,11 @@ with spytial.sequence(
 seq.diagram()
 ```
 
-`identity` must return a `str` or `None`. Objects that share the same key across frames are rendered as the same atom and animated smoothly between positions.
+`identity` shall return a `str` or `None`. Objects that share the same key across frames are rendered as the same atom and animated smoothly between positions.
 
 ## Passing `as_type`
 
-You can apply class-level spatial annotations to every recorded object via `as_type`:
+Class-level spatial annotations can be applied to every recorded object via `as_type`:
 
 ```python
 seq = spytial.sequence(as_type=MyAnnotatedType, sequence_policy="stability")
@@ -136,7 +136,7 @@ seq.diagram(method="inline")     # force Jupyter inline output
 seq.diagram(width=1200, height=800, title="My algorithm")
 ```
 
-You can also set defaults at construction time and override at render time:
+Defaults can also be set at construction time and overridden at render time:
 
 ```python
 seq = spytial.sequence(method="file", auto_open=False)
@@ -146,7 +146,7 @@ seq.diagram(title="Final render")
 
 ## Using without a context manager
 
-`SequenceRecorder` does not require `with`. The context manager is purely a readability convention — `__exit__` does nothing special.
+`SequenceRecorder` does not require `with`. The context manager is only a readability convention. `__exit__` does nothing special.
 
 ```python
 seq = spytial.sequence(sequence_policy="stability")

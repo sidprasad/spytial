@@ -12,17 +12,17 @@
 pip install spytial-diagramming
 ```
 
-!!! tip "Don't want to install yet?"
-    The [**Playground**](playground/index.html) runs this exact example in your
-    browser. Come back here when you want to run it locally.
+!!! tip "Try it without installing"
+    The [**Playground**](playground/index.html) runs this exact example in the
+    browser. Return here to run it locally.
 
-## Your first diagram — a binary tree
+## A first diagram: a binary tree
 
-Copy this whole block into a `.py` file or a notebook cell and run it. It defines a
-binary tree, says how it should be laid out, and draws an instance. We walk through
-what each decorator does just below.
+Copy this block into a `.py` file or a notebook cell and run it. The block
+defines a binary tree, states how the tree is laid out, and draws one instance.
+Each decorator is described below.
 
-<!-- canonical example — keep in sync with docs/index.md and the playground -->
+<!-- canonical example: keep in sync with docs/index.md and the playground -->
 ```python
 from spytial import orientation, attribute, hideAtom, flag, diagram
 
@@ -46,43 +46,44 @@ root = TreeNode(
 diagram(root)
 ```
 
-Running a script opens the diagram in a new browser tab; running it in a notebook
-renders it inline. You'll see `10` at the root, `5` below-left and `15`
-below-right, and their children beneath them.
+A script opens the diagram in a new browser tab. A notebook renders it inline.
+The output shows `10` at the root, `5` below-left, `15` below-right, and their
+children below them.
 
 ### What each decorator does
 
-The decorators *are* the Spytial layout — each is one rule. Reading top to bottom:
+The decorators *are* the Spytial layout. Each decorator is one rule. The table
+reads from top to bottom:
 
 | Decorator | What it does |
 | --- | --- |
-| `@orientation(selector='{ x : TreeNode, y : TreeNode \| x.left = y }', directions=['below','left'])` | Place each node's left child **below and to the left**. The selector matches the pairs `(x, y)` where `y` is `x`'s left child — i.e. the left-child edges. |
+| `@orientation(selector='{ x : TreeNode, y : TreeNode \| x.left = y }', directions=['below','left'])` | Place each node's left child **below and to the left**. The selector matches the pairs `(x, y)` where `y` is the left child of `x`. These are the left-child edges. |
 | `@orientation(selector='{ x : TreeNode, y : TreeNode \| x.right = y }', directions=['below','right'])` | The mirror image, for the right child. |
 | `@attribute(field='value')` | Render `node.value` as text **inside** the node, instead of as a separate box with an arrow. |
 | `@hideAtom(selector='NoneType')` | Hide the empty `None` leaves. |
-| `@flag(name="hideDisconnected")` | Drop any atom left with no edges, keeping the picture tidy. |
+| `@flag(name="hideDisconnected")` | Drop any atom that has no edges, to keep the picture tidy. |
 
 The `selector` strings are Spytial's **relational query language**. The
-`{ x : T, y : T | … }` form matches *pairs* of atoms (here, parent-and-child edges);
-see [Selectors](selectors.md) for a Python-oriented guide to the syntax.
+`{ x : T, y : T | … }` form matches *pairs* of atoms, here the parent-and-child
+edges. See [Selectors](selectors.md) for a Python-oriented guide to the syntax.
 
 !!! note "Build it up incrementally"
-    A good workflow is to call `diagram(obj)` first with **no** decorators to see
-    the raw structure, then add one rule at a time. The
-    [Playground](playground/index.html) is the fastest place to do this — edit,
-    run, repeat.
+    A good workflow is to call `diagram(obj)` first with **no** decorators, to
+    see the raw structure. Then add one rule at a time. The
+    [Playground](playground/index.html) is the fastest place to do this: edit,
+    run, and repeat.
 
 ## Where the diagram shows up
 
 `Spytial` works in three places without any configuration:
 
-| Where you run it | Default output |
+| Where it runs | Default output |
 | --- | --- |
-| Jupyter / IPython notebook | Inline HTML |
-| Script / REPL | Opens a new browser tab |
+| Jupyter or IPython notebook | Inline HTML |
+| Script or REPL | Opens a new browser tab |
 | Anywhere, on demand | Writes an HTML file |
 
-You can always force one explicitly:
+One output method can be forced explicitly:
 
 ```python
 import spytial
@@ -92,16 +93,16 @@ spytial.diagram(t, method="file")      # save spytial_visualization.html
 spytial.diagram(t, method="inline")    # force inline (notebook) output
 ```
 
-The actual rendering is done in the browser by
-[`spytial-core`](https://github.com/sidprasad/spytial-core), loaded from a CDN the
-first time you render. There is nothing extra to install; the bundle is cached
-after first load.
+The browser does the actual rendering, through
+[`spytial-core`](https://github.com/sidprasad/spytial-core). This bundle loads
+from a CDN on the first render. Nothing extra is installed, and the bundle is
+cached after the first load.
 
-## Inspect before you diagram
+## Inspect before diagramming
 
-If you want to confirm exactly how an object is being serialized into atoms and
-relations — useful when debugging a custom class or annotation — use the
-[evaluator](usage/evaluator.md):
+To confirm exactly how an object is serialized into atoms and relations, use the
+[evaluator](usage/evaluator.md). This is useful when debugging a custom class or
+annotation:
 
 ```python
 import spytial
@@ -112,12 +113,15 @@ spytial.evaluate(t)
 
 ## Next steps
 
-- Try the [Playground](playground/index.html) — edit and run Spytial in your browser.
+- Try the [Playground](playground/index.html) to edit and run Spytial in the
+  browser.
 - Read [Diagramming](usage/diagramming.md) for the main rendering workflow.
-- Read [Operations](operations.md) for every layout constraint and drawing directive.
-- Read the [Evaluator](usage/evaluator.md) guide for inspecting serialized data.
-- Browse [CLRS Notebook Examples](examples/spytial-clrs.md) for worked examples on
-  classic data structures (heaps, trees, graphs, hash tables, disjoint-set forests).
+- Read [Operations](operations.md) for every layout constraint and drawing
+  directive.
+- Read the [Evaluator](usage/evaluator.md) guide to inspect serialized data.
+- Browse [CLRS Notebook Examples](examples/spytial-clrs.md) for worked examples
+  on classic data structures (heaps, trees, graphs, hash tables, and
+  disjoint-set forests).
 
 - **PyPI:** [pypi.org/project/spytial-diagramming](https://pypi.org/project/spytial-diagramming/)
 - **Source:** [github.com/sidprasad/spytial](https://github.com/sidprasad/spytial)

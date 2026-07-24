@@ -1,6 +1,8 @@
 # Diagramming
 
-`spytial.diagram()` turns Python objects into a spatial diagram. It works with built-in containers, dataclasses, custom classes, and graph-like structures.
+`spytial.diagram()` converts Python objects into a spatial diagram. It
+works with built-in containers, dataclasses, custom classes, and
+graph-like structures.
 
 ## Basic usage
 
@@ -26,7 +28,8 @@ spytial.diagram(data, width=900, height=600, title="My Diagram")
 
 ## Passing annotations with `as_type`
 
-Use `AnnotatedType` or `typing.Annotated` to attach spatial constraints to a type you want the object treated as.
+Use `AnnotatedType` or `typing.Annotated` to attach spatial constraints
+to a type. The object is then treated as that type.
 
 ```python
 from typing import Dict, List
@@ -45,9 +48,9 @@ spytial.diagram(graph, as_type=Graph)
 
 ## Common workflow
 
-For non-trivial objects, the usual workflow is:
+For complex objects, use the usual workflow:
 
-1. `spytial.evaluate(obj)` to confirm the serialized atoms and relations.
-2. `spytial.diagram(obj)` to see the layout.
-3. Add decorators or `AnnotatedType(...)` annotations if you want more control over layout or styling.
+1. Call `spytial.evaluate(obj)` to confirm the serialized atoms and relations.
+2. Call `spytial.diagram(obj)` to see the layout.
+3. Add decorators or `AnnotatedType(...)` annotations for more control over layout or styling.
 

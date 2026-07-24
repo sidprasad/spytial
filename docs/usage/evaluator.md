@@ -1,6 +1,8 @@
 # Evaluator
 
-`spytial.evaluate()` renders a lightweight view of the serialized data instance. Use it when you want to check how Python objects are being translated before you worry about layout.
+`spytial.evaluate()` renders a lightweight view of the serialized data
+instance. Use this function to check how Python objects translate before
+layout work begins.
 
 ## Basic usage
 
@@ -12,11 +14,11 @@ spytial.evaluate({"total": 3, "items": [1, 2, 3]})
 
 ## When it helps
 
-The evaluator is especially useful when:
+The evaluator helps in these cases:
 
-- a custom class is not relationalizing the way you expect
-- a selector is not matching what you think it is matching
-- you are writing a custom relationalizer and want to inspect the emitted atoms and relations
+- a custom class does not relationalize as expected
+- a selector does not match as expected
+- a custom relationalizer is being written, and its emitted atoms and relations need inspection
 
 ## Display methods
 
