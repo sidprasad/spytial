@@ -154,17 +154,64 @@ def test_annotation_names_survive_an_unresolvable_forward_reference():
     assert _own_annotation_names(Forward) == ["later"]
 
 
-def test_private_annotations_are_not_declared():
-    """relationalize skips underscore names, so declaring one is unpopulatable."""
+def test_single_underscore_names_are_structure_not_privacy():
+    """`_next` is state like any other — the rule dataclasses already follow."""
 
-    class Private:
-        _hidden: int
+    class Underscored:
+        _next: object
         shown: int
 
         def __init__(self):
             self.shown = 1
 
-    assert "_hidden" not in _relations(Private())
+    rels = _relations(Underscored())
+    assert rels["_next"] == []
+    assert rels["shown"] == [["n0", "1"]]
+
+
+def test_language_hidden_names_are_skipped():
+    """Dunders and name-mangled attributes are hidden by the language itself."""
+
+    class Hidden:
+        _visible: int
+
+        def __init__(self):
+            self._visible = 1
+            self.__mangled = 2  # stored as _Hidden__mangled
+
+    rels = _relations(Hidden())
+    assert rels["_visible"] == [["n0", "1"]]
+    assert "_Hidden__mangled" not in rels
+    assert not [name for name in rels if name.startswith("__")]
+
+
+def test_mangled_names_are_skipped_for_the_declaring_base():
+    """Mangling uses the class that wrote the name, not the instance's class."""
+
+    class MangledBase:
+        def __init__(self):
+            self.__owned = 1  # stored as _MangledBase__owned
+
+    class MangledChild(MangledBase):
+        pass
+
+    assert "_MangledBase__owned" not in _relations(MangledChild())
+
+
+def test_underscored_pointer_draws_an_edge_like_its_dataclass_twin():
+    """The asymmetry this closes: same shape, same relations, either spelling."""
+
+    @dataclasses.dataclass
+    class DcNode:
+        value: int
+        _next: object = None
+
+    class PlainNode:
+        def __init__(self):
+            self.value = 1
+            self._next = None
+
+    assert set(_relations(DcNode(1))) == set(_relations(PlainNode()))
 
 
 # --------------------------------------------------------------------------- #

@@ -50,6 +50,27 @@ def _own_annotation_names(klass: type) -> List[str]:
         return list(vars(klass).get("__annotations__", {}))
 
 
+def _mangling_prefixes(cls: type) -> Tuple[str, ...]:
+    """The ``_Class__`` prefixes CPython gives ``__x`` names written in this MRO."""
+    return tuple(f"_{k.__name__.lstrip('_')}__" for k in cls.__mro__ if k is not object)
+
+
+def _is_hidden(name: str, mangling_prefixes: Tuple[str, ...]) -> bool:
+    """True for names the *language* hides, rather than ones convention marks.
+
+    A dunder is interpreter machinery, and a ``_Class__x`` name was written
+    ``__x`` — private to the class body by an explicit language rule. A single
+    leading underscore is convention only: Python decides state by assignment
+    alone, and ``_next`` participates in the structure exactly as ``next``
+    does. This is the reasoning DataclassRelationalizer already records for
+    dataclass fields; applying it here keeps a ``_next`` pointer drawing an
+    edge whether or not its class happens to be a dataclass.
+    """
+    if name.startswith("__") and name.endswith("__"):
+        return True
+    return any(name.startswith(prefix) for prefix in mangling_prefixes)
+
+
 class GenericObjectRelationalizer(RelationalizerBase):
     """Handles generic objects with __dict__ or __slots__."""
 
@@ -69,9 +90,10 @@ class GenericObjectRelationalizer(RelationalizerBase):
     def declared_relations(self, obj: Any) -> List[str]:
         """Annotated and slotted names across the MRO, set or not.
 
-        Private names are filtered to match the skip rule in relationalize —
-        declaring one would emit a relation nothing can ever populate.
+        Filtered by the same rule relationalize applies, so a declared name is
+        always one an instance could populate.
         """
+        mangling_prefixes = _mangling_prefixes(type(obj))
         names: List[str] = []
         for klass in type(obj).__mro__:
             if klass is object:
@@ -81,7 +103,7 @@ class GenericObjectRelationalizer(RelationalizerBase):
             # __slots__ accepts a bare string for the single-slot case.
             declared.extend((slots,) if isinstance(slots, str) else slots)
             for name in declared:
-                if not name.startswith("_") and name not in names:
+                if not _is_hidden(name, mangling_prefixes) and name not in names:
                     names.append(name)
         return names
 
@@ -97,10 +119,13 @@ class GenericObjectRelationalizer(RelationalizerBase):
         relations = []
 
         # Use inspect to get all members, filtering for relevant attributes
+        mangling_prefixes = _mangling_prefixes(type(obj))
         for name, value in inspect.getmembers(obj):
-            # Skip private attributes, methods, functions, modules, and built-ins
+            # Skip language-hidden names, methods, functions, modules, and built-ins.
+            # A single leading underscore is not a skip: `_next` is structure, and
+            # dropping it left a pointer drawing no edge on every non-dataclass.
             if (
-                name.startswith("_")
+                _is_hidden(name, mangling_prefixes)
                 or inspect.ismethod(value)
                 or inspect.isfunction(value)
                 or inspect.ismodule(value)

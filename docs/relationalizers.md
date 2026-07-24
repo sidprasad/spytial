@@ -63,8 +63,14 @@ class WidgetRelationalizer(RelationalizerBase):
 The built-in relationalizers declare:
 
 - dataclasses: every field returned by `dataclasses.fields()`
-- generic objects: every non-private name annotated or slotted across the
-  method resolution order
+- generic objects: every name annotated or slotted across the method
+  resolution order
+
+Both include names with a single leading underscore. A field is schema, not a
+privacy boundary: Python decides state by assignment alone, and `_next`
+participates in the structure exactly as `next` does. Names that the language
+itself hides are excluded — dunders, and name-mangled `__x` attributes stored
+as `_Class__x`. To hide a field from a diagram, use a directive.
 
 Containers and primitives declare nothing. The default implementation returns
 an empty list, so a relationalizer that renames fields on output does not
