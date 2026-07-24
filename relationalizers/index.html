@@ -766,6 +766,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#declared-relations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Declared relations
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#built-in-coverage-first" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1043,6 +1054,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#declared-relations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Declared relations
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#built-in-coverage-first" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1142,6 +1164,37 @@ objects into atoms and relations.</p>
         <span class="p">)</span>
         <span class="k">return</span> <span class="p">[</span><span class="n">atom</span><span class="p">],</span> <span class="p">[]</span>
 </code></pre></div>
+<h2 id="declared-relations">Declared relations</h2>
+<p><code>relationalize()</code> is extensional. It emits a tuple only where an instance
+holds a value. A field that no instance populates therefore leaves no trace,
+and a selector that names that field resolves to an atom literal rather than
+to a relation.</p>
+<p>A relationalizer may override <code>declared_relations(obj)</code> to name the relations
+that the type declares, whether or not any instance populates them. Spytial
+emits each declared name that no instance populated as a relation with no
+tuples, so the data instance carries the shape of the type and not only its
+contents.</p>
+<div class="highlight"><pre><span></span><code><span class="nd">@relationalizer</span><span class="p">(</span><span class="n">priority</span><span class="o">=</span><span class="mi">100</span><span class="p">)</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">WidgetRelationalizer</span><span class="p">(</span><span class="n">RelationalizerBase</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">declared_relations</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">obj</span><span class="p">):</span>
+        <span class="k">return</span> <span class="p">[</span><span class="s2">&quot;label&quot;</span><span class="p">,</span> <span class="s2">&quot;parent&quot;</span><span class="p">]</span>
+</code></pre></div>
+<p>The built-in relationalizers declare:</p>
+<ul>
+<li>dataclasses: every field returned by <code>dataclasses.fields()</code></li>
+<li>generic objects: every name annotated or slotted across the method
+  resolution order</li>
+</ul>
+<p>Both include names with a single leading underscore. A field is schema, not a
+privacy boundary: Python decides state by assignment alone, and <code>_next</code>
+participates in the structure exactly as <code>next</code> does. Names that the language
+itself hides are excluded — dunders, and name-mangled <code>__x</code> attributes stored
+as <code>_Class__x</code>. To hide a field from a diagram, use a directive.</p>
+<p>Containers and primitives declare nothing. The default implementation returns
+an empty list, so a relationalizer that renames fields on output does not
+declare names that it never populates.</p>
+<p>A declared relation carries an arity of 2. Arity cannot be measured without a
+tuple.</p>
 <h2 id="built-in-coverage-first">Built-in coverage first</h2>
 <p>Before writing a custom relationalizer, check whether the built-ins cover
 the case. <code>spytial-py</code> includes relationalizers for:</p>
