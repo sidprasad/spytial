@@ -1,60 +1,43 @@
-# Suggesting a Spytial specification
+# Suggesting Spytial Annotations
 
-Writing a Spytial specification from a blank page requires two decisions at
-once: what the diagram should look like, and how to express that intent using
-Spytial selectors and directives. Often the missing rule only becomes obvious
-after seeing it violated: diagonal children prompt “put every child directly
-below its parent”; a visible parent pointer prompts “hide that implementation
-detail.”
+Spytial annotations are the decorators that shape a diagram, such as
+`@orientation` and `@hideAtom`. The hard part is starting them from a blank
+page. A blank page asks for two decisions at once: what the diagram should look
+like, and which selectors and directives express that. A missing rule is often
+noticed only after it is broken. Diagonal children suggest the rule "put every
+child directly below its parent." A visible parent pointer suggests the rule
+"hide that implementation detail."
 
-`spytial.suggest` replaces the blank page with a concrete, editable
-`SpecDraft`. The design claim is simple: a default need not be correct to be
-useful. If it is right, apply it. If it is wrong, inspect its selectors and
-correct something specific.
+`spytial.suggest` replaces the blank page with a concrete, editable draft, a
+`SpecDraft`. A draft that is almost right is easier to fix than a blank page is
+to fill. Even a wrong suggestion points at one specific thing to change. So a
+suggested default need not be correct to be useful. If it is correct, apply it.
+If it is wrong, read its selectors and correct one part.
 
-Suggestion is local and deterministic by default. Models and Hypothesis-backed
-witness search are optional and load only when requested.
+By default, `suggest` runs locally and is deterministic. Models and Hypothesis
+witness search are optional. They load only when they are requested.
 
-## High-level idea
+## How it works
 
-The inputs tell Spytial what structure it can inspect. The proposal layers get
-more freedom only when Spytial has a stronger way to check their output.
+`suggest` inspects a class or object and returns a `SpecDraft`: a set of
+proposed annotations, each with a rationale and a source.
 
-```mermaid
-flowchart TB
-    T["target<br/>class or object"] --> C["Class analysis"]
-    T -- "object" --> W["Concrete witnesses"]
-    I["instance=<br/>one sample"] --> W
-    E["examples=<br/>fixed must-pass cases"] --> W
-    S["strategy=<br/>family of valid values"] --> H["Hypothesis search<br/>one representative witness"]
-    H --> W
-    C -. "class-only ask; no witness" .-> A["implicit strategy='auto'<br/>from_type(target)"]
-    A --> H
+The default path is deterministic. It matches common field shapes to directives,
+with no model and no network. These built-in rules are covered under
+[Deterministic heuristics](#deterministic-heuristics).
 
-    C --> R["Deterministic rules<br/>known-good selector forms"]
-    C --> M1["Model chooses a shape<br/>from a closed vocabulary"]
-    W --> M2["Model authors a selector<br/>or translates ask="]
-    Q["ask=<br/>desired layout"] --> M2
-    P["enrich=<br/>model provider"] --> M1
-    P --> M2
+`enrich=` adds a model. The model can pick a layout shape from a fixed
+vocabulary, or author a selector, including one translated from a plain-language
+`ask=`. A model can be wrong, so anything it authors is checked: the selector
+runs against the values in `instance=`, `examples=`, or `strategy=`, and shall
+denote real atoms or edges before it joins the draft.
 
-    M1 --> K1["Spytial supplies the selector"]
-    M2 --> K2["Execute selector<br/>check vocabulary, arity, and authoring"]
-    R --> D["SpecDraft"]
-    K1 --> D
-    K2 --> D
-    D --> U["Inspect · edit · apply"]
-```
-
-The left side establishes evidence: a class shape and, when available,
-concrete objects. The right side turns that evidence into proposals. Static
-rules use selector forms supplied by Spytial. A model may choose among known
-spatial shapes without seeing an instance. Giving a model freedom to author a
-selector requires concrete witnesses so Spytial can execute and validate it.
+Nothing is applied automatically. The draft is there to inspect, edit, and
+apply.
 
 ## Quick start
 
-Consider an ordinary Python tree:
+The following is an ordinary Python tree:
 
 ```python
 from dataclasses import dataclass
@@ -76,7 +59,7 @@ draft = suggest(root)
 print(draft.to_source())
 ```
 
-The deterministic analyzer proposes a conventional tree layout:
+The deterministic analyzer suggests a standard tree layout:
 
 ```python
 @spytial.orientation(
@@ -92,16 +75,16 @@ The deterministic analyzer proposes a conventional tree layout:
 @spytial.flag(name='hideDisconnected')
 ```
 
-`to_source()` emits one-line decorators with explanatory comments; they are
-expanded above for readability. Paste and edit the generated source, or apply
-the draft to the class immediately:
+`to_source()` writes each decorator on one line and adds a comment. The example
+above is expanded for readability. Paste and edit this source, or apply the
+draft to the class directly:
 
 ```python
 draft.apply()
 spytial.diagram(root)
 ```
 
-If the proposed geometry is close but wrong, state the correction:
+If the layout is close but not correct, state the correction:
 
 ```python
 from spytial.suggest import ClaudeCode
@@ -113,11 +96,11 @@ draft = suggest(
 )
 ```
 
-The admitted request selects `left + right` and uses `below`. The overlapping
-below-left and below-right rules move to `draft.alternatives` rather than being
-discarded.
+Spytial accepts the request. It selects `left + right` and uses `below`. The
+earlier below-left and below-right rules move to `draft.alternatives`. Spytial
+does not discard them.
 
-Both import styles are supported. The `suggest` subpackage is lazy and callable:
+Either import style can be used. The `suggest` subpackage is lazy and callable:
 
 ```python
 import spytial
@@ -133,7 +116,7 @@ draft = suggest(root)
 
 ## What each parameter does
 
-The complete interface is:
+The full interface is:
 
 ```python
 suggest(
@@ -148,36 +131,37 @@ suggest(
 )
 ```
 
-The inputs are different kinds of evidence. In particular, `examples=` and
-`strategy=` are not two spellings of the same idea.
+Each input provides a different kind of information. `examples=` and `strategy=`
+are not the same thing.
 
 | Parameter | Meaning | Use it when |
 | --- | --- | --- |
-| `target` | Required. A class to analyze, or an object. An object is shorthand for its class plus one concrete sample. | You always provide this. |
-| `instance` | One explicit sample for a class target. It exposes runtime structure that annotations and `__init__` do not. It is also the default selector-validation witness. | You have a representative object already. |
-| `examples` | Particular, fixed cases. Model-authored selectors must validate on every buildable example. | Awkward or important cases must not be lost during suggestion. |
-| `strategy` | A Hypothesis strategy describing a family of values. Suggestion performs bounded search for one representative witness. The special value `"auto"` uses `hypothesis.strategies.from_type(target)`. | Valid instances require generation, or a single hand-picked instance would be misleading. |
-| `enrich` | The model provider: a model identifier, a callable provider, or a built-in such as `ClaudeCode()` or `Codex()`. There is no ambient model. | Field names or domain conventions carry intent beyond structural types. |
-| `ask` | A natural-language statement of the desired layout. It is translated by `enrich=` and is authoritative over overlapping geometric suggestions. | You can describe the correction more easily than write its selector. |
-| `registry` | An alternate deterministic heuristic registry. | A project has its own field conventions or layout policy. |
+| `target` | Required. A class, or an object. An object means the class and one concrete value. | Always provide this. |
+| `instance` | One concrete value for a class target. It shows runtime structure that annotations and `__init__` do not. Spytial also uses it as the default witness for selector checks. | A representative object is already available. |
+| `examples` | Fixed, specific cases. A model-written selector shall pass on every example that Spytial can build. | Awkward or important cases need to be preserved. |
+| `strategy` | A Hypothesis strategy for a family of values. Spytial runs a bounded search for one representative witness. The value `"auto"` uses `hypothesis.strategies.from_type(target)`. | Valid values require generation, or one hand-picked value would mislead. |
+| `enrich` | The model provider. It is a model name, a callable, or a built-in such as `ClaudeCode()` or `Codex()`. There is no default model. | Field names or domain conventions carry intent that types do not show. |
+| `ask` | A plain-language statement of the required layout. `enrich=` translates it. It overrides any overlapping geometric suggestion. | The correction is easier to describe than to write as a selector. |
+| `registry` | A different registry of deterministic rules. | The project has its own field conventions or layout policy. |
 
-### Choose the evidence you have
+### Choose the input
 
-Static analysis of a type needs no instance, model, or optional dependency:
+Static analysis of a type needs no value, model, or optional dependency:
 
 ```python
 draft = suggest(TreeNode)
 ```
 
-Pass an object—or a type plus `instance=`—when runtime values reveal structure
-that static inspection cannot recover:
+Pass an object, or a type with `instance=`, when runtime values show structure
+that static inspection cannot find:
 
 ```python
 draft = suggest(root)
-draft = suggest(TreeNode, instance=root)  # equivalent evidence
+draft = suggest(TreeNode, instance=root)  # equivalent input
 ```
 
-Use `examples=` for fixed cases every authored selector must survive:
+Use `examples=` for fixed cases. Every model-written selector shall pass all of
+them:
 
 ```python
 draft = suggest(
@@ -187,8 +171,8 @@ draft = suggest(
 )
 ```
 
-Use `strategy=` for a family of valid values. One generated witness is added to
-the fixed validation set:
+Use `strategy=` for a family of valid values. Spytial adds one generated witness
+to the fixed set:
 
 ```python
 draft = suggest(
@@ -199,7 +183,7 @@ draft = suggest(
 )
 ```
 
-For a class-only request, `strategy="auto"` is implicit:
+For a request on a class alone, Spytial uses `strategy="auto"`:
 
 ```python
 draft = suggest(
@@ -209,10 +193,11 @@ draft = suggest(
 )
 ```
 
-Hypothesis derives a strategy from `TreeNode`. For a recursive class, Spytial
-first searches for a value that populates every public recursive root field,
-then for any non-leaf value, and finally for any buildable value. Supply a
-custom strategy when the type has invariants Hypothesis cannot infer.
+Hypothesis builds a strategy from `TreeNode`. For a recursive class, Spytial
+searches in three steps. First, it looks for a value that fills every public
+recursive field. Next, it looks for any non-leaf value. Last, it looks for any
+value that it can build. Supply a custom strategy when the type has invariants
+that Hypothesis cannot infer.
 
 Install witness search separately:
 
@@ -220,219 +205,54 @@ Install witness search separately:
 pip install "spytial_diagramming[suggest-search]"
 ```
 
-The ordinary `suggest(TreeNode)` path does not import Hypothesis.
+The plain `suggest(TreeNode)` path does not import Hypothesis.
 
 ## Working with `SpecDraft`
 
-`suggest()` returns a draft rather than mutating the target class. Its main
-collections expose both the proposal and the reasoning behind it:
+`suggest()` returns a draft. It does not change the target class. The main
+collections show both the suggestion and the reason for it:
 
 | Member | Contents |
 | --- | --- |
-| `draft.suggestions` | Current proposed `Suggestion` objects, including disabled low-confidence rows. |
-| `draft.enabled()` | The suggestions currently enabled by default. |
-| `draft.alternatives` | Conflict losers and superseded geometry, preserved for inspection or recovery. |
-| `draft.notes` | Missing evidence, skipped enrichment, validation results, and other diagnostics. |
+| `draft.suggestions` | The current `Suggestion` objects. This includes the disabled low-confidence rows. |
+| `draft.enabled()` | The suggestions that are enabled by default. |
+| `draft.alternatives` | Suggestions that lost a conflict, and geometry that was replaced. Spytial keeps them so they can be inspected or restored. |
+| `draft.notes` | Missing input, skipped enrichment, validation results, and other diagnostics. |
 
 Each `Suggestion` records its `directive`, `kwargs`, `confidence`, `rationale`,
-`source_field`, whether it is enabled, and whether it came from a deterministic
-rule or a model.
+and `source_field`. It also records whether it is enabled, and whether it came
+from a deterministic rule or a model.
 
-Render or apply the draft in four ways:
+The draft can be rendered or applied in four ways:
 
 | Call | Result |
 | --- | --- |
 | `draft.to_source()` | A pasteable stack of `@spytial.*` decorators. |
 | `draft.to_registry()` | A `{"constraints": [...], "directives": [...]}` registry dictionary. |
-| `draft.apply()` | Decorates the target class live and returns it. |
-| `draft` in Jupyter | A rich panel showing directives, rationales, alternatives, and notes. |
+| `draft.apply()` | Decorates the target class in place and returns it. |
+| `draft` in Jupyter | A panel that shows the directives, rationales, alternatives, and notes. |
 
-These methods use enabled suggestions by default. Pass `enabled_only=False` to
-include disabled candidates. `to_source(with_comments=False)` omits generated
-rationales.
+These methods use the enabled suggestions by default. Pass `enabled_only=False`
+to include the disabled ones. `to_source(with_comments=False)` leaves out the
+generated rationales.
 
-Review the draft before `apply()`: application installs decorators on the class
-and therefore affects subsequent diagrams of its instances.
+Review the draft before calling `apply()`. `apply()` installs decorators on the
+class. This changes every later diagram of its instances.
 
-## How deterministic suggestion decides
+## Deterministic heuristics
 
-The analyzer reads field types, names, assignments in `__init__`, and optional
-instance samples. Built-in heuristics map common structures to directives:
+Without a model, `suggest` reads the field types, the field names, the
+`__init__` assignments, and any instance values, then maps common structures to
+directives. Three examples:
 
 | Field shape | Suggested treatment |
 | --- | --- |
 | `left` and `right` of the same node type | Orient below-left and below-right. |
-| One self-referential field | Orient below. |
-| A list or dictionary of same-type children | Derive parent-child pairs and orient below. |
-| `next` and `prev` of the same type | Orient `next` right and hide the reverse link. |
-| `parent` or another back-pointer | Hide it when child edges already expose the structure; otherwise orient above. |
 | A scalar such as `value`, `key`, or `name` | Fold it into the node with `attribute`. |
-| An `Enum`-typed field | Propose one disabled `atomStyle` per member. |
-| Nullable children | Hide `NoneType` atoms. |
+| A `parent` back-pointer duplicated by child edges | Hide it. |
 
-Nullable edge selectors remove only `None` targets—for example,
-`left - (univ -> NoneType)`. This retains edges to subtype instances that an
-exact type intersection would incorrectly discard.
-
-When child edges already describe the structure, a `parent` field duplicates
-them and is hidden by default. Its “place above” orientation remains in
-`draft.alternatives`. When `parent` is the only structural link, the orientation
-wins instead.
-
-## Model providers
-
-`enrich=` always names a provider explicitly. There is no ambient model and no
-model call on the default path.
-
-### Claude Code
-
-`ClaudeCode` uses an installed and authenticated `claude` CLI, so it needs no
-Spytial model extra or API key:
-
-```python
-from spytial.suggest import ClaudeCode, suggest
-
-draft = suggest(Ticket, enrich=ClaudeCode())
-draft = suggest(Ticket, enrich=ClaudeCode(model="opus"))
-```
-
-If `ANTHROPIC_API_KEY` is set, the CLI may use metered API billing instead of a
-Claude subscription. Consult the CLI's current authentication behavior before
-choosing a provider.
-
-### Codex
-
-`Codex` uses an installed and authenticated `codex` CLI and its native
-JSON-schema output:
-
-```python
-from spytial.suggest import Codex, suggest
-
-draft = suggest(Ticket, enrich=Codex())
-```
-
-### A model identifier through `llm`
-
-A string is resolved by Simon Willison's `llm` library. This supports hosted
-providers and local models through their respective plugins:
-
-```console
-pip install "spytial_diagramming[suggest-llm]"
-llm install llm-anthropic
-llm keys set anthropic
-```
-
-```python
-draft = suggest(Ticket, enrich="claude-sonnet-4-6")
-draft = suggest(Ticket, enrich="llama3.2")  # for example, through Ollama
-```
-
-### A custom provider
-
-A provider is any callable with the signature `(prompt, *, schema) -> dict`.
-Helpers are available for text-only models:
-
-```python
-from spytial.suggest.providers import extract_json, instruct_json
-
-
-def my_provider(prompt, *, schema):
-    text = call_some_model(instruct_json(prompt, schema))
-    return extract_json(text)
-
-
-draft = suggest(Ticket, enrich=my_provider)
-```
-
-The shape tier sends class, field, and type names. When instances are present,
-the selector-authoring tier additionally sends relational names, arities, and
-atom counts. Field values stay local and are used only for selector evaluation.
-With a local provider, nothing leaves the machine.
-
-## Engineering considerations
-
-### Give inference only as much freedom as can be checked
-
-Suggestion has three layers:
-
-1. The deterministic layer recognizes common program structures and emits
-   selector forms maintained by Spytial.
-2. The model shape layer chooses `orientation`, `cyclic`, `group`, or no shape,
-   with arguments from a closed vocabulary. Spytial writes the selector.
-3. With concrete witnesses, the model may author selectors or translate
-   `ask=`. Those candidates must execute before they enter the draft.
-
-The governing principle is:
-
-> More generative freedom requires a stronger checker.
-
-Valid shape enrichment becomes the active geometry for the fields it addresses;
-the deterministic geometry it replaces becomes an alternative. If enrichment
-fails, the deterministic draft remains usable and `draft.notes` explains what
-was skipped.
-
-Model-authored selector candidates from unsolicited enrichment remain disabled
-until reviewed. An explicit `ask=`, by contrast, is enabled when admitted
-because the user requested it.
-
-### Check denotation, not just syntax
-
-A model-authored selector must:
-
-1. use a supported directive and in-vocabulary arguments;
-2. parse, return a non-empty result, and have the directive's exact arity on
-   every buildable validation example; and
-3. pass the same authoring checks as handwritten decorators.
-
-An orientation selector must denote pairs; `hideAtom` must denote atoms. This
-arity check matters because an invented bareword can parse as an arity-zero
-literal rather than fail syntactically.
-
-An explicit request gets one repair attempt using concrete validation
-diagnostics. If no part of the request can be admitted, `suggest` raises
-`spytial.suggest.AskError`. A compound request may admit the validated parts and
-record any remainder in `draft.notes`.
-
-### Preserve alternatives and make failure asymmetric
-
-When an explicit ask supersedes overlapping geometry, the previous suggestions
-move to `draft.alternatives`; they are not destroyed. Overlap is checked by
-evaluating the intersection of selectors over the available witnesses rather
-than comparing selector strings.
-
-Optional enrichment may fail and leave the deterministic draft unchanged. An
-explicit `ask=` must either install at least one validated directive or raise an
-error. The distinction prevents a requested correction from disappearing
-silently.
-
-### A witness is not a proof
-
-`examples=` checks the particular cases supplied. `strategy=` contributes one
-representative generated witness. Neither proves that a selector works for
-every value.
-
-This distinction is important for empty structures. A child selector returning
-no pairs on a leaf does not refute “put every child below its parent”; the rule
-is merely vacuous on that object. Auto-generation therefore prefers a populated
-recursive witness that exercises the selector.
-
-Evaluation can establish that a selector denotes real atoms or edges in the
-witnesses. It cannot establish that `below` expresses the user's intent. Human
-judgment remains the final specification.
-
-### Keep the default path cheap and local
-
-Static suggestion requires no model, network, Hypothesis, or headless
-evaluator. Provider resolution, witness search, and selector evaluation load
-only when their corresponding arguments request them.
-
-Selector authoring and `ask=` require a `node` runtime on `PATH` (or a binary
-named by `SPYTIAL_NODE`) so Spytial can run the vendored headless evaluator.
-
-## Extending deterministic suggestion
-
-The built-in rules are functions registered with `@heuristic`. Add project
-conventions or domain-specific field names using the same interface:
+Each rule is a function registered with `@heuristic`. Register a rule to add a
+project convention or a domain field name:
 
 ```python
 from spytial.suggest import Suggestion, heuristic
@@ -459,23 +279,176 @@ def color_by_status(field, cls_info):
     return []
 ```
 
-Field-scope heuristics receive `(FieldInfo, ClassInfo)`; class-scope heuristics
-receive `ClassInfo` and can recognize multi-field patterns. Higher priority wins
-a same-field conflict, while the losing suggestion becomes an alternative.
+A field-scope heuristic receives `(FieldInfo, ClassInfo)`. A class-scope
+heuristic receives `ClassInfo` and can find multi-field patterns. On the same
+field, the higher priority wins, and the losing suggestion becomes an
+alternative.
 
-Pass `suggest(cls, registry=my_registry)` for an isolated rule set. Use
-`DEFAULT_REGISTRY.copy()` to extend the built-ins without changing the global
-registry.
+Pass `suggest(cls, registry=my_registry)` for a separate rule set. Use
+`DEFAULT_REGISTRY.copy()` to extend the built-in rules without changing the
+global registry.
+
+## Model providers
+
+`enrich=` always names a provider. There is no default model. The default path
+makes no model call.
+
+### Claude Code
+
+`ClaudeCode` uses the installed and authenticated `claude` CLI. It needs no
+Spytial model extra and no API key:
+
+```python
+from spytial.suggest import ClaudeCode, suggest
+
+draft = suggest(Ticket, enrich=ClaudeCode())
+draft = suggest(Ticket, enrich=ClaudeCode(model="opus"))
+```
+
+If `ANTHROPIC_API_KEY` is set, the CLI can use metered API billing instead of a
+Claude subscription. Check the current authentication behavior of the CLI before
+choosing a provider.
+
+### Codex
+
+`Codex` uses the installed and authenticated `codex` CLI. It uses the native
+JSON-schema output of that CLI:
+
+```python
+from spytial.suggest import Codex, suggest
+
+draft = suggest(Ticket, enrich=Codex())
+```
+
+### A model identifier through `llm`
+
+The `llm` library by Simon Willison resolves a string name. It supports hosted
+providers and local models through plugins:
+
+```console
+pip install "spytial_diagramming[suggest-llm]"
+llm install llm-anthropic
+llm keys set anthropic
+```
+
+```python
+draft = suggest(Ticket, enrich="claude-sonnet-4-6")
+draft = suggest(Ticket, enrich="llama3.2")  # for example, through Ollama
+```
+
+### A custom provider
+
+A provider is any callable with the signature `(prompt, *, schema) -> dict`.
+Spytial provides helpers for text-only models:
+
+```python
+from spytial.suggest.providers import extract_json, instruct_json
+
+
+def my_provider(prompt, *, schema):
+    text = call_some_model(instruct_json(prompt, schema))
+    return extract_json(text)
+
+
+draft = suggest(Ticket, enrich=my_provider)
+```
+
+The shape layer sends the class, field, and type names. When values are present,
+the selector layer also sends the relation names, arities, and atom counts. The
+field values stay on the local machine. Spytial uses them only to evaluate
+selectors. With a local provider, no data leaves the machine.
+
+<!--
+## Engineering considerations
+
+### Give inference only as much freedom as can be checked
+
+Suggestion has three layers:
+
+1. The deterministic layer finds common program structures. It writes selector
+   forms that Spytial maintains.
+2. In the shape layer, a model may choose `orientation`, `cyclic`, `group`, or
+   no shape, with arguments from a fixed vocabulary. Spytial writes the
+   selector.
+3. In the selector layer, a model may write a selector, or translate an `ask=`,
+   provided concrete witnesses are present. Each candidate shall run before it
+   enters the draft.
+
+The rule is the same at each layer. More freedom to generate requires a stronger
+check. A static rule needs no check. A chosen shape cannot become an invalid
+selector. A model-written selector shall run and pass first.
+
+A valid shape becomes the active geometry for the fields it covers. The
+deterministic geometry that it replaces becomes an alternative. If enrichment
+fails, the deterministic draft still works. `draft.notes` explains what Spytial
+skipped.
+
+A model-written selector from automatic enrichment stays disabled until it is
+reviewed. An explicit `ask=` is different. Spytial enables it on acceptance,
+because it was requested.
+
+### Check denotation, not only syntax
+
+A model-written selector shall meet all of the following conditions:
+
+1. use a supported directive and arguments from the vocabulary;
+2. parse correctly, return a non-empty result, and have the exact arity of the
+   directive on every validation example that Spytial can build; and
+3. pass the same authoring checks as a handwritten decorator.
+
+An orientation selector shall denote pairs. `hideAtom` shall denote atoms. This
+arity check is important. An invented bareword can parse as an arity-zero
+literal. It does not fail as a syntax error.
+
+An explicit request receives one repair attempt. The repair uses the concrete
+validation diagnostics. If Spytial can accept no part of the request, `suggest`
+raises `spytial.suggest.AskError`. A request with several parts can accept the
+valid parts. Spytial records the rest in `draft.notes`.
+
+### Keep alternatives, and fail loudly on an explicit ask
+
+When an explicit ask replaces overlapping geometry, the earlier suggestions move
+to `draft.alternatives`. Spytial does not destroy them. To find an overlap,
+Spytial evaluates the intersection of the selectors on the available witnesses.
+It does not compare selector strings.
+
+Optional enrichment can fail. If it fails, the deterministic draft does not
+change. An explicit `ask=` shall install at least one validated directive, or
+raise an error. This difference prevents a requested correction from
+disappearing without notice.
+
+### A witness is not a proof
+
+`examples=` checks the specific cases that are supplied. `strategy=` adds one
+generated witness. Neither one proves that a selector works for every value.
+
+This matters for empty structures. On a leaf, a child selector returns no pairs.
+This does not disprove the rule "put every child below its parent." On a leaf,
+the rule simply has no children to place. For this reason, auto-generation
+prefers a filled recursive witness that exercises the selector.
+
+Evaluation can show that a selector denotes real atoms or edges in the
+witnesses. It cannot show that `below` matches the user's intent. The user makes
+the final specification.
+
+### Keep the default path cheap and local
+
+Static suggestion needs no model, network, Hypothesis, or headless evaluator.
+Provider resolution, witness search, and selector evaluation load only when the
+matching argument asks for them.
+
+Selector authoring and `ask=` require a `node` runtime on `PATH`, or a binary
+named by `SPYTIAL_NODE`. Spytial uses it to run the vendored headless evaluator.
+-->
 
 ## Limits
 
-Program structure is evidence for a spatial specification, not the
-specification itself. `suggest` cannot recover a tree represented only by index
-arithmetic in an array-backed heap. A model can choose the wrong interpretation
-of a real field. A selector can pass every supplied example and fail on the next
-one.
+Program structure is input for a layout. It is not the layout. `suggest`
+cannot recover a tree that exists only as index arithmetic in an array-backed
+heap. A model can read a real field in the wrong
+way. A selector can pass every supplied example and still fail on the next one.
 
-These limits are why the result is a `SpecDraft`: rationales and provenance are
-visible, alternatives survive, authored selectors run before admission,
-explicit asks fail loudly, and the user decides what becomes the final
-specification.
+These limits are the reason the result is a `SpecDraft`. The rationales and the
+provenance are visible. The alternatives stay available. Model-written selectors
+run before Spytial accepts them. An explicit ask fails loudly. The user decides
+what becomes the final layout.

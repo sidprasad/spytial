@@ -1,23 +1,26 @@
 # Custom Relationalizers
 
 
-> Custom relationalizers are still very much a W.I.P.
+> Custom relationalizers are a work in progress.
 
-Relationalizers are plug-ins that teach Spytial how to serialize your custom objects into atoms and relations.
+Relationalizers are plug-ins. They define how Spytial serializes custom
+objects into atoms and relations.
 
 ## When to use a relationalizer
 
 Use a relationalizer when:
 
-- you want fine-grained control over how an object becomes nodes and edges
-- your objects are not handled well by the built-in defaults
-- you need domain-specific relations such as `depends_on` or `flows_to`
+- fine-grained control over how an object becomes nodes and edges is
+  necessary
+- the built-in defaults do not handle the objects well
+- domain-specific relations such as `depends_on` or `flows_to` are
+  necessary
 
 ## Anatomy of a relationalizer
 
 A relationalizer inherits from `RelationalizerBase` and implements two methods:
 
-- `can_handle(obj)` returns `True` when the relationalizer should handle the object
+- `can_handle(obj)` returns `True` when the relationalizer can handle the object
 - `relationalize(obj, walker_func)` returns `Atom` and `Relation` instances
 
 ```python
@@ -39,22 +42,27 @@ class WidgetRelationalizer(RelationalizerBase):
 
 ## Built-in coverage first
 
-Before you write a custom relationalizer, check whether the built-ins already cover your case. `spytial-py` already ships relationalizers for:
+Before writing a custom relationalizer, check whether the built-ins cover
+the case. `spytial-py` includes relationalizers for:
 
 - primitives
 - `dict`, `list`, `tuple`, and `set`
 - dataclasses
 - generic Python objects as a fallback
 
-Most examples in `spytial-clrs` work without custom relationalizers because regular Python objects plus operations are usually enough.
+Most examples in `spytial-clrs` work without custom relationalizers.
+Regular Python objects plus operations are usually enough.
 
 ## Priorities
 
-Relationalizers with higher priorities are checked first. Priorities from **0-99** are reserved for built-ins, so custom relationalizers should use **100 or higher**.
+Spytial checks relationalizers with higher priority first. The built-ins
+reserve priorities **0 to 99**. Custom relationalizers should use
+**100 or higher**.
 
 ## Registering and inspecting
 
-The `@relationalizer` decorator registers the class automatically when the module is imported. You can inspect the active registry like this:
+The `@relationalizer` decorator registers the class automatically when the
+module is imported. The active registry can be inspected as follows:
 
 ```python
 from spytial import RelationalizerRegistry
@@ -64,4 +72,6 @@ print(RelationalizerRegistry.list_relationalizers())
 
 ## Next steps
 
-Once your relationalizer is in place, use `spytial.evaluate()` first to validate the emitted structure, then `spytial.diagram()` to tune layout and directives.
+After the relationalizer is in place, use `spytial.evaluate()` first to
+validate the emitted structure. Then use `spytial.diagram()` to adjust
+layout and directives.

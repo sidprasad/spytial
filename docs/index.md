@@ -1,18 +1,19 @@
 # Spytial
 
 
-Sometimes you just want to see your program values. 
-You don't need an interactive dashboard or a production-grade visualization system. You just need a diagram that lays it out clearly so you can understand what's going on.
+Often, all that is needed is a clear picture of a program's values. An
+interactive dashboard or a production-grade visualization system is not
+required. A diagram that lays the values out clearly is enough to show what is
+happening.
 
-That's what Spytial is for. It is diagramming system 
-built to make it as easy to get a diagram as it is to call
-`print`. 
+Spytial is built for this. It is a diagramming system that makes a diagram as
+easy to get as a call to `print`.
 
-You always get a diagram **for free** for any value, and then
-use Spytial's constraint vocabulary to refine it til it resembles what you might expect.
+Every value gets a diagram by default. Spytial's constraint vocabulary then
+refines that diagram until it matches the expected result.
 
 [Get started](getting-started.md){ .md-button .md-button--primary }
-[Try it in your browser](playground/index.html){ .md-button }
+[Try it in the browser](playground/index.html){ .md-button }
 
 <div class="sp-hero" markdown="1">
 
@@ -45,30 +46,34 @@ diagram(root)
 
 <div class="sp-viz">
   <iframe src="assets/hero-tree.html" title="A binary tree rendered by Spytial" loading="lazy"></iframe>
-  <div class="sp-cap">↑ The real, live output of the code above — drag to explore, scroll to zoom</div>
+  <div class="sp-cap">↑ The live output of the code above. Drag to explore, and scroll to zoom.</div>
 </div>
 
 </div>
 
-## Get started 
+## Get started
 
-1. **Install** — `pip install spytial-diagramming` (Python 3.8–3.12, nothing else to set up).
-2. **Decorate** — add layout rules to your class with decorators like `@orientation` and `@attribute`.
-3. **Draw** — call `spytial.diagram(obj)`. It opens in your browser, or renders inline in a notebook.
+1. **Install**: `pip install spytial-diagramming` (Python 3.8 to 3.12, with
+   nothing else to set up).
+2. **Decorate**: add layout rules to a class with decorators such as
+   `@orientation` and `@attribute`.
+3. **Draw**: call `spytial.diagram(obj)`. It opens in the browser, or renders
+   inline in a notebook.
 
-That's the whole loop. [Walk through the example above, line by line →](getting-started.md)
+That is the whole loop. [Walk through the example above, line by line.](getting-started.md)
 
 ## Operations at a glance
 
 Layout is controlled by two kinds of operation. Attach them as class decorators
-(`@spytial.orientation(...)`), to individual objects, or via `typing.Annotated`.
-Full details and arguments are in [Operations](operations.md).
+(`@spytial.orientation(...)`), attach them to individual objects, or apply them
+through `typing.Annotated`. Full details and arguments are in
+[Operations](operations.md).
 
 <div class="sp-ops" markdown="1">
 
 <div markdown="1">
 
-**Constraints** — shape the geometry
+**Constraints**: shape the geometry
 
 | Operation | What it does |
 | --- | --- |
@@ -81,16 +86,16 @@ Full details and arguments are in [Operations](operations.md).
 
 <div markdown="1">
 
-**Directives** — change how things are drawn
+**Directives**: change how things are drawn
 
 | Operation | What it does |
 | --- | --- |
 | `attribute` | Show a field as a label inside the node |
-| `atomStyle` · `edgeStyle` | Style nodes / edges (border, fill, line, labels) |
-| `hideAtom` · `hideField` | Hide nodes / fields |
+| `atomStyle` · `edgeStyle` | Style nodes and edges (border, fill, line, labels) |
+| `hideAtom` · `hideField` | Hide nodes and fields |
 | `tag` | Add a computed label to matching nodes |
 | `inferredEdge` | Draw a derived edge between nodes |
-| `size` · `icon` | Resize / icon-ify nodes |
+| `size` · `icon` | Resize nodes, or add an icon |
 
 </div>
 
@@ -98,7 +103,8 @@ Full details and arguments are in [Operations](operations.md).
 
 ## More
 
-- [Playground](playground/index.html) — edit and run Spytial in your browser.
-- [Getting Started](getting-started.md) — install and a walkthrough.
-- [Operations](operations.md) — every constraint and directive.
-- [`spytial-clrs`](https://github.com/sidprasad/spytial-clrs) — more examples: CLRS data structures rendered with Spytial.
+- [Playground](playground/index.html): edit and run Spytial in the browser.
+- [Getting Started](getting-started.md): install and a walkthrough.
+- [Operations](operations.md): every constraint and directive.
+- [`spytial-clrs`](https://github.com/sidprasad/spytial-clrs): more examples,
+  the CLRS data structures rendered with Spytial.

@@ -1,6 +1,11 @@
 # CLRS Notebook Examples
 
-[`spytial-clrs`](https://github.com/sidprasad/spytial-clrs) is a Jupyter notebook collection that implements the data structures from the **CLRS algorithms textbook** (Cormen, Leiserson, Rivest, Stein) using Spytial. Each notebook is organized by CLRS chapter and walks through one or more textbook structures, declaring the spatial constraints that make their structure legible.
+[`spytial-clrs`](https://github.com/sidprasad/spytial-clrs) is a Jupyter
+notebook collection. It implements the data structures from the **CLRS
+algorithms textbook** (Cormen, Leiserson, Rivest, Stein) with Spytial.
+Each notebook is organized by one CLRS chapter and covers one or more
+textbook structures. The notebook declares the spatial constraints that
+make each structure legible.
 
 ## What's in it
 
@@ -16,13 +21,14 @@
 | 21.3 | Disjoint-set forests (forest and set views) | `disjoint-sets.ipynb` |
 | 22, 22.4, 22.5, 23 | Graphs, topological sort, strongly connected components, MST | `graphs.ipynb` |
 
-Bonus: BDDs in `simple-bdd.ipynb`.
+The collection also contains BDDs in `simple-bdd.ipynb`.
 
 ## Run the notebooks
 
-There are three ways to use the collection without installing anything locally beyond the notebooks themselves.
+The collection can be used in three ways. No local installation is
+necessary beyond the notebooks themselves.
 
-**Docker** (zero local setup):
+**Docker** (no local setup):
 
 ```bash
 docker pull sidprasad/spytial-clrs:latest
@@ -30,7 +36,9 @@ docker run -p 8888:8888 sidprasad/spytial-clrs
 # open http://localhost:8888
 ```
 
-**JupyterLite** (in-browser, no install): see the [`spytial-clrs` README](https://github.com/sidprasad/spytial-clrs) for the deployed link.
+**JupyterLite** (in-browser, no installation): refer to the
+[`spytial-clrs` README](https://github.com/sidprasad/spytial-clrs) for the
+deployed link.
 
 **Local clone**:
 
@@ -43,7 +51,7 @@ jupyter notebook src/
 
 ## Reading guide
 
-Use the notebooks as a guide depending on what you want to visualize:
+Use the notebooks as a guide, based on the structure to visualize:
 
 | Notebook | Structures | Good docs topics |
 | --- | --- | --- |
@@ -58,6 +66,9 @@ Use the notebooks as a guide depending on what you want to visualize:
 
 ## How to use these examples
 
-- Start with `stacksqueues.ipynb` or `linked-lists.ipynb` if you are new to Spytial.
-- Browse `trees.ipynb` and `graphs.ipynb` for richer layouts and more advanced operation combinations.
-- Use the notebook closest to your own data shape as a template for your first diagram.
+- Start with `stacksqueues.ipynb` or `linked-lists.ipynb` for an
+  introduction to Spytial.
+- Browse `trees.ipynb` and `graphs.ipynb` for more complex layouts and
+  more advanced operation combinations.
+- Use the notebook closest to the target data shape as a template for a
+  first diagram.

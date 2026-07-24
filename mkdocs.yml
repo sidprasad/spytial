@@ -10,16 +10,18 @@ nav:
   - Home: index.md
   - Getting Started: getting-started.md
   - Playground: playground/index.html
-  - Diagramming: usage/diagramming.md
-  - Sequences: usage/sequences.md
-  - Evaluator: usage/evaluator.md
-  - Operations: operations.md
   - Selectors: selectors.md
-  - Structured Input: usage/structured-input.md
-  - Custom Relationalizers: relationalizers.md
-  - Suggest a Specification: suggest.md
-  - CLRS Notebook Examples: examples/spytial-clrs.md
-  - API Reference: reference/api.md
+  - Operations: operations.md
+  - Guides:
+      - Diagramming: usage/diagramming.md
+      - Sequences: usage/sequences.md
+      - Structured Input: usage/structured-input.md
+      - Custom Relationalizers: relationalizers.md
+      - Suggesting Annotations: suggest.md
+  - Reference:
+      - Evaluator: usage/evaluator.md
+      - API Reference: reference/api.md
+      - CLRS Notebook Examples: examples/spytial-clrs.md
 
 theme:
   name: material

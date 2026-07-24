@@ -1,8 +1,8 @@
 # Structured Input
 
-`spytial.edit()` is the interactive counterpart to [`spytial.diagram()`](diagramming.md). Where `diagram()` *shows* a value, `edit()` lets you *build or change* one visually and hand it back to Python — for **any** value, not just dataclasses.
+`spytial.edit()` is the interactive counterpart to [`spytial.diagram()`](diagramming.md). `diagram()` shows a value. `edit()` builds or changes a value visually and returns it to Python. `edit()` accepts any value, not only dataclasses.
 
-## edit() — edit, click Done, get the value back
+## edit(): edit, click Done, get the value back
 
 ```python
 from dataclasses import dataclass
@@ -15,12 +15,12 @@ class TreeNode:
     left: Optional["TreeNode"] = None
     right: Optional["TreeNode"] = None
 
-result = spytial.edit(TreeNode())   # opens the editor, blocks until you click Done
+result = spytial.edit(TreeNode())   # opens the editor; blocks until Done is clicked
 ```
 
-`edit()` serves the editor as a page — inline in a local Jupyter cell, or a browser tab from a script — **blocks** until you click **Done** (or **Cancel**), then reconstructs a fresh Python object with [`reify`](#reify-directly) and returns it. The value you passed in is never mutated.
+`edit()` serves the editor as a page. The page appears inline in a local Jupyter cell, or in a browser tab from a script. `edit()` blocks until the user clicks **Done** (or **Cancel**). `edit()` then reconstructs a fresh Python object with [`reify`](#reify-directly) and returns it. `edit()` does not mutate the input value.
 
-No Jupyter comm and no widget framework — only the standard library and a browser. It can't hang your kernel: if the editor never connects, stops responding, or you close it, `edit()` unblocks and returns per `on_cancel`. In **pyodide** and **hosted notebooks** (Colab, JupyterHub, Binder) the browser can't reach the local server, so `edit()` prints a note, shows [`edit_html()`](#standalone-html-no-server) (Export button) instead, and returns `None`.
+`edit()` uses no Jupyter comm and no widget framework. `edit()` uses only the standard library and a browser. `edit()` cannot hang the kernel. If the editor never connects, stops responding, or the user closes it, `edit()` unblocks and returns per `on_cancel`. In pyodide and hosted notebooks (Colab, JupyterHub, Binder), the browser cannot reach the local server. In this case, `edit()` prints a note, shows [`edit_html()`](#standalone-html-no-server) (Export button) instead, and returns `None`.
 
 ### Any value, not just dataclasses
 
@@ -32,11 +32,11 @@ spytial.edit([{"x": 1}, {"x": 2}])            # list
 spytial.edit(my_graph_node)                    # an arbitrary object (cycles ok)
 ```
 
-When the seed is a dataclass, declared field defaults fill for any field the round-trip dropped. Other values reconstruct via the general path (builtins rebuild as themselves; arbitrary classes via their import path).
+When the seed is a dataclass, declared field defaults fill any field that the round-trip dropped. Other values reconstruct through the general path: builtins rebuild as themselves, and arbitrary classes rebuild through their import path.
 
 ### Cancelling
 
-Click **Cancel**, close the tab, or interrupt the kernel, and `edit()` returns per `on_cancel`:
+Click **Cancel**, close the tab, or interrupt the kernel. `edit()` then returns per `on_cancel`:
 
 ```python
 spytial.edit(x)                      # -> the original x, unchanged (default: on_cancel="seed")
@@ -44,11 +44,11 @@ spytial.edit(x, on_cancel="none")    # -> None
 spytial.edit(x, on_cancel="raise")   # -> raises spytial.EditCancelled
 ```
 
-Defaulting to `"seed"` keeps `edit()` total — you always get back a usable value of the same kind, and `None` is reserved for "the committed value really is `None`."
+The default `"seed"` keeps `edit()` total. A call always returns a usable value of the same kind. `None` is reserved for the case where the committed value really is `None`.
 
 ## Reify directly
 
-If you already have a data instance (from `build_instance`, a saved file, or the editor) you can reconstruct the object without the UI:
+If a data instance already exists (from `build_instance`, a saved file, or the editor), reconstruct the object without the UI:
 
 ```python
 di  = spytial.CnDDataInstanceBuilder().build_instance(my_value)
@@ -60,7 +60,7 @@ txt = spytial.replit(di)           # repr() of what reify() would return
 
 ## Standalone HTML (no server)
 
-`spytial.edit_html()` renders the editor as standalone HTML and uses the built-in **Export** button to copy constructor code — handy where the local server isn't reachable (e.g. pyodide). It also accepts any value.
+`spytial.edit_html()` renders the editor as standalone HTML. It uses the built-in **Export** button to copy constructor code. This function is useful where the local server is not reachable (for example, pyodide). `edit_html()` also accepts any value.
 
 ```python
 spytial.edit_html(TreeNode())                 # inline iframe (notebook), else a browser tab
@@ -70,7 +70,7 @@ spytial.edit_html([1, 2, 3], method="inline") # force an inline iframe
 
 ## Naming note
 
-This module was previously `dataclass_builder` and was dataclass-only (a `DataClassBuilder` anywidget widget + a `dataclass_builder()` HTML helper). It now lives in `spytial.structured_input`, accepts any value, and exposes just two verbs: `edit()` (open editor, return the value on Done) and `edit_html()` (standalone HTML). The old `DataClassBuilder` / `dataclass_builder()` names and the anywidget widget were removed.
+This module was previously named `dataclass_builder` and supported dataclasses only (a `DataClassBuilder` anywidget widget and a `dataclass_builder()` HTML helper). The module now lives in `spytial.structured_input`, accepts any value, and exposes two verbs: `edit()` (open editor, return the value on Done) and `edit_html()` (standalone HTML). The old `DataClassBuilder` and `dataclass_builder()` names and the anywidget widget were removed.
 
 !!! tip
-    Start from a minimal seed (`TreeNode()`, `{}`, `[]`) and build up visually before clicking **Done**.
+    Start from a minimal seed (`TreeNode()`, `{}`, `[]`). Build the value visually before clicking **Done**.
