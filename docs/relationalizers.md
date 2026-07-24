@@ -40,6 +40,39 @@ class WidgetRelationalizer(RelationalizerBase):
         return [atom], []
 ```
 
+## Declared relations
+
+`relationalize()` is extensional. It emits a tuple only where an instance
+holds a value. A field that no instance populates therefore leaves no trace,
+and a selector that names that field resolves to an atom literal rather than
+to a relation.
+
+A relationalizer may override `declared_relations(obj)` to name the relations
+that the type declares, whether or not any instance populates them. Spytial
+emits each declared name that no instance populated as a relation with no
+tuples, so the data instance carries the shape of the type and not only its
+contents.
+
+```python
+@relationalizer(priority=100)
+class WidgetRelationalizer(RelationalizerBase):
+    def declared_relations(self, obj):
+        return ["label", "parent"]
+```
+
+The built-in relationalizers declare:
+
+- dataclasses: every field returned by `dataclasses.fields()`
+- generic objects: every non-private name annotated or slotted across the
+  method resolution order
+
+Containers and primitives declare nothing. The default implementation returns
+an empty list, so a relationalizer that renames fields on output does not
+declare names that it never populates.
+
+A declared relation carries an arity of 2. Arity cannot be measured without a
+tuple.
+
 ## Built-in coverage first
 
 Before writing a custom relationalizer, check whether the built-ins cover

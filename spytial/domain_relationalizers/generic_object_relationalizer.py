@@ -32,6 +32,29 @@ class GenericObjectRelationalizer(RelationalizerBase):
             )
         )
 
+    def declared_relations(self, obj: Any) -> List[str]:
+        """Annotated and slotted names across the MRO, set or not.
+
+        Reads ``vars(klass)`` rather than ``klass.__annotations__``: the latter
+        falls back to an inherited dict on a class that declares none of its
+        own, which would re-attribute a base's fields at every level. Private
+        names are filtered to match the skip rule in relationalize — declaring
+        one would emit a relation nothing can ever populate.
+        """
+        names: List[str] = []
+        for klass in type(obj).__mro__:
+            if klass is object:
+                continue
+            attrs = vars(klass)
+            declared = list(attrs.get("__annotations__", {}))
+            slots = attrs.get("__slots__", ())
+            # __slots__ accepts a bare string for the single-slot case.
+            declared.extend((slots,) if isinstance(slots, str) else slots)
+            for name in declared:
+                if not name.startswith("_") and name not in names:
+                    names.append(name)
+        return names
+
     def relationalize(self, obj: Any, walker_func) -> Tuple[List[Atom], List[Relation]]:
         obj_id = walker_func._get_id(obj)
         typ = type(obj).__name__
