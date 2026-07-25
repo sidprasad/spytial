@@ -406,12 +406,26 @@ def test_enum_color_is_speculative():
     assert all(e["borderStyle"]["color"] for e in entries)
 
 
-def test_enum_selector_joins_through_name_relation():
-    # @:(x.color) reads the enum atom's display label, not the member name; the
-    # selector must join through the member's `name` relation to match.
+def test_enum_selector_reads_the_member_off_the_label():
+    # An enum member is one atom whose display label IS the member name, with no
+    # relation hanging off it, so the selector reads @:(x.color) directly. It must
+    # NOT join through `.name` -- the relationalizer emits no such relation, so that
+    # form compares two empty sides and (under sgq 3.0) matches every atom.
     full = suggest(RBNode, instance=_rb_instance()).to_registry(enabled_only=False)
     selectors = [p["selector"] for p in _entries(full, "atomStyle")]
-    assert selectors and all(".color.name) =" in s for s in selectors)
+    assert selectors
+    assert all("@:(x.color) =" in s for s in selectors)
+    assert not any(".name" in s for s in selectors)
+
+
+def test_enum_selector_quotes_the_member():
+    # sgq 3.0 (spytial-core 4.1.0): a bare name that resolves to nothing is the
+    # empty relation, so an unquoted member would make the comparison vacuously
+    # false and the atomStyle would silently stop applying.
+    full = suggest(RBNode, instance=_rb_instance()).to_registry(enabled_only=False)
+    selectors = [p["selector"] for p in _entries(full, "atomStyle")]
+    assert selectors
+    assert {s.rsplit("= ", 1)[1] for s in selectors} == {'"RED" }', '"BLACK" }'}
 
 
 def test_no_directive_for_private_fields():

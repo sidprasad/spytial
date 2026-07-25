@@ -87,12 +87,13 @@ class SelectorVerdict:
     def resolves(self) -> bool:
         """True for a selector worth keeping: clean, non-empty, and *relational*.
 
-        The ``arity >= 1`` guard is load-bearing. An unknown bareword (a
-        hallucinated relation name) does **not** error and is **not** empty -- the
-        evaluator parses it as an atom literal that resolves to itself, an
-        arity-0 singleton. So "non-empty" alone admits hallucinations; requiring
-        arity >= 1 rejects them. (Confirming the name against the datum vocabulary
-        is the complementary static check.)
+        Both guards are load-bearing, and which one catches a hallucination
+        depends on how it is written. Since simple-graph-query 3.0 (vendored with
+        spytial-core 4.1.0) an unknown bareword resolves to the **empty relation**,
+        so ``not empty`` rejects it. A *quoted* literal (``"nosuchstring"``) is
+        instead a non-empty arity-0 singleton that resolves to itself, so
+        ``arity >= 1`` is what rejects that one. Neither errors. (Confirming the
+        name against the datum vocabulary is the complementary static check.)
         """
         return self.ok and not self.empty and self.arity >= 1
 
@@ -111,11 +112,18 @@ class SelectorVerdict:
         if not self.ok:
             return f"did not evaluate ({self.error})" if self.error else "did not parse"
         if self.empty:
-            return "resolved to the empty set on this example"
+            # Since sgq 3.0 an unresolved name is empty rather than an error, so this
+            # branch now absorbs the typo case as well as genuine no-match. Say so:
+            # the message is repair feedback, and "empty" alone sends the model
+            # looking at the data when the fault is often in the name.
+            return (
+                "resolved to the empty set on this example -- note that an unresolved "
+                "name (a typo, or a string missing its quotes) is empty too, not an error"
+            )
         if self.arity < 1:
             return (
-                "resolved to an atom literal (arity 0), not a relation -- most likely "
-                "an unknown or misspelled name"
+                "resolved to an atom literal (arity 0), not a relation -- most likely a "
+                "quoted string literal where a relation is needed"
             )
         return None
 

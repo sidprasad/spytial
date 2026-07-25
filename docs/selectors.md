@@ -54,6 +54,16 @@ Inside a comprehension's `cond`, the following are available: the comparisons
 `lone`; an atom's display label `@:x` (for example `@:x = "10"`); and the
 operators `and`, `or`, and `not`.
 
+A string shall be written as a quoted literal. Double quotes are required. Single
+quotes are a parse error.
+
+A bare name that matches no type and no relation is the empty set. This fails
+quietly. A comparison against the empty set is false, so the directive does not
+apply. If both sides of the comparison are empty, the comparison is true, and the
+directive applies to every atom. The diagram renders in both cases. Unresolved
+names are reported on the diagram as a selector warning, which names the
+directive and its selector.
+
 ## Worked example: the binary tree
 
 The [binary tree](getting-started.md) orients children with a two-variable

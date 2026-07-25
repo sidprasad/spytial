@@ -55,15 +55,28 @@ _PALETTE = [
 def enum_member_selector(type_name: str, field_name: str, member: str) -> str:
     """Selector matching atoms whose enum ``field`` equals ``member``.
 
-    An Enum member relationalizes to an atom whose display label is not the member
-    name, so ``@:(x.field)`` won't match it — join through the member's ``name``
-    relation: ``@:(x.field.name)`` reads the ``'RED'``/``'BLACK'`` string atom.
+    An Enum member relationalizes to a single atom of the enum's own type whose
+    *display label* is the member name, and no relation hangs off it — uniformly for
+    ``Enum``, ``IntEnum``, and ``str``-mixin enums (see
+    :meth:`~spytial.provider_system.CnDDataInstanceBuilder._get_id`, which keeps
+    members on the by-reference path so they never alias the plain ``int``/``str``
+    atom carrying the same value). So the member name is read straight off the field:
+    ``@:(x.field)``, with no join.
 
-    Factored out (rather than inlined in :func:`enum_color`) so this exact, render-
-    verified form lives in one place — reusable by custom heuristics or tooling that
-    needs to match an enum member.
+    The member is quoted. Since simple-graph-query 3.0 (spytial-core 4.1.0) a bare
+    name that resolves to nothing is the *empty relation*, not a string, so an
+    unquoted ``RED`` would make the comparison vacuously false and the directive
+    would silently stop applying.
+
+    Factored out (rather than inlined in :func:`enum_color`) so this one form lives
+    in one place — reusable by custom heuristics or tooling that needs to match an
+    enum member. ``test_enum_selector_matches_a_real_enum_instance`` evaluates what
+    this returns against an actual datum, because both halves of the form are the
+    kind of claim that goes stale silently: an earlier version joined through a
+    ``name`` relation that the relationalizer does not emit, which matched nothing
+    under sgq 2.x and (two empty sides comparing equal) *everything* under 3.0.
     """
-    return "{ x : %s | @:(x.%s.name) = %s }" % (type_name, field_name, member)
+    return '{ x : %s | @:(x.%s) = "%s" }' % (type_name, field_name, member)
 
 
 def _self_ref_names(ci: ClassInfo) -> set:
