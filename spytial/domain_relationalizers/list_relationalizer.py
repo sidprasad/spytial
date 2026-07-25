@@ -17,17 +17,20 @@ class ListRelationalizer(RelationalizerBase):
 
         atoms = [atom]
         relations = []
-        for i, elt in enumerate(obj):
+        # Iterate a snapshot: walking an element runs arbitrary code (property
+        # getters, custom relationalizers) that may append to this very list,
+        # and a list that grows under its own loop never finishes (issue #140).
+        for i, elt in enumerate(tuple(obj)):
+            # Get the element ID; None means the walk refused the element
+            # (spytial machinery) — no index atom, no tuple.
+            eid = walker_func(elt)
+            if eid is None:
+                continue
+
             # Create an atom for the index
             idx_id = walker_func._get_id(i)
-
-            # Wait, only create the atom for the index if it's not already created?
-
             idx_atom = Atom(id=idx_id, type="int", label=str(i))
             atoms.append(idx_atom)
-
-            # Get the element ID
-            eid = walker_func(elt)
 
             # Create a ternary relation: idx(list, index, element)
             relations.append(Relation("idx", [obj_id, idx_id, eid]))

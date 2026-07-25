@@ -3,7 +3,7 @@ Relationalizer for generic objects with __dict__ or __slots__.
 
 Design Decisions:
 - Comprehensive inspection: Use inspect.getmembers to enumerate all attributes, ensuring we capture properties, descriptors, and inherited fields that serialization might include.
-- Filtering for relevance: Skip private attributes (starting with "_"), methods, functions, and modules to focus on meaningful data for visualization.
+- Filtering for relevance: Skip language-hidden names (dunders and name-mangled `_Class__x` privates — single-underscore names are structure and stay), plus methods, functions, and modules, to focus on meaningful data for visualization. Values the walker refuses (spytial's own machinery) draw no edge.
 - Serialization alignment: Include attributes even if not obviously serializable, as the relationalizer creates relations and the provider system handles serialization downstream.
 - Property/descriptor handling: Evaluate properties and descriptors on the instance to get actual values, preventing issues with dynamic attributes.
 - Performance: Limit to small/medium objects (<1 second) by using try-except for safe access and avoiding deep recursion.
@@ -141,11 +141,15 @@ class GenericObjectRelationalizer(RelationalizerBase):
                     if actual_value is value:
                         continue
                     vid = walker_func(actual_value)
+                    if vid is None:  # refused: spytial machinery, no edge
+                        continue
                     relations.append(Relation(name, [obj_id, vid]))
                 except (AttributeError, TypeError, ValueError):
                     continue
             else:
                 vid = walker_func(value)
+                if vid is None:  # refused: spytial machinery, no edge
+                    continue
                 relations.append(Relation(name, [obj_id, vid]))
 
         return [atom], relations

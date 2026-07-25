@@ -25,6 +25,8 @@ class TupleRelationalizer(RelationalizerBase):
 
             # Get the element ID
             eid = walker_func(elt)
+            if eid is None:  # refused: spytial machinery, no edge
+                continue
 
             relations.append(Relation(f"t{i}", [obj_id, eid]))
 
