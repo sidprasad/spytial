@@ -267,7 +267,7 @@ def color_by_status(field, cls_info):
                 kwargs={
                     "selector": (
                         f"{{ x : {cls_info.cls.__name__} | "
-                        f"@:(x.status) = active }}"
+                        f'@:(x.status) = "active" }}'
                     ),
                     "borderStyle": {"color": "seagreen"},
                 },

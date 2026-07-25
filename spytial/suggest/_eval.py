@@ -87,12 +87,13 @@ class SelectorVerdict:
     def resolves(self) -> bool:
         """True for a selector worth keeping: clean, non-empty, and *relational*.
 
-        The ``arity >= 1`` guard is load-bearing. An unknown bareword (a
-        hallucinated relation name) does **not** error and is **not** empty -- the
-        evaluator parses it as an atom literal that resolves to itself, an
-        arity-0 singleton. So "non-empty" alone admits hallucinations; requiring
-        arity >= 1 rejects them. (Confirming the name against the datum vocabulary
-        is the complementary static check.)
+        Both guards are load-bearing, and which one catches a hallucination
+        depends on how it is written. Since simple-graph-query 3.0 (vendored with
+        spytial-core 4.1.0) an unknown bareword resolves to the **empty relation**,
+        so ``not empty`` rejects it. A *quoted* literal (``"nosuchstring"``) is
+        instead a non-empty arity-0 singleton that resolves to itself, so
+        ``arity >= 1`` is what rejects that one. Neither errors. (Confirming the
+        name against the datum vocabulary is the complementary static check.)
         """
         return self.ok and not self.empty and self.arity >= 1
 

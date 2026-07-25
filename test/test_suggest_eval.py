@@ -98,12 +98,28 @@ def test_valid_selectors_resolve():
 def test_hallucinated_name_does_not_resolve():
     """An invented relation name evaluates cleanly but must NOT count as resolving.
 
-    The evaluator parses an unknown bareword as an atom literal echoing itself: it
-    is not an error and not empty, but it is arity 0. ``resolves`` rejects it.
+    Under sgq 3.0 (vendored with spytial-core 4.1.0) an unresolved bareword is the
+    empty relation, so ``not empty`` is what rejects it. It still does not error --
+    the whole point is that the failure is quiet, which is why ``resolves`` and not
+    ``ok`` is the gate the pipeline trusts.
     """
     (v,) = _eval.evaluate_selectors(_linked_list_datum(), ["frends"])
-    assert v.ok is True and v.empty is False  # neither errors nor empties
-    assert v.arity == 0 and v.resolves is False  # ...yet does not resolve
+    assert v.ok is True  # does not error -- fails quietly
+    assert v.empty is True and v.arity == 0
+    assert v.resolves is False
+
+
+@requires_bridge
+def test_quoted_literal_does_not_resolve():
+    """A quoted string literal is non-empty but arity 0, so ``arity >= 1`` rejects it.
+
+    The complement to the bareword case: sgq 3.0 makes an unquoted name empty, but a
+    quoted one resolves to itself as a scalar. Both must be kept out of a selector
+    slot that needs a relation.
+    """
+    (v,) = _eval.evaluate_selectors(_linked_list_datum(), ['"nosuchstring"'])
+    assert v.ok is True and v.empty is False
+    assert v.arity == 0 and v.resolves is False
 
 
 @requires_bridge
