@@ -157,9 +157,13 @@ def test_verdict_diagnostic_reasons():
     V = _eval.SelectorVerdict
     # A clean, relational result has nothing to repair.
     assert V("x", ok=True, empty=False, arity=2).diagnostic is None
-    # Data-dependent emptiness, an arity-0 hallucination, and a parse error each explain.
-    assert "empty set" in V("x", ok=True, empty=True, arity=0).diagnostic
-    assert "atom literal" in V("x", ok=True, empty=False, arity=0).diagnostic
+    # Data-dependent emptiness, an arity-0 scalar, and a parse error each explain.
+    # The empty branch also has to name the unresolved-name case, which sgq 3.0 folded
+    # into it -- otherwise the feedback points at the data instead of the query.
+    empty = V("x", ok=True, empty=True, arity=0).diagnostic
+    assert "empty set" in empty and "unresolved name" in empty
+    scalar = V("x", ok=True, empty=False, arity=0).diagnostic
+    assert "atom literal" in scalar and "quoted string literal" in scalar
     assert "did not evaluate" in V(
         "x", ok=False, empty=False, arity=0, error="parse boom"
     ).diagnostic

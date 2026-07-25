@@ -112,11 +112,18 @@ class SelectorVerdict:
         if not self.ok:
             return f"did not evaluate ({self.error})" if self.error else "did not parse"
         if self.empty:
-            return "resolved to the empty set on this example"
+            # Since sgq 3.0 an unresolved name is empty rather than an error, so this
+            # branch now absorbs the typo case as well as genuine no-match. Say so:
+            # the message is repair feedback, and "empty" alone sends the model
+            # looking at the data when the fault is often in the name.
+            return (
+                "resolved to the empty set on this example -- note that an unresolved "
+                "name (a typo, or a string missing its quotes) is empty too, not an error"
+            )
         if self.arity < 1:
             return (
-                "resolved to an atom literal (arity 0), not a relation -- most likely "
-                "an unknown or misspelled name"
+                "resolved to an atom literal (arity 0), not a relation -- most likely a "
+                "quoted string literal where a relation is needed"
             )
         return None
 

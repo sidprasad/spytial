@@ -52,9 +52,18 @@ requires_bridge = pytest.mark.skipif(
 # guard is what keeps legitimate right-hand sides out: a builtin call
 # (`multiply[i, j]`), a join (`x.color`), or another label expression all continue
 # past the identifier, and only a *lone* name can have been meant as a string.
+#
+# Deliberately not exhaustive — it is a lint, not a parser. It does not see a
+# comparison written the other way round (`red = @:(x.color)`), one split across
+# source lines, or a bare name that is really a bound comprehension variable
+# (`{x : T, y : str | @:(x.c) = y}`, which would be a false positive). It catches
+# the shape every site in this repo actually used, which is what stops the
+# regression; the semantics below are what pin the behaviour.
 _UNQUOTED_RHS = re.compile(
     r"@\w*:\s*(?:\([^)]*\)|[A-Za-z_][\w.]*)"  # @:(x.color) / @:s / @num:i2
-    r"\s*(?:=|<=|>=|<|>)\s*"
+    # `in` is a comparison too, and fails identically; it needs spaces around it
+    # where the symbolic operators do not.
+    r"(?:\s*(?:=|<=|>=|<|>)\s*|\s+in\s+)"
     r"([A-Za-z_]\w*)"  # a bare identifier...
     r"(?![\w\[.(])"  # ...that is not indexed, joined, or called
 )
@@ -102,6 +111,9 @@ def test_no_unquoted_string_comparison_in_repo():
         '{ x : RBNode | @:(x.color) = RED }',
         '{s : str | @:s = red or @:s = black}',
         '@:(x.status) = active }}',  # inside an f-string, as docs/suggest.md had it
+        '{ x : RBNode | @:(x.color)=red }',  # no whitespace
+        '{ x : RBNode | @:(x.status) in active }',  # `in` fails the same way
+        '{ x : RBNode | not @:(x.color) = red }',
     ],
 )
 def test_lint_catches_the_2x_spelling(selector):
