@@ -1176,6 +1176,14 @@ required.</p>
 <code>=</code>, <code>in</code>, <code>&lt;</code>, <code>&lt;=</code>, <code>&gt;</code>, and <code>&gt;=</code>; the multiplicities <code>some</code>, <code>no</code>, <code>one</code>, and
 <code>lone</code>; an atom's display label <code>@:x</code> (for example <code>@:x = "10"</code>); and the
 operators <code>and</code>, <code>or</code>, and <code>not</code>.</p>
+<p>A string shall be written as a quoted literal. Double quotes are required. Single
+quotes are a parse error.</p>
+<p>A bare name that matches no type and no relation is the empty set. This fails
+quietly. A comparison against the empty set is false, so the directive does not
+apply. If both sides of the comparison are empty, the comparison is true, and the
+directive applies to every atom. The diagram renders in both cases. Unresolved
+names are reported on the diagram as a selector warning, which names the
+directive and its selector.</p>
 <h2 id="worked-example-the-binary-tree">Worked example: the binary tree</h2>
 <p>The <a href="../getting-started/">binary tree</a> orients children with a two-variable
 comprehension. This is a binary selector that matches parent and child
