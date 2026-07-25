@@ -20,7 +20,9 @@ class DictRelationalizer(RelationalizerBase):
 
         atoms = [Atom(id=obj_id, type=typ, label=label)]
         relations = []
-        for k, v in obj.items():
+        # Iterate a snapshot — walking a key or value runs arbitrary code that
+        # may mutate this dict, which raises RuntimeError mid-build (#140).
+        for k, v in list(obj.items()):
             # Walk every key through the normal pipeline — primitives *and*
             # complex keys (tuples, objects, …). _walk records the key's own
             # atom plus, for containers/objects, its nested structure and class
@@ -33,6 +35,11 @@ class DictRelationalizer(RelationalizerBase):
 
             # Get the value ID
             vid = walker_func._walk(v)
+
+            # None means the walk refused that side (spytial machinery) — the
+            # entry draws no tuple.
+            if key_id is None or vid is None:
+                continue
 
             # Create a ternary relation: keyval(dict, key, value)
             relations.append(Relation("kv", [obj_id, key_id, vid]))

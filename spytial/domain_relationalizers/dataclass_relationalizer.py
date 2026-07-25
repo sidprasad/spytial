@@ -49,6 +49,11 @@ class DataclassRelationalizer(RelationalizerBase):
                 # crashing the whole build.
                 continue
             vid = walker_func(value)
+            if vid is None:
+                # The walk refused the value (spytial machinery, issue #140).
+                # declared_relations above still carries the field name, so
+                # the field surfaces as an empty relation, not a misspelling.
+                continue
             relations.append(Relation(field.name, [obj_id, vid]))
 
         return [atom], relations

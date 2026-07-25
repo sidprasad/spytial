@@ -20,8 +20,12 @@ class SetRelationalizer(RelationalizerBase):
         atom = Atom(id=obj_id, type=typ, label=label)
 
         relations = []
-        for element in obj:
+        # Iterate a snapshot — walking an element runs arbitrary code that may
+        # mutate this set, which raises RuntimeError mid-build (#140).
+        for element in tuple(obj):
             element_id = walker_func(element)
+            if element_id is None:  # refused: spytial machinery, no edge
+                continue
             relations.append(Relation("contains", [obj_id, element_id]))
 
         return [atom], relations

@@ -73,6 +73,30 @@ def default_max_depth() -> int:
     )
 
 
+# Classes defined inside spytial that are nevertheless user *data* — the reify
+# proxy is the one case today — opt out of the infrastructure refusal below by
+# setting this attribute. A dunder so `_is_hidden` keeps it out of the walk.
+_WALK_AS_DATA_ATTR = "__spytial_walk_as_data__"
+
+
+def _is_spytial_infrastructure(obj: Any) -> bool:
+    """True when *obj* is a piece of spytial itself rather than user data.
+
+    Since sidprasad/spytial#137 exposed single-underscore attributes, a
+    back-reference like ``node._seq`` leads the walk into the recorder — and
+    from there into the builder currently performing the walk, whose
+    collections grow on every walked value, so the walk never terminates
+    (sidprasad/spytial#140). Even when such a chain does terminate, atoms for
+    spytial's own machinery are meaningless in a diagram of the user's data.
+    The type's defining module is the test: infrastructure is anything
+    spytial defines, not just the two classes known to bite today.
+    """
+    if getattr(type(obj), _WALK_AS_DATA_ATTR, False):
+        return False
+    module = getattr(type(obj), "__module__", None) or ""
+    return module == "spytial" or module.startswith("spytial.")
+
+
 def _resolve_named(module_name: Optional[str], qualname: Optional[str]) -> Optional[Any]:
     """Resolve any module attribute from its module + qualified name.
 
@@ -288,6 +312,18 @@ class CnDDataInstanceBuilder:
                 f"{e} (while building a data instance for a "
                 f"{type(obj).__name__})"
             ).with_traceback(e.__traceback__) from None
+
+        if root_atom_id is None:
+            # Only the identity refusals apply at the root, so this is someone
+            # handing the builder itself (or one of its collections) back to
+            # build_instance. Walking that state while it accumulates cannot
+            # terminate, so it is an error rather than an empty instance.
+            raise ValueError(
+                "Refusing to build a data instance of the active "
+                "CnDDataInstanceBuilder or its internal state: the walk "
+                "would ingest its own accumulating collections and never "
+                "terminate."
+            )
 
         # Cache the root so a later reify() call can reconstruct the same
         # object even when the graph is cyclic (topology alone can't pick the
@@ -513,8 +549,44 @@ class CnDDataInstanceBuilder:
             self._id_counter += 1
         return self._seen[oid]
 
-    def _walk(self, obj: Any, max_depth: Optional[int] = None) -> str:
+    def _refuses_to_walk(self, obj: Any) -> bool:
+        """True when the walk must not ingest *obj* (sidprasad/spytial#140).
+
+        Two layers. Identity first: this builder and its accumulating
+        collections mutate on every walked value, and iterating a list that
+        grows under the loop never terminates — ``_seen`` can't help (each
+        step mints new atoms, nothing repeats) and the depth guard never
+        trips (it's a flat loop, not deep recursion). Then provenance: any
+        other spytial-defined object (a recorder, another builder, …) is
+        machinery, not data — its atoms would be meaningless even where the
+        walk terminates. The root is exempt from the provenance test only:
+        passing a spytial object to ``build_instance`` is an explicit request,
+        but walking the active builder cannot work at any depth.
+        """
+        if obj is self:
+            return True
+        for live_state in (
+            self._seen,
+            self._atoms,
+            self._rels,
+            self._declared_rels,
+            self._collected_decorators,
+            self._type_label_counters,
+            self._build_identity_objects,
+            self._persistent_object_ids,
+            self._persistent_atom_labels,
+        ):
+            if obj is live_state:
+                return True
+        return self._current_depth > 1 and _is_spytial_infrastructure(obj)
+
+    def _walk(self, obj: Any, max_depth: Optional[int] = None) -> Optional[str]:
         """Walk an object using the appropriate provider.
+
+        Returns the atom ID for *obj*, or ``None`` when the walk refuses it
+        (spytial's own machinery — see :meth:`_refuses_to_walk`). On ``None``
+        a relationalizer emits no relation for the value; any tuple that
+        carries a ``None`` anyway is dropped centrally in this method.
 
         ``max_depth`` defaults to :func:`default_max_depth`, derived from the
         interpreter's recursion limit so this guard trips before CPython's.
@@ -529,6 +601,10 @@ class CnDDataInstanceBuilder:
                 f"{sys.getrecursionlimit()}). Raise the recursion limit to "
                 f"walk deeper."
             )
+
+        if self._refuses_to_walk(obj):
+            self._current_depth -= 1
+            return None
 
         oid = id(obj)
         if oid in self._seen:
@@ -622,6 +698,12 @@ class CnDDataInstanceBuilder:
             # Relations now come as (name, atom1, atom2, ...) tuples
             rel_name = rel_data[0]
             atom_ids = list(rel_data[1:])  # All atoms after the name
+            # A None means the walk refused that value (spytial machinery).
+            # Built-in relationalizers skip these tuples themselves; dropping
+            # the stragglers here keeps third-party relationalizers that
+            # don't check the walker's return safe too.
+            if any(atom_id is None for atom_id in atom_ids):
+                continue
             self._rels.setdefault(rel_name, []).append(atom_ids)
 
         # Decrement depth after processing
@@ -630,8 +712,11 @@ class CnDDataInstanceBuilder:
         # Return the ID of the primary atom
         return primary_atom_id
 
-    def __call__(self, obj: Any) -> str:
-        """Allow the builder to be called as a function for recursive walking."""
+    def __call__(self, obj: Any) -> Optional[str]:
+        """Allow the builder to be called as a function for recursive walking.
+
+        ``None`` means the walk refused the object — emit no relation for it.
+        """
         return self._walk(obj)
 
     def _get_atom_type(self, atom_id: str) -> str:
@@ -1154,6 +1239,12 @@ class CnDDataInstanceBuilder:
 
         # Fallback: structural attribute-bag proxy.
         class ReconstructedObject:
+            # Defined in a spytial module but standing in for the user's own
+            # object — re-walking a reified graph must treat it as data, not
+            # trip the infrastructure refusal. (_WALK_AS_DATA_ATTR; a dunder,
+            # so the walk's attribute filter never surfaces it as an edge.)
+            __spytial_walk_as_data__ = True
+
             def __init__(self):
                 pass
 
