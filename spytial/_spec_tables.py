@@ -283,6 +283,17 @@ SCALAR_ITEMS = {
     'flag': 'name',
 }
 
+# The forms `hold: never` actually negates. `size` and `hideAtom` are
+# constraints that do NOT take it -- core accepts the key and ignores it,
+# so a spec reading `hold: never` there quietly means the opposite of what
+# it says. annotations.py rejects it rather than emitting a no-op.
+HOLD_SUPPORTED_BY = frozenset([
+    'align',
+    'cyclic',
+    'group',
+    'orientation',
+])
+
 
 # --------------------------------------------------------------------------- #
 # Author-time value checking

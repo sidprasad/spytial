@@ -98,17 +98,24 @@ from spytial import GroupEdge, LineStyle, TextStyle
 > accepts them with the same meaning, behind a deprecation warning, so an older
 > spec continues to render. Spytial writes them under `constraints`.
 
-### `hold`: invert any constraint
+### `hold`: invert a constraint
 
-Every constraint takes an optional **`hold`**. It defaults to `'always'`. Pass
-`'never'` to require the opposite, so that the layout shall not satisfy the
-constraint. Use `'never'` to state that atoms are not grouped, or that `y` is
-never below `x`, instead of leaving the relationship unconstrained.
+`orientation`, `align`, `cyclic`, and `group` each take an optional **`hold`**.
+It defaults to `'always'`. Pass `'never'` to require the opposite, so that the
+layout shall not satisfy the constraint. Use `'never'` to state that atoms are
+not grouped, or that `y` is never below `x`, instead of leaving the
+relationship unconstrained.
 
 ```python
 @spytial.orientation(selector='children', directions=['below'], hold='never')
 @spytial.group(selector='Team.members', name='Team', hold='never')
 ```
+
+`size` and `hideAtom` do **not** take `hold`, although they are constraints.
+There is no negation of a fixed width, or of a hidden atom. spytial-core
+accepts the key on those two forms and ignores it, so a `hold: never` written
+there reads as a negation and renders as its opposite. Spytial rejects it at
+the point where it is written.
 
 ## Directives
 

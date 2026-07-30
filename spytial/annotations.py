@@ -42,6 +42,7 @@ from ._spec_tables import (  # noqa: F401  (names re-exported from this module)
     ENUM_VALUES as _ENUM_VALUES,
     FLAG_NAMES,
     GROUP_EDGE_DIRECTIONS,
+    HOLD_SUPPORTED_BY,
     ICON_PLACEMENTS,
     LANGUAGE_VERSION,
     LINE_PATTERNS,
@@ -370,10 +371,23 @@ def _normalize_hold(annotation_type, kwargs):
     gives those paths the same contract: reject what core cannot read, and omit
     ``always``, which carries no information.
 
+    Not every constraint is negatable. ``size`` and ``hideAtom`` are constraints
+    that do not take ``hold`` at all -- core accepts the key and ignores it, so
+    a ``hold: never`` written there reads as a negation and renders as its
+    opposite. Nothing downstream can catch that, so it is rejected here.
+
     Idempotent — the decorator-on-object path normalizes twice.
     """
-    if "hold" not in kwargs or annotation_type not in CONSTRAINT_TYPES:
+    if "hold" not in kwargs:
         return kwargs
+    if annotation_type not in CONSTRAINT_TYPES:
+        return kwargs
+    if annotation_type not in HOLD_SUPPORTED_BY:
+        raise ValueError(
+            f"{annotation_type} does not support hold: spytial-core accepts the "
+            f"key and ignores it, so the negation would silently not apply. "
+            f"hold works on {', '.join(sorted(HOLD_SUPPORTED_BY))}."
+        )
     if _validate_hold(kwargs["hold"]) == "always":
         return {k: v for k, v in kwargs.items() if k != "hold"}
     return kwargs

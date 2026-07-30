@@ -56,18 +56,52 @@ def _baseline():
 # --------------------------------------------------------------------------- #
 
 
-def _field_sets_union(form):
-    """All keywords a form accepts, and the ones every field set requires.
+def _accepted(field_set):
+    return set(field_set["required"]) | set(field_set["optional"])
 
-    A form with alternative field sets (``group``) requires a keyword only if
-    no set lets you leave it out, which is what a user actually experiences.
+
+def _match_variants(old_sets, new_sets):
+    """Pair up a form's alternative field sets, by keyword overlap.
+
+    A form with alternatives (``group``) has variants whose required keys are
+    disjoint -- the by-field form needs field/groupOn/addToGroup, the selector
+    form needs selector/name -- so they cannot be matched positionally: a
+    reorder upstream would read as both removed and both added.
+
+    They also must not be collapsed into one union. Reducing requiredness to
+    the intersection across variants makes it empty for exactly this form, and
+    an empty intersection stays empty however the variants change, so every
+    requiredness change on `group` becomes invisible.
+
+    Returns (pairs, dropped, added).
     """
-    accepted, required = set(), None
-    for field_set in form["fieldSets"]:
-        accepted |= set(field_set["required"]) | set(field_set["optional"])
-        this_set = set(field_set["required"])
-        required = this_set if required is None else (required & this_set)
-    return accepted, (required or set())
+    unmatched = list(range(len(new_sets)))
+    pairs, dropped = [], []
+    for old in old_sets:
+        best, best_score = None, 0
+        for index in unmatched:
+            score = len(_accepted(old) & _accepted(new_sets[index]))
+            if score > best_score:
+                best, best_score = index, score
+        if best is None:
+            dropped.append(old)
+        else:
+            unmatched.remove(best)
+            pairs.append((old, new_sets[best]))
+    return pairs, dropped, [new_sets[i] for i in unmatched]
+
+
+def _describe(field_set):
+    return ", ".join(sorted(field_set["required"])) or "no required keys"
+
+
+def _qualifier(field_set, multiple):
+    """Which alternative a change lands on, when a form has more than one.
+
+    A suffix rather than a prefix, so the common single-variant message stays
+    the compact `form.keyword` it has always been.
+    """
+    return f" (in the {_describe(field_set)} form)" if multiple else ""
 
 
 def classify(old, new):
@@ -92,16 +126,26 @@ def classify(old, new):
                 f"form `{name}` moved from {before['section']} to {after['section']} "
                 f"(same Python call, different emitted section)"
             )
-        old_accepted, old_required = _field_sets_union(before)
-        new_accepted, new_required = _field_sets_union(after)
-        for key in sorted(old_accepted - new_accepted):
-            breaking.append(f"`{name}` no longer accepts `{key}`")
-        for key in sorted(new_accepted - old_accepted):
-            additive.append(f"`{name}` accepts new keyword `{key}`")
-        for key in sorted((new_required - old_required) & old_accepted):
-            breaking.append(f"`{name}.{key}` became required")
-        for key in sorted(old_required - new_required):
-            additive.append(f"`{name}.{key}` is no longer required")
+        pairs, dropped, added = _match_variants(before["fieldSets"], after["fieldSets"])
+        multiple = len(before["fieldSets"]) > 1 or len(after["fieldSets"]) > 1
+        for field_set in dropped:
+            breaking.append(
+                f"`{name}` no longer accepts the {_describe(field_set)} form"
+            )
+        for field_set in added:
+            additive.append(f"`{name}` accepts a new form: {_describe(field_set)}")
+        for old_set, new_set in pairs:
+            where = _qualifier(old_set, multiple)
+            for key in sorted(_accepted(old_set) - _accepted(new_set)):
+                breaking.append(f"`{name}` no longer accepts `{key}`{where}")
+            for key in sorted(_accepted(new_set) - _accepted(old_set)):
+                additive.append(f"`{name}` accepts new keyword `{key}`{where}")
+            became_required = set(new_set["required"]) - set(old_set["required"])
+            for key in sorted(became_required & _accepted(old_set)):
+                breaking.append(f"`{name}.{key}` became required{where}")
+            for key in sorted(set(old_set["required"]) - set(new_set["required"])):
+                if key in _accepted(new_set):
+                    additive.append(f"`{name}.{key}` is no longer required{where}")
 
     # Value vocabularies
     compare_sets(
@@ -281,3 +325,68 @@ def test_classifier_calls_an_addition_or_relaxation_additive(mutate):
 
 def test_classifier_reports_nothing_when_nothing_changed():
     assert classify(_baseline(), _baseline()) == ([], [])
+
+
+# --------------------------------------------------------------------------- #
+# Forms with alternative field sets
+# --------------------------------------------------------------------------- #
+#
+# `group` is the only one, and it is the case a union-based comparison gets
+# wrong: its two variants have disjoint required keys, so intersecting them
+# gives the empty set, which stays empty however either variant changes. Every
+# requiredness change on `group` was invisible until these landed.
+
+
+def _mutate_group_variant(surface, find, move_from, move_to):
+    for field_set in surface["forms"]["group"]["fieldSets"]:
+        if find in field_set[move_from]:
+            field_set[move_from].remove(find)
+            field_set[move_to].append(find)
+            return surface
+    raise AssertionError(f"no group variant has {find!r} in {move_from}")
+
+
+def test_relaxing_a_key_in_one_group_variant_is_seen_and_additive():
+    before = _baseline()
+    after = _mutate_group_variant(_baseline(), "name", "required", "optional")
+    breaking, additive = classify(before, after)
+    assert not breaking, breaking
+    assert any("`group.name` is no longer required" in line for line in additive), additive
+
+
+def test_requiring_a_key_in_one_group_variant_is_seen_and_breaking():
+    before = _baseline()
+    after = _mutate_group_variant(_baseline(), "addEdge", "optional", "required")
+    breaking, _ = classify(before, after)
+    assert any("`group.addEdge` became required" in line for line in breaking), breaking
+
+
+def test_removing_a_key_from_one_group_variant_is_breaking():
+    before = _baseline()
+    after = _baseline()
+    for field_set in after["forms"]["group"]["fieldSets"]:
+        if "textStyle" in field_set["optional"]:
+            field_set["optional"].remove("textStyle")
+    breaking, _ = classify(before, after)
+    assert any("no longer accepts `textStyle`" in line for line in breaking), breaking
+
+
+def test_dropping_a_whole_group_variant_is_breaking():
+    """Core retiring the deprecated by-field form would look like this."""
+    before = _baseline()
+    after = _baseline()
+    after["forms"]["group"]["fieldSets"] = [
+        fs for fs in after["forms"]["group"]["fieldSets"] if "field" not in fs["required"]
+    ]
+    breaking, _ = classify(before, after)
+    assert any("no longer accepts the" in line and "form" in line for line in breaking), (
+        breaking
+    )
+
+
+def test_reordering_variants_alone_is_not_a_change():
+    """Matching must be by content; the manifest's item order is not a contract."""
+    before = _baseline()
+    after = _baseline()
+    after["forms"]["group"]["fieldSets"].reverse()
+    assert classify(before, after) == ([], [])

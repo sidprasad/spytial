@@ -513,6 +513,50 @@ def test_the_schema_would_reject_the_deprecated_placement():
     assert not list(validator.iter_errors({"constraints": [], "directives": []}))
 
 
+# --------------------------------------------------------------------------- #
+# hold, which not every constraint takes
+# --------------------------------------------------------------------------- #
+
+
+def test_hold_support_matches_the_tables():
+    """HOLD_SUPPORTED_BY and the `hold` keyword in the tables come from the same
+    manifest by two different routes; a disagreement would make the runtime
+    check and the accepted-keys check contradict each other."""
+    from_tables = set()
+    for form, spec in tables.CONSTRAINT_TYPES.items():
+        field_sets = spec if isinstance(spec, list) else [spec]
+        if any("hold" in field_set["optional"] for field_set in field_sets):
+            from_tables.add(form)
+    assert from_tables == set(tables.HOLD_SUPPORTED_BY)
+
+
+@pytest.mark.parametrize("form", sorted(tables.HOLD_SUPPORTED_BY))
+def test_negatable_constraints_accept_hold(form):
+    example = {
+        "orientation": {"selector": "s", "directions": ["above"]},
+        "cyclic": {"selector": "s", "direction": "clockwise"},
+        "align": {"selector": "s", "direction": "horizontal"},
+        "group": {"selector": "s", "name": "g"},
+    }[form]
+    decorated = getattr(spytial, form)(hold="never", **example)(type("C", (), {}))
+    entry = decorated.__spytial_registry__["constraints"][0][form]
+    assert entry["hold"] == "never"
+
+
+@pytest.mark.parametrize(
+    "form, example",
+    [
+        ("size", {"height": 10, "width": 10}),
+        ("hideAtom", {"selector": "s"}),
+    ],
+)
+def test_non_negatable_constraints_reject_hold(form, example):
+    """Core takes the key and ignores it, so the spec would say one thing and
+    render the other. Nothing downstream can catch that."""
+    with pytest.raises(ValueError, match="does not support hold"):
+        getattr(spytial, form)(hold="never", **example)(type("C", (), {}))
+
+
 def test_size_and_hide_atom_are_constraints():
     """Both moved sections in spytial-core 4.3.
 

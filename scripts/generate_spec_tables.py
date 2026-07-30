@@ -218,6 +218,30 @@ def _collect_enums(manifest):
     return constants
 
 
+def build_hold_support(manifest):
+    """The forms `hold` actually negates, as yaml keys.
+
+    Not every constraint takes it. `size` and `hideAtom` accept the key
+    syntactically and ignore it, which is the worst combination -- a spec
+    reading `hold: never` that quietly means the opposite of what it says.
+
+    The manifest states this twice, as a per-item ``supportsHold`` flag and as
+    the ``hold.supportedBy`` list. Cross-check them: if they ever disagree,
+    picking either one silently would be guessing.
+    """
+    by_flag = {
+        item["yamlKey"] for item in manifest["items"] if item.get("supportsHold")
+    }
+    ids_to_keys = {item["id"]: item["yamlKey"] for item in manifest["items"]}
+    by_list = {ids_to_keys[i] for i in manifest["hold"]["supportedBy"] if i in ids_to_keys}
+    if by_flag != by_list:
+        raise ManifestDrift(
+            f"the manifest disagrees with itself about `hold`: supportsHold flags "
+            f"give {sorted(by_flag)}, hold.supportedBy gives {sorted(by_list)}."
+        )
+    return sorted(by_flag)
+
+
 def _field_sets(item):
     """(required, optional) Python keywords for one manifest item."""
     required, optional = [], []
@@ -387,6 +411,7 @@ def render(manifest=None):
 
     enums = _collect_enums(manifest)
     constraints, directives = build_tables(manifest)
+    hold_supported_by = build_hold_support(manifest)
     enum_values = build_enum_values(manifest)
     blocks = build_blocks(manifest)
     deprecated_items, deprecated_fields = build_deprecations(manifest)
@@ -462,6 +487,12 @@ def render(manifest=None):
         "# Items written as a bare scalar rather than a mapping",
         "# (`- flag: hideDisconnected`), mapped to the keyword carrying the value.",
         f"SCALAR_ITEMS = {_lit(scalar_items)}",
+        "",
+        "# The forms `hold: never` actually negates. `size` and `hideAtom` are",
+        "# constraints that do NOT take it -- core accepts the key and ignores it,",
+        "# so a spec reading `hold: never` there quietly means the opposite of what",
+        "# it says. annotations.py rejects it rather than emitting a no-op.",
+        f"HOLD_SUPPORTED_BY = frozenset({_lit(hold_supported_by)})",
         "",
         "",
         "# --------------------------------------------------------------------------- #",
