@@ -302,6 +302,101 @@ def test_annotated_class_accepts_every_field_in_the_tables(form):
     )
 
 
+# --------------------------------------------------------------------------- #
+# Vocabularies, which are written out in prose in three places
+# --------------------------------------------------------------------------- #
+#
+# Generating the tables means a value core adds starts being *accepted*
+# immediately, with no edit anywhere -- which is exactly what makes the prose
+# easy to forget. A docstring listing seven of eight orientation directions
+# still reads as authoritative, and `help()` is the only reference the
+# **kwargs decorators have.
+
+# Vocabulary -> where it is spelled out. ("hold", None) means every constraint
+# that accepts `hold`, rather than one named place.
+VOCABULARY_PROSE = {
+    "ORIENTATION_DIRECTIONS": ("decorator", "orientation"),
+    "ROTATION_DIRECTIONS": ("decorator", "cyclic"),
+    "ALIGN_DIRECTIONS": ("decorator", "align"),
+    "FLAG_NAMES": ("decorator", "flag"),
+    "GROUP_EDGE_DIRECTIONS": ("decorator", "group"),
+    "LINE_PATTERNS": ("block", "LineStyle"),
+    "TEXT_SIZES": ("block", "TextStyle"),
+    "ICON_PLACEMENTS": ("block", "IconStyle"),
+    "CONSTRAINT_HOLDS": ("hold", None),
+}
+
+OPERATIONS_DOC = REPO_ROOT / "docs" / "operations.md"
+
+
+def _all_vocabularies():
+    """Every value vocabulary in the generated tables, found by shape.
+
+    Discovered rather than listed, so a vocabulary core adds shows up here on
+    its own and fails the completeness check below instead of going undocumented.
+    """
+    return {
+        name: value
+        for name, value in vars(tables).items()
+        if name.isupper()
+        and isinstance(value, tuple)
+        and value
+        and all(isinstance(item, str) for item in value)
+    }
+
+
+def _prose_for(kind, name):
+    if kind == "decorator":
+        return getattr(spytial, name).__doc__ or ""
+    if kind == "block":
+        return getattr(spytial, name).__doc__ or ""
+    raise AssertionError(f"unknown documentation kind {kind!r}")
+
+
+def test_every_vocabulary_has_a_documented_home():
+    assert set(VOCABULARY_PROSE) == set(_all_vocabularies()), (
+        "a value vocabulary was added or removed upstream; say where it is "
+        "documented in VOCABULARY_PROSE so its values stay checked"
+    )
+
+
+@pytest.mark.parametrize("vocabulary", sorted(VOCABULARY_PROSE))
+def test_vocabulary_values_are_spelled_out_in_the_python_docs(vocabulary):
+    values = getattr(tables, vocabulary)
+    kind, target = VOCABULARY_PROSE[vocabulary]
+
+    if kind == "hold":
+        # `hold` is documented per constraint, since that is where it is used.
+        for form, spec in tables.CONSTRAINT_TYPES.items():
+            field_sets = spec if isinstance(spec, list) else [spec]
+            if not any("hold" in s["optional"] for s in field_sets):
+                continue
+            doc = getattr(spytial, form).__doc__ or ""
+            missing = [v for v in values if v not in doc]
+            assert not missing, (
+                f"@spytial.{form} accepts hold={missing} but its docstring does "
+                f"not mention {missing}"
+            )
+        return
+
+    doc = _prose_for(kind, target)
+    missing = [v for v in values if v not in doc]
+    assert not missing, (
+        f"{target} accepts {missing} from {vocabulary}, but its docstring never "
+        f"lists {missing} -- help() is the only reference users have here"
+    )
+
+
+@pytest.mark.parametrize("vocabulary", sorted(VOCABULARY_PROSE))
+def test_vocabulary_values_are_spelled_out_in_the_docs_site(vocabulary):
+    """docs/operations.md enumerates these too, and goes stale the same way."""
+    prose = OPERATIONS_DOC.read_text(encoding="utf-8")
+    missing = [v for v in getattr(tables, vocabulary) if v not in prose]
+    assert not missing, (
+        f"docs/operations.md does not mention {missing} from {vocabulary}"
+    )
+
+
 @pytest.mark.parametrize("form", ALL_FORMS)
 def test_decorator_docstring_names_every_accepted_key(form):
     """The decorators take **kwargs, so the docstring is the only key reference.

@@ -32,6 +32,43 @@ jobs:
         run: |
           python -m pytest
 
+  # The generated files must be exactly what the vendored spytial-core manifest
+  # produces. test_spec_tables.py already asserts this, but it skips itself when
+  # the repo layout is missing, and a skipped test is indistinguishable from a
+  # passing one in a green run. Regenerating and diffing cannot skip.
+  generated-artifacts:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install ".[dev]"
+
+      - name: Regenerate everything derived from spytial-core
+        run: |
+          python3 scripts/generate_spec_tables.py
+          python3 scripts/vendor_lock.py
+          python3 scripts/generate_api_baseline.py
+
+      - name: Fail if anything regenerated differently
+        run: |
+          if ! git diff --exit-code; then
+            echo "::error::Generated files are stale. Run the three scripts in"
+            echo "::error::scripts/ and commit the result. If test/api_baseline.json"
+            echo "::error::changed, read what test_api_baseline.py says about whether"
+            echo "::error::the change is additive or breaking before choosing a version."
+            exit 1
+          fi
+
   # Real-browser end-to-end for spytial.edit(). Opt-in: runs only on a manual
   # "Run workflow" (workflow_dispatch), never on PRs/pushes — it needs a browser
   # and the spytial-core CDN, kept out of the required PR checks.
