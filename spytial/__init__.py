@@ -46,6 +46,7 @@ from .annotations import (
     TextStyle,
     BorderStyle,
     FillStyle,
+    IconStyle,
     GroupEdge,
     # Object annotation functions
     annotate,
@@ -150,6 +151,7 @@ __all__ = [
     "TextStyle",
     "BorderStyle",
     "FillStyle",
+    "IconStyle",
     "GroupEdge",
     # Object annotation functions
     "annotate",

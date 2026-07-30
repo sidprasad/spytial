@@ -1,0 +1,153 @@
+name: spytial-core drift
+
+# Notice a new spytial-core release without anyone remembering to look.
+#
+# Everything spytial validates against is generated from the language manifest
+# vendored out of a pinned spytial-core. That pin only moves when a human runs
+# ./update-spytial-core.sh, so between releases there is nothing to signal that
+# the language has moved on -- and core's parser ignores what it does not
+# recognize, so a diagram rendered against a newer core simply drops the parts
+# that no longer match.
+#
+# This runs the real update in a throwaway checkout, reports what it would do,
+# and opens an issue. It never commits or pushes; the point is to put the diff
+# and the test results in front of someone, not to land them.
+
+on:
+  schedule:
+    - cron: "0 9 * * 1"   # Mondays, 09:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Compare the pinned release against npm
+        id: versions
+        run: |
+          set -euo pipefail
+          CURRENT="$(python3 -c "import re; print(re.search(r'SPYTIAL_CORE_VERSION = \"([^\"]+)\"', open('spytial/core_assets.py').read()).group(1))")"
+          LATEST="$(curl -fsSL https://registry.npmjs.org/spytial-core/latest \
+            | python3 -c 'import json,sys; print(json.load(sys.stdin)["version"])')"
+          echo "current=$CURRENT" >> "$GITHUB_OUTPUT"
+          echo "latest=$LATEST"   >> "$GITHUB_OUTPUT"
+          if [[ "$CURRENT" == "$LATEST" ]]; then
+            echo "behind=false" >> "$GITHUB_OUTPUT"
+            echo "Pinned $CURRENT is current." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "behind=true" >> "$GITHUB_OUTPUT"
+            echo "Pinned **$CURRENT**, latest **$LATEST**." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Install dependencies
+        if: steps.versions.outputs.behind == 'true'
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install ".[dev]"
+
+      # The update is expected to fail when core adds a construct the generator
+      # has no mapping for -- that refusal is the most useful thing this job can
+      # report, so capture it rather than letting it kill the run.
+      - name: Run the update
+        if: steps.versions.outputs.behind == 'true'
+        id: update
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          ./update-spytial-core.sh 2>&1 | tee /tmp/update.log
+
+      - name: Run the test suite against the new release
+        if: steps.versions.outputs.behind == 'true' && steps.update.outcome == 'success'
+        id: tests
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          python -m pytest -q 2>&1 | tail -40 | tee /tmp/tests.log
+
+      - name: Summarize what changed
+        if: steps.versions.outputs.behind == 'true'
+        id: report
+        run: |
+          set -euo pipefail
+          {
+            echo "spytial-core **${{ steps.versions.outputs.latest }}** is out; this repo pins"
+            echo "**${{ steps.versions.outputs.current }}**."
+            echo
+            if [[ "${{ steps.update.outcome }}" != "success" ]]; then
+              echo "### The update did not complete"
+              echo
+              echo "The generator refuses to emit tables for a construct it has no"
+              echo "mapping for, so this usually means the new release adds something"
+              echo "that needs a decision rather than a regeneration."
+              echo
+              echo '```'
+              tail -25 /tmp/update.log || true
+              echo '```'
+            else
+              LANG_BEFORE="$(git show HEAD:spytial/_spec_tables.py | grep -m1 '^LANGUAGE_VERSION' || echo 'LANGUAGE_VERSION = ?')"
+              LANG_AFTER="$(grep -m1 '^LANGUAGE_VERSION' spytial/_spec_tables.py || echo 'LANGUAGE_VERSION = ?')"
+              echo "### Language"
+              echo
+              if [[ "$LANG_BEFORE" == "$LANG_AFTER" ]]; then
+                echo "\`$LANG_AFTER\` — unchanged, so the spec language did not move."
+                echo "This is a runtime or packaging release; nothing emitted needs revisiting."
+              else
+                echo "Was \`$LANG_BEFORE\`, now \`$LANG_AFTER\` — **the spec language changed.**"
+              fi
+              echo
+              echo "### Files the update rewrote"
+              echo
+              echo '```'
+              git diff --stat || true
+              echo '```'
+              echo
+              echo "### Tests"
+              echo
+              echo '```'
+              tail -25 /tmp/tests.log 2>/dev/null || echo "(did not run)"
+              echo '```'
+              if [[ "${{ steps.tests.outcome }}" != "success" ]]; then
+                echo
+                echo "Failures name whichever hand-written surface is now behind the"
+                echo "language — an \`Annotated\` class that cannot express a new field,"
+                echo "a docstring missing a new value, a form with no decorator."
+              fi
+            fi
+            echo
+            echo "To take it: \`./update-spytial-core.sh\` locally, then work through"
+            echo "\`pytest\`. If the public API changed, regenerate"
+            echo "\`test/api_baseline.json\` — the failure message classifies the change"
+            echo "as additive or breaking, which decides the version bump."
+            echo
+            echo "<sub>Opened automatically by \`.github/workflows/spytial-core-drift.yml\`.</sub>"
+          } > /tmp/issue.md
+          cat /tmp/issue.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Open an issue, unless one is already open for this release
+        if: steps.versions.outputs.behind == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TITLE: "spytial-core ${{ steps.versions.outputs.latest }} is available (pinned: ${{ steps.versions.outputs.current }})"
+        run: |
+          set -euo pipefail
+          EXISTING="$(gh issue list --state open --search "$TITLE in:title" \
+            --json number,title \
+            --jq ".[] | select(.title == \"$TITLE\") | .number" | head -1)"
+          if [[ -n "$EXISTING" ]]; then
+            echo "Issue #$EXISTING already tracks this release; leaving it alone."
+          else
+            gh issue create --title "$TITLE" --body-file /tmp/issue.md
+          fi

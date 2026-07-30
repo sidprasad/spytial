@@ -48,6 +48,9 @@ dev = [
     "hypothesis>=6.0.0",
     "flake8>=6.0.0",
     "black>=23.0.0",
+    # Validates emitted specs against spytial-core's own spec schema. Optional:
+    # the test that uses it skips when it is absent.
+    "jsonschema>=4.0.0",
 ]
 e2e = [
     "playwright>=1.40",
@@ -82,5 +85,5 @@ include = ["spytial*"]
 version = {attr = "spytial._version.__version__"}
 
 [tool.setuptools.package-data]
-spytial = ["*.html"]
+spytial = ["*.html", "_vendor/*.json"]
 "spytial.suggest" = ["*.js", "_vendor/*.js"]

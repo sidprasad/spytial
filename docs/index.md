@@ -81,6 +81,8 @@ through `typing.Annotated`. Full details and arguments are in
 | `align` | Line selected nodes up on a shared axis |
 | `cyclic` | Arrange selected nodes in a ring |
 | `group` | Enclose selected nodes in a labelled region |
+| `size` | Set the drawn width and height of selected nodes |
+| `hideAtom` | Remove selected nodes from the diagram |
 
 </div>
 
@@ -91,11 +93,11 @@ through `typing.Annotated`. Full details and arguments are in
 | Operation | What it does |
 | --- | --- |
 | `attribute` | Show a field as a label inside the node |
-| `atomStyle` · `edgeStyle` | Style nodes and edges (border, fill, line, labels) |
-| `hideAtom` · `hideField` | Hide nodes and fields |
+| `atomStyle` · `edgeStyle` | Style nodes and edges (border, fill, icon, line, labels) |
+| `hideField` | Hide a relation's edges |
 | `tag` | Add a computed label to matching nodes |
 | `inferredEdge` | Draw a derived edge between nodes |
-| `size` · `icon` | Resize nodes, or add an icon |
+| `flag` | Switch a whole-diagram rendering behaviour |
 
 </div>
 
