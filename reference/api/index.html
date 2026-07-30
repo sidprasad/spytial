@@ -1152,6 +1152,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#spytial.IconStyle" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        IconStyle
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#spytial.GroupEdge" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1402,23 +1413,6 @@
       
     </span>
   </a>
-  
-    <nav class="md-nav" aria-label="Flag">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#spytial.Flag.to_entry" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        to_entry
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
   
 </li>
         
@@ -2513,6 +2507,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#spytial.annotations.IconStyle" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        IconStyle
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#spytial.annotations.GroupEdge" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2724,23 +2729,6 @@
       
     </span>
   </a>
-  
-    <nav class="md-nav" aria-label="Flag">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#spytial.annotations.Flag.to_entry" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        to_entry
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
   
 </li>
         
@@ -3910,6 +3898,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#spytial.IconStyle" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        IconStyle
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#spytial.GroupEdge" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -4160,23 +4159,6 @@
       
     </span>
   </a>
-  
-    <nav class="md-nav" aria-label="Flag">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#spytial.Flag.to_entry" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        to_entry
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
   
 </li>
         
@@ -5271,6 +5253,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#spytial.annotations.IconStyle" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        IconStyle
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#spytial.annotations.GroupEdge" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -5482,23 +5475,6 @@
       
     </span>
   </a>
-  
-    <nav class="md-nav" aria-label="Flag">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#spytial.annotations.Flag.to_entry" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        to_entry
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
   
 </li>
         
@@ -7503,6 +7479,69 @@ weight (number &gt; 0), highlight (CSS color).</p>
 
 
 
+<h3 id="spytial.IconStyle" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-class"></code>            <code>IconStyle</code>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
+  </span>
+
+</h3>
+
+
+    <div class="doc doc-contents ">
+            <p class="doc doc-class-bases">
+              Bases: <code><span title="spytial.annotations._StyleBlock">_StyleBlock</span></code></p>
+
+
+
+        <p>An icon drawn on an atom (spytial-core 4.3).</p>
+<p>All fields optional, including <code>path</code>, so a rule on a supertype can supply
+the icon and a rule on a subtype tune only its opacity. An IconStyle with no
+path draws nothing.</p>
+<ul>
+<li><code>path</code> -- a bundled icon name ('person'), an icon-pack reference
+  ('bi:person-fill'), a URL, or a path.</li>
+<li><code>placement</code> -- 'full' (the icon occupies the box) or 'badge' (a small
+  marker in the corner, secondary to the label). Defaults to 'full'.</li>
+<li><code>opacity</code> -- alpha in [0, 1]. Fade a 'full' icon to use it as a
+  watermark behind the label.</li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
 <h3 id="spytial.GroupEdge" class="doc doc-heading">
 <code class="doc-symbol doc-symbol-heading doc-symbol-class"></code>            <code>GroupEdge</code>
 
@@ -7607,6 +7646,10 @@ attached to type aliases using typing.Annotated.</p>
     <div class="doc doc-contents ">
 
         <p>Convert to the internal registry format.</p>
+<p>A scalar form serializes as a bare value rather than a mapping
+(<code>- flag: hideDisconnected</code>); SCALAR_ITEMS says which keyword carries
+it, so this matches the decorator path without either restating which
+forms are scalar.</p>
 
 
     </div>
@@ -7924,14 +7967,20 @@ legacy directive colored the border, not the fill).</p>
 
 
         <p>Atom style directive (spytial-core 3.0).</p>
-<p>Styles an atom's border, interior fill, and label independently.</p>
+<p>Styles an atom's border, interior fill, icon, and label independently.</p>
+<p><code>showLabel</code> is independent of the icon: <code>iconStyle.placement</code> controls
+the icon's geometry, <code>showLabel</code> controls whether the label is drawn at
+all. That split is what makes a faded watermark, or an icon with no label,
+expressible (spytial-core 4.3).</p>
 
 
 <details class="usage" open>
   <summary>Usage</summary>
   <p>Styled = Annotated[list[int], AtomStyle(selector='self', borderStyle=BorderStyle(color='blue'))]
 Filled = Annotated[Tree, AtomStyle(selector='Node', fillStyle=FillStyle(color='#eef6ff'),
-                                   textStyle=TextStyle(size='large'))]</p>
+                                   textStyle=TextStyle(size='large'))]
+Marked = Annotated[Tree, AtomStyle(selector='Dir', iconStyle=IconStyle(path='bi:folder-fill',
+                                                                       placement='badge'))]</p>
 </details>
 
 
@@ -7979,12 +8028,18 @@ Filled = Annotated[Tree, AtomStyle(selector='Node', fillStyle=FillStyle(color='#
 
 
 
-        <p>Size directive.</p>
+        <p>Size constraint.</p>
+<p>Size fixes a node's geometry, which is what the layout solves over rather
+than presentation layered on a solved layout, so it belongs under
+<code>constraints</code> (spytial-core 4.3; the directives section still accepts it
+behind a deprecation warning).</p>
+<p><code>selector</code> is optional -- omit it to resize every node.</p>
 
 
 <details class="usage" open>
   <summary>Usage</summary>
-  <p>SizedList = Annotated[list[int], Size(selector='items', height=50, width=50)]</p>
+  <p>SizedList = Annotated[list[int], Size(selector='items', height=50, width=50)]
+AllSquare = Annotated[list[int], Size(height=50, width=50)]</p>
 </details>
 
 
@@ -8249,7 +8304,11 @@ Filtered = Annotated[MyClass, HideField(field='debug', filter='debug &amp; Produ
 
 
 
-        <p>Hide atom directive.</p>
+        <p>Hide atom constraint.</p>
+<p>Hiding an atom changes what the layout has to place, and can make a spec
+unsatisfiable against the other constraints, so it belongs under
+<code>constraints</code> (spytial-core 4.3; the directives section still accepts it
+behind a deprecation warning).</p>
 
 
 <details class="usage" open>
@@ -8565,24 +8624,6 @@ attribute values to nodes based on selector evaluation.</p>
 
 
 
-
-<div class="doc doc-object doc-function">
-
-
-<h4 id="spytial.Flag.to_entry" class="doc doc-heading">
-<code class="doc-symbol doc-symbol-heading doc-symbol-method"></code>            <code class="highlight language-python"><span class="n">to_entry</span><span class="p">()</span></code>
-
-</h4>
-
-
-    <div class="doc doc-contents ">
-
-        <p>Flags store just the name as a scalar.</p>
-
-
-    </div>
-
-</div>
 
 
 
@@ -12780,6 +12821,69 @@ weight (number &gt; 0), highlight (CSS color).</p>
 
 
 
+<h3 id="spytial.annotations.IconStyle" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-class"></code>            <code>IconStyle</code>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
+  </span>
+
+</h3>
+
+
+    <div class="doc doc-contents ">
+            <p class="doc doc-class-bases">
+              Bases: <code><span title="spytial.annotations._StyleBlock">_StyleBlock</span></code></p>
+
+
+
+        <p>An icon drawn on an atom (spytial-core 4.3).</p>
+<p>All fields optional, including <code>path</code>, so a rule on a supertype can supply
+the icon and a rule on a subtype tune only its opacity. An IconStyle with no
+path draws nothing.</p>
+<ul>
+<li><code>path</code> -- a bundled icon name ('person'), an icon-pack reference
+  ('bi:person-fill'), a URL, or a path.</li>
+<li><code>placement</code> -- 'full' (the icon occupies the box) or 'badge' (a small
+  marker in the corner, secondary to the label). Defaults to 'full'.</li>
+<li><code>opacity</code> -- alpha in [0, 1]. Fade a 'full' icon to use it as a
+  watermark behind the label.</li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
 <h3 id="spytial.annotations.GroupEdge" class="doc doc-heading">
 <code class="doc-symbol doc-symbol-heading doc-symbol-class"></code>            <code>GroupEdge</code>
 
@@ -12884,6 +12988,10 @@ attached to type aliases using typing.Annotated.</p>
     <div class="doc doc-contents ">
 
         <p>Convert to the internal registry format.</p>
+<p>A scalar form serializes as a bare value rather than a mapping
+(<code>- flag: hideDisconnected</code>); SCALAR_ITEMS says which keyword carries
+it, so this matches the decorator path without either restating which
+forms are scalar.</p>
 
 
     </div>
@@ -13151,14 +13259,20 @@ style the group's own label with a top-level <code>textStyle</code>:</p>
 
 
         <p>Atom style directive (spytial-core 3.0).</p>
-<p>Styles an atom's border, interior fill, and label independently.</p>
+<p>Styles an atom's border, interior fill, icon, and label independently.</p>
+<p><code>showLabel</code> is independent of the icon: <code>iconStyle.placement</code> controls
+the icon's geometry, <code>showLabel</code> controls whether the label is drawn at
+all. That split is what makes a faded watermark, or an icon with no label,
+expressible (spytial-core 4.3).</p>
 
 
 <details class="usage" open>
   <summary>Usage</summary>
   <p>Styled = Annotated[list[int], AtomStyle(selector='self', borderStyle=BorderStyle(color='blue'))]
 Filled = Annotated[Tree, AtomStyle(selector='Node', fillStyle=FillStyle(color='#eef6ff'),
-                                   textStyle=TextStyle(size='large'))]</p>
+                                   textStyle=TextStyle(size='large'))]
+Marked = Annotated[Tree, AtomStyle(selector='Dir', iconStyle=IconStyle(path='bi:folder-fill',
+                                                                       placement='badge'))]</p>
 </details>
 
 
@@ -13256,12 +13370,18 @@ legacy directive colored the border, not the fill).</p>
 
 
 
-        <p>Size directive.</p>
+        <p>Size constraint.</p>
+<p>Size fixes a node's geometry, which is what the layout solves over rather
+than presentation layered on a solved layout, so it belongs under
+<code>constraints</code> (spytial-core 4.3; the directives section still accepts it
+behind a deprecation warning).</p>
+<p><code>selector</code> is optional -- omit it to resize every node.</p>
 
 
 <details class="usage" open>
   <summary>Usage</summary>
-  <p>SizedList = Annotated[list[int], Size(selector='items', height=50, width=50)]</p>
+  <p>SizedList = Annotated[list[int], Size(selector='items', height=50, width=50)]
+AllSquare = Annotated[list[int], Size(height=50, width=50)]</p>
 </details>
 
 
@@ -13526,7 +13646,11 @@ Filtered = Annotated[MyClass, HideField(field='debug', filter='debug &amp; Produ
 
 
 
-        <p>Hide atom directive.</p>
+        <p>Hide atom constraint.</p>
+<p>Hiding an atom changes what the layout has to place, and can make a spec
+unsatisfiable against the other constraints, so it belongs under
+<code>constraints</code> (spytial-core 4.3; the directives section still accepts it
+behind a deprecation warning).</p>
 
 
 <details class="usage" open>
@@ -13784,24 +13908,6 @@ HullEdges = Annotated[Graph, InferredEdge(name='reports to', selector='^parent',
 
 
 
-
-<div class="doc doc-object doc-function">
-
-
-<h4 id="spytial.annotations.Flag.to_entry" class="doc doc-heading">
-<code class="doc-symbol doc-symbol-heading doc-symbol-method"></code>            <code class="highlight language-python"><span class="n">to_entry</span><span class="p">()</span></code>
-
-</h4>
-
-
-    <div class="doc doc-contents ">
-
-        <p>Flags store just the name as a scalar.</p>
-
-
-    </div>
-
-</div>
 
 
 
