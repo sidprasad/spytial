@@ -33,8 +33,10 @@ class TestAnnotatedTypeAliases:
         ]
 
         annotations = spytial.extract_spytial_annotations(StyledList)
-        assert len(annotations["constraints"]) == 1  # Orientation
-        assert len(annotations["directives"]) == 2  # AtomStyle, Size
+        # Size is a constraint as of spytial-core 4.3: it fixes the geometry the
+        # layout solves over, rather than presentation layered on a solved layout.
+        assert len(annotations["constraints"]) == 2  # Orientation, Size
+        assert len(annotations["directives"]) == 1  # AtomStyle
 
     def test_all_constraint_classes(self):
         """Test all constraint annotation classes."""
@@ -51,18 +53,27 @@ class TestAnnotatedTypeAliases:
         ann4 = spytial.Group(field="children", groupOn=0, addToGroup=1)
         assert ann4._annotation_type == "group"
 
+        # Both moved out of the directives section in spytial-core 4.3: each
+        # changes what the layout has to solve, rather than how a solved layout
+        # is drawn. The directives section still accepts them, deprecated.
+        ann5 = spytial.Size(height=10, width=10)
+        assert ann5._annotation_type == "size"
+        assert ann5._is_constraint is True
+
+        ann6 = spytial.HideAtom(selector="hidden")
+        assert ann6._annotation_type == "hideAtom"
+        assert ann6._is_constraint is True
+
     @pytest.mark.filterwarnings("ignore::DeprecationWarning")
     def test_all_directive_classes(self):
         """Test all directive annotation classes."""
         directives = [
             spytial.AtomColor(selector="x", value="red"),
             spytial.AtomStyle(selector="x", borderStyle=spytial.BorderStyle(color="red")),
-            spytial.Size(selector="x", height=10, width=10),
             spytial.Icon(selector="x", path="icon.svg"),
             spytial.EdgeColor(field="edge", value="blue"),
             spytial.EdgeStyle(field="edge", lineStyle=spytial.LineStyle(color="blue")),
             spytial.HideField(field="_private"),
-            spytial.HideAtom(selector="hidden"),
             spytial.Projection(sig="MySig"),
             spytial.Attribute(field="value"),
             spytial.InferredEdge(name="link", selector="nodes"),

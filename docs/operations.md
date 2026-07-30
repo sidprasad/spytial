@@ -71,6 +71,33 @@ from spytial import GroupEdge, LineStyle, TextStyle
 )
 ```
 
+### `size`: set a node's drawn dimensions
+
+1. **`height`** and **`width`**: the node dimensions in pixels. Each is
+   required, and each shall be greater than 0.
+2. **`selector`** *(optional)*: which nodes to resize. Omit it to resize every
+   node.
+
+```python
+@spytial.size(selector='Node', height=50, width=50)
+@spytial.size(height=50, width=50)   # every node
+```
+
+### `hideAtom`: remove atoms from the diagram
+
+1. **`selector`**: the atoms to hide.
+
+```python
+@spytial.hideAtom(selector='{ n : Node | n.internal }')
+```
+
+> `size` and `hideAtom` are constraints, not directives. Size fixes the
+> geometry that the layout solves over, and a hidden atom is one atom fewer to
+> place, which can make a spec unsatisfiable against the other constraints.
+> Both were directives before spytial-core 4.3. The directives section still
+> accepts them with the same meaning, behind a deprecation warning, so an older
+> spec continues to render. Spytial writes them under `constraints`.
+
 ### `hold`: invert any constraint
 
 Every constraint takes an optional **`hold`**. It defaults to `'always'`. Pass
@@ -107,12 +134,16 @@ Styling is built from small **style blocks**, imported from `spytial`:
   `'large'`.
 - `BorderStyle(color, width)` and `FillStyle(color)`: an atom's outline and
   interior.
+- `IconStyle(path, placement, opacity)`: an icon drawn on an atom. `placement`
+  is `'full'` (the icon occupies the box) or `'badge'` (a small corner marker).
+  `opacity` is a number from 0 to 1.
 
 Every field is optional. Set only the fields that are needed. Plain dicts with
 the same keys work everywhere the blocks do.
 
 - `atomStyle`: **`selector`** (which atoms; omit for all), and any of
-  **`borderStyle`**, **`fillStyle`**, and **`textStyle`**.
+  **`borderStyle`**, **`fillStyle`**, **`iconStyle`**, **`textStyle`**, and
+  **`showLabel`**.
 - `edgeStyle`: **`field`** (which relation), and any of **`lineStyle`**,
   **`textStyle`** (the edge's label), **`showLabel`**, and **`hidden`**, plus an
   optional `selector` or `filter`.
@@ -140,10 +171,13 @@ from spytial import LineStyle, TextStyle, BorderStyle, FillStyle
 > spec-collection time for the case that it can detect statically (identical
 > `field`, `selector`, and `filter`).
 
-### `hideAtom` and `hideField`: remove things from the picture
+### `hideField`: remove a relation's edges
 
-- `hideAtom`: **`selector`** (the atoms to hide).
-- `hideField`: **`field`** (the relation to hide).
+1. **`field`**: the relation to hide.
+2. **`selector`** and **`filter`** *(optional)*: narrow which edges are hidden.
+
+To hide *atoms* rather than edges, use the [`hideAtom`](#hideatom-remove-atoms-from-the-diagram)
+constraint.
 
 ### `inferredEdge`: draw a derived edge
 
@@ -199,10 +233,20 @@ an omitted `draw`. In both cases the edge's own selector ranges over atoms. With
 4. **`textStyle`** *(optional)*: styles this tag's line
    (`TextStyle(size=..., color=...)`).
 
-### `size` and `icon`: adjust drawing
+### `icon`: draw an atom as an icon
 
-- `size`: **`selector`**, **`height`**, and **`width`**.
-- `icon`: **`selector`** and **`path`** (plus optional `showLabels`).
+1. **`selector`**: which atoms get the icon.
+2. **`path`**: the icon source.
+3. **`showLabels`**: whether the atom's label stays alongside the icon.
+
+> `icon` is deprecated as of spytial-core 4.3. Use `atomStyle` with an
+> `iconStyle` block instead. The single `showLabels` boolean set the label's
+> visibility and the icon's geometry together, whereas `atomStyle` splits those
+> into `showLabel` and `iconStyle.placement`. That split is what makes an
+> icon-only node, or a faded watermark behind a visible label, expressible.
+
+To set a node's dimensions, use the [`size`](#size-set-a-nodes-drawn-dimensions)
+constraint.
 
 ### `flag`: a rendering switch
 

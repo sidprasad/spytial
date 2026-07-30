@@ -16,60 +16,40 @@ class NoAliasDumper(yaml.Dumper):
         return True
 
 
-# Registry to store constraints and directives
-# This is now class-level, not global
-# `hold` is valid on every constraint: core reads `hold: never` off the inner
-# block and flips the constraint to its negation (layoutspec.ts parseConstraints).
-CONSTRAINT_TYPES = {
-    "cyclic": {"required": ["selector", "direction"], "optional": ["hold"]},
-    "orientation": {"required": ["selector", "directions"], "optional": ["hold"]},
-    "align": {"required": ["selector", "direction"], "optional": ["hold"]},
-    "group": [
-        {
-            "required": ["field", "groupOn", "addToGroup"],
-            # No showLabel: core builds GroupByField(field, groupOn, addToGroup,
-            # selector, negated) and derives label visibility from negation alone.
-            "optional": ["selector", "hold"],
-        },  # Legacy, more ergonomic
-        {
-            "required": ["selector", "name"],
-            "optional": ["addEdge", "textStyle", "hold"],
-        },  # Selector-based group constraint
-    ],
-}
-
-DIRECTIVE_TYPES = {
-    # Legacy 2.x form; desugars to atomStyle (value -> borderStyle.color).
-    "atomColor": ["selector", "value"],
-    "atomStyle": {
-        "required": [],
-        "optional": ["selector", "fillStyle", "borderStyle", "textStyle"],
-    },
-    "size": ["selector", "height", "width"],
-    "icon": ["selector", "path", "showLabels"],
-    # Legacy 2.x form; desugars to edgeStyle (value -> lineStyle.color,
-    # style -> lineStyle.pattern, weight -> lineStyle.weight).
-    "edgeColor": {
-        "required": ["field", "value"],
-        "optional": ["selector", "filter", "style", "weight", "showLabel", "hidden"],
-    },
-    "edgeStyle": {
-        "required": ["field"],
-        "optional": ["selector", "filter", "lineStyle", "textStyle", "showLabel", "hidden"],
-    },
-    "projection": ["sig"],
-    "attribute": {"required": ["field"], "optional": ["selector", "filter", "textStyle"]},
-    "hideField": {"required": ["field"], "optional": ["selector", "filter"]},
-    "hideAtom": ["selector"],
-    "inferredEdge": {
-        "required": ["name", "selector"],
-        # color/style/weight are the legacy inline form; they desugar to lineStyle.
-        # draw (spytial-core 3.2) attaches an end to a group's hull.
-        "optional": ["color", "style", "weight", "lineStyle", "textStyle", "draw"],
-    },
-    "tag": {"required": ["toTag", "name", "value"], "optional": ["textStyle"]},
-    "flag": ["name"],
-}
+# Which fields each constraint and directive takes, and the closed value sets
+# core recognises, both generated from the language manifest spytial-core ships
+# (see spytial/_spec_tables.py and scripts/generate_spec_tables.py). Maintaining
+# them here by hand meant a core release could add a field or move a form to the
+# other section with nothing on this side to notice.
+#
+# `hold` is optional on every constraint that supports negation: core reads
+# `hold: never` off the inner block and flips the constraint to its negation
+# (layoutspec.ts parseConstraints).
+#
+# The value vocabularies are TypeScript unions in core, so they are erased at
+# runtime and nothing downstream re-checks them. An unrecognised value is kept
+# by the parser and then quietly does the wrong thing: an out-of-vocab
+# orientation direction matches no case and the constraint evaporates, a
+# misspelled cyclic direction reads as 'clockwise' (so a typo'd
+# 'counterclockwise' silently spins the other way), and an unknown flag name
+# does nothing. Only align is checked by core itself. Authoring time is the one
+# place these can surface, so they are checked here.
+from ._spec_tables import (  # noqa: F401  (names re-exported from this module)
+    ALIGN_DIRECTIONS,
+    CONSTRAINT_HOLDS,
+    CONSTRAINT_TYPES,
+    DIRECTIVE_TYPES,
+    ENUM_VALUES as _ENUM_VALUES,
+    FLAG_NAMES,
+    GROUP_EDGE_DIRECTIONS,
+    ICON_PLACEMENTS,
+    LANGUAGE_VERSION,
+    LINE_PATTERNS,
+    ORIENTATION_DIRECTIONS,
+    ROTATION_DIRECTIONS,
+    SCALAR_ITEMS,
+    TEXT_SIZES,
+)
 
 # =============================================
 # Style blocks (spytial-core 3.0 style system)
@@ -84,10 +64,10 @@ DIRECTIVE_TYPES = {
 #
 # spytial-core itself silently drops invalid block leaves, so this
 # author-time strictness is the only place a typo is ever surfaced.
-
-LINE_PATTERNS = ("solid", "dashed", "dotted")
-TEXT_SIZES = ("small", "normal", "large")
-GROUP_EDGE_DIRECTIONS = ("none", "togroup", "fromgroup")
+#
+# Each block's fields and bounds are declared in the generated BLOCKS table;
+# the dataclasses stay hand-written so `help()` and IDE hovers show real
+# signatures and docstrings, and test_spec_tables.py holds them to that table.
 
 
 def _require_choice(value, choices, what):
@@ -95,11 +75,27 @@ def _require_choice(value, choices, what):
         raise ValueError(f"{what} must be one of {', '.join(choices)}; got {value!r}")
 
 
+def _is_number(value):
+    return not isinstance(value, bool) and isinstance(value, (int, float))
+
+
 def _require_positive(value, what):
     if value is None:
         return
-    if isinstance(value, bool) or not isinstance(value, (int, float)) or value <= 0:
+    if not _is_number(value) or value <= 0:
         raise ValueError(f"{what} must be a number greater than 0; got {value!r}")
+
+
+def _require_range(value, low, high, what):
+    """Reject a number outside an inclusive range.
+
+    Core drops an out-of-range value rather than clamping it, so an opacity of
+    1.5 renders at full strength -- indistinguishable from having written 1.
+    """
+    if value is None:
+        return
+    if not _is_number(value) or not low <= value <= high:
+        raise ValueError(f"{what} must be a number in [{low}, {high}]; got {value!r}")
 
 
 @dataclass(frozen=True)
@@ -169,6 +165,31 @@ class FillStyle(_StyleBlock):
 
 
 @dataclass(frozen=True)
+class IconStyle(_StyleBlock):
+    """An icon drawn on an atom (spytial-core 4.3).
+
+    All fields optional, including ``path``, so a rule on a supertype can supply
+    the icon and a rule on a subtype tune only its opacity. An IconStyle with no
+    path draws nothing.
+
+    - ``path`` -- a bundled icon name ('person'), an icon-pack reference
+      ('bi:person-fill'), a URL, or a path.
+    - ``placement`` -- 'full' (the icon occupies the box) or 'badge' (a small
+      marker in the corner, secondary to the label). Defaults to 'full'.
+    - ``opacity`` -- alpha in [0, 1]. Fade a 'full' icon to use it as a
+      watermark behind the label.
+    """
+
+    path: str = None
+    placement: str = None
+    opacity: float = None
+
+    def __post_init__(self):
+        _require_choice(self.placement, ICON_PLACEMENTS, "IconStyle.placement")
+        _require_range(self.opacity, 0, 1, "IconStyle.opacity")
+
+
+@dataclass(frozen=True)
 class GroupEdge(_StyleBlock):
     """Rich form of a selector-group's ``addEdge``: direction plus connector styling.
 
@@ -196,6 +217,7 @@ _STYLE_BLOCK_FIELDS = {
     "atomStyle": {
         "fillStyle": FillStyle,
         "borderStyle": BorderStyle,
+        "iconStyle": IconStyle,
         "textStyle": TextStyle,
     },
     "inferredEdge": {"lineStyle": LineStyle, "textStyle": TextStyle},
@@ -245,42 +267,6 @@ def _coerce_style_blocks(annotation_type, kwargs):
             value = _coerce_block(block_cls, value, f"{annotation_type}.{key}")
         out[key] = value
     return out
-
-
-# The closed value sets spytial-core recognises, mirroring its unions in
-# layout/layoutspec.ts: RelativeDirection, RotationDirection, AlignDirection, and
-# the two flag names parseDirectives acts on.
-#
-# Those unions are TypeScript types, so they are erased at runtime and nothing
-# downstream re-checks them. An unrecognised value is kept by the parser and then
-# quietly does the wrong thing: an out-of-vocab orientation direction matches no
-# case and the constraint evaporates, a misspelled cyclic direction reads as
-# 'clockwise' (so a typo'd 'counterclockwise' silently spins the other way), and
-# an unknown flag name does nothing. Only align is checked by core itself.
-# Authoring time is the one place these can surface, so they are checked here.
-ORIENTATION_DIRECTIONS = (
-    "above",
-    "below",
-    "left",
-    "right",
-    "directlyAbove",
-    "directlyBelow",
-    "directlyLeft",
-    "directlyRight",
-)
-ROTATION_DIRECTIONS = ("clockwise", "counterclockwise")
-ALIGN_DIRECTIONS = ("horizontal", "vertical")
-FLAG_NAMES = ("hideDisconnected", "hideDisconnectedBuiltIns")
-CONSTRAINT_HOLDS = ("always", "never")
-
-# (annotation type, kwarg) -> the values core accepts for it. List-valued kwargs
-# are checked element-wise.
-_ENUM_VALUES = {
-    ("orientation", "directions"): ORIENTATION_DIRECTIONS,
-    ("cyclic", "direction"): ROTATION_DIRECTIONS,
-    ("align", "direction"): ALIGN_DIRECTIONS,
-    ("flag", "name"): FLAG_NAMES,
-}
 
 
 def _validate_draw(draw):
@@ -418,6 +404,13 @@ def _warn_if_noop(annotation_type, *, stacklevel):
         warnings.warn(message, DeprecationWarning, stacklevel=stacklevel)
 
 
+# inferredEdge's pre-3.0 inline line keys, all of which fold into lineStyle.
+# Kept as one tuple so the presence check, the strip, and the deprecation
+# message cannot drift apart -- `highlight` was for a while absent from the
+# first two while still being accepted by core.
+_LEGACY_LINE_KEYS = ("color", "style", "weight", "highlight")
+
+
 def _drop_invalid_legacy(value, ok, what):
     """Legacy desugar mirrors core's lenience: drop bad values (visibly), don't raise."""
     if value is None or ok(value):
@@ -430,7 +423,7 @@ def _drop_invalid_legacy(value, ok, what):
     return None
 
 
-def _legacy_line_style(color=None, style=None, weight=None):
+def _legacy_line_style(color=None, style=None, weight=None, highlight=None):
     """Build a lineStyle dict from legacy flat keys, normalizing like core does."""
     pattern = None
     if style is not None:
@@ -438,12 +431,14 @@ def _legacy_line_style(color=None, style=None, weight=None):
         pattern = _drop_invalid_legacy(
             normalized, lambda v: v in LINE_PATTERNS, "edge style/pattern"
         )
-    weight = _drop_invalid_legacy(
-        weight,
-        lambda v: not isinstance(v, bool) and isinstance(v, (int, float)) and v > 0,
-        "edge weight",
-    )
-    return LineStyle(color=color, pattern=pattern, weight=weight).to_dict()
+    weight = _drop_invalid_legacy(weight, _is_number_gt_zero, "edge weight")
+    return LineStyle(
+        color=color, pattern=pattern, weight=weight, highlight=highlight
+    ).to_dict()
+
+
+def _is_number_gt_zero(value):
+    return _is_number(value) and value > 0
 
 
 def _desugar_legacy_style(annotation_type, kwargs, *, stacklevel=3):
@@ -466,7 +461,10 @@ def _desugar_legacy_style(annotation_type, kwargs, *, stacklevel=3):
             if kwargs.get(key) is not None:
                 new_kwargs[key] = kwargs[key]
         line_style = _legacy_line_style(
-            color=kwargs["value"], style=kwargs.get("style"), weight=kwargs.get("weight")
+            color=kwargs["value"],
+            style=kwargs.get("style"),
+            weight=kwargs.get("weight"),
+            highlight=kwargs.get("highlight"),
         )
         if line_style:
             new_kwargs["lineStyle"] = line_style
@@ -490,27 +488,31 @@ def _desugar_legacy_style(annotation_type, kwargs, *, stacklevel=3):
         }
 
     if annotation_type == "inferredEdge" and any(
-        kwargs.get(key) is not None for key in ("color", "style", "weight")
+        kwargs.get(key) is not None for key in _LEGACY_LINE_KEYS
     ):
         if kwargs.get("lineStyle") is not None:
             raise ValueError(
-                "inferredEdge got both the deprecated inline color/style/weight "
-                "and a lineStyle block; use lineStyle only."
+                "inferredEdge got both the deprecated inline "
+                "color/style/weight/highlight and a lineStyle block; "
+                "use lineStyle only."
             )
         validate_fields("inferredEdge", kwargs, DIRECTIVE_TYPES["inferredEdge"])
         warnings.warn(
-            "inferredEdge's inline color/style/weight are deprecated as of "
-            "spytial-core 3.0; use lineStyle=LineStyle(...) instead.",
+            "inferredEdge's inline color/style/weight/highlight are deprecated as "
+            "of spytial-core 3.0; use lineStyle=LineStyle(...) instead.",
             DeprecationWarning,
             stacklevel=stacklevel,
         )
         new_kwargs = {
             key: value
             for key, value in kwargs.items()
-            if key not in ("color", "style", "weight") and value is not None
+            if key not in _LEGACY_LINE_KEYS and value is not None
         }
         line_style = _legacy_line_style(
-            color=kwargs.get("color"), style=kwargs.get("style"), weight=kwargs.get("weight")
+            color=kwargs.get("color"),
+            style=kwargs.get("style"),
+            weight=kwargs.get("weight"),
+            highlight=kwargs.get("highlight"),
         )
         if line_style:
             new_kwargs["lineStyle"] = line_style
@@ -655,7 +657,16 @@ class SpytialAnnotation:
         self.kwargs = kwargs
 
     def to_entry(self):
-        """Convert to the internal registry format."""
+        """Convert to the internal registry format.
+
+        A scalar form serializes as a bare value rather than a mapping
+        (``- flag: hideDisconnected``); SCALAR_ITEMS says which keyword carries
+        it, so this matches the decorator path without either restating which
+        forms are scalar.
+        """
+        scalar_key = SCALAR_ITEMS.get(self._annotation_type)
+        if scalar_key is not None and scalar_key in self.kwargs:
+            return {self._annotation_type: self.kwargs[scalar_key]}
         return {self._annotation_type: self.kwargs}
 
     def __repr__(self):
@@ -785,12 +796,19 @@ class AtomStyle(SpytialAnnotation):
     """
     Atom style directive (spytial-core 3.0).
 
-    Styles an atom's border, interior fill, and label independently.
+    Styles an atom's border, interior fill, icon, and label independently.
+
+    ``showLabel`` is independent of the icon: ``iconStyle.placement`` controls
+    the icon's geometry, ``showLabel`` controls whether the label is drawn at
+    all. That split is what makes a faded watermark, or an icon with no label,
+    expressible (spytial-core 4.3).
 
     Usage:
         Styled = Annotated[list[int], AtomStyle(selector='self', borderStyle=BorderStyle(color='blue'))]
         Filled = Annotated[Tree, AtomStyle(selector='Node', fillStyle=FillStyle(color='#eef6ff'),
                                            textStyle=TextStyle(size='large'))]
+        Marked = Annotated[Tree, AtomStyle(selector='Dir', iconStyle=IconStyle(path='bi:folder-fill',
+                                                                               placement='badge'))]
     """
 
     _annotation_type = "atomStyle"
@@ -802,7 +820,9 @@ class AtomStyle(SpytialAnnotation):
         selector: str = None,
         fillStyle=None,
         borderStyle=None,
+        iconStyle=None,
         textStyle=None,
+        showLabel: bool = None,
     ):
         kwargs = {}
         if selector is not None:
@@ -811,8 +831,12 @@ class AtomStyle(SpytialAnnotation):
             kwargs["fillStyle"] = fillStyle
         if borderStyle is not None:
             kwargs["borderStyle"] = borderStyle
+        if iconStyle is not None:
+            kwargs["iconStyle"] = iconStyle
         if textStyle is not None:
             kwargs["textStyle"] = textStyle
+        if showLabel is not None:
+            kwargs["showLabel"] = showLabel
         super().__init__(**_coerce_style_blocks("atomStyle", kwargs))
 
 
@@ -833,17 +857,28 @@ class AtomColor(AtomStyle):
 
 class Size(SpytialAnnotation):
     """
-    Size directive.
+    Size constraint.
+
+    Size fixes a node's geometry, which is what the layout solves over rather
+    than presentation layered on a solved layout, so it belongs under
+    ``constraints`` (spytial-core 4.3; the directives section still accepts it
+    behind a deprecation warning).
+
+    ``selector`` is optional -- omit it to resize every node.
 
     Usage:
         SizedList = Annotated[list[int], Size(selector='items', height=50, width=50)]
+        AllSquare = Annotated[list[int], Size(height=50, width=50)]
     """
 
     _annotation_type = "size"
-    _is_constraint = False
+    _is_constraint = True
 
-    def __init__(self, *, selector: str, height: int, width: int):
-        super().__init__(selector=selector, height=height, width=width)
+    def __init__(self, *, height: int, width: int, selector: str = None):
+        kwargs = {"height": height, "width": width}
+        if selector is not None:
+            kwargs["selector"] = selector
+        super().__init__(**kwargs)
 
 
 class Icon(SpytialAnnotation):
@@ -924,6 +959,7 @@ class EdgeColor(EdgeStyle):
         filter: str = None,
         style: str = None,
         weight: int = None,
+        highlight: str = None,
         showLabel: bool = None,
         hidden: bool = None,
     ):
@@ -936,6 +972,8 @@ class EdgeColor(EdgeStyle):
             legacy["style"] = style
         if weight is not None:
             legacy["weight"] = weight
+        if highlight is not None:
+            legacy["highlight"] = highlight
         if showLabel is not None:
             legacy["showLabel"] = showLabel
         if hidden is not None:
@@ -967,14 +1005,19 @@ class HideField(SpytialAnnotation):
 
 class HideAtom(SpytialAnnotation):
     """
-    Hide atom directive.
+    Hide atom constraint.
+
+    Hiding an atom changes what the layout has to place, and can make a spec
+    unsatisfiable against the other constraints, so it belongs under
+    ``constraints`` (spytial-core 4.3; the directives section still accepts it
+    behind a deprecation warning).
 
     Usage:
         Filtered = Annotated[list[int], HideAtom(selector='hidden')]
     """
 
     _annotation_type = "hideAtom"
-    _is_constraint = False
+    _is_constraint = True
 
     def __init__(self, *, selector: str):
         super().__init__(selector=selector)
@@ -1063,6 +1106,7 @@ class InferredEdge(SpytialAnnotation):
         color: str = None,
         style: str = None,
         weight: int = None,
+        highlight: str = None,
         lineStyle=None,
         textStyle=None,
         draw: str = None,
@@ -1074,6 +1118,8 @@ class InferredEdge(SpytialAnnotation):
             kwargs["style"] = style
         if weight is not None:
             kwargs["weight"] = weight
+        if highlight is not None:
+            kwargs["highlight"] = highlight
         if lineStyle is not None:
             kwargs["lineStyle"] = lineStyle
         if textStyle is not None:
@@ -1100,11 +1146,9 @@ class Flag(SpytialAnnotation):
     _is_constraint = False
 
     def __init__(self, *, name: str):
+        # Serializes as a bare scalar (`- flag: hideDisconnected`); the base
+        # to_entry() reads that off SCALAR_ITEMS.
         super().__init__(name=name)
-
-    def to_entry(self):
-        """Flags store just the name as a scalar."""
-        return {self._annotation_type: self.kwargs["name"]}
 
 
 class Tag(SpytialAnnotation):
@@ -1508,9 +1552,13 @@ def _create_decorator(constraint_type, doc=None):
                         effective_type, kwargs, DIRECTIVE_TYPES[effective_type]
                     )
 
-                    # Special handling for flag directives - store as scalar
-                    if effective_type == "flag" and "name" in kwargs:
-                        entry = {effective_type: kwargs["name"]}
+                    # A scalar form is written as a bare value, not a mapping:
+                    # `- flag: hideDisconnected`. SCALAR_ITEMS names the keyword
+                    # carrying that value, so which forms are scalar comes from
+                    # the language manifest rather than from a check on 'flag'.
+                    scalar_key = SCALAR_ITEMS.get(effective_type)
+                    if scalar_key is not None and scalar_key in kwargs:
+                        entry = {effective_type: kwargs[scalar_key]}
                     else:
                         entry = {effective_type: kwargs}
 
@@ -1684,8 +1732,15 @@ atomStyle = _create_decorator(
     - ``selector`` -- which atoms; omit to match every atom.
     - ``borderStyle`` -- BorderStyle(color=..., width=...) -- the outline.
     - ``fillStyle`` -- FillStyle(color=...) -- the interior.
+    - ``iconStyle`` -- IconStyle(path=..., placement=..., opacity=...) -- an
+      icon drawn on the node; ``placement`` is 'full' | 'badge' and ``opacity``
+      is in [0, 1].
     - ``textStyle`` -- TextStyle(size=..., color=...) -- the atom's label;
       ``size`` is 'small' | 'normal' | 'large'.
+    - ``showLabel`` -- whether the label is drawn at all. Independent of the
+      icon: ``iconStyle.placement`` sets the icon's geometry, this sets the
+      label's visibility, which is what makes an icon-only node or a watermark
+      behind a visible label expressible.
 
     Plain dicts with the same keys work wherever the blocks do.
 
@@ -1701,9 +1756,15 @@ size = _create_decorator(
 
     Usage:
         @spytial.size(selector='Node', height=50, width=50)
+        @spytial.size(height=50, width=50)   # every node
 
-    Accepted keys: ``selector``, ``height``, ``width``.
-    Height and width are required and must be greater than 0.
+    Accepted keys: ``height``, ``width``, and optional ``selector``.
+    Height and width are required and must be greater than 0; omitting
+    ``selector`` resizes every node.
+
+    This is a constraint, not a directive: size fixes the geometry the layout
+    solves over, rather than presentation layered on a solved layout. spytial
+    emits it under ``constraints`` (spytial-core 4.3).
     """,
 )
 
@@ -1731,10 +1792,10 @@ edgeColor = _create_decorator(  # deprecated: rewrites to edgeStyle
 
     Raises a DeprecationWarning and becomes ``edgeStyle`` with a ``lineStyle``
     block: ``value`` -> lineStyle.color, ``style`` -> lineStyle.pattern,
-    ``weight`` -> lineStyle.weight.
+    ``weight`` -> lineStyle.weight, ``highlight`` -> lineStyle.highlight.
 
     Accepted keys: ``field``, ``value``, and optionally ``selector``,
-    ``filter``, ``style``, ``weight``, ``showLabel``, ``hidden``.
+    ``filter``, ``style``, ``weight``, ``highlight``, ``showLabel``, ``hidden``.
     """,
 )
 
@@ -1817,6 +1878,10 @@ hideAtom = _create_decorator(
         @spytial.hideAtom(selector='{ n : Node | n.internal }')
 
     Accepted keys: ``selector``.
+
+    This is a constraint, not a directive: hiding an atom changes what the
+    layout has to place, and can make a spec unsatisfiable against the other
+    constraints. spytial emits it under ``constraints`` (spytial-core 4.3).
     """,
 )
 
@@ -1841,8 +1906,8 @@ inferredEdge = _create_decorator(
     - ``textStyle`` -- TextStyle(size=..., color=...) -- the edge's label.
     - ``draw`` -- where each end attaches (spytial-core 3.2). See below.
 
-    The inline ``color`` / ``style`` / ``weight`` keys are the deprecated 2.x
-    form; they still parse and are rewritten into ``lineStyle``.
+    The inline ``color`` / ``style`` / ``weight`` / ``highlight`` keys are the
+    deprecated 2.x form; they still parse and are rewritten into ``lineStyle``.
 
     ``draw`` is a string ``'<end> -> <end>'``. Each end is either ``'_'`` (the
     atom itself -- the default) or the name of a ``group`` constraint, in which

@@ -1,0 +1,1075 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:spytial:layout-spec-schema:2026-07-29",
+  "title": "Spytial layout specification",
+  "description": "A Spytial spec: constraints (structural layout) and directives (presentation). Spec language 2026-07-29, from spytial-core 4.3.0. This schema is stricter than the engine parser, which silently ignores anything it does not recognize — validating here is how a misspelled key or an out-of-range value gets caught at all. Fetch it from https://cdn.jsdelivr.net/gh/sidprasad/spytial-core@<tag>/docs/spytial-spec.schema.json; pin a tag, since the @main path is overwritten each release.",
+  "x-spytial-language-version": "2026-07-29",
+  "x-spytial-core-version": "4.3.0",
+  "type": "object",
+  "properties": {
+    "constraints": {
+      "type": [
+        "array",
+        "null"
+      ],
+      "description": "Structural layout: where nodes end up relative to one another.",
+      "items": {
+        "oneOf": [
+          {
+            "$ref": "#/$defs/orientation"
+          },
+          {
+            "$ref": "#/$defs/cyclic"
+          },
+          {
+            "$ref": "#/$defs/align"
+          },
+          {
+            "$ref": "#/$defs/group"
+          },
+          {
+            "$ref": "#/$defs/group_byField"
+          },
+          {
+            "$ref": "#/$defs/size"
+          },
+          {
+            "$ref": "#/$defs/hideAtom"
+          }
+        ]
+      }
+    },
+    "directives": {
+      "type": [
+        "array",
+        "null"
+      ],
+      "description": "Presentation: how nodes and edges look, and what is shown at all.",
+      "items": {
+        "oneOf": [
+          {
+            "$ref": "#/$defs/flag"
+          },
+          {
+            "$ref": "#/$defs/atomStyle"
+          },
+          {
+            "$ref": "#/$defs/edgeStyle"
+          },
+          {
+            "$ref": "#/$defs/attribute"
+          },
+          {
+            "$ref": "#/$defs/tag"
+          },
+          {
+            "$ref": "#/$defs/hideField"
+          },
+          {
+            "$ref": "#/$defs/inferredEdge"
+          },
+          {
+            "$ref": "#/$defs/icon"
+          },
+          {
+            "$ref": "#/$defs/atomColor"
+          },
+          {
+            "$ref": "#/$defs/edgeColor"
+          },
+          {
+            "$ref": "#/$defs/size",
+            "deprecated": true,
+            "description": "`size` here is deprecated — write it under `constraints`. Size fixes a node's geometry, which is what the layout solves over — not presentation layered on a solved layout. It is a constraint. The directives section still accepts it, identically, behind a deprecation warning."
+          },
+          {
+            "$ref": "#/$defs/hideAtom",
+            "deprecated": true,
+            "description": "`hideAtom` here is deprecated — write it under `constraints`. Hiding an atom changes what the layout has to place, and can make a spec unsatisfiable against the other constraints — it is a constraint, not presentation. The directives section still accepts it, identically, behind a deprecation warning."
+          }
+        ]
+      }
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "textStyle": {
+      "description": "Styling for a label. Reused by every form that renders text — an atom's own label, attribute and tag lines, edge labels, and a group label.",
+      "type": "object",
+      "properties": {
+        "size": {
+          "description": "Font-size tier relative to the node label: `large` renders bigger than the label, `normal` smaller, `small` smaller still. Default when omitted: \"normal\".",
+          "type": "string",
+          "enum": [
+            "small",
+            "normal",
+            "large"
+          ]
+        },
+        "color": {
+          "description": "Any CSS color. Unset inherits the node label color, so dark mode still adapts.",
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "lineStyle": {
+      "description": "Styling for an edge's drawn line. Reused by edgeStyle, inferredEdge, and a group's addEdge connector.",
+      "type": "object",
+      "properties": {
+        "color": {
+          "description": "Any CSS color.",
+          "type": "string"
+        },
+        "pattern": {
+          "description": "Dash pattern of the line.",
+          "type": "string",
+          "enum": [
+            "solid",
+            "dashed",
+            "dotted"
+          ]
+        },
+        "weight": {
+          "description": "Line thickness in pixels. Must be > 0; a non-positive or non-numeric weight is dropped.",
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "highlight": {
+          "description": "A wider, translucent underlay drawn beneath the line. Orthogonal to color and pattern.",
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "fillStyle": {
+      "description": "An atom's interior fill. Opt-in: the default look is unfilled, with only the border and label marking the node.",
+      "type": "object",
+      "properties": {
+        "color": {
+          "description": "Any CSS color.",
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "borderStyle": {
+      "description": "An atom's outline.",
+      "type": "object",
+      "properties": {
+        "color": {
+          "description": "Any CSS color.",
+          "type": "string"
+        },
+        "width": {
+          "description": "Outline thickness in pixels. Must be > 0; anything else is dropped.",
+          "type": "number",
+          "exclusiveMinimum": 0
+        }
+      },
+      "additionalProperties": false
+    },
+    "iconStyle": {
+      "description": "An icon drawn on an atom. Every leaf is optional, including `path`, so a supertype rule can supply the icon and a subtype rule tune only its opacity.",
+      "type": "object",
+      "properties": {
+        "path": {
+          "description": "A bundled icon name (`person`), an icon-pack reference (`bi:person-fill`), a URL, or a path. Resolved to a concrete URL or data URI at parse time. An iconStyle with no path draws nothing.",
+          "type": "string"
+        },
+        "placement": {
+          "description": "`full` — the icon occupies the box, which stays transparent unless a fillStyle.color is given. `badge` — a small marker in the top-right corner, secondary to the label. Default when omitted: \"full\".",
+          "type": "string",
+          "enum": [
+            "full",
+            "badge"
+          ]
+        },
+        "opacity": {
+          "description": "Alpha in [0,1]. Out-of-range values are dropped rather than clamped. Fade a `full` icon to use it as a watermark behind the label. Default when omitted: 1.",
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        }
+      },
+      "additionalProperties": false
+    },
+    "orientation": {
+      "title": "Orientation",
+      "description": "Place the two ends of each selected tuple relative to one another.",
+      "type": "object",
+      "properties": {
+        "orientation": {
+          "type": "object",
+          "properties": {
+            "selector": {
+              "description": "Returns (source, target) pairs. The constraint applies to each pair. Selector arity: binary.",
+              "type": "string",
+              "minLength": 1
+            },
+            "directions": {
+              "description": "Where the TARGET sits relative to the SOURCE. `directions: [above]` on selector `parent` places each tuple's target above its source. The `directly*` variants additionally enforce axis alignment. The direction is target-relative-to-source. Getting this backwards is the most common spec bug — transpose the selector (`~parent`) rather than flipping the direction if the relation reads the other way.",
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "string",
+                "enum": [
+                  "above",
+                  "below",
+                  "left",
+                  "right",
+                  "directlyAbove",
+                  "directlyBelow",
+                  "directlyLeft",
+                  "directlyRight"
+                ]
+              },
+              "allOf": [
+                {
+                  "not": {
+                    "allOf": [
+                      {
+                        "contains": {
+                          "const": "above"
+                        }
+                      },
+                      {
+                        "contains": {
+                          "const": "below"
+                        }
+                      }
+                    ]
+                  },
+                  "description": "At most one of: above, below."
+                },
+                {
+                  "not": {
+                    "allOf": [
+                      {
+                        "contains": {
+                          "const": "left"
+                        }
+                      },
+                      {
+                        "contains": {
+                          "const": "right"
+                        }
+                      }
+                    ]
+                  },
+                  "description": "At most one of: left, right."
+                },
+                {
+                  "if": {
+                    "contains": {
+                      "const": "directlyAbove"
+                    }
+                  },
+                  "then": {
+                    "items": {
+                      "enum": [
+                        "above",
+                        "directlyAbove"
+                      ]
+                    }
+                  },
+                  "description": "With `directlyAbove`, the only other value allowed is above."
+                },
+                {
+                  "if": {
+                    "contains": {
+                      "const": "directlyBelow"
+                    }
+                  },
+                  "then": {
+                    "items": {
+                      "enum": [
+                        "below",
+                        "directlyBelow"
+                      ]
+                    }
+                  },
+                  "description": "With `directlyBelow`, the only other value allowed is below."
+                },
+                {
+                  "if": {
+                    "contains": {
+                      "const": "directlyLeft"
+                    }
+                  },
+                  "then": {
+                    "items": {
+                      "enum": [
+                        "left",
+                        "directlyLeft"
+                      ]
+                    }
+                  },
+                  "description": "With `directlyLeft`, the only other value allowed is left."
+                },
+                {
+                  "if": {
+                    "contains": {
+                      "const": "directlyRight"
+                    }
+                  },
+                  "then": {
+                    "items": {
+                      "enum": [
+                        "right",
+                        "directlyRight"
+                      ]
+                    }
+                  },
+                  "description": "With `directlyRight`, the only other value allowed is right."
+                }
+              ]
+            },
+            "hold": {
+              "type": "string",
+              "enum": [
+                "always",
+                "never"
+              ],
+              "description": "Negation. `never` asserts the constraint must not hold; `always` (the default) is the positive form."
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "selector",
+            "directions"
+          ]
+        }
+      },
+      "required": [
+        "orientation"
+      ],
+      "additionalProperties": false
+    },
+    "cyclic": {
+      "title": "Cyclic",
+      "description": "Arrange the selected atoms around the perimeter of a circle, in the order the selector defines.",
+      "type": "object",
+      "properties": {
+        "cyclic": {
+          "type": "object",
+          "properties": {
+            "selector": {
+              "description": "Returns (a, b) pairs meaning \"b follows a around the circle\". Selector arity: binary.",
+              "type": "string",
+              "minLength": 1
+            },
+            "direction": {
+              "description": "Which way the cycle runs. Default when omitted: \"clockwise\".",
+              "type": "string",
+              "enum": [
+                "clockwise",
+                "counterclockwise"
+              ]
+            },
+            "hold": {
+              "type": "string",
+              "enum": [
+                "always",
+                "never"
+              ],
+              "description": "Negation. `never` asserts the constraint must not hold; `always` (the default) is the positive form."
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "selector"
+          ]
+        }
+      },
+      "required": [
+        "cyclic"
+      ],
+      "additionalProperties": false
+    },
+    "align": {
+      "title": "Align",
+      "description": "Put the selected atoms on a shared horizontal or vertical line.",
+      "type": "object",
+      "properties": {
+        "align": {
+          "type": "object",
+          "properties": {
+            "selector": {
+              "description": "Returns the pairs of atoms to align with one another. Selector arity: binary.",
+              "type": "string",
+              "minLength": 1
+            },
+            "direction": {
+              "description": "`horizontal` gives the atoms a shared Y coordinate; `vertical` a shared X coordinate. An unrecognized value is a parse error.",
+              "type": "string",
+              "enum": [
+                "horizontal",
+                "vertical"
+              ]
+            },
+            "hold": {
+              "type": "string",
+              "enum": [
+                "always",
+                "never"
+              ],
+              "description": "Negation. `never` asserts the constraint must not hold; `always` (the default) is the positive form."
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "selector",
+            "direction"
+          ]
+        }
+      },
+      "required": [
+        "align"
+      ],
+      "additionalProperties": false
+    },
+    "group": {
+      "title": "Group (by selector)",
+      "description": "Draw a hull around a set of atoms. For tuples (a, b), (a, c), … the group is keyed by `a` and contains {b, c, …}.",
+      "type": "object",
+      "properties": {
+        "group": {
+          "type": "object",
+          "properties": {
+            "selector": {
+              "description": "First column is the group key, second the members. A unary selector builds a single unkeyed group. Selector arity: binary. A `group` with neither `selector` nor `field` is silently dropped — it matches neither grouping form. That is the one case where omitting this field is not an error but a no-op.",
+              "type": "string",
+              "minLength": 1
+            },
+            "name": {
+              "description": "Display name on the group, and the handle an `inferredEdge` `draw` endpoint refers to. Required unless the constraint is negated (`hold: never`), where a name is generated.",
+              "type": "string",
+              "minLength": 1
+            },
+            "addEdge": {
+              "description": "Draw a connector between the group key and the group: `togroup` points key → group, `fromgroup` points group → key, `none` draws nothing. Default when omitted: \"none\". The legacy boolean `true` is still accepted and means `togroup`.",
+              "oneOf": [
+                {
+                  "type": "string",
+                  "enum": [
+                    "none",
+                    "togroup",
+                    "fromgroup"
+                  ]
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "points": {
+                      "description": "The connector direction — the same value the bare string form carries. Default when omitted: \"none\".",
+                      "type": "string",
+                      "enum": [
+                        "none",
+                        "togroup",
+                        "fromgroup"
+                      ]
+                    },
+                    "lineStyle": {
+                      "description": "The connector's line.",
+                      "$ref": "#/$defs/lineStyle"
+                    },
+                    "textStyle": {
+                      "description": "The connector's label.",
+                      "$ref": "#/$defs/textStyle"
+                    }
+                  },
+                  "additionalProperties": false,
+                  "description": "Block form also styles the connector, which is an edge and so takes the shared edge blocks: `{ points: <direction>, lineStyle: {…}, textStyle: {…} }`."
+                },
+                {
+                  "const": true,
+                  "deprecated": true,
+                  "description": "Legacy spelling of `togroup`."
+                }
+              ]
+            },
+            "textStyle": {
+              "description": "The group's own label. Only `color` applies today — group labels auto-fit their box, so `size` is reserved.",
+              "$ref": "#/$defs/textStyle"
+            },
+            "hold": {
+              "type": "string",
+              "enum": [
+                "always",
+                "never"
+              ],
+              "description": "Negation. `never` asserts the constraint must not hold; `always` (the default) is the positive form."
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "selector"
+          ],
+          "not": {
+            "required": [
+              "field"
+            ]
+          },
+          "allOf": [
+            {
+              "if": {
+                "not": {
+                  "properties": {
+                    "hold": {
+                      "const": "never"
+                    }
+                  },
+                  "required": [
+                    "hold"
+                  ]
+                }
+              },
+              "then": {
+                "required": [
+                  "name"
+                ]
+              }
+            }
+          ]
+        }
+      },
+      "required": [
+        "group"
+      ],
+      "additionalProperties": false
+    },
+    "group_byField": {
+      "title": "Group (by field)",
+      "description": "Group by indexing into the tuples of a relation. DEPRECATED — use `group` instead. A binary selector whose first column is the key and whose second is the members says the same thing without tuple indices.",
+      "type": "object",
+      "properties": {
+        "group": {
+          "type": "object",
+          "properties": {
+            "field": {
+              "description": "The relation whose tuples are grouped. Its presence is what selects this form over group-by-selector. Because this field is the discriminator, omitting it does not raise an error — it re-reads the item as a group-by-selector, which then needs a `selector`. A `group` with neither is silently dropped.",
+              "type": "string",
+              "minLength": 1
+            },
+            "groupOn": {
+              "description": "0-based index of the tuple column to use as the group key.",
+              "type": "integer"
+            },
+            "addToGroup": {
+              "description": "0-based index of the tuple column whose atom joins the group.",
+              "type": "integer"
+            },
+            "selector": {
+              "description": "Restrict which atoms this grouping applies to. Selector arity: unary.",
+              "type": "string"
+            },
+            "hold": {
+              "type": "string",
+              "enum": [
+                "always",
+                "never"
+              ],
+              "description": "Negation. `never` asserts the constraint must not hold; `always` (the default) is the positive form."
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "field",
+            "groupOn",
+            "addToGroup"
+          ]
+        }
+      },
+      "required": [
+        "group"
+      ],
+      "additionalProperties": false,
+      "deprecated": true
+    },
+    "size": {
+      "title": "Size",
+      "description": "Set the width and height of matching nodes, in pixels.",
+      "type": "object",
+      "properties": {
+        "size": {
+          "type": "object",
+          "properties": {
+            "width": {
+              "description": "Node width in pixels. Required, and must be a number greater than 0.",
+              "type": "number",
+              "exclusiveMinimum": 0
+            },
+            "height": {
+              "description": "Node height in pixels. Required, and must be a number greater than 0.",
+              "type": "number",
+              "exclusiveMinimum": 0
+            },
+            "selector": {
+              "description": "Which nodes to resize. Omit to resize every node. Selector arity: unary.",
+              "type": "string"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "width",
+            "height"
+          ]
+        }
+      },
+      "required": [
+        "size"
+      ],
+      "additionalProperties": false
+    },
+    "hideAtom": {
+      "title": "Hide atom",
+      "description": "Remove matching atoms from the diagram.",
+      "type": "object",
+      "properties": {
+        "hideAtom": {
+          "type": "object",
+          "properties": {
+            "selector": {
+              "description": "Which atoms to hide. Selector arity: unary.",
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "selector"
+          ]
+        }
+      },
+      "required": [
+        "hideAtom"
+      ],
+      "additionalProperties": false
+    },
+    "flag": {
+      "title": "Flag",
+      "description": "Toggle a whole-diagram rendering behaviour.",
+      "type": "object",
+      "properties": {
+        "flag": {
+          "description": "`hideDisconnected` hides every atom with no edges; `hideDisconnectedBuiltIns` hides only the disconnected built-in atoms (Int, String, …). Any other value is silently ignored.",
+          "type": "string",
+          "enum": [
+            "hideDisconnected",
+            "hideDisconnectedBuiltIns"
+          ]
+        }
+      },
+      "required": [
+        "flag"
+      ],
+      "additionalProperties": false
+    },
+    "atomStyle": {
+      "title": "Atom style",
+      "description": "Style matching atoms. An atom is a composite of an interior fill, an outline, an icon, and its label, so each is its own block.",
+      "type": "object",
+      "properties": {
+        "atomStyle": {
+          "type": "object",
+          "properties": {
+            "selector": {
+              "description": "Which atoms to style. Omit to style every atom. Selector arity: unary.",
+              "type": "string"
+            },
+            "fillStyle": {
+              "description": "The node's interior fill.",
+              "$ref": "#/$defs/fillStyle"
+            },
+            "borderStyle": {
+              "description": "The node's outline.",
+              "$ref": "#/$defs/borderStyle"
+            },
+            "iconStyle": {
+              "description": "An icon drawn on the node.",
+              "$ref": "#/$defs/iconStyle"
+            },
+            "textStyle": {
+              "description": "The node's own label.",
+              "$ref": "#/$defs/textStyle"
+            },
+            "showLabel": {
+              "description": "Whether the atom's label is drawn. Independent of the icon: `iconStyle.placement` controls the icon's geometry, this controls the label. Default when omitted: true.",
+              "type": "boolean"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "atomStyle"
+      ],
+      "additionalProperties": false
+    },
+    "edgeStyle": {
+      "title": "Edge style",
+      "description": "Style the edges of a relation: the drawn line, the label, and visibility.",
+      "type": "object",
+      "properties": {
+        "edgeStyle": {
+          "type": "object",
+          "properties": {
+            "field": {
+              "description": "The relation whose edges this styles.",
+              "type": "string",
+              "minLength": 1
+            },
+            "selector": {
+              "description": "Apply only to edges whose source atom is in this set. Omit to apply to every source atom. Selector arity: unary.",
+              "type": "string"
+            },
+            "filter": {
+              "description": "Apply only to the (source, target, …) tuples this selector returns. Use it to scope a directive to part of a relation, e.g. only the tuples whose value is True. Selector arity: n-ary.",
+              "type": "string"
+            },
+            "lineStyle": {
+              "description": "The drawn line.",
+              "$ref": "#/$defs/lineStyle"
+            },
+            "textStyle": {
+              "description": "The edge label.",
+              "$ref": "#/$defs/textStyle"
+            },
+            "showLabel": {
+              "description": "Whether the edge label is drawn. Default when omitted: true.",
+              "type": "boolean"
+            },
+            "hidden": {
+              "description": "Hide the edge entirely while keeping the relation in the data. Default when omitted: false.",
+              "type": "boolean"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "field"
+          ]
+        }
+      },
+      "required": [
+        "edgeStyle"
+      ],
+      "additionalProperties": false
+    },
+    "attribute": {
+      "title": "Attribute",
+      "description": "Render a relation as a key-value line on its source node instead of as an edge.",
+      "type": "object",
+      "properties": {
+        "attribute": {
+          "type": "object",
+          "properties": {
+            "field": {
+              "description": "The relation to fold into the source node. Its edges are removed from the graph.",
+              "type": "string",
+              "minLength": 1
+            },
+            "selector": {
+              "description": "Apply only to these source atoms. Omit to apply to every source atom. Selector arity: unary.",
+              "type": "string"
+            },
+            "filter": {
+              "description": "Apply only to the (source, target, …) tuples this selector returns. Use it to scope a directive to part of a relation, e.g. only the tuples whose value is True. Selector arity: n-ary.",
+              "type": "string"
+            },
+            "textStyle": {
+              "description": "This attribute line's own styling.",
+              "$ref": "#/$defs/textStyle"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "field"
+          ]
+        }
+      },
+      "required": [
+        "attribute"
+      ],
+      "additionalProperties": false
+    },
+    "tag": {
+      "title": "Tag",
+      "description": "Add a computed key-value line to matching nodes, without touching the graph structure.",
+      "type": "object",
+      "properties": {
+        "tag": {
+          "type": "object",
+          "properties": {
+            "toTag": {
+              "description": "Which atoms receive the tag. Selector arity: unary.",
+              "type": "string",
+              "minLength": 1
+            },
+            "name": {
+              "description": "The label shown before the value.",
+              "type": "string",
+              "minLength": 1
+            },
+            "value": {
+              "description": "Evaluated per tagged atom; its result becomes the value. A unary result shows as `name: value`; an n-ary result shows one line per tuple, as `name[k1][k2]: value`. Selector arity: n-ary.",
+              "type": "string",
+              "minLength": 1
+            },
+            "textStyle": {
+              "description": "This tag line's own styling.",
+              "$ref": "#/$defs/textStyle"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "toTag",
+            "name",
+            "value"
+          ]
+        }
+      },
+      "required": [
+        "tag"
+      ],
+      "additionalProperties": false
+    },
+    "hideField": {
+      "title": "Hide field",
+      "description": "Hide a relation's edges.",
+      "type": "object",
+      "properties": {
+        "hideField": {
+          "type": "object",
+          "properties": {
+            "field": {
+              "description": "The relation to hide.",
+              "type": "string",
+              "minLength": 1
+            },
+            "selector": {
+              "description": "Apply only to edges whose source atom is in this set. Omit to apply to every source atom. Selector arity: unary.",
+              "type": "string"
+            },
+            "filter": {
+              "description": "Hide only the tuples this selector returns. Selector arity: n-ary.",
+              "type": "string"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "field"
+          ]
+        }
+      },
+      "required": [
+        "hideField"
+      ],
+      "additionalProperties": false
+    },
+    "inferredEdge": {
+      "title": "Inferred edge",
+      "description": "Draw an edge that is not in the data, computed from a selector.",
+      "type": "object",
+      "properties": {
+        "inferredEdge": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "description": "The label drawn on the edge.",
+              "type": "string",
+              "minLength": 1
+            },
+            "selector": {
+              "description": "Returns the (source, target) pairs to connect. May be unary when `draw` is given — the single atom then feeds both ends. Selector arity: binary.",
+              "type": "string",
+              "minLength": 1
+            },
+            "draw": {
+              "description": "Reinterpret what each end attaches to, as `<end> -> <end>`. Each end is `_` (the atom itself, the default) or the name of a `group` constraint, in which case the end attaches to that group's hull. The left end applies to the first atom of each tuple, the right end to the last. Parsed strictly: a value that is not a string, or that does not contain exactly one `->`, is a parse error, as is a group name that no `group` constraint defines. `draw` never reorders — transpose the selector (`~connected`) to flip an edge.",
+              "type": "string",
+              "pattern": "^\\s*[^\\s](?:(?!->)[\\s\\S])*->(?:(?!->)[\\s\\S])*[^\\s]\\s*$"
+            },
+            "lineStyle": {
+              "description": "The drawn line.",
+              "$ref": "#/$defs/lineStyle"
+            },
+            "textStyle": {
+              "description": "The edge label.",
+              "$ref": "#/$defs/textStyle"
+            },
+            "color": {
+              "description": "Legacy inline line color. Deprecated — use `lineStyle.color` instead.",
+              "deprecated": true,
+              "type": "string"
+            },
+            "style": {
+              "description": "Legacy inline dash pattern. Deprecated — use `lineStyle.pattern` instead.",
+              "deprecated": true,
+              "type": "string",
+              "enum": [
+                "solid",
+                "dashed",
+                "dotted"
+              ]
+            },
+            "weight": {
+              "description": "Legacy inline line thickness. Deprecated — use `lineStyle.weight` instead.",
+              "deprecated": true,
+              "type": "number",
+              "exclusiveMinimum": 0
+            },
+            "highlight": {
+              "description": "Legacy inline highlight underlay. Deprecated — use `lineStyle.highlight` instead.",
+              "deprecated": true,
+              "type": "string"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "name",
+            "selector"
+          ]
+        }
+      },
+      "required": [
+        "inferredEdge"
+      ],
+      "additionalProperties": false
+    },
+    "icon": {
+      "title": "Icon",
+      "description": "Assign an icon to matching atoms. DEPRECATED — use `atomStyle` instead. The single `showLabels` boolean drove label visibility and icon geometry at once. atomStyle splits those into two independent knobs, which is what makes a faded watermark, or a hidden label with no icon, expressible.",
+      "type": "object",
+      "properties": {
+        "icon": {
+          "type": "object",
+          "properties": {
+            "selector": {
+              "description": "Which atoms get the icon. Omitting it drops the directive entirely — it never means \"every atom\". Selector arity: unary.",
+              "type": "string",
+              "minLength": 1
+            },
+            "path": {
+              "description": "Bundled name, icon-pack reference, URL, or path. Omitting it drops the directive.",
+              "type": "string",
+              "minLength": 1
+            },
+            "showLabels": {
+              "description": "Whether the atom's label is drawn alongside the icon. Default when omitted: false.",
+              "type": "boolean"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "selector",
+            "path"
+          ]
+        }
+      },
+      "required": [
+        "icon"
+      ],
+      "additionalProperties": false,
+      "deprecated": true
+    },
+    "atomColor": {
+      "title": "Atom color",
+      "description": "Set the color of matching atoms. DEPRECATED — use `atomStyle` instead. atomStyle expresses the same recolor and also reaches the fill, the icon, and the label. The rewrite is border-preserving, so an existing diagram is unchanged.",
+      "type": "object",
+      "properties": {
+        "atomColor": {
+          "type": "object",
+          "properties": {
+            "value": {
+              "description": "Any CSS color. Applies to the node's outline, not its fill.",
+              "type": "string",
+              "minLength": 1
+            },
+            "selector": {
+              "description": "Which atoms to recolor. Omitting it drops the directive — it never means \"every atom\". Selector arity: unary.",
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "value",
+            "selector"
+          ]
+        }
+      },
+      "required": [
+        "atomColor"
+      ],
+      "additionalProperties": false,
+      "deprecated": true
+    },
+    "edgeColor": {
+      "title": "Edge color",
+      "description": "Style a relation's edges with flat, inline keys. DEPRECATED — use `edgeStyle` instead. edgeStyle groups the same knobs into the shared lineStyle/textStyle blocks that every other form uses.",
+      "type": "object",
+      "properties": {
+        "edgeColor": {
+          "type": "object",
+          "properties": {
+            "field": {
+              "description": "The relation whose edges this styles.",
+              "type": "string",
+              "minLength": 1
+            },
+            "value": {
+              "description": "Line color.",
+              "type": "string",
+              "minLength": 1
+            },
+            "selector": {
+              "description": "Apply only to edges whose source atom is in this set. Omit to apply to every source atom. Selector arity: unary.",
+              "type": "string"
+            },
+            "filter": {
+              "description": "Apply only to the (source, target, …) tuples this selector returns. Use it to scope a directive to part of a relation, e.g. only the tuples whose value is True. Selector arity: n-ary.",
+              "type": "string"
+            },
+            "style": {
+              "description": "Dash pattern. Trimmed and lowercased before matching, unlike `lineStyle.pattern`.",
+              "type": "string",
+              "enum": [
+                "solid",
+                "dashed",
+                "dotted"
+              ]
+            },
+            "weight": {
+              "description": "Line thickness in pixels.",
+              "type": "number",
+              "exclusiveMinimum": 0
+            },
+            "highlight": {
+              "description": "A wider, translucent underlay beneath the line.",
+              "type": "string"
+            },
+            "showLabel": {
+              "description": "Whether the edge label is drawn. Default when omitted: true.",
+              "type": "boolean"
+            },
+            "hidden": {
+              "description": "Hide the edge entirely. Default when omitted: false.",
+              "type": "boolean"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "field",
+            "value"
+          ]
+        }
+      },
+      "required": [
+        "edgeColor"
+      ],
+      "additionalProperties": false,
+      "deprecated": true
+    }
+  }
+}
