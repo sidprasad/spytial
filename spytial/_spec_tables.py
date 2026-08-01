@@ -308,6 +308,29 @@ ENUM_VALUES = {
     ('orientation', 'directions'): ORIENTATION_DIRECTIONS,
 }
 
+# (annotation type, keyword) -> the arity a selector written there has to
+# evaluate to. Not checkable without a datum, so nothing enforces it at
+# authoring time; spytial.suggest evaluates candidates against example
+# instances and uses this to reject the ones that would match no tuples.
+SELECTOR_ARITY = {
+    ('align', 'selector'): 'binary',
+    ('atomStyle', 'selector'): 'unary',
+    ('attribute', 'filter'): 'n-ary',
+    ('attribute', 'selector'): 'unary',
+    ('cyclic', 'selector'): 'binary',
+    ('edgeStyle', 'filter'): 'n-ary',
+    ('edgeStyle', 'selector'): 'unary',
+    ('group', 'selector'): 'binary',
+    ('hideAtom', 'selector'): 'unary',
+    ('hideField', 'filter'): 'n-ary',
+    ('hideField', 'selector'): 'unary',
+    ('inferredEdge', 'selector'): 'binary',
+    ('orientation', 'selector'): 'binary',
+    ('size', 'selector'): 'unary',
+    ('tag', 'toTag'): 'unary',
+    ('tag', 'value'): 'n-ary',
+}
+
 
 # --------------------------------------------------------------------------- #
 # Shared style blocks

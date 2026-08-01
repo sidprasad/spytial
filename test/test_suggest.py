@@ -753,12 +753,39 @@ def test_enrich_cyclic_over_single_pointer():
 
 def test_enrich_group_only_for_containers():
     # group on a scalar pointer is dropped; on a collection it emits the
-    # field-based group form.
+    # by-selector form, keyed on the relation's first column.
     payload = {"shapes": [_shape("escalation", "group"), _shape("related", "group")]}
     draft = suggest(Ticket, enrich=_FakeProvider(payload))
     assert [s.kwargs for s in _of(draft, "group")] == [
-        {"field": "related", "groupOn": 0, "addToGroup": 1}
+        {"selector": "related", "name": "related"}
     ]
+
+
+def test_enrich_group_does_not_emit_the_deprecated_form():
+    """The shape tier is the only producer of `group` in the codebase.
+
+    It emitted the by-field spelling (`field`/`groupOn`/`addToGroup`) until
+    spytial-core 4.3 deprecated it. Nothing warns on that form -- core still
+    parses it and `_desugar_legacy_style` cannot rewrite it, because the
+    replacement needs a `name` the old kwargs do not carry -- so a regression
+    here would be invisible until a core major stopped reading it.
+    """
+    from spytial._spec_tables import DEPRECATED_ITEMS
+
+    # The keys that select the deprecated form, named by the manifest rather
+    # than restated, so retiring the form retires the test with it.
+    legacy_only = set(DEPRECATED_ITEMS["group.byField"]["mapping"]) - {"selector"}
+
+    payload = {"shapes": [_shape("related", "group")]}
+    draft = suggest(Ticket, enrich=_FakeProvider(payload))
+    rows = _of(draft, "group")
+    assert rows, "expected the model's group shape to be installed"
+    for s in rows:
+        assert not (set(s.kwargs) & legacy_only), (
+            f"{s.kwargs} uses the deprecated by-field group form "
+            f"({sorted(legacy_only)})"
+        )
+        spytial.group(**s.kwargs)  # the current form is accepted as written
 
 
 def test_enrich_rejects_unknown_field():

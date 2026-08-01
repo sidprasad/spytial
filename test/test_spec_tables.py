@@ -568,3 +568,99 @@ def test_size_and_hide_atom_are_constraints():
     assert "hideAtom" in tables.CONSTRAINT_TYPES
     assert "size" not in tables.DIRECTIVE_TYPES
     assert "hideAtom" not in tables.DIRECTIVE_TYPES
+
+
+# --------------------------------------------------------------------------- #
+# What spytial.suggest proposes, which has to be sayable in the language
+# --------------------------------------------------------------------------- #
+#
+# suggest writes specs on the user's behalf and puts vocabularies into model
+# prompts. Every one of those is a restatement of something the manifest already
+# says, and a restatement that falls behind is the same silent failure the rest
+# of this file exists to prevent -- with one extra turn of the screw: a prompt
+# that names a stale vocabulary produces a model answer that is then correctly
+# rejected, so it reads as the model being unhelpful rather than as drift.
+
+
+def test_suggest_orders_every_form_it_could_emit():
+    """`emit._PREFERRED` is a display order, so a gap in it is invisible.
+
+    A form missing from the list still renders -- it just sorts to the end of
+    its section, silently, and only in specs that happen to use it.
+    """
+    from spytial.suggest.emit import _PREFERRED
+
+    assert set(_PREFERRED) == set(ALL_FORMS), (
+        f"emit._PREFERRED and the tables disagree: "
+        f"missing {sorted(set(ALL_FORMS) - set(_PREFERRED))}, "
+        f"unknown {sorted(set(_PREFERRED) - set(ALL_FORMS))}"
+    )
+
+
+def test_suggest_emits_constraints_before_directives():
+    """`to_source` and `to_registry` have to agree on the split.
+
+    They are read together -- the source is what a user pastes, the registry is
+    what gets applied -- so a rule that reads as geometry and lands under
+    directives is a discrepancy the user has no way to see.
+    """
+    from spytial.suggest.emit import _rank
+
+    ranks = {form: _rank(form) for form in ALL_FORMS}
+    constraints = [f for f in ALL_FORMS if f in tables.CONSTRAINT_TYPES]
+    directives = [f for f in ALL_FORMS if f not in tables.CONSTRAINT_TYPES]
+    assert max(ranks[f] for f in constraints) < min(ranks[f] for f in directives)
+
+
+def test_ask_kinds_are_forms_the_language_has():
+    """`ask` admits candidates by kind before evaluating them.
+
+    A kind that no longer exists upstream would be admitted here and then fail
+    at render, which is exactly the point at which nothing reports why.
+    """
+    from spytial.suggest._ask import _ASK_KINDS, _KIND_ARITY
+
+    assert set(_ASK_KINDS) <= set(ALL_FORMS), sorted(set(_ASK_KINDS) - set(ALL_FORMS))
+    for kind in _ASK_KINDS:
+        assert (kind, "selector") in tables.SELECTOR_ARITY, (
+            f"ask authors `{kind}` with a selector, but the tables do not give "
+            f"that slot an arity"
+        )
+        assert _KIND_ARITY[kind] == {"unary": 1, "binary": 2}[
+            tables.SELECTOR_ARITY[(kind, "selector")]
+        ]
+
+
+def test_shape_tier_offers_the_whole_vocabulary_it_accepts():
+    """The prompt and the response schema have to name the same directions.
+
+    They are written metres apart and validated by different code, so a prompt
+    listing fewer values than the schema allows costs suggestions with no
+    symptom: the model simply never proposes what it was not offered.
+    """
+    from spytial.suggest import _enrich
+
+    prompt = _enrich._SHAPE_PROMPT.format(
+        cls="C",
+        fields="- f",
+        orient_dirs=", ".join(_enrich._ORIENT_DIRS),
+        cyclic_dirs=" / ".join(_enrich._CYCLIC_DIRS),
+    )
+    for direction in tables.ORIENTATION_DIRECTIONS:
+        assert direction in prompt, f"the shape prompt never offers {direction!r}"
+    for direction in tables.ROTATION_DIRECTIONS:
+        assert direction in prompt, f"the shape prompt never offers {direction!r}"
+
+    schema = _enrich._SHAPE_SCHEMA["properties"]["shapes"]["items"]["properties"]
+    assert schema["directions"]["items"]["enum"] == list(tables.ORIENTATION_DIRECTIONS)
+    assert schema["direction"]["enum"] == list(tables.ROTATION_DIRECTIONS)
+
+
+def test_shape_tier_constraints_are_forms_the_language_has():
+    from spytial.suggest import _enrich
+
+    schema = _enrich._SHAPE_SCHEMA["properties"]["shapes"]["items"]["properties"]
+    kinds = set(schema["constraint"]["enum"]) - {"none"}  # 'none' is the abstain
+    assert kinds <= set(tables.CONSTRAINT_TYPES), sorted(
+        kinds - set(tables.CONSTRAINT_TYPES)
+    )

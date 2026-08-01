@@ -11,22 +11,26 @@ from typing import Any, Dict, List
 from ..annotations import CONSTRAINT_TYPES
 from ._model import SpecDraft, Suggestion
 
-# Stable display order: constraints (geometry) first, then directives (drawing),
-# matching how the gold-standard hand-written specs stack.
-_ORDER = [
+# Preferred order *within* a section. Which section a form belongs to is not
+# restated here -- it is read from the tables, so a form that moves between
+# sections upstream (`size` and `hideAtom` did, in spytial-core 4.3) moves here
+# too instead of leaving this list quietly contradicting its own comment. A
+# form missing from this list sorts to the end of its own section rather than
+# the end of everything; test_spec_tables.py keeps the list complete.
+_PREFERRED = [
     "orientation",
     "cyclic",
     "align",
     "group",
+    "size",
+    "hideAtom",
     "atomStyle",
     "atomColor",  # legacy alias of atomStyle; user heuristics may still emit it
-    "size",
     "icon",
     "edgeStyle",
     "edgeColor",  # legacy alias of edgeStyle
     "attribute",
     "hideField",
-    "hideAtom",
     "inferredEdge",
     "tag",
     "projection",
@@ -51,14 +55,21 @@ def _is_constraint(directive: str) -> bool:
     return directive in CONSTRAINT_TYPES
 
 
+def _rank(directive: str) -> tuple:
+    """Constraints (geometry) before directives (drawing), then by preference.
+
+    Matches how the gold-standard hand-written specs stack, and matches the
+    order ``to_registry`` puts them in, so reading ``to_source`` tells you which
+    section each rule lands in.
+    """
+    section = 0 if _is_constraint(directive) else 1
+    within = _PREFERRED.index(directive) if directive in _PREFERRED else len(_PREFERRED)
+    return (section, within)
+
+
 def _selected(draft: SpecDraft, enabled_only: bool) -> List[Suggestion]:
     items = [s for s in draft.suggestions if s.enabled_by_default or not enabled_only]
-    return sorted(
-        items,
-        key=lambda s: (
-            _ORDER.index(s.directive) if s.directive in _ORDER else len(_ORDER)
-        ),
-    )
+    return sorted(items, key=lambda s: _rank(s.directive))
 
 
 def _order_kwargs(kwargs: Dict[str, Any]) -> List[tuple]:

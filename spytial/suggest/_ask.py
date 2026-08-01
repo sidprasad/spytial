@@ -38,10 +38,11 @@ non-empty intersection on any example means both constraints claim the same
 edges. Demoted rows move to ``draft.alternatives`` — kept, off, one toggle away.
 
 Kinds covered in this first cut: the binary-selector constraints
-(``orientation``, ``cyclic``, ``align``), ``inferredEdge``, and the
-unary-selector directives ``hideAtom`` and ``atomStyle`` (fill/stroke colors).
-``group`` is deliberately left out for now — its selector is legal at either
-arity and its two kwarg forms need their own admit rules.
+(``orientation``, ``cyclic``, ``align``), the ``inferredEdge`` directive, and
+the unary-selector ``hideAtom`` constraint and ``atomStyle`` directive
+(fill/stroke colors). ``group`` is deliberately left out for now — its two
+kwarg forms need their own admit rules, which the manifest's discriminator
+(``field`` present or absent) would now be enough to write.
 """
 
 from __future__ import annotations
@@ -54,6 +55,7 @@ from ..annotations import (
     DIRECTIVE_TYPES,
     ORIENTATION_DIRECTIONS,
     ROTATION_DIRECTIONS,
+    SELECTOR_ARITY,
     _prepare_kwargs,
     validate_fields,
 )
@@ -81,17 +83,29 @@ class AskError(RuntimeError):
     """
 
 
-# Directive kinds ask may author, with the selector arity each requires
-# (docs/selectors.md: orientation/align/inferredEdge — and cyclic — act on edges;
-# hideAtom/atomStyle act on atoms).
-_KIND_ARITY = {
-    "orientation": 2,
-    "cyclic": 2,
-    "align": 2,
-    "inferredEdge": 2,
-    "hideAtom": 1,
-    "atomStyle": 1,
-}
+# The kinds ask may author. Which ones are on this list is a judgement about
+# what a model can be trusted to translate, so it stays hand-picked; the arity
+# each one's selector needs is a fact about the language, so it is read from
+# the generated tables rather than restated here. A core release that changes
+# an arity therefore changes what ask accepts, instead of leaving ask rejecting
+# valid candidates against a number nobody remembered to update.
+_ASK_KINDS = ("orientation", "cyclic", "align", "inferredEdge", "hideAtom", "atomStyle")
+
+_ARITY_NUMBER = {"unary": 1, "binary": 2}
+
+
+def _selector_arity(kind: str) -> int:
+    try:
+        return _ARITY_NUMBER[SELECTOR_ARITY[(kind, "selector")]]
+    except KeyError:  # pragma: no cover — a core change, caught by the drift test
+        raise RuntimeError(
+            f"spytial.suggest asks for {kind!r} but the language tables no longer "
+            f"give its selector a unary or binary arity. Rebuild _spec_tables.py "
+            f"and revisit _ASK_KINDS."
+        ) from None
+
+
+_KIND_ARITY = {kind: _selector_arity(kind) for kind in _ASK_KINDS}
 
 # One initial translation plus at most one counterexample-guided repair, same
 # budget and rationale as the tier-2 selector rounds.

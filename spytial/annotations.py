@@ -49,6 +49,7 @@ from ._spec_tables import (  # noqa: F401  (names re-exported from this module)
     ORIENTATION_DIRECTIONS,
     ROTATION_DIRECTIONS,
     SCALAR_ITEMS,
+    SELECTOR_ARITY,
     TEXT_SIZES,
 )
 
