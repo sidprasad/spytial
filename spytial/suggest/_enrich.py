@@ -90,10 +90,11 @@ per field from a fixed vocabulary, and spytial draws the selector itself.
 
 For each structural field choose exactly one constraint:
 - orientation: the field is a directional edge. Give 1-2 directions from
-  [below, above, left, right, directlyRight, directlyLeft]. A tree child -> below;
-  a forward/"next" link -> right; a parent/back link -> above.
+  [{orient_dirs}]. A tree child -> below; a forward/"next" link -> right; a
+  parent/back link -> above. The `directly*` variants also require that nothing
+  sits between the two atoms.
 - cyclic: the field forms a ring or cycle (circular list, ring buffer). Give a
-  direction (clockwise / counterclockwise). Only for single-pointer fields.
+  direction ({cyclic_dirs}). Only for single-pointer fields.
 - group: the field is a collection whose elements should be boxed together. Only
   for container fields (list/tuple/set/dict).
 - none: no clear spatial meaning. This is the preferred answer when unsure.
@@ -175,7 +176,16 @@ def _ask_shapes(provider, ci: ClassInfo, fields: List) -> List[dict]:
         lines.append(
             f"- {f.name}: type={f.type_repr or '?'}, kind={kind}, nullable={nullable}"
         )
-    prompt = _SHAPE_PROMPT.format(cls=ci.cls.__name__, fields="\n".join(lines))
+    # The vocabularies are interpolated, not spelled out in the template: the
+    # prompt used to name six of the eight orientation directions while the
+    # schema accepted all eight, so a direction the model was never offered was
+    # nonetheless one it would have been allowed to pick.
+    prompt = _SHAPE_PROMPT.format(
+        cls=ci.cls.__name__,
+        fields="\n".join(lines),
+        orient_dirs=", ".join(_ORIENT_DIRS),
+        cyclic_dirs=" / ".join(_CYCLIC_DIRS),
+    )
     data = provider(prompt, schema=_SHAPE_SCHEMA)
     shapes = data.get("shapes", [])
     return [s for s in shapes if isinstance(s, dict)]
@@ -301,7 +311,15 @@ def _shape_to_suggestion(ci: ClassInfo, cls: str, f, sh: dict) -> Optional[Sugge
     elif kind == "group":
         if f.container not in _CONTAINERS:
             return None  # group boxes the elements of a collection
-        kwargs = {"field": f.name, "groupOn": 0, "addToGroup": 1}
+        # The by-field spelling (`field=`, `groupOn=0`, `addToGroup=1`) says the
+        # same thing and is what this emitted until spytial-core 4.3 deprecated
+        # it. The manifest gives the rewrite: a binary selector whose first
+        # column is the key and whose second is the members, which for
+        # groupOn=0/addToGroup=1 is the relation itself. The current form also
+        # requires a `name` -- the one thing _desugar_legacy_style cannot supply
+        # from the old kwargs, and the reason it does not rewrite this form. Here
+        # the field name is right there, so the current spelling is writable.
+        kwargs = {"selector": f.name, "name": f.name}
     else:
         return None  # 'none' or anything unrecognized — abstain
 

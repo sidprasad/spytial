@@ -139,6 +139,12 @@ KNOWN_FIELD_TYPES = frozenset(
 KNOWN_SECTIONS = frozenset({"constraints", "directives"})
 KNOWN_VALUE_SHAPES = frozenset({"mapping", "scalar"})
 
+# Arities a selector slot can declare. `n-ary` means the slot puts no arity
+# requirement on the expression (`filter`, `tag.value`), which is a different
+# statement from "any arity is fine to *suggest*" -- so it is carried through
+# rather than dropped, and consumers decide what to do with it.
+KNOWN_ARITIES = frozenset({"unary", "binary", "n-ary"})
+
 
 # --------------------------------------------------------------------------- #
 # Reading the manifest
@@ -334,6 +340,45 @@ def build_enum_values(manifest):
     return pairs
 
 
+def build_selector_arity(manifest):
+    """(item, keyword) -> the arity a selector in that slot has to evaluate to.
+
+    Nothing in Python can check this: an arity mismatch is only discoverable by
+    evaluating the expression against a datum, which is what
+    ``spytial.suggest`` does before it proposes a rule. Core itself does not
+    check it either -- a unary expression in a slot wanting pairs matches no
+    tuples, and the constraint disappears from the diagram. Carrying the
+    declared arity here is what lets the suggest tiers reject a candidate at
+    the point where they can still say why.
+
+    Deprecated items are skipped, which is also what keeps the two ``group``
+    forms from colliding: they share a ``yamlKey`` and disagree about arity
+    (the current form's selector is binary, the by-field form's is unary).
+    """
+    arities = {}
+    for item in manifest["items"]:
+        if item.get("deprecated"):
+            continue
+        for field in item.get("fields", []):
+            if field.get("type") != "selector":
+                continue
+            arity = field.get("arity")
+            if arity not in KNOWN_ARITIES:
+                raise ManifestDrift(
+                    f"{item['id']}.{field['name']} is a selector with arity "
+                    f"{arity!r}; teach the generator about it (KNOWN_ARITIES) "
+                    f"before regenerating."
+                )
+            key = (item["yamlKey"], _python_name(item["id"], field))
+            if key in arities and arities[key] != arity:
+                raise ManifestDrift(
+                    f"{key[0]}.{key[1]} is declared {arities[key]!r} by one form "
+                    f"and {arity!r} by another; they must agree."
+                )
+            arities[key] = arity
+    return {key: arities[key] for key in sorted(arities)}
+
+
 def build_blocks(manifest):
     """Shared style blocks, as field name -> validation facts.
 
@@ -413,6 +458,7 @@ def render(manifest=None):
     constraints, directives = build_tables(manifest)
     hold_supported_by = build_hold_support(manifest)
     enum_values = build_enum_values(manifest)
+    selector_arity = build_selector_arity(manifest)
     blocks = build_blocks(manifest)
     deprecated_items, deprecated_fields = build_deprecations(manifest)
     # A scalar item serializes as a bare value rather than a mapping, so it
@@ -507,6 +553,12 @@ def render(manifest=None):
         out.append(f"    ({item!r}, {keyword!r}): {constant},")
     out += [
         "}",
+        "",
+        "# (annotation type, keyword) -> the arity a selector written there has to",
+        "# evaluate to. Not checkable without a datum, so nothing enforces it at",
+        "# authoring time; spytial.suggest evaluates candidates against example",
+        "# instances and uses this to reject the ones that would match no tuples.",
+        f"SELECTOR_ARITY = {_lit(selector_arity)}",
         "",
         "",
         "# --------------------------------------------------------------------------- #",
