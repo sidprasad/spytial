@@ -584,6 +584,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#container-fields" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Container fields
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#worked-example-the-binary-tree" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1038,6 +1049,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#container-fields" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Container fields
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#worked-example-the-binary-tree" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1184,6 +1206,64 @@ apply. If both sides of the comparison are empty, the comparison is true, and th
 directive applies to every atom. The diagram renders in both cases. Unresolved
 names are reported on the diagram as a selector warning, which names the
 directive and its selector.</p>
+<h2 id="container-fields">Container fields</h2>
+<p>A field that holds a container does not relate the object to the container's
+elements. It relates the object to <strong>the container</strong>, which is an atom of its
+own. The elements hang off that atom through a second relation. A selector that
+names the field alone therefore reaches the container and stops there.</p>
+<table>
+<thead>
+<tr>
+<th>Field type</th>
+<th>Field relation</th>
+<th>Element relation</th>
+<th>Elements of <code>x.f</code></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>list</code></td>
+<td><code>f : (obj, list)</code></td>
+<td><code>idx : (list, int, value)</code></td>
+<td><code>x.f.idx[int]</code></td>
+</tr>
+<tr>
+<td><code>dict</code></td>
+<td><code>f : (obj, dict)</code></td>
+<td><code>kv : (dict, key, value)</code></td>
+<td><code>x.f.kv[K]</code></td>
+</tr>
+<tr>
+<td><code>set</code></td>
+<td><code>f : (obj, set)</code></td>
+<td><code>contains : (set, value)</code></td>
+<td><code>x.f.contains</code></td>
+</tr>
+<tr>
+<td><code>tuple</code></td>
+<td><code>f : (obj, tuple)</code></td>
+<td><code>t0</code>, <code>t1</code>, … one per position</td>
+<td><code>x.f.t0 + x.f.t1</code></td>
+</tr>
+</tbody>
+</table>
+<p>For a list-valued field <code>kids</code>, the working form is:</p>
+<div class="highlight"><pre><span></span><code><span class="nd">@spytial</span><span class="o">.</span><span class="n">orientation</span><span class="p">(</span>
+    <span class="n">selector</span><span class="o">=</span><span class="s1">&#39;{ x : DagNode, y : DagNode | y in x.kids.idx[int] }&#39;</span><span class="p">,</span>
+    <span class="n">directions</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;below&#39;</span><span class="p">],</span>
+<span class="p">)</span>
+</code></pre></div>
+<p><code>x.kids</code> is the <code>list</code> atom. <code>x.kids.idx</code> is the <code>(index, value)</code> pairs it
+holds. <code>[int]</code> joins over every index and leaves the values. The same bracket
+takes one position: <code>x.kids.idx[0]</code> is the first element. For a <code>dict</code>, <code>K</code> is
+the key type, so <code>x.f.kv[str]</code> is the values under string keys.</p>
+<p>Omitting the projection is quiet. This matches nothing:</p>
+<div class="highlight"><pre><span></span><code><span class="n">selector</span><span class="o">=</span><span class="s1">&#39;{ x : DagNode, y : DagNode | y in x.kids }&#39;</span>
+</code></pre></div>
+<p>It is well formed, and it names only relations that exist, so no selector
+warning is reported. It matches no pair, because a <code>DagNode</code> is never a <code>list</code>.
+The constraint is generated over an empty set, and the diagram renders with the
+decorator doing nothing.</p>
 <h2 id="worked-example-the-binary-tree">Worked example: the binary tree</h2>
 <p>The <a href="../getting-started/">binary tree</a> orients children with a two-variable
 comprehension. This is a binary selector that matches parent and child
