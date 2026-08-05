@@ -64,6 +64,45 @@ directive applies to every atom. The diagram renders in both cases. Unresolved
 names are reported on the diagram as a selector warning, which names the
 directive and its selector.
 
+## Container fields
+
+A field that holds a container does not relate the object to the container's
+elements. It relates the object to **the container**, which is an atom of its
+own. The elements hang off that atom through a second relation. A selector that
+names the field alone therefore reaches the container and stops there.
+
+| Field type | Field relation | Element relation | Elements of `x.f` |
+| --- | --- | --- | --- |
+| `list` | `f : (obj, list)` | `idx : (list, int, value)` | `x.f.idx[int]` |
+| `dict` | `f : (obj, dict)` | `kv : (dict, key, value)` | `x.f.kv[K]` |
+| `set` | `f : (obj, set)` | `contains : (set, value)` | `x.f.contains` |
+| `tuple` | `f : (obj, tuple)` | `t0`, `t1`, … one per position | `x.f.t0 + x.f.t1` |
+
+For a list-valued field `kids`, the working form is:
+
+```python
+@spytial.orientation(
+    selector='{ x : DagNode, y : DagNode | y in x.kids.idx[int] }',
+    directions=['below'],
+)
+```
+
+`x.kids` is the `list` atom. `x.kids.idx` is the `(index, value)` pairs it
+holds. `[int]` joins over every index and leaves the values. The same bracket
+takes one position: `x.kids.idx[0]` is the first element. For a `dict`, `K` is
+the key type, so `x.f.kv[str]` is the values under string keys.
+
+Omitting the projection is quiet. This matches nothing:
+
+```python
+selector='{ x : DagNode, y : DagNode | y in x.kids }'
+```
+
+It is well formed, and it names only relations that exist, so no selector
+warning is reported. It matches no pair, because a `DagNode` is never a `list`.
+The constraint is generated over an empty set, and the diagram renders with the
+decorator doing nothing.
+
 ## Worked example: the binary tree
 
 The [binary tree](getting-started.md) orients children with a two-variable

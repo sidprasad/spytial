@@ -2,9 +2,9 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "urn:spytial:layout-spec-schema:2026-07-29",
   "title": "Spytial layout specification",
-  "description": "A Spytial spec: constraints (structural layout) and directives (presentation). Spec language 2026-07-29, from spytial-core 4.4.0. This schema is stricter than the engine parser, which silently ignores anything it does not recognize — validating here is how a misspelled key or an out-of-range value gets caught at all. Fetch it from https://cdn.jsdelivr.net/gh/sidprasad/spytial-core@<tag>/docs/spytial-spec.schema.json; pin a tag, since the @main path is overwritten each release.",
+  "description": "A Spytial spec: constraints (structural layout) and directives (presentation). Spec language 2026-07-29, from spytial-core 4.4.1. This schema is stricter than the engine parser, which silently ignores anything it does not recognize — validating here is how a misspelled key or an out-of-range value gets caught at all. Fetch it from https://cdn.jsdelivr.net/gh/sidprasad/spytial-core@<tag>/docs/spytial-spec.schema.json; pin a tag, since the @main path is overwritten each release.",
   "x-spytial-language-version": "2026-07-29",
-  "x-spytial-core-version": "4.4.0",
+  "x-spytial-core-version": "4.4.1",
   "type": "object",
   "properties": {
     "constraints": {
