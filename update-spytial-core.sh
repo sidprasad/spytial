@@ -4,7 +4,8 @@
 # Reads the latest version from the npm registry, compares it against the
 # pinned version in spytial/core_assets.py, and rewrites the version in
 # core_assets.py, the test docstring that references it, the vendored
-# evaluator bundle, and the vendor README's pin.
+# evaluator bundle, the vendored conformance harness bin, and the vendor
+# README's pin.
 #
 # It also re-vendors the language manifest and regenerates the annotation
 # tables from it. Core's parser ignores anything it does not recognize, so a
@@ -25,11 +26,12 @@ VENDOR_EVALUATOR="$REPO_ROOT/spytial/suggest/_vendor/spytial-core-evaluator.js"
 VENDOR_README="$REPO_ROOT/spytial/suggest/_vendor/README.md"
 VENDOR_MANIFEST="$REPO_ROOT/spytial/_vendor/spytial-language.json"
 VENDOR_SCHEMA="$REPO_ROOT/spytial/_vendor/spytial-spec.schema.json"
+VENDOR_CHECK="$REPO_ROOT/test/_vendor/spytial-check.js"
 GENERATOR="$REPO_ROOT/scripts/generate_spec_tables.py"
 VENDOR_LOCK="$REPO_ROOT/scripts/vendor_lock.py"
 
 for f in "$CORE_ASSETS" "$TEST_DOCSTRING" "$VENDOR_EVALUATOR" "$VENDOR_README" \
-         "$VENDOR_MANIFEST" "$VENDOR_SCHEMA" "$GENERATOR" "$VENDOR_LOCK"; do
+         "$VENDOR_MANIFEST" "$VENDOR_SCHEMA" "$VENDOR_CHECK" "$GENERATOR" "$VENDOR_LOCK"; do
     [[ -f "$f" ]] || { echo "missing: $f" >&2; exit 1; }
 done
 
@@ -75,6 +77,12 @@ trap 'rm -rf "$TMP"' EXIT
 ( cd "$TMP" && npm pack "spytial-core@$LATEST" --silent && tar xzf "spytial-core-$LATEST.tgz" )
 cp "$TMP/package/dist/evaluator.js" "$VENDOR_EVALUATOR"
 
+# The conformance harness bin, which answers what a decorator's spec *entails*
+# (test/conformance.py). It has to move with this same pin: a harness from one
+# release checking specs written against another is the drift the rest of this
+# script exists to prevent, arriving through the thing meant to catch it.
+cp "$TMP/package/dist/cli/spytial-check.js" "$VENDOR_CHECK"
+
 # Re-vendor the language manifest and regenerate the annotation tables from it.
 # The generator refuses to emit output it cannot account for, so a release that
 # adds a construct stops here by name rather than dropping it silently.
@@ -89,15 +97,27 @@ python3 "$GENERATOR"
 # can tell a stale copy from a current one.
 python3 "$VENDOR_LOCK"
 
-# Confirm the bundle stayed self-contained (only the `util` builtin may print).
-EXTERNAL="$(grep -oE "require\(['\"][^'\"]+['\"]\)" "$VENDOR_EVALUATOR" \
-    | grep -vE "require\(['\"](\.|node:)" | sort -u | grep -v '^require("util")$' || true)"
-if [[ -n "$EXTERNAL" ]]; then
-    echo "WARNING: vendored evaluator has unexpected external requires:" >&2
-    echo "$EXTERNAL" >&2
-fi
+# Confirm each bundle stayed self-contained. Both are copied out of the tarball
+# with no node_modules beside them, so a bare require of anything that is not a
+# node builtin means the file cannot load where we put it. The allowed builtins
+# are listed per file rather than blanket-allowed, so a build that starts
+# reaching for a new one is still worth a look.
+check_self_contained() {
+    local label="$1" file="$2" allowed="$3" external
+    external="$(grep -oE "require\(['\"][^'\"]+['\"]\)" "$file" \
+        | grep -vE "require\(['\"](\.|node:)" \
+        | sed -E "s/require\(['\"]([^'\"]+)['\"]\)/\1/" \
+        | sort -u | grep -vxE "$allowed" || true)"
+    if [[ -n "$external" ]]; then
+        echo "WARNING: vendored $label has unexpected external requires:" >&2
+        echo "$external" >&2
+    fi
+}
 
-echo "Bumped spytial-core $CURRENT -> $LATEST (assets pin, vendored evaluator, language manifest + tables)"
+check_self_contained evaluator "$VENDOR_EVALUATOR" 'util'
+check_self_contained spytial-check "$VENDOR_CHECK" 'child_process|fs|path|util'
+
+echo "Bumped spytial-core $CURRENT -> $LATEST (assets pin, vendored evaluator + spytial-check, language manifest + tables)"
 echo
 echo "Next:"
 echo "  1. Review spytial/_spec_tables.py -- that diff IS the language change."
