@@ -595,6 +595,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#boolean-and-optional-fields" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Boolean and optional fields
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#worked-example-the-binary-tree" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1060,6 +1071,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#boolean-and-optional-fields" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Boolean and optional fields
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#worked-example-the-binary-tree" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1264,6 +1286,42 @@ the key type, so <code>x.f.kv[str]</code> is the values under string keys.</p>
 warning is reported. It matches no pair, because a <code>DagNode</code> is never a <code>list</code>.
 The constraint is generated over an empty set, and the diagram renders with the
 decorator doing nothing.</p>
+<h2 id="boolean-and-optional-fields">Boolean and optional fields</h2>
+<p>A field is a relation, not a value. <code>n.flag</code> is the set of atoms the field
+points at, so it cannot stand alone where a condition is required:</p>
+<div class="highlight"><pre><span></span><code><span class="n">selector</span><span class="o">=</span><span class="s1">&#39;{ n : Node | n.flag }&#39;</span>
+</code></pre></div>
+<p>This is reported as <code>Expected the expression after the bar to be a boolean
+value!</code> when the layout is generated. Unlike an omitted container projection,
+it does not fail quietly. The working form compares the field against the atom
+it holds:</p>
+<div class="highlight"><pre><span></span><code><span class="n">selector</span><span class="o">=</span><span class="s1">&#39;{ n : Node | n.flag = True }&#39;</span>
+</code></pre></div>
+<p><code>True</code> and <code>False</code> are atoms. There is one of each per diagram, shared by every
+field that holds them.</p>
+<p><code>None</code> is an atom in the same way, of type <code>NoneType</code>. A field set to <code>None</code>
+still has an atom on the other end, so a declared field is never empty:</p>
+<table>
+<thead>
+<tr>
+<th>Intent</th>
+<th>Form</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>the field is unset</td>
+<td><code>n.link = None</code></td>
+</tr>
+<tr>
+<td>the field is set</td>
+<td><code>some n.link &amp; Node</code></td>
+</tr>
+</tbody>
+</table>
+<p><code>some n.link</code> is therefore true of every atom of the type, and <code>no n.link</code> is
+true of none. Both are quiet: they are well formed, they name only relations
+that exist, and no selector warning is reported.</p>
 <h2 id="worked-example-the-binary-tree">Worked example: the binary tree</h2>
 <p>The <a href="../getting-started/">binary tree</a> orients children with a two-variable
 comprehension. This is a binary selector that matches parent and child
