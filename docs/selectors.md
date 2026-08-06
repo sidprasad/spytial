@@ -103,6 +103,39 @@ warning is reported. It matches no pair, because a `DagNode` is never a `list`.
 The constraint is generated over an empty set, and the diagram renders with the
 decorator doing nothing.
 
+## Boolean and optional fields
+
+A field is a relation, not a value. `n.flag` is the set of atoms the field
+points at, so it cannot stand alone where a condition is required:
+
+```python
+selector='{ n : Node | n.flag }'
+```
+
+This is reported as `Expected the expression after the bar to be a boolean
+value!` when the layout is generated. Unlike an omitted container projection,
+it does not fail quietly. The working form compares the field against the atom
+it holds:
+
+```python
+selector='{ n : Node | n.flag = True }'
+```
+
+`True` and `False` are atoms. There is one of each per diagram, shared by every
+field that holds them.
+
+`None` is an atom in the same way, of type `NoneType`. A field set to `None`
+still has an atom on the other end, so a declared field is never empty:
+
+| Intent | Form |
+| --- | --- |
+| the field is unset | `n.link = None` |
+| the field is set | `some n.link & Node` |
+
+`some n.link` is therefore true of every atom of the type, and `no n.link` is
+true of none. Both are quiet: they are well formed, they name only relations
+that exist, and no selector warning is reported.
+
 ## Worked example: the binary tree
 
 The [binary tree](getting-started.md) orients children with a two-variable

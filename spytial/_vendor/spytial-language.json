@@ -1,7 +1,7 @@
 {
   "language": "spytial-layout-spec",
   "languageVersion": "2026-07-29",
-  "spytialCoreVersion": "4.4.1",
+  "spytialCoreVersion": "4.4.2",
   "versioning": {
     "note": "`languageVersion` is the date the language last changed (YYYY-MM-DD). If it has not moved since the manifest you generated against, nothing you emit needs revisiting. `spytialCoreVersion` records which release produced this file.",
     "deprecations": "A deprecated form keeps parsing and keeps its meaning; it is removed only in a major release of spytial-core. Each entry in `deprecations` names its replacement and the rewrite to apply."

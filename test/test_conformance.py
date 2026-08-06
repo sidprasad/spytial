@@ -64,6 +64,127 @@ class NaiveNode:
         self.kids = kids or []
 
 
+@spytial.cyclic(
+    selector="{x : RingNode, y : RingNode | x.next = y}", direction="clockwise"
+)
+class RingNode:
+    """A ring. ``tag`` hangs a node off the ring without joining it."""
+
+    def __init__(self, name, tag=None):
+        self.name = name
+        self.next = None
+        self.tag = tag
+
+
+@spytial.cyclic(
+    selector="{x : NoRing, y : NoRing | x.next = y}",
+    direction="clockwise",
+    hold="never",
+)
+class NoRing:
+    """The same ring, asserted *not* to be drawn as one."""
+
+    def __init__(self, name):
+        self.name = name
+        self.next = None
+
+
+_CONFLICT_SELECTOR = "{x : Conflict, y : Conflict | x.next = y}"
+
+
+@spytial.cyclic(selector=_CONFLICT_SELECTOR, direction="clockwise")
+@spytial.cyclic(selector=_CONFLICT_SELECTOR, direction="counterclockwise")
+class Conflict:
+    """One selector told to turn both ways."""
+
+    def __init__(self, name):
+        self.name = name
+        self.next = None
+
+
+@spytial.hideAtom(selector="Bookkeeping")
+@spytial.orientation(selector="{x : Row, y : Row | x.next = y}", directions=["below"])
+class Row:
+    """Rows stack downward. ``meta`` is a node meant to stay out of the picture."""
+
+    def __init__(self, name, nxt=None, meta=None):
+        self.name = name
+        self.next = nxt
+        self.meta = meta
+
+
+class Bookkeeping:
+    """A node the author wants in the data but not in the diagram."""
+
+    def __init__(self, note):
+        self.note = note
+
+
+@spytial.hideAtom(selector="{n : Tidy | n.internal = True}")
+@spytial.orientation(selector="{x : Tidy, y : Tidy | x.next = y}", directions=["below"])
+class Tidy:
+    """Both forms read the same ``internal`` flag off the data.
+
+    So which atoms get hidden is a property of the *datum*, not of the
+    decorators -- which is what lets the two cases below differ by one boolean
+    and still be the same spec.
+    """
+
+    def __init__(self, name, internal=False, nxt=None):
+        self.name = name
+        self.internal = internal
+        self.next = nxt
+
+
+@spytial.hideAtom(selector="{n : BareFlag | n.internal}")
+class BareFlag:
+    """A field used as if it were a boolean. It is a set of atoms, so this errors."""
+
+    def __init__(self, name, internal=False):
+        self.name = name
+        self.internal = internal
+
+
+@spytial.hideAtom(selector="{n : Linked | some n.link}")
+class Linked:
+    """``some n.link`` reads as "has a link". Every atom has one."""
+
+    def __init__(self, name, link=None):
+        self.name = name
+        self.link = link
+
+
+@spytial.hideAtom(selector="{n : LinkedStrict | n.link = None}")
+class LinkedStrict:
+    """The same question, asked in the form that distinguishes."""
+
+    def __init__(self, name, link=None):
+        self.name = name
+        self.link = link
+
+
+@spytial.size(selector="Card", width=140, height=60)
+class Card:
+    def __init__(self, name, child=None):
+        self.name = name
+        self.child = child
+
+
+class Plain:
+    """An unsized neighbour, so ``sized()`` has something to not match."""
+
+    def __init__(self, name):
+        self.name = name
+
+
+def _ring(cls, n):
+    """A cycle of ``n`` nodes, returned at its head."""
+    nodes = [cls(f"r{i}") for i in range(n)]
+    for i, node in enumerate(nodes):
+        node.next = nodes[(i + 1) % n]
+    return nodes[0]
+
+
 def _tree():
     """n0 -> (n1 -> (n2, n3), n4). Ids are assigned in walk order."""
     return TreeNode(0, TreeNode(1, TreeNode(2), TreeNode(3)), TreeNode(4))
@@ -212,6 +333,255 @@ def test_the_obvious_list_selector_silently_constrains_nothing():
     assert result["errors"] == []
     # "Silently" is the whole claim: not even a selector warning names it.
     assert result["warnings"] == []
+
+
+# --------------------------------------------------------------------------- #
+# Cyclic. A ring entails no pair's left/right, so `must` cannot see it at all;
+# `cyclic()` (spytial-core 4.4.2) reports fragment membership instead.
+# --------------------------------------------------------------------------- #
+
+
+def test_a_ring_entails_membership_but_no_direction():
+    """The claim @cyclic makes, and the one it does not.
+
+    Rotating a ring gives another drawing that satisfies the same spec, so no
+    pair is entailed to be left of, right of, above or below any other -- every
+    ``must`` query comes back empty, with nothing wrong. What the spec does fix
+    is who is *on* the ring, which is what ``cyclic()`` reports.
+    """
+    check(
+        "ring of three",
+        _ring(RingNode, 3),
+        [
+            {
+                "query": "cyclic(n0)",
+                "equals": ["n0", "n1", "n2"],
+                "because": "all three nodes are on the one ring",
+            },
+            {
+                "query": "must.leftOf(n0)",
+                "empty": True,
+                "because": "a rotation of the ring satisfies the spec equally",
+            },
+            {"query": "must.rightOf(n0)", "empty": True},
+            {"query": "must.above(n0)", "empty": True},
+            {"query": "must.below(n0)", "empty": True},
+            {
+                "query": "can.leftOf(n0)",
+                "nonEmpty": True,
+                "because": "not entailed is not impossible -- some layout allows it",
+            },
+        ],
+    )
+
+
+def test_a_two_node_cycle_is_still_a_fragment():
+    """Membership is settled when the constraint selects, not when drawing needs it.
+
+    Two atoms need no disjunction to place -- there is only one way round a
+    two-cycle -- so an implementation that recorded fragments as it emitted
+    disjunctions would report nothing here.
+    """
+    check(
+        "ring of two",
+        _ring(RingNode, 2),
+        [{"query": "cyclic(n0)", "equals": ["n0", "n1"]}],
+    )
+
+
+def test_a_node_hanging_off_the_ring_is_not_on_it():
+    """``cyclic()`` reports the fragment, not everything reachable from it."""
+    ring = _ring(RingNode, 3)
+    ring.tag = RingNode("outsider")
+
+    result = check(
+        "ring with an outsider",
+        ring,
+        [
+            {"query": "cyclic(n0)", "equals": ["n0", "n1", "n2"]},
+            {
+                "query": "nodes()",
+                "contains": ["n3"],
+                "because": "the outsider is drawn, it is just not on the ring",
+            },
+        ],
+    )
+    assert result["ok"]
+
+
+def test_hold_never_contributes_no_fragment():
+    """``hold='never'`` asserts a ring is *absent*, so there is no ring to report."""
+    check(
+        "cycle asserted never to hold",
+        _ring(NoRing, 3),
+        [
+            {
+                "query": "cyclic(n0)",
+                "empty": True,
+                "because": "a negated cyclic constraint selects no fragment",
+            }
+        ],
+    )
+
+
+def test_two_directions_for_one_ring_is_refused():
+    """The only consequence of ``direction`` this harness can see.
+
+    Which way a ring turns is not entailed -- the mirrored drawing satisfies
+    the same spec -- so no query distinguishes clockwise from counterclockwise,
+    and swapping one for the other in the fixtures above changes no result. It
+    is still load-bearing: two constraints that disagree about one selector are
+    refused rather than silently resolved, which is what this pins down.
+    """
+    ring = _ring(Conflict, 3)
+    result = run_case("a ring told to turn both ways", ring)
+    assert not result["ok"]
+    assert "spec/parse-failed" in codes(result)
+
+
+# --------------------------------------------------------------------------- #
+# Hiding. `hidden()` (spytial-core 4.4.2) names what @hideAtom removed, which
+# `nodes()` can only show by absence.
+# --------------------------------------------------------------------------- #
+
+
+def test_hidden_atoms_leave_the_diagram_and_the_rest_still_lays_out():
+    check(
+        "hidden bookkeeping node",
+        Row("a", Row("b"), Bookkeeping("internal")),
+        [
+            {
+                "query": "hidden()",
+                "equals": ["n1"],
+                "because": "the Bookkeeping node, which walk order reached first",
+            },
+            {
+                "query": "nodes()",
+                "excludes": ["n1"],
+                "because": "hidden() and nodes() are complements, not two views",
+            },
+            {
+                "query": "must.below(n0)",
+                "contains": ["n2"],
+                "because": "hiding is surgical: the other constraints still hold",
+            },
+        ],
+    )
+
+
+def test_hiding_an_atom_a_constraint_needs_is_unsatisfiable():
+    """The contradiction @hideAtom's docstring warns about, made checkable.
+
+    Asking for an atom to be absent and for a constraint over it to hold cannot
+    both be honoured. The counterfactual is the same spec on a datum with the
+    flag cleared, so the difference is one boolean of data and not two
+    different sets of decorators.
+    """
+    result = run_case("hide a constrained atom", Tidy("a", False, Tidy("b", True)))
+    assert not result["ok"]
+    assert "layout/unsatisfiable" in codes(result)
+
+    check(
+        "same spec, nothing flagged",
+        Tidy("a", False, Tidy("b", False)),
+        [
+            {"query": "hidden()", "empty": True},
+            {"query": "must.below(n0)", "contains": ["n1"]},
+        ],
+    )
+
+
+def test_a_field_is_not_a_boolean_and_the_selector_says_so():
+    """The counterpart to the quiet ``y in x.kids`` no-op: this one is reported.
+
+    ``n.internal`` is the *set of atoms* the field points at, never a truth
+    value, so a selector that uses it as a condition is rejected outright.
+    Comparing it is the form that works, and the pair is here together because
+    the difference between them is three characters.
+    """
+    result = run_case("field used as a condition", BareFlag("x", True))
+    assert not result["ok"]
+    assert "layout/selector-error" in codes(result)
+
+    check(
+        "field compared against a value",
+        Tidy("a", True),
+        [
+            {
+                "query": "hidden()",
+                "equals": ["n0"],
+                "because": "n.internal = True is the form that selects",
+            }
+        ],
+    )
+
+
+def test_none_is_an_atom_so_a_declared_field_is_never_empty():
+    """``some n.link`` reads as "has a link" and matches everything, quietly.
+
+    A field left at Python ``None`` still relates its object to the ``None``
+    atom, so the multiplicity holds. Nothing reports this -- the selector is
+    well formed and names only relations that exist -- and the whole diagram
+    disappears. Asking whether a field is unset means comparing it.
+    """
+    result = run_case(
+        "some, on an optional field",
+        Linked("head", Linked("tail")),
+        [{"query": "hidden()", "equals": ["n0", "n1"]}],
+    )
+    assert result["ok"], explain(result)
+    assert result["errors"] == []
+    assert result["warnings"] == []
+
+    check(
+        "the same question, compared",
+        LinkedStrict("head", LinkedStrict("tail")),
+        [
+            {
+                "query": "hidden()",
+                "equals": ["n1"],
+                "because": "only the tail's link is actually unset",
+            }
+        ],
+    )
+
+
+# --------------------------------------------------------------------------- #
+# Size. `sized()` (spytial-core 4.4.2) matches the box exactly, so it answers
+# @size without going anywhere near a rendered pixel.
+# --------------------------------------------------------------------------- #
+
+
+def test_size_fixes_the_box_exactly():
+    check(
+        "sized cards",
+        Card("a", Card("b")),
+        [
+            {"query": "sized(140, 60)", "equals": ["n0", "n1"]},
+            {
+                "query": "sized(141, 60)",
+                "empty": True,
+                "because": "the constraint produces exactly the dimensions asked for",
+            },
+            {"query": "sized(140, 61)", "empty": True},
+        ],
+    )
+
+
+def test_size_reaches_only_what_its_selector_names():
+    """An auto-sized node can coincide with the numbers; this one cannot."""
+    check(
+        "one sized type beside an unsized one",
+        Card("a", Plain("b")),
+        [
+            {"query": "sized(140, 60)", "equals": ["n0"]},
+            {
+                "query": "nodes()",
+                "contains": ["n1"],
+                "because": "the unsized neighbour is drawn, just not at that size",
+            },
+        ],
+    )
 
 
 # --------------------------------------------------------------------------- #

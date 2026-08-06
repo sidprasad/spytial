@@ -37,7 +37,7 @@ reach the browser: spytial-core 4.1.0 renders them as a dismissable
 ## Regenerate (when bumping the pinned spytial-core)
 
 ```sh
-VERSION=4.4.1   # the spytial-core release to vendor
+VERSION=4.4.2   # the spytial-core release to vendor
 TMP=$(mktemp -d)
 ( cd "$TMP" && npm pack "spytial-core@$VERSION" && tar xzf "spytial-core-$VERSION.tgz" )
 cp "$TMP/package/dist/evaluator.js" spytial/suggest/_vendor/spytial-core-evaluator.js
@@ -51,4 +51,4 @@ grep -oE "require\(['\"][^'\"]+['\"]\)" spytial/suggest/_vendor/spytial-core-eva
   | grep -vE "require\(['\"](\.|node:)" | sort -u
 ```
 
-Pinned version: **spytial-core 4.4.1**.
+Pinned version: **spytial-core 4.4.2**.
