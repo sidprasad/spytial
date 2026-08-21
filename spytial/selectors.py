@@ -1,39 +1,26 @@
 """Selectors written in Python, translated to atom IDs at diagram time.
 
-A selector is normally an sgq expression, evaluated in the browser over the
-relationalized instance. It may instead be a Python function:
-
-1. The function is handed the values the walk reached and returns the ones to
-   select. A value per row for a unary selector, a tuple per row for a higher
-   arity.
-2. Each value is translated to the ID of its atom. A value with no atom is an
-   error.
-3. The IDs become the selector text: ``->`` within a tuple, ``+`` between rows.
-
-::
+A ``selector`` may be a function instead of an sgq expression. It is handed the
+values the walk reached (``values[0]`` is the diagrammed object) and returns
+the values to select -- one per row, or a tuple per row for a higher arity::
 
     def child_edges(values):
         return [(n, k) for n in values if isinstance(n, Node) for k in n.kids]
 
     # compiles to:  n0 -> n2 + n0 -> n4 + n4 -> n6
 
-The timing is the design. The function runs during :func:`spytial.diagram`,
-after the walk and before the spec is written, so the IDs it translates against
-are the ones the relationalizer assigned to the instance about to be drawn.
-Nothing is computed early or carried between builds, and the same function
-works on a class decorator, where no instance exists yet.
-
-The point of writing a selector this way is that it reads the caller's own
-objects. ``n.kids`` replaces ``p.kids.idx[int]``, so the relationalization need
-not be known. Nothing is intercepted, so a fault in the function raises where
-it was written, with an ordinary traceback.
+Each returned value is translated to the ID of its atom (a value with no atom
+is an error), and the IDs are joined with ``->`` within a tuple and ``+``
+between rows. The function runs during :func:`spytial.diagram`, after the walk
+and before the spec is written, so the IDs are the ones the relationalizer
+assigned to the instance about to be drawn -- and the same function works on a
+class decorator, where no instance exists yet. It reads the caller's own
+objects (``n.kids``, not ``p.kids.idx[int]``), and a fault in it raises where
+it was written.
 """
-
-from __future__ import annotations
 
 import decimal
 import math
-from typing import Any, Dict, Sequence, Tuple
 
 from ._spec_tables import SELECTOR_ARITY
 
@@ -47,23 +34,20 @@ __all__ = [
 
 
 class SelectorError(ValueError):
-    """Base class for every fault raised while translating a selector."""
+    """A fault raised while translating a selector."""
 
 
 class AtomNotInInstance(SelectorError):
     """The selector returned a value that the instance has no atom for."""
 
 
-def _literal(value: Any, atom_id: str) -> str:
-    """The sgq text that resolves to *value*'s atom.
+def _literal(value, atom_id):
+    """The sgq text for *value*'s atom -- an atom ID is not always a literal.
 
-    An atom ID names an atom inside the instance; a literal refers to one from a
-    selector. Two kinds of value are written differently, and neither parses as
-    it stands. A ``str`` ID quotes the value without escaping, so a value holding
-    a quote gives ``"he said "hi""``; sgq accepts ``\\"`` inside a literal. A
-    ``float`` ID is ``str(value)``, which uses exponent notation outside 1e-4 to
-    1e16, and ``1e+30`` is not a literal; sgq matches a numeric literal by value,
-    so the exact decimal expansion reaches the same atom.
+    A str ID quotes without escaping. A float ID can use exponent notation,
+    which does not parse; sgq matches numbers by value, so the exact decimal
+    reaches the same atom. bytes/complex IDs (``b'..'``, ``(1+2j)``) have no
+    spelling at all.
     """
     if isinstance(value, str):
         return '"%s"' % value.replace("\\", "\\\\").replace('"', '\\"')
@@ -72,77 +56,35 @@ def _literal(value: Any, atom_id: str) -> str:
     if isinstance(value, float) and math.isfinite(value) and "e" in atom_id.lower():
         return format(decimal.Decimal(value), "f")
     if isinstance(value, (bytes, complex)):
-        # Their IDs -- b'...' and (1+2j) -- are not sgq expressions in any
-        # spelling, so emitting them verbatim would fail at evaluation time in
-        # the browser, far from the code that wrote the selector.
         raise SelectorError(
-            "%r has atom %s, which has no sgq literal spelling -- a %s atom "
-            "cannot be named in a selector. Select the value that holds it "
-            "instead." % (value, atom_id, type(value).__name__)
+            "%r has atom %s, which has no sgq literal spelling. Select the "
+            "value that holds it instead." % (value, atom_id)
         )
     return atom_id
 
 
-def emit(rows: Sequence[Sequence[str]]) -> str:
+def emit(rows):
     """Join rows of atom IDs: ``->`` within a row, ``+`` between rows.
 
-    sgq binds ``->`` tighter than ``+``, so no parentheses are needed.
-
-    A single row is written twice. A lone primitive literal evaluates at arity 0
-    (``1`` is arity 0, ``1 + 1`` is arity 1) and the directive slots need 1 or 2.
-    ``X + none`` does not lift it. ``X + X`` does, and is idempotent.
+    ``->`` binds tighter than ``+``, so no parentheses. A single row is written
+    twice: a lone primitive literal evaluates at arity 0 (``1`` is arity 0,
+    ``1 + 1`` is arity 1), and ``X + none`` does not lift it.
     """
     if not rows:
         return "none"
     terms = [" -> ".join(row) for row in rows]
-    if len(terms) == 1:
-        terms = terms * 2
-    return " + ".join(terms)
+    return " + ".join(terms * 2 if len(terms) == 1 else terms)
 
 
-#: Row widths each declared arity accepts. ``n-ary`` slots accept any width and
-#: so have no entry.
-_WIDTHS = {"unary": {1}, "binary": {2}}
+def materialise(fn, root, builder, instance, *, widths=None, slot="selector"):
+    """Run *fn* on the walked values and translate its result to sgq text.
 
-
-def _accepted_widths(spec_type, key):
-    """Row widths the slot accepts, or ``None`` when any width does.
-
-    ``group`` is the one binary slot that also accepts unary rows: per the
-    language manifest, a unary selector builds a single unkeyed group.
-    """
-    if (spec_type, key) == ("group", "selector"):
-        return {1, 2}
-    return _WIDTHS.get(SELECTOR_ARITY.get((spec_type, key)))
-
-
-def materialise(fn, root: Any, builder, instance: Dict, *, widths=None, slot="selector") -> str:
-    """Run *fn* and translate its result to sgq text.
-
-    Args:
-        fn: The selector function. It is handed the values the walk reached --
-            ``values[0]`` is the diagrammed object itself, the first value the
-            walk saw. It returns the values to select; a row is one value, or a
-            tuple of values for a higher arity. Only a ``tuple`` is a row: a
-            ``list`` is a value, because a list is an atom in its own right
-            (selecting the container atoms is how the relationalizer's
-            scaffolding gets hidden).
-        root: The object passed to
-            :meth:`~spytial.CnDDataInstanceBuilder.build_instance`.
-        builder: The builder that produced *instance*. Its walk supplies the IDs.
-        instance: The built instance.
-        widths: Row widths the slot accepts, or ``None`` to accept any. Core's
-            selection helpers silently discard rows of the wrong width, so a
-            mismatch here shall be an error rather than a directive that
-            quietly stops applying.
-        slot: The slot's name, for messages.
-
-    Raises:
-        AtomNotInInstance: The function returned a value the walk never reached.
-            This check cannot be left to the evaluator: a numeric literal naming
-            no atom evaluates non-empty in sgq, so a wrong value would apply the
-            rule to a phantom atom rather than report anything.
-        SelectorError: The rows are not all the same length.
+    Only a ``tuple`` is a row; a ``list`` is a value, since container atoms are
+    themselves selectable. *widths* is the set of row widths the slot accepts:
+    core silently discards rows of the wrong width, so a mismatch is an error
+    here rather than a directive that quietly stops applying. A value with no
+    atom raises :class:`AtomNotInInstance` -- a check the evaluator cannot
+    make, since a numeric literal naming no atom evaluates non-empty in sgq.
     """
     result = fn(builder.walked_objects())
     rows = [item if type(item) is tuple else (item,) for item in result or ()]
@@ -152,19 +94,17 @@ def materialise(fn, root: Any, builder, instance: Dict, *, widths=None, slot="se
     lengths = {len(row) for row in rows}
     if len(lengths) != 1 or 0 in lengths:
         raise SelectorError(
-            "the selector returned rows of differing length %s. Every row shall "
-            "have the same length." % sorted(lengths)
+            "the selector returned rows of differing length %s." % sorted(lengths)
         )
     if widths is not None and not (lengths & widths):
         raise SelectorError(
             "'%s' takes rows of length %s, but the selector returned rows of "
-            "length %d. spytial-core discards rows of the wrong width, so this "
-            "selector would silently not apply."
+            "length %d; spytial-core would silently drop them."
             % (slot, sorted(widths), next(iter(lengths)))
         )
 
     valid = {atom.get("id") for atom in instance.get("atoms", ())}
-    ids = []
+    translated = []
     for row in rows:
         literals = []
         for value in row:
@@ -172,25 +112,23 @@ def materialise(fn, root: Any, builder, instance: Dict, *, widths=None, slot="se
             if atom_id is None or atom_id not in valid:
                 raise AtomNotInInstance(
                     "the selector returned %r, which the instance has no atom "
-                    "for. Only values reached by the walk from the diagrammed "
-                    "object can be selected." % (value,)
+                    "for -- only values reached by the walk can be selected."
+                    % (value,)
                 )
             literals.append(_literal(value, atom_id))
-        ids.append(tuple(literals))
-    return emit(ids)
+        translated.append(tuple(literals))
+    return emit(translated)
 
 
-def resolve_decorators(decorators: Dict, root: Any, builder, instance: Dict) -> Dict:
+def resolve_decorators(decorators, root, builder, instance):
     """Return *decorators* with every function selector translated to sgq text.
 
-    Called from :func:`spytial.diagram` between the walk and the spec, which is
-    the only moment at which the atom IDs exist and still describe the instance
-    about to be drawn. The input is not modified.
+    Called from :func:`spytial.diagram` between the walk and the spec -- the
+    only moment the atom IDs exist and describe the instance about to be
+    drawn. The input is not modified.
     """
     return {
-        section: [
-            _resolve_entry(entry, root, builder, instance) for entry in entries or ()
-        ]
+        section: [_resolve_entry(e, root, builder, instance) for e in entries or ()]
         for section, entries in decorators.items()
     }
 
@@ -198,34 +136,38 @@ def resolve_decorators(decorators: Dict, root: Any, builder, instance: Dict) -> 
 def _resolve_entry(entry, root, builder, instance):
     if not isinstance(entry, dict):
         return entry
-    resolved = {}
-    for spec_type, kwargs in entry.items():
-        if isinstance(kwargs, dict) and any(callable(v) for v in kwargs.values()):
-            kwargs = {
+    return {
+        spec_type: (
+            {
                 key: _resolve_value(spec_type, key, value, root, builder, instance)
                 for key, value in kwargs.items()
             }
-        resolved[spec_type] = kwargs
-    return resolved
+            if isinstance(kwargs, dict) and any(callable(v) for v in kwargs.values())
+            else kwargs
+        )
+        for spec_type, kwargs in entry.items()
+    }
 
 
 def _resolve_value(spec_type, key, value, root, builder, instance):
     if not callable(value):
         return value
-    # Every slot named `selector` or `filter` takes one -- including the
-    # deprecated forms (icon, atomColor, edgeColor) that SELECTOR_ARITY does
-    # not list. The table membership additionally admits tag's toTag/value
-    # slots, whose names say nothing.
+    # Slots named selector/filter take one even where SELECTOR_ARITY omits them
+    # (the deprecated icon/atomColor/edgeColor forms); the table membership
+    # additionally admits tag's toTag/value slots, whose names say nothing.
     if key not in ("selector", "filter") and (spec_type, key) not in SELECTOR_ARITY:
         raise SelectorError(
             "'%s' of '%s' is not a selector, so it takes no function."
             % (key, spec_type)
         )
+    # group is exempt from the width check: its binary selector also accepts
+    # unary rows (a unary selector builds a single unkeyed group).
+    widths = (
+        None
+        if spec_type == "group"
+        else {"unary": {1}, "binary": {2}}.get(SELECTOR_ARITY.get((spec_type, key)))
+    )
     return materialise(
-        value,
-        root,
-        builder,
-        instance,
-        widths=_accepted_widths(spec_type, key),
-        slot="%s.%s" % (spec_type, key),
+        value, root, builder, instance,
+        widths=widths, slot="%s.%s" % (spec_type, key),
     )
