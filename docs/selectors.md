@@ -218,6 +218,13 @@ left to the evaluator: a numeric literal naming no atom evaluates non-empty in
 sgq, so a wrong value would apply the rule to a phantom atom rather than report
 anything.
 
+Rows of the wrong width for the slot raise too -- an orientation fed single
+values, say -- because spytial-core discards rows of the wrong width and the
+directive would silently stop applying. (`group` accepts both: a unary selector
+builds a single unkeyed group.) A `bytes` or `complex` value raises as well;
+their atom IDs have no sgq literal spelling, so the error comes from the
+translation rather than from the browser.
+
 An atom ID is a position in the walk, not an identity, so a translated selector
 describes one instance only. That is why the function runs during the diagram
 rather than before it. `spytial.sequence()` and `spytial.edit()` share one

@@ -71,6 +71,15 @@ def _literal(value: Any, atom_id: str) -> str:
         return atom_id
     if isinstance(value, float) and math.isfinite(value) and "e" in atom_id.lower():
         return format(decimal.Decimal(value), "f")
+    if isinstance(value, (bytes, complex)):
+        # Their IDs -- b'...' and (1+2j) -- are not sgq expressions in any
+        # spelling, so emitting them verbatim would fail at evaluation time in
+        # the browser, far from the code that wrote the selector.
+        raise SelectorError(
+            "%r has atom %s, which has no sgq literal spelling -- a %s atom "
+            "cannot be named in a selector. Select the value that holds it "
+            "instead." % (value, atom_id, type(value).__name__)
+        )
     return atom_id
 
 
@@ -91,7 +100,23 @@ def emit(rows: Sequence[Sequence[str]]) -> str:
     return " + ".join(terms)
 
 
-def materialise(fn, root: Any, builder, instance: Dict) -> str:
+#: Row widths each declared arity accepts. ``n-ary`` slots accept any width and
+#: so have no entry.
+_WIDTHS = {"unary": {1}, "binary": {2}}
+
+
+def _accepted_widths(spec_type, key):
+    """Row widths the slot accepts, or ``None`` when any width does.
+
+    ``group`` is the one binary slot that also accepts unary rows: per the
+    language manifest, a unary selector builds a single unkeyed group.
+    """
+    if (spec_type, key) == ("group", "selector"):
+        return {1, 2}
+    return _WIDTHS.get(SELECTOR_ARITY.get((spec_type, key)))
+
+
+def materialise(fn, root: Any, builder, instance: Dict, *, widths=None, slot="selector") -> str:
     """Run *fn* and translate its result to sgq text.
 
     Args:
@@ -106,6 +131,11 @@ def materialise(fn, root: Any, builder, instance: Dict) -> str:
             :meth:`~spytial.CnDDataInstanceBuilder.build_instance`.
         builder: The builder that produced *instance*. Its walk supplies the IDs.
         instance: The built instance.
+        widths: Row widths the slot accepts, or ``None`` to accept any. Core's
+            selection helpers silently discard rows of the wrong width, so a
+            mismatch here shall be an error rather than a directive that
+            quietly stops applying.
+        slot: The slot's name, for messages.
 
     Raises:
         AtomNotInInstance: The function returned a value the walk never reached.
@@ -119,11 +149,18 @@ def materialise(fn, root: Any, builder, instance: Dict) -> str:
     if not rows:
         return "none"
 
-    widths = {len(row) for row in rows}
-    if len(widths) != 1 or 0 in widths:
+    lengths = {len(row) for row in rows}
+    if len(lengths) != 1 or 0 in lengths:
         raise SelectorError(
             "the selector returned rows of differing length %s. Every row shall "
-            "have the same length." % sorted(widths)
+            "have the same length." % sorted(lengths)
+        )
+    if widths is not None and not (lengths & widths):
+        raise SelectorError(
+            "'%s' takes rows of length %s, but the selector returned rows of "
+            "length %d. spytial-core discards rows of the wrong width, so this "
+            "selector would silently not apply."
+            % (slot, sorted(widths), next(iter(lengths)))
         )
 
     valid = {atom.get("id") for atom in instance.get("atoms", ())}
@@ -175,9 +212,20 @@ def _resolve_entry(entry, root, builder, instance):
 def _resolve_value(spec_type, key, value, root, builder, instance):
     if not callable(value):
         return value
-    if (spec_type, key) not in SELECTOR_ARITY:
+    # Every slot named `selector` or `filter` takes one -- including the
+    # deprecated forms (icon, atomColor, edgeColor) that SELECTOR_ARITY does
+    # not list. The table membership additionally admits tag's toTag/value
+    # slots, whose names say nothing.
+    if key not in ("selector", "filter") and (spec_type, key) not in SELECTOR_ARITY:
         raise SelectorError(
             "'%s' of '%s' is not a selector, so it takes no function."
             % (key, spec_type)
         )
-    return materialise(value, root, builder, instance)
+    return materialise(
+        value,
+        root,
+        builder,
+        instance,
+        widths=_accepted_widths(spec_type, key),
+        slot="%s.%s" % (spec_type, key),
+    )

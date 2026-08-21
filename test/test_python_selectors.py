@@ -137,6 +137,40 @@ class TestTranslate:
             materialise(lambda values: [(root,), (root, root)], root, builder, instance)
 
 
+    def test_a_wrong_width_for_the_slot_is_an_error(self):
+        # Core's selection helpers silently discard rows of the wrong width, so
+        # an orientation fed unary rows would quietly stop applying.
+        root = tree()
+        builder, instance = built(root)
+        with pytest.raises(SelectorError, match="rows of length"):
+            materialise(odd_nodes, root, builder, instance, widths={2},
+                        slot="orientation.selector")
+        with pytest.raises(SelectorError, match="rows of length"):
+            materialise(child_edges, root, builder, instance, widths={1},
+                        slot="hideAtom.selector")
+
+    def test_group_accepts_unary_rows(self):
+        # The one binary slot that also takes unary rows: a unary selector
+        # builds a single unkeyed group (language manifest).
+        root = tree()
+        builder, instance = built(root)
+        entry = {"group": {"selector": odd_nodes, "name": "odd"}}
+        out = resolve_decorators(
+            {"constraints": [entry], "directives": []}, root, builder, instance
+        )
+        assert "->" not in out["constraints"][0]["group"]["selector"]
+
+    def test_an_atom_with_no_literal_spelling_is_an_error(self):
+        # bytes and complex IDs -- b'..' and (1+2j) -- do not parse as sgq, so
+        # emitting them verbatim would fail in the browser instead of here.
+        for value in (b"x", complex(1, 2)):
+            builder, instance = built([value])
+            with pytest.raises(SelectorError, match="no sgq literal spelling"):
+                materialise(
+                    lambda values, v=value: [v], [value], builder, instance
+                )
+
+
 # --------------------------------------------------------------------------- #
 class TestTiming:
     """The IDs shall be the ones the relationalizer assigned to this instance."""
@@ -192,6 +226,26 @@ class TestTiming:
 
 # --------------------------------------------------------------------------- #
 class TestWiring:
+    def test_deprecated_selector_slots_are_recognized(self):
+        # icon/atomColor/edgeColor are deprecated and absent from
+        # SELECTOR_ARITY, but their `selector` is still a selector slot.
+        root = tree()
+        builder, instance = built(root)
+        entry = {"icon": {"selector": odd_nodes, "path": "person", "showLabels": True}}
+        out = resolve_decorators(
+            {"constraints": [], "directives": [entry]}, root, builder, instance
+        )
+        assert isinstance(out["directives"][0]["icon"]["selector"], str)
+
+    def test_the_slot_arity_is_enforced_through_resolve(self):
+        root = tree()
+        builder, instance = built(root)
+        entry = {"orientation": {"selector": odd_nodes, "directions": ["below"]}}
+        with pytest.raises(SelectorError, match="orientation.selector"):
+            resolve_decorators(
+                {"constraints": [entry], "directives": []}, root, builder, instance
+            )
+
     def test_a_function_in_a_non_selector_keyword_is_an_error(self):
         root = tree()
         builder, instance = built(root)
