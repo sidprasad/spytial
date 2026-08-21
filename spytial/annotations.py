@@ -1441,6 +1441,11 @@ def _process_selector_for_self_reference(selector, obj_id):
     if selector is None:
         return selector
 
+    # A Python selector is a function, translated at diagram time; it carries
+    # no 'self' text to substitute. See spytial.selectors.
+    if not isinstance(selector, str):
+        return selector
+
     # Replace all instances of the entire word 'self' with the object's unique ID
     return re.sub(r"\bself\b", obj_id, selector)
 

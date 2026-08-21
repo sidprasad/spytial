@@ -13,6 +13,7 @@ from typing import Any, Callable, Dict, Optional, Sequence, Union
 
 from .utils import default_method
 from .core_assets import get_template_asset_context
+from .selectors import resolve_decorators
 
 try:
     from IPython.display import display, HTML
@@ -315,6 +316,11 @@ def diagram(
 
     # Get all decorators collected during the build process (from all sub-objects)
     decorators = builder.get_collected_decorators()
+
+    # Translate any Python selector against the instance just built. It happens
+    # here, and not where the annotation was written, because an atom ID exists
+    # only once the walk has run. See spytial.selectors.
+    decorators = resolve_decorators(decorators, obj, builder, data_instance)
 
     # Serialize the collected decorators into a YAML string
     spytial_spec = serialize_to_yaml_string(decorators)

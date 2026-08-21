@@ -156,6 +156,74 @@ For a more precise result, combine operators. `left & (TreeNode -> TreeNode)`
 keeps only the left edges whose endpoints are both nodes. `~left` is the
 child-to-parent direction.
 
+## Selectors written in Python
+
+A `selector` may be a Python function instead of an sgq expression. Three steps
+turn one into the other:
+
+1. The function returns the values to select. A value per row for a unary
+   selector, a tuple per row for a higher arity.
+2. Each value is translated to the ID of its atom. A value with no atom is an
+   error.
+3. The IDs become the selector: `->` within a tuple, `+` between elements.
+
+The function runs during `spytial.diagram()`, after the walk and before the
+specification is written, so the IDs it translates against are the ones the
+relationalizer assigned to the instance about to be drawn. It is handed the
+values the walk reached, which is exactly the set of values that have atoms:
+
+```python
+def child_edges(values):
+    return [(n, k) for n in values if isinstance(n, Node) for k in n.kids]
+
+def odd_nodes(values):
+    return [n for n in values if isinstance(n, Node) and n.val % 2]
+
+spytial.annotate_orientation(tree, selector=child_edges, directions=["below"])
+spytial.annotate_atomStyle(
+    tree, selector=odd_nodes, borderStyle=spytial.BorderStyle(color="coral")
+)
+```
+
+Which compile to `n0 -> n2 + n0 -> n4 + n4 -> n6` and `n2 + n6`. An empty result
+compiles to `none`, the empty relation.
+
+The first value in the list is the diagrammed object itself, so a
+root-anchored selector needs no extra parameter:
+
+```python
+selector=lambda values: [(values[0], k) for k in values[0].kids]
+```
+
+Because the function runs at diagramming time, the same one may be given to a
+class decorator, where no instance exists yet:
+
+```python
+@spytial.orientation(selector=child_edges, directions=["below"])
+@dataclass
+class Node:
+    val: int
+    kids: list["Node"] = field(default_factory=list)
+```
+
+The reason to write a selector this way is that it reads the object's own
+attributes. `n.kids` replaces `p.kids.idx[int]`, so the relationalization need
+not be known. Nothing is intercepted: the comprehension is ordinary Python, so a
+fault in it raises at the line that wrote it, with an ordinary traceback.
+
+### Errors
+
+A value the walk never reached raises `AtomNotInInstance`. This check cannot be
+left to the evaluator: a numeric literal naming no atom evaluates non-empty in
+sgq, so a wrong value would apply the rule to a phantom atom rather than report
+anything.
+
+An atom ID is a position in the walk, not an identity, so a translated selector
+describes one instance only. That is why the function runs during the diagram
+rather than before it. `spytial.sequence()` and `spytial.edit()` share one
+specification across instances whose IDs re-bind, so a Python selector is not yet
+supported there.
+
 ## Where selectors show up
 
 A selector is used by every [operation](operations.md) that takes a `selector`
