@@ -406,14 +406,27 @@ class TestAgainstSgq:
                 verdict.selector,
             )
             if isinstance(value, str):
-                assert verdict.pretty == value, "%r printed back as %r" % (
+                assert value in (verdict.pretty or ""), "%r printed back as %r" % (
                     value,
                     verdict.pretty,
                 )
 
+    def test_a_string_selects_the_atom_not_the_value(self):
+        # A quoted str is a value in sgq: `"x" & univ` is empty, and a hideAtom
+        # given one silently draws the atom anyway. Caught by the CLRS red-black
+        # demo, whose colour strings would not hide.
+        box, builder, instance = self._instance()
+        sel = self._one("plain", box, builder, instance)
+        assert sel.startswith("{s : str |")
+        plain, intersected = _eval.evaluate_selectors(
+            instance, ['"plain" & univ', "(%s) & univ" % sel]
+        )
+        assert plain.empty, "a bare quoted string is expected to be a value"
+        assert not intersected.empty, "the emitted form shall be an atom"
+
     def test_numbers_are_real_atoms_not_free_literals(self):
         box, builder, instance = self._instance()
-        cases = [v for v in self.VALUES if not isinstance(v, str)]
+        cases = list(self.VALUES)
         sels = ["(%s) & univ" % self._one(v, box, builder, instance) for v in cases]
         for value, verdict in zip(cases, _eval.evaluate_selectors(instance, sels)):
             assert verdict.ok and not verdict.empty, (
@@ -458,5 +471,5 @@ class TestAgainstSgq:
     def test_literals_that_need_rewriting(self):
         assert "e" not in _literal(1e30, "1e+30")
         assert _literal(1.5, "1.5") == "1.5"
-        assert _literal('he said "hi"', "x") == '"he said \\"hi\\""'
-        assert _literal("back\\slash", "x") == '"back\\\\slash"'
+        assert _literal('he said "hi"', "x") == '{s : str | @:s = "he said \\"hi\\""}'
+        assert _literal("back\\slash", "x") == '{s : str | @:s = "back\\\\slash"}'

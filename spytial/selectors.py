@@ -82,13 +82,17 @@ def refuse_python_selectors(decorators, context):
 def _literal(value, atom_id):
     """The sgq text for *value*'s atom -- an atom ID is not always a literal.
 
-    A str ID quotes without escaping. A float ID can use exponent notation,
-    which does not parse; sgq matches numbers by value, so the exact decimal
-    reaches the same atom. bytes/complex IDs (``b'..'``, ``(1+2j)``) have no
-    spelling at all.
+    A quoted str is a *value* in sgq, not a member of ``univ``: ``"x" & univ``
+    is empty, and a directive given one selects no atom (a ``hideAtom`` on a
+    string silently draws it anyway). The str **atom** is reached by binding
+    over the type, which is also how the sgq-written CLRS notebooks spell it.
+    A float ID can use exponent notation, which does not parse; sgq matches
+    numbers by value, so the exact decimal reaches the same atom.
+    bytes/complex IDs (``b'..'``, ``(1+2j)``) have no spelling at all.
     """
     if isinstance(value, str):
-        return '"%s"' % value.replace("\\", "\\\\").replace('"', '\\"')
+        escaped = value.replace("\\", "\\\\").replace('"', '\\"')
+        return '{s : str | @:s = "%s"}' % escaped
     if isinstance(value, bool):
         return atom_id
     if isinstance(value, float) and math.isfinite(value) and "e" in atom_id.lower():
