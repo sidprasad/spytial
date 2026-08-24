@@ -211,7 +211,30 @@ attributes. `n.kids` replaces `p.kids.idx[int]`, so the relationalization need
 not be known. Nothing is intercepted: the comprehension is ordinary Python, so a
 fault in it raises at the line that wrote it, with an ordinary traceback.
 
-### Errors
+### Choosing between the two forms
+
+Neither form replaces the other.
+
+| | Python function | sgq expression |
+| --- | --- | --- |
+| Reads | the objects themselves | the relationalized instance |
+| Suits | conditions on a value: `n.color == RED`, `n is NIL`, `len(n.keys) > 2` | conditions on the shape of the graph: `^parent`, `~next`, `iden` |
+| Scope | the one instance it is translated against | any instance |
+| In the specification | a union of atom IDs | the expression as written |
+
+A rough rule: reach for a Python function when the condition is about a value,
+and for sgq when it is about the shape of the graph. A DSU forest oriented by
+`^(~parent)` -- the transitive closure of the inverted parent relation -- has no
+comprehension form; the Python version would be a hand-written fixpoint.
+
+Because a translated selector names atom IDs, and an atom ID is a position in
+one walk, it describes exactly the instance it was translated against. That is
+why the function runs during the diagram rather than before it, and why
+`spytial.sequence()` and `spytial.edit()`, which render several instances from
+one specification, reject one with a `SelectorError` naming the slot. Write
+those as sgq expressions.
+
+### What is reported
 
 A value the walk never reached is dropped, with an `AtomNotInInstance` warning
 naming it. The report cannot be left to the evaluator: a literal naming no atom
@@ -219,23 +242,21 @@ evaluates non-empty in sgq, so a wrong value would apply the rule to a phantom
 atom silently. Make it fatal with
 `warnings.simplefilter("error", spytial.AtomNotInInstance)`.
 
-Rows of the wrong width for the slot raise too -- an orientation fed single
-values, say -- because spytial-core discards rows of the wrong width and the
-directive would silently stop applying. (`group` accepts both: a unary selector
-builds a single unkeyed group.) A `bytes` or `complex` value raises as well;
-their atom IDs have no sgq literal spelling, so the error comes from the
-translation rather than from the browser.
+Rows of the wrong width for the slot raise, because spytial-core discards rows
+of the wrong width and the directive would otherwise stop applying without a
+word. (`group` accepts either width: a unary selector builds a single unkeyed
+group.)
 
-A `str` is emitted as `{s : str | @:s = "..."}` rather than as a quoted literal.
-A quoted string is a *value* in sgq and not a member of `univ`, so a directive
-given one selects no atom, and a `hideAtom` on a string would draw it anyway.
-Binding over the type reaches the atom.
+A `bytes` or `complex` value raises. Their atom IDs have no sgq spelling in any
+form, so the error comes from the translation rather than from the browser. This
+is a limit of naming such an atom in a selector at all, not of this form in
+particular.
 
-An atom ID is a position in the walk, not an identity, so a translated selector
-describes one instance only. That is why the function runs during the diagram
-rather than before it. `spytial.sequence()` and `spytial.edit()` render several
-instances from one specification, so they reject a Python selector with a
-`SelectorError` naming the slot. Write those as sgq expressions.
+`str` values and `-inf` are emitted as a type binding -- `{s : str | @:s = "x"}`
+-- rather than as literals. A quoted string is a *value* in sgq and not a member
+of `univ`, so a directive given one selects no atom, and a `hideAtom` on a
+string would draw it anyway. This is the spelling the sgq-written notebooks use
+for the same reason.
 
 ## Where selectors show up
 
