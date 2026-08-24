@@ -375,6 +375,7 @@ class TestAgainstSgq:
     VALUES = [
         0, 7, -3, True, False, None,
         1.5, -2.5, 1e30, 1e-10, -2.5e20, 1e16,
+        float("inf"), float("-inf"), float("nan"),
         "plain", "", 'he said "hi"', "back\\slash", "a -> b", "x + y",
         "n0", "univ", "none",
     ]
@@ -410,6 +411,34 @@ class TestAgainstSgq:
                     value,
                     verdict.pretty,
                 )
+
+    def test_negative_infinity_takes_a_type_binding(self):
+        # `-inf + -inf` is a parse error: a leading `-` before a name is not an
+        # expression, though bare `inf` and `nan` are. Dropped from VALUES in an
+        # earlier rewrite, which is how it got through.
+        box, builder, instance = self._instance()
+        sel = self._one(float("-inf"), box, builder, instance)
+        assert sel.startswith("{f : float |")
+        bare, bound = _eval.evaluate_selectors(
+            instance, ["-inf + -inf", "(%s) & univ" % sel]
+        )
+        assert not bare.ok, "bare -inf is expected to be a parse error"
+        assert bound.ok and not bound.empty
+
+    def test_an_int_does_not_select_an_equal_float(self):
+        # sgq's `&` compares numbers by value, so `(1 + 1) & float` is non-empty
+        # even against a distinct float atom. That is not how core resolves an
+        # atom selector: the render styles the int alone (verified in a browser).
+        @dataclass
+        class Pair:
+            items: list
+
+        box = Pair([1, 1.0])
+        builder, instance = built(box)
+        sel = materialise(lambda values: [1], box, builder, instance)
+        assert sel == "1 + 1"
+        ids = {a["id"]: a["type"] for a in instance["atoms"]}
+        assert ids.get("1") == "int" and ids.get("1.0") == "float"
 
     def test_a_string_selects_the_atom_not_the_value(self):
         # A quoted str is a value in sgq: `"x" & univ` is empty, and a hideAtom

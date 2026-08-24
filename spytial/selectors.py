@@ -87,16 +87,21 @@ def _literal(value, atom_id):
     string silently draws it anyway). The str **atom** is reached by binding
     over the type, which is also how the sgq-written CLRS notebooks spell it.
     A float ID can use exponent notation, which does not parse; sgq matches
-    numbers by value, so the exact decimal reaches the same atom.
-    bytes/complex IDs (``b'..'``, ``(1+2j)``) have no spelling at all.
+    numbers by value, so the exact decimal reaches the same atom. ``-inf`` does
+    not parse either -- a leading ``-`` before a name is not an expression,
+    though bare ``inf`` and ``nan`` are -- so it takes the same type binding as
+    a str. bytes/complex IDs (``b'..'``, ``(1+2j)``) have no spelling at all.
     """
     if isinstance(value, str):
         escaped = value.replace("\\", "\\\\").replace('"', '\\"')
         return '{s : str | @:s = "%s"}' % escaped
     if isinstance(value, bool):
         return atom_id
-    if isinstance(value, float) and math.isfinite(value) and "e" in atom_id.lower():
-        return format(decimal.Decimal(value), "f")
+    if isinstance(value, float):
+        if math.isinf(value) and value < 0:
+            return '{f : float | @:f = "%s"}' % atom_id
+        if math.isfinite(value) and "e" in atom_id.lower():
+            return format(decimal.Decimal(value), "f")
     if isinstance(value, (bytes, complex)):
         raise SelectorError(
             "%r has atom %s, which has no sgq literal spelling. Select the "
