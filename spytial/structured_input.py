@@ -26,6 +26,7 @@ from typing import Any, Dict, List, Optional, Set, Type, get_type_hints
 
 from .provider_system import CnDDataInstanceBuilder
 from .annotations import collect_decorators
+from .selectors import refuse_python_selectors
 from ._edit_server import _EditServer
 from .core_assets import get_template_asset_context
 from .utils import default_method
@@ -141,6 +142,8 @@ def _generate_cnd_spec(instance: Any) -> str:
     value with no spytial annotations simply yields an empty spec.
     """
     annotations = collect_decorators(instance)
+    # The editor rebuilds the instance after every edit, so atom IDs re-bind.
+    refuse_python_selectors(annotations, "spytial.edit()")
     spec = {
         "constraints": annotations.get("constraints", []),
         "directives": annotations.get("directives", []),

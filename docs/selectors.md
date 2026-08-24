@@ -228,9 +228,9 @@ translation rather than from the browser.
 
 An atom ID is a position in the walk, not an identity, so a translated selector
 describes one instance only. That is why the function runs during the diagram
-rather than before it. `spytial.sequence()` and `spytial.edit()` share one
-specification across instances whose IDs re-bind, so a Python selector is not yet
-supported there.
+rather than before it. `spytial.sequence()` and `spytial.edit()` render several
+instances from one specification, so they reject a Python selector with a
+`SelectorError` naming the slot. Write those as sgq expressions.
 
 ## Where selectors show up
 

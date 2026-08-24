@@ -26,6 +26,7 @@ from ._spec_tables import SELECTOR_ARITY
 
 __all__ = [
     "SelectorError",
+    "refuse_python_selectors",
     "AtomNotInInstance",
     "emit",
     "materialise",
@@ -48,6 +49,34 @@ class AtomNotInInstance(UserWarning):
     Raise it instead with
     ``warnings.simplefilter("error", spytial.AtomNotInInstance)``.
     """
+
+
+def refuse_python_selectors(decorators, context):
+    """Raise if *decorators* holds a function selector, naming *context*.
+
+    A translated selector names atom IDs, and an ID is a position in one walk:
+    after an insertion the same ID denotes a different value. So a context that
+    shares one spec across several instances cannot use one. Without this the
+    function object reaches the YAML unchanged and is dumped as
+    ``!!python/name:...``, which core reads as a nonsense selector and applies
+    to nothing.
+    """
+    for entries in decorators.values():
+        for entry in entries or ():
+            if not isinstance(entry, dict):
+                continue
+            for spec_type, kwargs in entry.items():
+                if not isinstance(kwargs, dict):
+                    continue
+                for key, value in kwargs.items():
+                    if callable(value):
+                        raise SelectorError(
+                            "'%s.%s' is a Python selector, which %s cannot use: "
+                            "it renders several instances from one spec, and an "
+                            "atom ID means a different value in each. Write this "
+                            "selector as an sgq expression."
+                            % (spec_type, key, context)
+                        )
 
 
 def _literal(value, atom_id):

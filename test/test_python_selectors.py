@@ -34,6 +34,7 @@ from spytial.selectors import (
     _literal,
     emit,
     materialise,
+    refuse_python_selectors,
     resolve_decorators,
 )
 from spytial.suggest import _eval
@@ -183,6 +184,28 @@ class TestTranslate:
                 materialise(
                     lambda values, v=value: [v], [value], builder, instance
                 )
+
+
+    def test_sequence_and_editor_refuse_one(self):
+        # Both render several instances from one spec, and an atom ID means a
+        # different value in each. Left unguarded the function object reached
+        # the YAML and was dumped as `!!python/name:...`, which core reads as a
+        # nonsense selector and applies to nothing.
+        root = tree()
+        spytial.annotate_atomStyle(
+            root, selector=odd_nodes, borderStyle=spytial.BorderStyle(color="coral")
+        )
+        with pytest.raises(SelectorError, match="spytial.sequence"):
+            seq = spytial.sequence(auto_open=False)
+            seq.__enter__()
+            seq.record(root)
+
+    def test_the_guard_ignores_sgq_selectors(self):
+        refuse_python_selectors(
+            {"constraints": [{"orientation": {"selector": "kids", "directions": ["below"]}}],
+             "directives": []},
+            "spytial.sequence()",
+        )
 
 
 # --------------------------------------------------------------------------- #

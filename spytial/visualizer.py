@@ -13,7 +13,7 @@ from typing import Any, Callable, Dict, Optional, Sequence, Union
 
 from .utils import default_method
 from .core_assets import get_template_asset_context
-from .selectors import resolve_decorators
+from .selectors import refuse_python_selectors, resolve_decorators
 
 try:
     from IPython.display import display, HTML
@@ -468,6 +468,9 @@ class SequenceRecorder:
         self._data_instances.append(instance)
         self._frame_labels.append(_normalize_label(label))
         self._frame_notes.append(_normalize_note(note))
+        refuse_python_selectors(
+            self._builder.get_collected_decorators(), "spytial.sequence()"
+        )
         self._merged_decorators = _merge_decorator_registries(
             self._merged_decorators,
             self._builder.get_collected_decorators(),
