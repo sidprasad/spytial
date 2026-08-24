@@ -226,6 +226,11 @@ builds a single unkeyed group.) A `bytes` or `complex` value raises as well;
 their atom IDs have no sgq literal spelling, so the error comes from the
 translation rather than from the browser.
 
+A `str` is emitted as `{s : str | @:s = "..."}` rather than as a quoted literal.
+A quoted string is a *value* in sgq and not a member of `univ`, so a directive
+given one selects no atom, and a `hideAtom` on a string would draw it anyway.
+Binding over the type reaches the atom.
+
 An atom ID is a position in the walk, not an identity, so a translated selector
 describes one instance only. That is why the function runs during the diagram
 rather than before it. `spytial.sequence()` and `spytial.edit()` render several
