@@ -26,6 +26,8 @@ from ._spec_tables import SELECTOR_ARITY
 
 __all__ = [
     "SelectorError",
+    "rows_for",
+    "slot_widths",
     "refuse_python_selectors",
     "AtomNotInInstance",
     "emit",
@@ -54,12 +56,16 @@ class AtomNotInInstance(UserWarning):
 def refuse_python_selectors(decorators, context):
     """Raise if *decorators* holds a function selector, naming *context*.
 
-    A translated selector names atom IDs, and an ID is a position in one walk:
-    after an insertion the same ID denotes a different value. So a context that
-    shares one spec across several instances cannot use one. Without this the
-    function object reaches the YAML unchanged and is dumped as
-    ``!!python/name:...``, which core reads as a nonsense selector and applies
-    to nothing.
+    For a context that renders the specification once and then lets the browser
+    change the data. The function cannot run again there, so the selector would
+    keep naming the atoms of the seed instance while the drawing moved on.
+
+    A sequence is **not** such a context, and does not use this: it rebuilds
+    each frame in Python through one shared builder, which keeps atom IDs
+    stable, so each frame's rows can be translated and unioned.
+
+    Without the check the function object reaches the YAML unchanged and is
+    dumped as ``!!python/name:...``, which core reads as a nonsense selector.
     """
     for entries in decorators.values():
         for entry in entries or ():
@@ -72,9 +78,9 @@ def refuse_python_selectors(decorators, context):
                     if callable(value):
                         raise SelectorError(
                             "'%s.%s' is a Python selector, which %s cannot use: "
-                            "it renders several instances from one spec, and an "
-                            "atom ID means a different value in each. Write this "
-                            "selector as an sgq expression."
+                            "it writes the specification once and the browser "
+                            "changes the data afterwards, so the function cannot "
+                            "run again. Write this selector as an sgq expression."
                             % (spec_type, key, context)
                         )
 
@@ -123,8 +129,8 @@ def emit(rows):
     return " + ".join(terms * 2 if len(terms) == 1 else terms)
 
 
-def materialise(fn, root, builder, instance, *, widths=None, slot="selector"):
-    """Run *fn* on the walked values and translate its result to sgq text.
+def rows_for(fn, root, builder, instance, *, widths=None, slot="selector"):
+    """Run *fn* on the walked values and translate its result to rows of atom IDs.
 
     Only a ``tuple`` is a row; a ``list`` is a value, since container atoms are
     themselves selectable. *widths* is the set of row widths the slot accepts:
@@ -137,7 +143,7 @@ def materialise(fn, root, builder, instance, *, widths=None, slot="selector"):
     result = fn(builder.walked_objects())
     rows = [item if type(item) is tuple else (item,) for item in result or ()]
     if not rows:
-        return "none"
+        return []
 
     lengths = {len(row) for row in rows}
     if len(lengths) != 1 or 0 in lengths:
@@ -170,7 +176,12 @@ def materialise(fn, root, builder, instance, *, widths=None, slot="selector"):
             literals.append(_literal(value, atom_id))
         if literals is not None:
             translated.append(tuple(literals))
-    return emit(translated)
+    return translated
+
+
+def materialise(fn, root, builder, instance, *, widths=None, slot="selector"):
+    """Run *fn* and emit its rows as sgq text. See :func:`rows_for`."""
+    return emit(rows_for(fn, root, builder, instance, widths=widths, slot=slot))
 
 
 def resolve_decorators(decorators, root, builder, instance):
@@ -202,25 +213,31 @@ def _resolve_entry(entry, root, builder, instance):
     }
 
 
-def _resolve_value(spec_type, key, value, root, builder, instance):
-    if not callable(value):
-        return value
-    # Slots named selector/filter take one even where SELECTOR_ARITY omits them
-    # (the deprecated icon/atomColor/edgeColor forms); the table membership
-    # additionally admits tag's toTag/value slots, whose names say nothing.
+def slot_widths(spec_type, key):
+    """Row widths the slot accepts, or ``None`` for any.
+
+    Raises if the keyword is not a selector at all. Slots named
+    ``selector``/``filter`` are selectors even where SELECTOR_ARITY omits them
+    (the deprecated icon/atomColor/edgeColor forms); the table membership
+    additionally admits tag's toTag/value slots, whose names say nothing.
+
+    ``group`` is exempt from the check: its binary selector also accepts unary
+    rows, which build a single unkeyed group.
+    """
     if key not in ("selector", "filter") and (spec_type, key) not in SELECTOR_ARITY:
         raise SelectorError(
             "'%s' of '%s' is not a selector, so it takes no function."
             % (key, spec_type)
         )
-    # group is exempt from the width check: its binary selector also accepts
-    # unary rows (a unary selector builds a single unkeyed group).
-    widths = (
-        None
-        if spec_type == "group"
-        else {"unary": {1}, "binary": {2}}.get(SELECTOR_ARITY.get((spec_type, key)))
-    )
+    if spec_type == "group":
+        return None
+    return {"unary": {1}, "binary": {2}}.get(SELECTOR_ARITY.get((spec_type, key)))
+
+
+def _resolve_value(spec_type, key, value, root, builder, instance):
+    if not callable(value):
+        return value
     return materialise(
         value, root, builder, instance,
-        widths=widths, slot="%s.%s" % (spec_type, key),
+        widths=slot_widths(spec_type, key), slot="%s.%s" % (spec_type, key),
     )

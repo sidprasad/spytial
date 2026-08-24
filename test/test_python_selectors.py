@@ -186,19 +186,49 @@ class TestTranslate:
                 )
 
 
-    def test_sequence_and_editor_refuse_one(self):
-        # Both render several instances from one spec, and an atom ID means a
-        # different value in each. Left unguarded the function object reached
-        # the YAML and was dumped as `!!python/name:...`, which core reads as a
-        # nonsense selector and applies to nothing.
+    def test_a_sequence_unions_the_rows_of_every_frame(self):
+        # A sequence rebuilds each frame in Python through one shared builder
+        # with preserve_object_ids, so an atom ID names the same value in every
+        # frame and the per-frame rows can be unioned into one entry.
+        @spytial.orientation(selector=child_edges, directions=["below"])
+        @dataclass
+        class Tree(Node):
+            pass
+
+        root = Tree(0, [Tree(1)])
+        seq = spytial.sequence(auto_open=False)
+        seq.__enter__()
+        seq.record(root)
+        root.kids.insert(0, Tree(9))          # mutate in place, at the front
+        seq.record(root)
+
+        spec = seq._resolved_decorators()
+        entries = spec["constraints"]
+        assert len(entries) == 1, "one entry, not one per frame: %r" % (entries,)
+        selector = entries[0]["orientation"]["selector"]
+        assert len(terms(selector)) == 2, selector
+
+    def test_a_sequence_keeps_atom_ids_stable_across_frames(self):
+        # The premise the union rests on. Without it a term would name a
+        # different value in each frame.
+        builder = CnDDataInstanceBuilder(preserve_object_ids=True)
+        kid = Node(1)
+        root = Node(0, [kid])
+        builder.build_instance(root)
+        before = builder.atom_id_for(kid)
+        root.kids.insert(0, Node(9))          # everything after would shift
+        builder.build_instance(root)
+        assert builder.atom_id_for(kid) == before
+
+    def test_the_editor_refuses_one(self):
+        # Unlike a sequence, the editor writes the specification once and the
+        # browser changes the data afterwards; the function cannot run again.
         root = tree()
         spytial.annotate_atomStyle(
             root, selector=odd_nodes, borderStyle=spytial.BorderStyle(color="coral")
         )
-        with pytest.raises(SelectorError, match="spytial.sequence"):
-            seq = spytial.sequence(auto_open=False)
-            seq.__enter__()
-            seq.record(root)
+        with pytest.raises(SelectorError, match="spytial.edit"):
+            spytial.edit_html(root, method="browser", auto_open=False)
 
     def test_the_guard_ignores_sgq_selectors(self):
         refuse_python_selectors(

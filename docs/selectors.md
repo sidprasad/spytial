@@ -219,7 +219,7 @@ Neither form replaces the other.
 | --- | --- | --- |
 | Reads | the objects themselves | the relationalized instance |
 | Suits | conditions on a value: `n.color == RED`, `n is NIL`, `len(n.keys) > 2` | conditions on the shape of the graph: `^parent`, `~next`, `iden` |
-| Scope | the one instance it is translated against | any instance |
+| Scope | translated per build, so `diagram()` and `sequence()` | any instance, `edit()` included |
 | In the specification | a union of atom IDs | the expression as written |
 
 A rough rule: reach for a Python function when the condition is about a value,
@@ -229,10 +229,18 @@ comprehension form; the Python version would be a hand-written fixpoint.
 
 Because a translated selector names atom IDs, and an atom ID is a position in
 one walk, it describes exactly the instance it was translated against. That is
-why the function runs during the diagram rather than before it, and why
-`spytial.sequence()` and `spytial.edit()`, which render several instances from
-one specification, reject one with a `SelectorError` naming the slot. Write
-those as sgq expressions.
+why the function runs during the diagram rather than before it.
+
+`spytial.sequence()` supports one. It rebuilds every frame in Python through a
+single shared builder, which keeps atom IDs stable across frames, so the
+function is run once per frame and the rows are unioned into one entry. A term
+naming a value some frame does not hold simply matches nothing in that frame,
+which is what a structure that grows over the sequence should do.
+
+`spytial.edit()` does not. It writes the specification once and the browser
+changes the data afterwards, so the function cannot run again and the selector
+would go on naming the atoms of the seed. It rejects one with a `SelectorError`
+naming the slot; write that selector as an sgq expression.
 
 ### What is reported
 
