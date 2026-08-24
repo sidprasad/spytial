@@ -213,10 +213,11 @@ fault in it raises at the line that wrote it, with an ordinary traceback.
 
 ### Errors
 
-A value the walk never reached raises `AtomNotInInstance`. This check cannot be
-left to the evaluator: a numeric literal naming no atom evaluates non-empty in
-sgq, so a wrong value would apply the rule to a phantom atom rather than report
-anything.
+A value the walk never reached is dropped, with an `AtomNotInInstance` warning
+naming it. The report cannot be left to the evaluator: a literal naming no atom
+evaluates non-empty in sgq, so a wrong value would apply the rule to a phantom
+atom silently. Make it fatal with
+`warnings.simplefilter("error", spytial.AtomNotInInstance)`.
 
 Rows of the wrong width for the slot raise too -- an orientation fed single
 values, say -- because spytial-core discards rows of the wrong width and the

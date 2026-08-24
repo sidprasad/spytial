@@ -20,6 +20,7 @@ of them is visible from Python.
 from __future__ import annotations
 
 import pathlib
+import warnings
 from dataclasses import dataclass, field
 from typing import Any, List
 
@@ -124,11 +125,24 @@ class TestTranslate:
     def test_no_parentheses_are_needed(self):
         assert emit([("n0", "n2"), ("n0", "n4")]) == "n0 -> n2 + n0 -> n4"
 
-    def test_a_value_with_no_atom_is_an_error(self):
+    def test_a_value_with_no_atom_is_dropped_with_a_warning(self):
+        # sgq cannot report this -- a literal naming no atom evaluates non-empty
+        # there -- but it need not be fatal: the rest of the selector still holds.
         root = tree()
         builder, instance = built(root)
-        with pytest.raises(AtomNotInInstance, match="no atom"):
-            materialise(lambda values: [Node(99)], root, builder, instance)
+        with pytest.warns(AtomNotInInstance, match="no atom for"):
+            out = materialise(
+                lambda values: odd_nodes(values) + [Node(99)], root, builder, instance
+            )
+        assert len(terms(out)) == 2  # the two real nodes survive
+
+    def test_the_warning_can_be_made_fatal(self):
+        root = tree()
+        builder, instance = built(root)
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", AtomNotInInstance)
+            with pytest.raises(AtomNotInInstance):
+                materialise(lambda values: [Node(99)], root, builder, instance)
 
     def test_rows_of_differing_length_are_an_error(self):
         root = tree()
@@ -393,8 +407,8 @@ class TestAgainstSgq:
         )
         assert not free.empty
         assert intersected.empty
-        with pytest.raises(AtomNotInInstance):
-            self._one(999999, box, builder, instance)
+        with pytest.warns(AtomNotInInstance):
+            assert self._one(999999, box, builder, instance) == "none"
 
     def test_equal_but_distinct_objects_are_two_atoms(self):
         a, b = Node(1), Node(1)

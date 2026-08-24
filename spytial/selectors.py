@@ -9,8 +9,7 @@ the values to select -- one per row, or a tuple per row for a higher arity::
 
     # compiles to:  n0 -> n2 + n0 -> n4 + n4 -> n6
 
-Each returned value is translated to the ID of its atom (a value with no atom
-is an error), and the IDs are joined with ``->`` within a tuple and ``+``
+Each returned value is translated to the ID of its atom, and the IDs are joined with ``->`` within a tuple and ``+``
 between rows. The function runs during :func:`spytial.diagram`, after the walk
 and before the spec is written, so the IDs are the ones the relationalizer
 assigned to the instance about to be drawn -- and the same function works on a
@@ -21,6 +20,7 @@ it was written.
 
 import decimal
 import math
+import warnings
 
 from ._spec_tables import SELECTOR_ARITY
 
@@ -37,8 +37,17 @@ class SelectorError(ValueError):
     """A fault raised while translating a selector."""
 
 
-class AtomNotInInstance(SelectorError):
-    """The selector returned a value that the instance has no atom for."""
+class AtomNotInInstance(UserWarning):
+    """The selector returned a value that the instance has no atom for.
+
+    A warning, not an error: the rest of the selector still applies, and a
+    diagram missing one styled node beats no diagram. It is not left silent,
+    because sgq cannot report it -- a literal naming no atom evaluates
+    non-empty there, so the rule would apply to a phantom atom instead.
+
+    Raise it instead with
+    ``warnings.simplefilter("error", spytial.AtomNotInInstance)``.
+    """
 
 
 def _literal(value, atom_id):
@@ -82,9 +91,10 @@ def materialise(fn, root, builder, instance, *, widths=None, slot="selector"):
     Only a ``tuple`` is a row; a ``list`` is a value, since container atoms are
     themselves selectable. *widths* is the set of row widths the slot accepts:
     core silently discards rows of the wrong width, so a mismatch is an error
-    here rather than a directive that quietly stops applying. A value with no
-    atom raises :class:`AtomNotInInstance` -- a check the evaluator cannot
-    make, since a numeric literal naming no atom evaluates non-empty in sgq.
+    here rather than a directive that quietly stops applying. A row holding a
+    value with no atom is dropped with an :class:`AtomNotInInstance` warning --
+    a report the evaluator cannot make, since a literal naming no atom
+    evaluates non-empty in sgq.
     """
     result = fn(builder.walked_objects())
     rows = [item if type(item) is tuple else (item,) for item in result or ()]
@@ -110,13 +120,18 @@ def materialise(fn, root, builder, instance, *, widths=None, slot="selector"):
         for value in row:
             atom_id = builder.atom_id_for(value)
             if atom_id is None or atom_id not in valid:
-                raise AtomNotInInstance(
-                    "the selector returned %r, which the instance has no atom "
-                    "for -- only values reached by the walk can be selected."
-                    % (value,)
+                warnings.warn(
+                    "'%s' returned %r, which the instance has no atom for; that "
+                    "row is dropped. Only values reached by the walk can be "
+                    "selected." % (slot, value),
+                    AtomNotInInstance,
+                    stacklevel=3,
                 )
+                literals = None
+                break
             literals.append(_literal(value, atom_id))
-        translated.append(tuple(literals))
+        if literals is not None:
+            translated.append(tuple(literals))
     return emit(translated)
 
 
