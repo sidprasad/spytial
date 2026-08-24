@@ -233,9 +233,10 @@ why the function runs during the diagram rather than before it.
 
 `spytial.sequence()` supports one. It rebuilds every frame in Python through a
 single shared builder, which keeps atom IDs stable across frames, so the
-function is run once per frame and the rows are unioned into one entry. A term
-naming a value some frame does not hold simply matches nothing in that frame,
-which is what a structure that grows over the sequence should do.
+function is run once per frame and the rows are unioned into one entry. Each
+frame then sees terms naming values from the other frames; spytial-core styles
+by atom, so a term matching no atom in the frame being drawn does nothing there.
+That is what a structure growing over a sequence should do.
 
 `spytial.edit()` does not. It writes the specification once and the browser
 changes the data afterwards, so the function cannot run again and the selector

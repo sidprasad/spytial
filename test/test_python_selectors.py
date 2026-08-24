@@ -208,6 +208,23 @@ class TestTranslate:
         selector = entries[0]["orientation"]["selector"]
         assert len(terms(selector)) == 2, selector
 
+    @requires_bridge
+    def test_a_frame_ignores_a_term_it_has_no_atom_for(self):
+        # The union carries terms from every frame, so an early frame sees terms
+        # naming values it does not hold. An object ID goes empty. A bare number
+        # does NOT -- `9 + 9` resolves to a free literal on a frame without that
+        # atom -- but core styles by atom, so nothing is drawn for it. Verified
+        # in a browser across both frames of a growing sequence.
+        builder = CnDDataInstanceBuilder(preserve_object_ids=True)
+        root = Node(0, [Node(1)])
+        frame = builder.build_instance(root)
+        absent, union, phantom = _eval.evaluate_selectors(
+            frame, ["n0 -> n4", "n0 -> n2 + n0 -> n4", "(9 + 9) & univ"]
+        )
+        assert absent.empty, "an object term for a value not in this frame"
+        assert union.pretty == "n0->n2", "the union keeps only what this frame holds"
+        assert phantom.empty, "a bare number naming no atom is not an atom"
+
     def test_a_sequence_keeps_atom_ids_stable_across_frames(self):
         # The premise the union rests on. Without it a term would name a
         # different value in each frame.
