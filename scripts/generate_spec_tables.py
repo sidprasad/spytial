@@ -265,11 +265,12 @@ def _field_sets(item):
 def build_tables(manifest):
     """Split the manifest's items into the constraint and directive tables.
 
-    Items sharing a ``yamlKey`` (``group`` and the deprecated ``group.byField``)
-    become a list of alternative field sets, which is what ``validate_fields``
-    already understands: it accepts the first set whose required fields are all
-    present. The two sets are disjoint on their required fields, so the order
-    only affects the wording of the error when neither matches.
+    Items sharing a ``yamlKey`` become a list of alternative field sets, which
+    is what ``validate_fields`` already understands: it accepts the first set
+    whose required fields are all present. Alternatives are disjoint on their
+    required fields, so the order only affects the wording of the error when
+    none matches. ``group`` and ``group.byField`` were the only such pair until
+    spytial-core 5.0 retired the latter; nothing shares a key today.
     """
     tables = {"constraints": {}, "directives": {}}
 

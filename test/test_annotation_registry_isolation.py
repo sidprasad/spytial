@@ -118,7 +118,7 @@ def test_fresh_builtins_never_inherit_phantom_annotations():
 
 def test_set_annotation_evicted_after_gc():
     s = {1, 2, 3}  # set: weak-referenceable, not attribute-storable
-    annotate_group(s, field="elements", groupOn=0, addToGroup=1)
+    annotate_group(s, selector="elements", name="elements")
     assert len(collect_decorators(s)["constraints"]) == 1
 
     before = len(ann._OBJECT_ANNOTATION_REGISTRY._entries)
