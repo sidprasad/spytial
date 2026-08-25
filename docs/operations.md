@@ -224,13 +224,15 @@ node-to-group edges expressible.
 an omitted `draw`. In both cases the edge's own selector ranges over atoms. With
 `draw`, a unary edge selector is allowed, and its atom feeds both ends.
 
-> **The referenced group shall be keyed.** That is, it shall be declared with a
-> *binary* selector, and the first element becomes the key. `draw` resolves each
-> end by looking up the group of that name keyed by that end's atom. A group
-> built from a unary selector (`selector='Team.members'`) has no key for any end
-> to match, so the edge is dropped and nothing is drawn. A group *name* that
-> matches no `group` constraint is a hard error at render time. An atom that keys
-> no group of that name is reported in the browser console.
+> **A keyed group resolves per atom; an unkeyed group is one hull.** A group
+> declared with a *binary* selector is keyed on its first column, and `draw`
+> resolves each end by looking up the group of that name keyed by that end's
+> atom. An atom that keys no group of that name is reported in the browser
+> console. A group built from a unary selector (`selector='Team.members'`) has
+> no key at all, so an end naming it attaches to that single hull whatever the
+> end's atom is. A group *name* that matches no `group` constraint raises a
+> warning and the edge is skipped, so a fragment may name a group that another
+> fragment defines (spytial-core 5.0; before it, a hard error at render time).
 
 ### `tag`: attach a computed label
 

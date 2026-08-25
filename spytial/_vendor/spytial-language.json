@@ -1,10 +1,10 @@
 {
   "language": "spytial-layout-spec",
-  "languageVersion": "2026-07-29",
-  "spytialCoreVersion": "4.4.2",
+  "languageVersion": "2026-08-14",
+  "spytialCoreVersion": "5.2.1",
   "versioning": {
     "note": "`languageVersion` is the date the language last changed (YYYY-MM-DD). If it has not moved since the manifest you generated against, nothing you emit needs revisiting. `spytialCoreVersion` records which release produced this file.",
-    "deprecations": "A deprecated form keeps parsing and keeps its meaning; it is removed only in a major release of spytial-core. Each entry in `deprecations` names its replacement and the rewrite to apply."
+    "deprecations": "A deprecated form keeps parsing and keeps its meaning while it is listed in `deprecations`, and each entry names its replacement and the rewrite to apply. Removal is signalled by `languageVersion` moving, not by the `spytialCoreVersion` major: a removed form leaves this manifest and becomes a parse error, so check `languageVersion` before assuming a spec you generated earlier still parses."
   },
   "document": {
     "sections": [
@@ -19,7 +19,8 @@
       "Unrecognized top-level keys, unrecognized list items, and unrecognized fields inside a known item are all ignored silently. Nothing in the parser will tell you about a typo — validate against this manifest first.",
       "`size` and `hideAtom` are constraints. Both are still accepted among the directives, with identical meaning, but that placement is deprecated and warns — emit them under `constraints`. Each item lists where to write it in `sections`, and any tolerated-but-deprecated placement in `deprecatedSections`.",
       "Duplicate constraints (same selector and same parameters) are de-duplicated at parse time.",
-      "Parsing returns advisory `warnings` alongside the spec. Each carries a `code` (currently `deprecated`) and a `specType` naming the form, so a consumer can surface them without matching prose."
+      "Parsing returns advisory `warnings` alongside the spec. Each carries a `code` (currently `deprecated`) and a `specType` naming the form, so a consumer can surface them without matching prose.",
+      "The old group-by-field shape, `group: { field, groupOn, addToGroup }`, is removed. It is a parse error, not a silently ignored key, so an old spec fails loudly instead of losing its grouping. Write a `group` whose binary `selector` has the key in its first column and the members in its second; over `worksIn: Employee -> Department`, `groupOn: 1` / `addToGroup: 0` becomes `selector: ~worksIn` plus a `name`, and `groupOn: 0` / `addToGroup: 1` becomes `selector: worksIn`."
     ]
   },
   "hold": {
@@ -33,8 +34,7 @@
       "orientation",
       "cyclic",
       "align",
-      "group",
-      "group.byField"
+      "group"
     ],
     "note": "`hold: never` negates a constraint: it asserts the relationship must not hold. Only the value `never` has an effect — `always`, any other string, and an absent field all mean the positive constraint. Double negation is not supported. `size` and `hideAtom` accept the key syntactically but ignore it."
   },
@@ -173,6 +173,19 @@
           "name": "selector",
           "type": "selector",
           "arity": "binary",
+          "accepts": [
+            {
+              "arity": "binary",
+              "minColumns": 2,
+              "maxColumns": 2,
+              "meaning": "Each tuple is one (first, last) pair, and the constraint applies to it."
+            },
+            {
+              "arity": "n-ary",
+              "minColumns": 3,
+              "meaning": "Accepted: the pair is the tuple's first and last atom. The columns between are ignored."
+            }
+          ],
           "required": true,
           "enforcement": "parse-error",
           "description": "Returns (source, target) pairs. The constraint applies to each pair."
@@ -249,6 +262,19 @@
           "name": "selector",
           "type": "selector",
           "arity": "binary",
+          "accepts": [
+            {
+              "arity": "binary",
+              "minColumns": 2,
+              "maxColumns": 2,
+              "meaning": "Each tuple is one (first, last) pair, and the constraint applies to it."
+            },
+            {
+              "arity": "n-ary",
+              "minColumns": 3,
+              "meaning": "Accepted: the pair is the tuple's first and last atom. The columns between are ignored."
+            }
+          ],
           "required": true,
           "enforcement": "parse-error",
           "description": "Returns (a, b) pairs meaning \"b follows a around the circle\"."
@@ -286,6 +312,19 @@
           "name": "selector",
           "type": "selector",
           "arity": "binary",
+          "accepts": [
+            {
+              "arity": "binary",
+              "minColumns": 2,
+              "maxColumns": 2,
+              "meaning": "Each tuple is one (first, last) pair, and the constraint applies to it."
+            },
+            {
+              "arity": "n-ary",
+              "minColumns": 3,
+              "meaning": "Accepted: the pair is the tuple's first and last atom. The columns between are ignored."
+            }
+          ],
           "required": true,
           "enforcement": "parse-error",
           "description": "Returns the pairs of atoms to align with one another."
@@ -326,6 +365,25 @@
           "name": "selector",
           "type": "selector",
           "arity": "binary",
+          "accepts": [
+            {
+              "arity": "binary",
+              "minColumns": 2,
+              "maxColumns": 2,
+              "meaning": "One group per distinct first atom: the first column is the key, the last the members. The group is named `<name>[<key>]`, which is what a keyed `inferredEdge` `draw` end attaches to."
+            },
+            {
+              "arity": "n-ary",
+              "minColumns": 3,
+              "meaning": "As binary — the key is the tuple's first atom and the member its last, ignoring the columns between."
+            },
+            {
+              "arity": "unary",
+              "minColumns": 1,
+              "maxColumns": 1,
+              "meaning": "One single group holding every selected atom, with no key. It is named `<name>` with no `[key]` suffix, and a `draw` end naming it attaches there whatever the end's atom is."
+            }
+          ],
           "required": true,
           "enforcement": "unchecked",
           "description": "First column is the group key, second the members. A unary selector builds a single unkeyed group.",
@@ -393,68 +451,6 @@
       }
     },
     {
-      "id": "group.byField",
-      "yamlKey": "group",
-      "label": "Group (by field)",
-      "description": "Group by indexing into the tuples of a relation.",
-      "sections": [
-        "constraints"
-      ],
-      "valueShape": "mapping",
-      "discriminator": {
-        "field": "field",
-        "present": true
-      },
-      "supportsHold": true,
-      "deprecated": {
-        "replacedBy": "group",
-        "reason": "A binary selector whose first column is the key and whose second is the members says the same thing without tuple indices.",
-        "mapping": {
-          "field": "selector",
-          "groupOn": "selector (column order)",
-          "addToGroup": "selector (column order)",
-          "selector": "selector"
-        },
-        "warningSpecType": "group"
-      },
-      "fields": [
-        {
-          "name": "field",
-          "type": "relation",
-          "required": true,
-          "enforcement": "unchecked",
-          "description": "The relation whose tuples are grouped. Its presence is what selects this form over group-by-selector.",
-          "note": "Because this field is the discriminator, omitting it does not raise an error — it re-reads the item as a group-by-selector, which then needs a `selector`. A `group` with neither is silently dropped."
-        },
-        {
-          "name": "groupOn",
-          "type": "integer",
-          "required": true,
-          "enforcement": "parse-error",
-          "description": "0-based index of the tuple column to use as the group key."
-        },
-        {
-          "name": "addToGroup",
-          "type": "integer",
-          "required": true,
-          "enforcement": "parse-error",
-          "description": "0-based index of the tuple column whose atom joins the group."
-        },
-        {
-          "name": "selector",
-          "type": "selector",
-          "arity": "unary",
-          "description": "Restrict which atoms this grouping applies to."
-        }
-      ],
-      "example": {
-        "field": "worksIn",
-        "groupOn": 1,
-        "addToGroup": 0
-      },
-      "note": "To migrate: over `worksIn: Employee -> Department`, `groupOn: 1` / `addToGroup: 0` keys on Department, so it becomes `selector: ~worksIn` plus the `name` that form requires."
-    },
-    {
       "id": "size",
       "yamlKey": "size",
       "label": "Size",
@@ -492,6 +488,14 @@
           "name": "selector",
           "type": "selector",
           "arity": "unary",
+          "accepts": [
+            {
+              "arity": "unary",
+              "minColumns": 1,
+              "maxColumns": 1,
+              "meaning": "The nodes to resize."
+            }
+          ],
           "description": "Which nodes to resize. Omit to resize every node."
         }
       ],
@@ -524,6 +528,14 @@
           "name": "selector",
           "type": "selector",
           "arity": "unary",
+          "accepts": [
+            {
+              "arity": "unary",
+              "minColumns": 1,
+              "maxColumns": 1,
+              "meaning": "The atoms to hide."
+            }
+          ],
           "required": true,
           "enforcement": "unchecked",
           "description": "Which atoms to hide."
@@ -577,6 +589,14 @@
           "name": "selector",
           "type": "selector",
           "arity": "unary",
+          "accepts": [
+            {
+              "arity": "unary",
+              "minColumns": 1,
+              "maxColumns": 1,
+              "meaning": "The atoms this rule styles."
+            }
+          ],
           "description": "Which atoms to style. Omit to style every atom."
         },
         {
@@ -640,12 +660,27 @@
           "name": "selector",
           "type": "selector",
           "arity": "unary",
+          "accepts": [
+            {
+              "arity": "unary",
+              "minColumns": 1,
+              "maxColumns": 1,
+              "meaning": "The set of source atoms the directive is narrowed to."
+            }
+          ],
           "description": "Apply only to edges whose source atom is in this set. Omit to apply to every source atom."
         },
         {
           "name": "filter",
           "type": "selector",
           "arity": "n-ary",
+          "accepts": [
+            {
+              "arity": "n-ary",
+              "minColumns": 2,
+              "meaning": "A tuple matches on its first and last atom, so a longer tuple filters the same relation ends a pair would. A unary result matches nothing — the directive is then scoped to no tuples at all."
+            }
+          ],
           "description": "Apply only to the (source, target, …) tuples this selector returns. Use it to scope a directive to part of a relation, e.g. only the tuples whose value is True."
         },
         {
@@ -704,12 +739,27 @@
           "name": "selector",
           "type": "selector",
           "arity": "unary",
+          "accepts": [
+            {
+              "arity": "unary",
+              "minColumns": 1,
+              "maxColumns": 1,
+              "meaning": "The set of source atoms the directive is narrowed to."
+            }
+          ],
           "description": "Apply only to these source atoms. Omit to apply to every source atom."
         },
         {
           "name": "filter",
           "type": "selector",
           "arity": "n-ary",
+          "accepts": [
+            {
+              "arity": "n-ary",
+              "minColumns": 2,
+              "meaning": "A tuple matches on its first and last atom, so a longer tuple filters the same relation ends a pair would. A unary result matches nothing — the directive is then scoped to no tuples at all."
+            }
+          ],
           "description": "Apply only to the (source, target, …) tuples this selector returns. Use it to scope a directive to part of a relation, e.g. only the tuples whose value is True."
         },
         {
@@ -740,6 +790,14 @@
           "name": "toTag",
           "type": "selector",
           "arity": "unary",
+          "accepts": [
+            {
+              "arity": "unary",
+              "minColumns": 1,
+              "maxColumns": 1,
+              "meaning": "The atoms that receive the tag."
+            }
+          ],
           "required": true,
           "enforcement": "unchecked",
           "description": "Which atoms receive the tag."
@@ -755,9 +813,22 @@
           "name": "value",
           "type": "selector",
           "arity": "n-ary",
+          "accepts": [
+            {
+              "arity": "n-ary",
+              "minColumns": 2,
+              "meaning": "One line per tuple whose first atom is the tagged atom: the last column is the value and any columns between become the key, as `name[k1][k2]: value`. A binary result is the plain `name: value` case."
+            },
+            {
+              "arity": "unary",
+              "minColumns": 1,
+              "maxColumns": 1,
+              "meaning": "A membership tag: an atom in the result is tagged with its own label, as `name: <label>`. The value carries no more than \"this atom is in the set\"."
+            }
+          ],
           "required": true,
           "enforcement": "unchecked",
-          "description": "Evaluated per tagged atom; its result becomes the value. A unary result shows as `name: value`; an n-ary result shows one line per tuple, as `name[k1][k2]: value`."
+          "description": "Evaluated per tagged atom; its result becomes the value. A binary result shows as `name: value`; a longer tuple shows one line per tuple, as `name[k1][k2]: value`. A unary result tags each selected atom with its own label."
         },
         {
           "name": "textStyle",
@@ -795,12 +866,27 @@
           "name": "selector",
           "type": "selector",
           "arity": "unary",
+          "accepts": [
+            {
+              "arity": "unary",
+              "minColumns": 1,
+              "maxColumns": 1,
+              "meaning": "The set of source atoms the directive is narrowed to."
+            }
+          ],
           "description": "Apply only to edges whose source atom is in this set. Omit to apply to every source atom."
         },
         {
           "name": "filter",
           "type": "selector",
           "arity": "n-ary",
+          "accepts": [
+            {
+              "arity": "n-ary",
+              "minColumns": 2,
+              "meaning": "A tuple matches on its first and last atom, so a longer tuple filters the same relation ends a pair would. A unary result matches nothing — the directive is then scoped to no tuples at all."
+            }
+          ],
           "description": "Hide only the tuples this selector returns."
         }
       ],
@@ -830,6 +916,26 @@
           "name": "selector",
           "type": "selector",
           "arity": "binary",
+          "accepts": [
+            {
+              "arity": "binary",
+              "minColumns": 2,
+              "maxColumns": 2,
+              "meaning": "One edge per tuple, from its first atom to its last."
+            },
+            {
+              "arity": "n-ary",
+              "minColumns": 3,
+              "meaning": "One edge from the tuple's first atom to its last. Unlike the constraints, the columns between are not discarded: their labels are appended to the edge label as `<name>[m1,m2]`."
+            },
+            {
+              "arity": "unary",
+              "minColumns": 1,
+              "maxColumns": 1,
+              "requires": "draw",
+              "meaning": "One edge per atom, the atom feeding both ends — the shape `draw: _ -> <group>` needs, connecting each atom to its own group. Without `draw` a unary selector draws nothing at all: the engine reads this field as tuples, and single-atom tuples are dropped before any edge is made."
+            }
+          ],
           "required": true,
           "enforcement": "unchecked",
           "description": "Returns the (source, target) pairs to connect. May be unary when `draw` is given — the single atom then feeds both ends."
@@ -840,7 +946,7 @@
           "enforcement": "parse-error",
           "pattern": "^\\s*[^\\s](?:(?!->)[\\s\\S])*->(?:(?!->)[\\s\\S])*[^\\s]\\s*$",
           "description": "Reinterpret what each end attaches to, as `<end> -> <end>`. Each end is `_` (the atom itself, the default) or the name of a `group` constraint, in which case the end attaches to that group's hull. The left end applies to the first atom of each tuple, the right end to the last.",
-          "note": "Parsed strictly: a value that is not a string, or that does not contain exactly one `->`, is a parse error, as is a group name that no `group` constraint defines. `draw` never reorders — transpose the selector (`~connected`) to flip an edge."
+          "note": "Parsed strictly: a value that is not a string, or that does not contain exactly one `->`, is a parse error. A group name that no `group` constraint defines is not — it raises a warning (code `unresolved-reference`, specType `inferredEdge`) and the edge is skipped at layout time, so a fragment that names a group defined in another fragment still parses. `draw` never reorders — transpose the selector (`~connected`) to flip an edge."
         },
         {
           "name": "lineStyle",
@@ -929,6 +1035,14 @@
           "name": "selector",
           "type": "selector",
           "arity": "unary",
+          "accepts": [
+            {
+              "arity": "unary",
+              "minColumns": 1,
+              "maxColumns": 1,
+              "meaning": "The atoms that get the icon."
+            }
+          ],
           "required": true,
           "enforcement": "unchecked",
           "description": "Which atoms get the icon. Omitting it drops the directive entirely — it never means \"every atom\"."
@@ -984,6 +1098,14 @@
           "name": "selector",
           "type": "selector",
           "arity": "unary",
+          "accepts": [
+            {
+              "arity": "unary",
+              "minColumns": 1,
+              "maxColumns": 1,
+              "meaning": "The atoms to recolor."
+            }
+          ],
           "required": true,
           "enforcement": "unchecked",
           "description": "Which atoms to recolor. Omitting it drops the directive — it never means \"every atom\"."
@@ -1039,12 +1161,27 @@
           "name": "selector",
           "type": "selector",
           "arity": "unary",
+          "accepts": [
+            {
+              "arity": "unary",
+              "minColumns": 1,
+              "maxColumns": 1,
+              "meaning": "The set of source atoms the directive is narrowed to."
+            }
+          ],
           "description": "Apply only to edges whose source atom is in this set. Omit to apply to every source atom."
         },
         {
           "name": "filter",
           "type": "selector",
           "arity": "n-ary",
+          "accepts": [
+            {
+              "arity": "n-ary",
+              "minColumns": 2,
+              "meaning": "A tuple matches on its first and last atom, so a longer tuple filters the same relation ends a pair would. A unary result matches nothing — the directive is then scoped to no tuples at all."
+            }
+          ],
           "description": "Apply only to the (source, target, …) tuples this selector returns. Use it to scope a directive to part of a relation, e.g. only the tuples whose value is True."
         },
         {
@@ -1090,20 +1227,6 @@
     }
   ],
   "deprecations": [
-    {
-      "id": "group.byField",
-      "kind": "item",
-      "path": "group",
-      "replacedBy": "group",
-      "reason": "A binary selector whose first column is the key and whose second is the members says the same thing without tuple indices.",
-      "mapping": {
-        "field": "selector",
-        "groupOn": "selector (column order)",
-        "addToGroup": "selector (column order)",
-        "selector": "selector"
-      },
-      "warningSpecType": "group"
-    },
     {
       "id": "icon",
       "kind": "item",

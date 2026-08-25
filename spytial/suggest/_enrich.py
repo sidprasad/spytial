@@ -311,14 +311,13 @@ def _shape_to_suggestion(ci: ClassInfo, cls: str, f, sh: dict) -> Optional[Sugge
     elif kind == "group":
         if f.container not in _CONTAINERS:
             return None  # group boxes the elements of a collection
-        # The by-field spelling (`field=`, `groupOn=0`, `addToGroup=1`) says the
+        # The by-field spelling (`field=`, `groupOn=0`, `addToGroup=1`) said the
         # same thing and is what this emitted until spytial-core 4.3 deprecated
-        # it. The manifest gives the rewrite: a binary selector whose first
-        # column is the key and whose second is the members, which for
-        # groupOn=0/addToGroup=1 is the relation itself. The current form also
-        # requires a `name` -- the one thing _desugar_legacy_style cannot supply
-        # from the old kwargs, and the reason it does not rewrite this form. Here
-        # the field name is right there, so the current spelling is writable.
+        # it; 5.0 removed it, and it is a parse error there now. The rewrite is
+        # a binary selector whose first column is the key and whose last is the
+        # members, which for groupOn=0/addToGroup=1 is the relation itself. The
+        # current form also requires a `name`, which is the one thing the old
+        # kwargs do not carry -- here the field name is right there.
         kwargs = {"selector": f.name, "name": f.name}
     else:
         return None  # 'none' or anything unrecognized — abstain

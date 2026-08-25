@@ -3,6 +3,9 @@
 Test file to validate group by selector annotation functionality for Issue #17.
 """
 
+import pytest
+
+import spytial
 from spytial.annotations import (
     group, annotate_group, annotate,
     collect_decorators, serialize_to_yaml_string
@@ -20,17 +23,57 @@ def test_selector_based_group_constraint():
     assert constraint['selector'] == '{b : Basket, a : Fruit | (a in b.fruit) and a.status = Rotten }'
     assert constraint['name'] == 'rottenFruit'
 
-def test_field_based_group_still_works():
-    """Test that the original field-based group constraint still works."""
-    my_list = [1, 2, 3, 4, 5]
-    annotate_group(my_list, field='elements', groupOn=0, addToGroup=1)
-    
-    decorators = collect_decorators(my_list)
-    assert len(decorators['constraints']) == 1
-    constraint = decorators['constraints'][0]['group']
-    assert constraint['field'] == 'elements'
-    assert constraint['groupOn'] == 0
-    assert constraint['addToGroup'] == 1
+def test_field_based_group_is_retired():
+    """spytial-core 5.0 removed the by-field form, and the error carries the rewrite.
+
+    Core made the old spelling a parse error rather than an ignored key, so an
+    old spec fails loudly instead of quietly losing its grouping. Raising at the
+    decorator moves that failure to the line that wrote it.
+    """
+    with pytest.raises(ValueError) as excinfo:
+        annotate_group([1, 2, 3, 4, 5], field='elements', groupOn=0, addToGroup=1)
+
+    message = str(excinfo.value)
+    assert 'removed in spytial-core 5.0' in message
+    assert "group(selector='elements', name='elements')" in message
+
+
+def test_retired_group_error_rewrites_the_call_it_was_given():
+    """The rewrite is the caller's own relation, transposed and restricted as written.
+
+    ``groupOn``/``addToGroup`` named tuple columns; a selector keys on its first
+    column, so keying on the later one is the transposed relation. The old
+    ``selector`` kept only the tuples whose *first* atom it matched -- a domain
+    restriction, which is why it goes inside the transpose and not outside it.
+    Both spellings were checked against the conformance harness on either side
+    of the bump: they entail the same grouping the by-field form did.
+    """
+    cases = {
+        "group(selector='~worksIn', name='worksIn')":
+            dict(field='worksIn', groupOn=1, addToGroup=0),
+        "group(selector='Manager <: worksIn', name='worksIn')":
+            dict(field='worksIn', groupOn=0, addToGroup=1, selector='Manager'),
+        "group(selector='~(Manager <: worksIn)', name='worksIn')":
+            dict(field='worksIn', groupOn=1, addToGroup=0, selector='Manager'),
+    }
+    for rewrite, kwargs in cases.items():
+        with pytest.raises(ValueError) as excinfo:
+            annotate_group([1, 2, 3], **kwargs)
+        assert rewrite in str(excinfo.value)
+
+
+def test_retired_group_form_raises_on_every_authoring_path():
+    """Decorator, object registry and Annotated[...] all reject it the same way."""
+    kwargs = dict(field='elements', groupOn=0, addToGroup=1)
+    paths = (
+        lambda: group(**kwargs),
+        lambda: annotate_group([1, 2, 3], **kwargs),
+        lambda: spytial.Group(**kwargs),
+        lambda: spytial.annotate_type_alias(list[int], 'group', **kwargs),
+    )
+    for path in paths:
+        with pytest.raises(ValueError, match='removed in spytial-core 5.0'):
+            path()
 
 def test_selector_group_addedge_direction():
     """addEdge accepts the spytial-core >=2.10 direction values and serializes through."""
@@ -116,18 +159,6 @@ def test_group_decorator_documents_addedge_directions():
     assert group.__name__ == 'group'
 
 
-def test_field_group_rejects_showlabel():
-    """Core's GroupByField never reads showLabel (it derives label visibility from
-    negation), so accepting it silently would promise something core drops."""
-    import io, contextlib
-
-    my_list = [1, 2, 3]
-    buf = io.StringIO()
-    with contextlib.redirect_stdout(buf):
-        annotate_group(my_list, field='elements', groupOn=0, addToGroup=1, showLabel=True)
-    assert 'showLabel' in buf.getvalue()
-
-
 def test_group_decorator_with_selector():
     """Test the group decorator with selector parameters."""
     my_dict = {'a': 1, 'b': 2}
@@ -169,34 +200,18 @@ def test_yaml_serialization_matches_issue_requirements():
     assert 'name: rottenFruit' in yaml_output
     assert 'Basket' in yaml_output and 'Fruit' in yaml_output
 
-def test_both_group_types_coexist():
-    """Test that both field-based and selector-based group constraints can coexist."""
+def test_group_constraints_coexist():
+    """Two groups over the same object are two constraints, not one overwriting the other."""
     my_list = [1, 2, 3]
-    
-    # Add both types of group constraints
-    annotate_group(my_list, field='items', groupOn=0, addToGroup=1)
+
+    annotate_group(my_list, selector='items', name='items')
     annotate_group(my_list, selector='{x : Item | x.value < 3}', name='smallItems')
-    
-    decorators = collect_decorators(my_list)
-    assert len(decorators['constraints']) == 2
-    
-    # Check that both constraints exist
-    field_constraint = None
-    selector_constraint = None
-    
-    for constraint_entry in decorators['constraints']:
-        group_data = constraint_entry['group']
-        if 'field' in group_data:
-            field_constraint = group_data
-        elif 'selector' in group_data:
-            selector_constraint = group_data
-    
-    assert field_constraint is not None
-    assert field_constraint['field'] == 'items'
-    
-    assert selector_constraint is not None
-    assert selector_constraint['selector'] == '{x : Item | x.value < 3}'
-    assert selector_constraint['name'] == 'smallItems'
+
+    groups = [entry['group'] for entry in collect_decorators(my_list)['constraints']]
+    assert [(g['selector'], g['name']) for g in groups] == [
+        ('items', 'items'),
+        ('{x : Item | x.value < 3}', 'smallItems'),
+    ]
 
 if __name__ == "__main__":
     print("Testing Issue #17: Group by selector annotation")

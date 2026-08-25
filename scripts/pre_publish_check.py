@@ -77,7 +77,7 @@ def validate_imports_and_functionality():
             return False
         
         # Test class decorators
-        @spytial.group(field='children', groupOn=0, addToGroup=1)
+        @spytial.group(selector='children', name='children')
         @spytial.orientation(selector='value', directions=['above'])
         class Node:
             def __init__(self, value, children=None):

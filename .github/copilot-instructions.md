@@ -87,7 +87,7 @@ print("✓ Basic visualization works")
 import spytial
 
 # Test class decorators with spatial annotations
-@spytial.group(field='children', groupOn=0, addToGroup=1)
+@spytial.group(selector='children', name='children')
 @spytial.orientation(selector='value', directions=['above'])
 class Node:
     def __init__(self, value, children=None):
@@ -193,7 +193,7 @@ python -m pytest test/ -v
 
 ### Spatial Annotation Types
 - **Orientation**: `@orientation(selector='field', directions=['left', 'right'])`
-- **Groups**: `@group(field='items', groupOn=0, addToGroup=1)`  
+- **Groups**: `@group(selector='items', name='items')`  
 - **Styling**: `@atomColor(selector='self', value='red')`
 - **Cycles**: `@cyclic(selector='root', direction='clockwise')`
 - **Tags**: `@tag(toTag='Person', name='age', value='age')`
@@ -206,7 +206,7 @@ spytial.diagram(obj, method='inline', auto_open=True, width=None, height=None)
 
 # Object-level annotation functions  
 spytial.annotate_orientation(obj, selector, directions)
-spytial.annotate_group(obj, field, groupOn, addToGroup)
+spytial.annotate_group(obj, selector, name)
 spytial.annotate_atomColor(obj, selector, value)
 ```
 

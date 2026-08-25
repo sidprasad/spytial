@@ -3,7 +3,7 @@
 GENERATED FILE -- DO NOT EDIT BY HAND.
 
     Source:   spytial/_vendor/spytial-language.json
-    Language: 2026-07-29 (spytial-core 4.4.2)
+    Language: 2026-08-14 (spytial-core 5.2.1)
     Regenerate with: python3 scripts/generate_spec_tables.py
 
 Everything here is derived from the manifest spytial-core publishes, so a
@@ -16,8 +16,8 @@ tables, each with its reason.
 # The manifest this was generated from. `LANGUAGE_VERSION` only moves when
 # the spec language itself changes, so an unchanged value across a
 # spytial-core bump means nothing here needed revisiting.
-LANGUAGE_VERSION = '2026-07-29'
-CORE_VERSION = '4.4.2'
+LANGUAGE_VERSION = '2026-08-14'
+CORE_VERSION = '5.2.1'
 
 
 # --------------------------------------------------------------------------- #
@@ -123,30 +123,17 @@ CONSTRAINT_TYPES = {
             'hold',
         ],
     },
-    'group': [
-        {
-            'required': [
-                'selector',
-                'name',
-            ],
-            'optional': [
-                'addEdge',
-                'textStyle',
-                'hold',
-            ],
-        },
-        {
-            'required': [
-                'field',
-                'groupOn',
-                'addToGroup',
-            ],
-            'optional': [
-                'selector',
-                'hold',
-            ],
-        },
-    ],
+    'group': {
+        'required': [
+            'selector',
+            'name',
+        ],
+        'optional': [
+            'addEdge',
+            'textStyle',
+            'hold',
+        ],
+    },
     'size': {
         'required': [
             'width',
@@ -406,16 +393,6 @@ BLOCKS = {
 # in _desugar_legacy_style so the emitted spec uses the current spelling.
 
 DEPRECATED_ITEMS = {
-    'group.byField': {
-        'path': 'group',
-        'replacedBy': 'group',
-        'mapping': {
-            'field': 'selector',
-            'groupOn': 'selector (column order)',
-            'addToGroup': 'selector (column order)',
-            'selector': 'selector',
-        },
-    },
     'icon': {
         'path': 'icon',
         'replacedBy': 'atomStyle',

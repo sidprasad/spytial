@@ -1,10 +1,10 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "urn:spytial:layout-spec-schema:2026-07-29",
+  "$id": "urn:spytial:layout-spec-schema:2026-08-14",
   "title": "Spytial layout specification",
-  "description": "A Spytial spec: constraints (structural layout) and directives (presentation). Spec language 2026-07-29, from spytial-core 4.4.2. This schema is stricter than the engine parser, which silently ignores anything it does not recognize — validating here is how a misspelled key or an out-of-range value gets caught at all. Fetch it from https://cdn.jsdelivr.net/gh/sidprasad/spytial-core@<tag>/docs/spytial-spec.schema.json; pin a tag, since the @main path is overwritten each release.",
-  "x-spytial-language-version": "2026-07-29",
-  "x-spytial-core-version": "4.4.2",
+  "description": "A Spytial spec: constraints (structural layout) and directives (presentation). Spec language 2026-08-14, from spytial-core 5.2.1. This schema is stricter than the engine parser, which silently ignores anything it does not recognize — validating here is how a misspelled key or an out-of-range value gets caught at all. Fetch it from https://cdn.jsdelivr.net/gh/sidprasad/spytial-core@<tag>/docs/spytial-spec.schema.json; pin a tag, since the @main path is overwritten each release.",
+  "x-spytial-language-version": "2026-08-14",
+  "x-spytial-core-version": "5.2.1",
   "type": "object",
   "properties": {
     "constraints": {
@@ -26,9 +26,6 @@
           },
           {
             "$ref": "#/$defs/group"
-          },
-          {
-            "$ref": "#/$defs/group_byField"
           },
           {
             "$ref": "#/$defs/size"
@@ -203,7 +200,7 @@
           "type": "object",
           "properties": {
             "selector": {
-              "description": "Returns (source, target) pairs. The constraint applies to each pair. Selector arity: binary.",
+              "description": "Returns (source, target) pairs. The constraint applies to each pair. Selector arity: binary — 2 columns (also accepted: 3+ columns).",
               "type": "string",
               "minLength": 1
             },
@@ -355,7 +352,7 @@
           "type": "object",
           "properties": {
             "selector": {
-              "description": "Returns (a, b) pairs meaning \"b follows a around the circle\". Selector arity: binary.",
+              "description": "Returns (a, b) pairs meaning \"b follows a around the circle\". Selector arity: binary — 2 columns (also accepted: 3+ columns).",
               "type": "string",
               "minLength": 1
             },
@@ -396,7 +393,7 @@
           "type": "object",
           "properties": {
             "selector": {
-              "description": "Returns the pairs of atoms to align with one another. Selector arity: binary.",
+              "description": "Returns the pairs of atoms to align with one another. Selector arity: binary — 2 columns (also accepted: 3+ columns).",
               "type": "string",
               "minLength": 1
             },
@@ -438,7 +435,7 @@
           "type": "object",
           "properties": {
             "selector": {
-              "description": "First column is the group key, second the members. A unary selector builds a single unkeyed group. Selector arity: binary. A `group` with neither `selector` nor `field` is silently dropped — it matches neither grouping form. That is the one case where omitting this field is not an error but a no-op.",
+              "description": "First column is the group key, second the members. A unary selector builds a single unkeyed group. Selector arity: binary — 2 columns (also accepted: 3+ columns; 1 column). A `group` with neither `selector` nor `field` is silently dropped — it matches neither grouping form. That is the one case where omitting this field is not an error but a no-op.",
               "type": "string",
               "minLength": 1
             },
@@ -539,54 +536,6 @@
       ],
       "additionalProperties": false
     },
-    "group_byField": {
-      "title": "Group (by field)",
-      "description": "Group by indexing into the tuples of a relation. DEPRECATED — use `group` instead. A binary selector whose first column is the key and whose second is the members says the same thing without tuple indices.",
-      "type": "object",
-      "properties": {
-        "group": {
-          "type": "object",
-          "properties": {
-            "field": {
-              "description": "The relation whose tuples are grouped. Its presence is what selects this form over group-by-selector. Because this field is the discriminator, omitting it does not raise an error — it re-reads the item as a group-by-selector, which then needs a `selector`. A `group` with neither is silently dropped.",
-              "type": "string",
-              "minLength": 1
-            },
-            "groupOn": {
-              "description": "0-based index of the tuple column to use as the group key.",
-              "type": "integer"
-            },
-            "addToGroup": {
-              "description": "0-based index of the tuple column whose atom joins the group.",
-              "type": "integer"
-            },
-            "selector": {
-              "description": "Restrict which atoms this grouping applies to. Selector arity: unary.",
-              "type": "string"
-            },
-            "hold": {
-              "type": "string",
-              "enum": [
-                "always",
-                "never"
-              ],
-              "description": "Negation. `never` asserts the constraint must not hold; `always` (the default) is the positive form."
-            }
-          },
-          "additionalProperties": false,
-          "required": [
-            "field",
-            "groupOn",
-            "addToGroup"
-          ]
-        }
-      },
-      "required": [
-        "group"
-      ],
-      "additionalProperties": false,
-      "deprecated": true
-    },
     "size": {
       "title": "Size",
       "description": "Set the width and height of matching nodes, in pixels.",
@@ -606,7 +555,7 @@
               "exclusiveMinimum": 0
             },
             "selector": {
-              "description": "Which nodes to resize. Omit to resize every node. Selector arity: unary.",
+              "description": "Which nodes to resize. Omit to resize every node. Selector arity: unary — 1 column.",
               "type": "string"
             }
           },
@@ -631,7 +580,7 @@
           "type": "object",
           "properties": {
             "selector": {
-              "description": "Which atoms to hide. Selector arity: unary.",
+              "description": "Which atoms to hide. Selector arity: unary — 1 column.",
               "type": "string",
               "minLength": 1
             }
@@ -675,7 +624,7 @@
           "type": "object",
           "properties": {
             "selector": {
-              "description": "Which atoms to style. Omit to style every atom. Selector arity: unary.",
+              "description": "Which atoms to style. Omit to style every atom. Selector arity: unary — 1 column.",
               "type": "string"
             },
             "fillStyle": {
@@ -721,11 +670,11 @@
               "minLength": 1
             },
             "selector": {
-              "description": "Apply only to edges whose source atom is in this set. Omit to apply to every source atom. Selector arity: unary.",
+              "description": "Apply only to edges whose source atom is in this set. Omit to apply to every source atom. Selector arity: unary — 1 column.",
               "type": "string"
             },
             "filter": {
-              "description": "Apply only to the (source, target, …) tuples this selector returns. Use it to scope a directive to part of a relation, e.g. only the tuples whose value is True. Selector arity: n-ary.",
+              "description": "Apply only to the (source, target, …) tuples this selector returns. Use it to scope a directive to part of a relation, e.g. only the tuples whose value is True. Selector arity: n-ary — 2+ columns.",
               "type": "string"
             },
             "lineStyle": {
@@ -770,11 +719,11 @@
               "minLength": 1
             },
             "selector": {
-              "description": "Apply only to these source atoms. Omit to apply to every source atom. Selector arity: unary.",
+              "description": "Apply only to these source atoms. Omit to apply to every source atom. Selector arity: unary — 1 column.",
               "type": "string"
             },
             "filter": {
-              "description": "Apply only to the (source, target, …) tuples this selector returns. Use it to scope a directive to part of a relation, e.g. only the tuples whose value is True. Selector arity: n-ary.",
+              "description": "Apply only to the (source, target, …) tuples this selector returns. Use it to scope a directive to part of a relation, e.g. only the tuples whose value is True. Selector arity: n-ary — 2+ columns.",
               "type": "string"
             },
             "textStyle": {
@@ -802,7 +751,7 @@
           "type": "object",
           "properties": {
             "toTag": {
-              "description": "Which atoms receive the tag. Selector arity: unary.",
+              "description": "Which atoms receive the tag. Selector arity: unary — 1 column.",
               "type": "string",
               "minLength": 1
             },
@@ -812,7 +761,7 @@
               "minLength": 1
             },
             "value": {
-              "description": "Evaluated per tagged atom; its result becomes the value. A unary result shows as `name: value`; an n-ary result shows one line per tuple, as `name[k1][k2]: value`. Selector arity: n-ary.",
+              "description": "Evaluated per tagged atom; its result becomes the value. A binary result shows as `name: value`; a longer tuple shows one line per tuple, as `name[k1][k2]: value`. A unary result tags each selected atom with its own label. Selector arity: n-ary — 2+ columns (also accepted: 1 column).",
               "type": "string",
               "minLength": 1
             },
@@ -848,11 +797,11 @@
               "minLength": 1
             },
             "selector": {
-              "description": "Apply only to edges whose source atom is in this set. Omit to apply to every source atom. Selector arity: unary.",
+              "description": "Apply only to edges whose source atom is in this set. Omit to apply to every source atom. Selector arity: unary — 1 column.",
               "type": "string"
             },
             "filter": {
-              "description": "Hide only the tuples this selector returns. Selector arity: n-ary.",
+              "description": "Hide only the tuples this selector returns. Selector arity: n-ary — 2+ columns.",
               "type": "string"
             }
           },
@@ -881,12 +830,12 @@
               "minLength": 1
             },
             "selector": {
-              "description": "Returns the (source, target) pairs to connect. May be unary when `draw` is given — the single atom then feeds both ends. Selector arity: binary.",
+              "description": "Returns the (source, target) pairs to connect. May be unary when `draw` is given — the single atom then feeds both ends. Selector arity: binary — 2 columns (also accepted: 3+ columns; 1 column, with `draw`).",
               "type": "string",
               "minLength": 1
             },
             "draw": {
-              "description": "Reinterpret what each end attaches to, as `<end> -> <end>`. Each end is `_` (the atom itself, the default) or the name of a `group` constraint, in which case the end attaches to that group's hull. The left end applies to the first atom of each tuple, the right end to the last. Parsed strictly: a value that is not a string, or that does not contain exactly one `->`, is a parse error, as is a group name that no `group` constraint defines. `draw` never reorders — transpose the selector (`~connected`) to flip an edge.",
+              "description": "Reinterpret what each end attaches to, as `<end> -> <end>`. Each end is `_` (the atom itself, the default) or the name of a `group` constraint, in which case the end attaches to that group's hull. The left end applies to the first atom of each tuple, the right end to the last. Parsed strictly: a value that is not a string, or that does not contain exactly one `->`, is a parse error. A group name that no `group` constraint defines is not — it raises a warning (code `unresolved-reference`, specType `inferredEdge`) and the edge is skipped at layout time, so a fragment that names a group defined in another fragment still parses. `draw` never reorders — transpose the selector (`~connected`) to flip an edge.",
               "type": "string",
               "pattern": "^\\s*[^\\s](?:(?!->)[\\s\\S])*->(?:(?!->)[\\s\\S])*[^\\s]\\s*$"
             },
@@ -946,7 +895,7 @@
           "type": "object",
           "properties": {
             "selector": {
-              "description": "Which atoms get the icon. Omitting it drops the directive entirely — it never means \"every atom\". Selector arity: unary.",
+              "description": "Which atoms get the icon. Omitting it drops the directive entirely — it never means \"every atom\". Selector arity: unary — 1 column.",
               "type": "string",
               "minLength": 1
             },
@@ -987,7 +936,7 @@
               "minLength": 1
             },
             "selector": {
-              "description": "Which atoms to recolor. Omitting it drops the directive — it never means \"every atom\". Selector arity: unary.",
+              "description": "Which atoms to recolor. Omitting it drops the directive — it never means \"every atom\". Selector arity: unary — 1 column.",
               "type": "string",
               "minLength": 1
             }
@@ -1024,11 +973,11 @@
               "minLength": 1
             },
             "selector": {
-              "description": "Apply only to edges whose source atom is in this set. Omit to apply to every source atom. Selector arity: unary.",
+              "description": "Apply only to edges whose source atom is in this set. Omit to apply to every source atom. Selector arity: unary — 1 column.",
               "type": "string"
             },
             "filter": {
-              "description": "Apply only to the (source, target, …) tuples this selector returns. Use it to scope a directive to part of a relation, e.g. only the tuples whose value is True. Selector arity: n-ary.",
+              "description": "Apply only to the (source, target, …) tuples this selector returns. Use it to scope a directive to part of a relation, e.g. only the tuples whose value is True. Selector arity: n-ary — 2+ columns.",
               "type": "string"
             },
             "style": {
