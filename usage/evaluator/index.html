@@ -1091,7 +1091,7 @@ layout work begins.</p>
 <h2 id="basic-usage">Basic usage</h2>
 <div class="highlight"><pre><span></span><code><span class="kn">import</span><span class="w"> </span><span class="nn">spytial</span>
 
-<span class="n">spytial</span><span class="o">.</span><span class="n">evaluate</span><span class="p">({</span><span class="s2">&quot;total&quot;</span><span class="p">:</span> <span class="mi">3</span><span class="p">,</span> <span class="s2">&quot;items&quot;</span><span class="p">:</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">]})</span>
+<span class="n">spytial</span><span class="o">.</span><span class="n">evaluate</span><span class="p">({</span><span class="s2">"total"</span><span class="p">:</span> <span class="mi">3</span><span class="p">,</span> <span class="s2">"items"</span><span class="p">:</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">]})</span>
 </code></pre></div>
 <h2 id="when-it-helps">When it helps</h2>
 <p>The evaluator helps in these cases:</p>
@@ -1101,9 +1101,9 @@ layout work begins.</p>
 <li>a custom relationalizer is being written, and its emitted atoms and relations need inspection</li>
 </ul>
 <h2 id="display-methods">Display methods</h2>
-<div class="highlight"><pre><span></span><code><span class="n">spytial</span><span class="o">.</span><span class="n">evaluate</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="s2">&quot;browser&quot;</span><span class="p">)</span>  <span class="c1"># open a new tab</span>
-<span class="n">spytial</span><span class="o">.</span><span class="n">evaluate</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="s2">&quot;file&quot;</span><span class="p">)</span>     <span class="c1"># save as cnd_evaluator.html</span>
-<span class="n">spytial</span><span class="o">.</span><span class="n">evaluate</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="s2">&quot;inline&quot;</span><span class="p">)</span>   <span class="c1"># force notebook output</span>
+<div class="highlight"><pre><span></span><code><span class="n">spytial</span><span class="o">.</span><span class="n">evaluate</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="s2">"browser"</span><span class="p">)</span>  <span class="c1"># open a new tab</span>
+<span class="n">spytial</span><span class="o">.</span><span class="n">evaluate</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="s2">"file"</span><span class="p">)</span>     <span class="c1"># save as cnd_evaluator.html</span>
+<span class="n">spytial</span><span class="o">.</span><span class="n">evaluate</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="s2">"inline"</span><span class="p">)</span>   <span class="c1"># force notebook output</span>
 </code></pre></div>
 <h2 id="size-options">Size options</h2>
 <div class="highlight"><pre><span></span><code><span class="n">spytial</span><span class="o">.</span><span class="n">evaluate</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">width</span><span class="o">=</span><span class="mi">800</span><span class="p">,</span> <span class="n">height</span><span class="o">=</span><span class="mi">300</span><span class="p">)</span>
@@ -1114,8 +1114,8 @@ layout work begins.</p>
 
 <span class="n">Graph</span> <span class="o">=</span> <span class="n">AnnotatedType</span><span class="p">(</span>
     <span class="n">Dict</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">int</span><span class="p">]],</span>
-    <span class="n">InferredEdge</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;edge&quot;</span><span class="p">,</span> <span class="n">selector</span><span class="o">=</span><span class="s2">&quot;values&quot;</span><span class="p">),</span>
-    <span class="n">Orientation</span><span class="p">(</span><span class="n">selector</span><span class="o">=</span><span class="s2">&quot;values&quot;</span><span class="p">,</span> <span class="n">directions</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;right&quot;</span><span class="p">]),</span>
+    <span class="n">InferredEdge</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">"edge"</span><span class="p">,</span> <span class="n">selector</span><span class="o">=</span><span class="s2">"values"</span><span class="p">),</span>
+    <span class="n">Orientation</span><span class="p">(</span><span class="n">selector</span><span class="o">=</span><span class="s2">"values"</span><span class="p">,</span> <span class="n">directions</span><span class="o">=</span><span class="p">[</span><span class="s2">"right"</span><span class="p">]),</span>
 <span class="p">)</span>
 
 <span class="n">spytial</span><span class="o">.</span><span class="n">evaluate</span><span class="p">({</span><span class="mi">0</span><span class="p">:</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">],</span> <span class="mi">1</span><span class="p">:</span> <span class="p">[</span><span class="mi">3</span><span class="p">]},</span> <span class="n">as_type</span><span class="o">=</span><span class="n">Graph</span><span class="p">)</span>

@@ -1302,8 +1302,8 @@ apply.</p>
 <span class="nd">@dataclass</span>
 <span class="k">class</span><span class="w"> </span><span class="nc">TreeNode</span><span class="p">:</span>
     <span class="n">value</span><span class="p">:</span> <span class="nb">int</span>
-    <span class="n">left</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="s2">&quot;TreeNode&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
-    <span class="n">right</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="s2">&quot;TreeNode&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">left</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="s2">"TreeNode"</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">right</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="s2">"TreeNode"</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
 
 
 <span class="n">root</span> <span class="o">=</span> <span class="n">TreeNode</span><span class="p">(</span><span class="mi">8</span><span class="p">,</span> <span class="n">TreeNode</span><span class="p">(</span><span class="mi">3</span><span class="p">),</span> <span class="n">TreeNode</span><span class="p">(</span><span class="mi">10</span><span class="p">))</span>
@@ -1312,16 +1312,16 @@ apply.</p>
 </code></pre></div>
 <p>The deterministic analyzer suggests a standard tree layout:</p>
 <div class="highlight"><pre><span></span><code><span class="nd">@spytial</span><span class="o">.</span><span class="n">orientation</span><span class="p">(</span>
-    <span class="n">selector</span><span class="o">=</span><span class="s1">&#39;left - (univ -&gt; NoneType)&#39;</span><span class="p">,</span>
-    <span class="n">directions</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;below&#39;</span><span class="p">,</span> <span class="s1">&#39;left&#39;</span><span class="p">],</span>
+    <span class="n">selector</span><span class="o">=</span><span class="s1">'left - (univ -&gt; NoneType)'</span><span class="p">,</span>
+    <span class="n">directions</span><span class="o">=</span><span class="p">[</span><span class="s1">'below'</span><span class="p">,</span> <span class="s1">'left'</span><span class="p">],</span>
 <span class="p">)</span>
 <span class="nd">@spytial</span><span class="o">.</span><span class="n">orientation</span><span class="p">(</span>
-    <span class="n">selector</span><span class="o">=</span><span class="s1">&#39;right - (univ -&gt; NoneType)&#39;</span><span class="p">,</span>
-    <span class="n">directions</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;below&#39;</span><span class="p">,</span> <span class="s1">&#39;right&#39;</span><span class="p">],</span>
+    <span class="n">selector</span><span class="o">=</span><span class="s1">'right - (univ -&gt; NoneType)'</span><span class="p">,</span>
+    <span class="n">directions</span><span class="o">=</span><span class="p">[</span><span class="s1">'below'</span><span class="p">,</span> <span class="s1">'right'</span><span class="p">],</span>
 <span class="p">)</span>
-<span class="nd">@spytial</span><span class="o">.</span><span class="n">attribute</span><span class="p">(</span><span class="n">field</span><span class="o">=</span><span class="s1">&#39;value&#39;</span><span class="p">)</span>
-<span class="nd">@spytial</span><span class="o">.</span><span class="n">hideAtom</span><span class="p">(</span><span class="n">selector</span><span class="o">=</span><span class="s1">&#39;NoneType&#39;</span><span class="p">)</span>
-<span class="nd">@spytial</span><span class="o">.</span><span class="n">flag</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s1">&#39;hideDisconnected&#39;</span><span class="p">)</span>
+<span class="nd">@spytial</span><span class="o">.</span><span class="n">attribute</span><span class="p">(</span><span class="n">field</span><span class="o">=</span><span class="s1">'value'</span><span class="p">)</span>
+<span class="nd">@spytial</span><span class="o">.</span><span class="n">hideAtom</span><span class="p">(</span><span class="n">selector</span><span class="o">=</span><span class="s1">'NoneType'</span><span class="p">)</span>
+<span class="nd">@spytial</span><span class="o">.</span><span class="n">flag</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s1">'hideDisconnected'</span><span class="p">)</span>
 </code></pre></div>
 <p><code>to_source()</code> writes each decorator on one line and adds a comment. The example
 above is expanded for readability. Paste and edit this source, or apply the
@@ -1334,7 +1334,7 @@ draft to the class directly:</p>
 
 <span class="n">draft</span> <span class="o">=</span> <span class="n">suggest</span><span class="p">(</span>
     <span class="n">root</span><span class="p">,</span>
-    <span class="n">ask</span><span class="o">=</span><span class="s2">&quot;put every child directly below its parent&quot;</span><span class="p">,</span>
+    <span class="n">ask</span><span class="o">=</span><span class="s2">"put every child directly below its parent"</span><span class="p">,</span>
     <span class="n">enrich</span><span class="o">=</span><span class="n">ClaudeCode</span><span class="p">(),</span>
 <span class="p">)</span>
 </code></pre></div>
@@ -1440,7 +1440,7 @@ to the fixed set:</p>
 <p>For a request on a class alone, Spytial uses <code>strategy="auto"</code>:</p>
 <div class="highlight"><pre><span></span><code><span class="n">draft</span> <span class="o">=</span> <span class="n">suggest</span><span class="p">(</span>
     <span class="n">TreeNode</span><span class="p">,</span>
-    <span class="n">ask</span><span class="o">=</span><span class="s2">&quot;put every child below its parent&quot;</span><span class="p">,</span>
+    <span class="n">ask</span><span class="o">=</span><span class="s2">"put every child below its parent"</span><span class="p">,</span>
     <span class="n">enrich</span><span class="o">=</span><span class="n">ClaudeCode</span><span class="p">(),</span>
 <span class="p">)</span>
 </code></pre></div>
@@ -1450,7 +1450,7 @@ recursive field. Next, it looks for any non-leaf value. Last, it looks for any
 value that it can build. Supply a custom strategy when the type has invariants
 that Hypothesis cannot infer.</p>
 <p>Install witness search separately:</p>
-<div class="highlight"><pre><span></span><code><span class="go">pip install &quot;spytial_diagramming[suggest-search]&quot;</span>
+<div class="highlight"><pre><span></span><code><span class="go">pip install "spytial_diagramming[suggest-search]"</span>
 </code></pre></div>
 <p>The plain <code>suggest(TreeNode)</code> path does not import Hypothesis.</p>
 <h2 id="working-with-specdraft">Working with <code>SpecDraft</code></h2>
@@ -1548,22 +1548,22 @@ project convention or a domain field name:</p>
 <div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">spytial.suggest</span><span class="w"> </span><span class="kn">import</span> <span class="n">Suggestion</span><span class="p">,</span> <span class="n">heuristic</span>
 
 
-<span class="nd">@heuristic</span><span class="p">(</span><span class="n">scope</span><span class="o">=</span><span class="s2">&quot;field&quot;</span><span class="p">,</span> <span class="n">priority</span><span class="o">=</span><span class="mi">100</span><span class="p">)</span>
+<span class="nd">@heuristic</span><span class="p">(</span><span class="n">scope</span><span class="o">=</span><span class="s2">"field"</span><span class="p">,</span> <span class="n">priority</span><span class="o">=</span><span class="mi">100</span><span class="p">)</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">color_by_status</span><span class="p">(</span><span class="n">field</span><span class="p">,</span> <span class="n">cls_info</span><span class="p">):</span>
-    <span class="k">if</span> <span class="n">field</span><span class="o">.</span><span class="n">name</span> <span class="o">==</span> <span class="s2">&quot;status&quot;</span> <span class="ow">and</span> <span class="n">field</span><span class="o">.</span><span class="n">enum_members</span><span class="p">:</span>
+    <span class="k">if</span> <span class="n">field</span><span class="o">.</span><span class="n">name</span> <span class="o">==</span> <span class="s2">"status"</span> <span class="ow">and</span> <span class="n">field</span><span class="o">.</span><span class="n">enum_members</span><span class="p">:</span>
         <span class="k">return</span> <span class="p">[</span>
             <span class="n">Suggestion</span><span class="p">(</span>
-                <span class="n">directive</span><span class="o">=</span><span class="s2">&quot;atomStyle&quot;</span><span class="p">,</span>
+                <span class="n">directive</span><span class="o">=</span><span class="s2">"atomStyle"</span><span class="p">,</span>
                 <span class="n">kwargs</span><span class="o">=</span><span class="p">{</span>
-                    <span class="s2">&quot;selector&quot;</span><span class="p">:</span> <span class="p">(</span>
-                        <span class="sa">f</span><span class="s2">&quot;</span><span class="se">{{</span><span class="s2"> x : </span><span class="si">{</span><span class="n">cls_info</span><span class="o">.</span><span class="n">cls</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s2"> | &quot;</span>
-                        <span class="sa">f</span><span class="s1">&#39;@:(x.status) = &quot;active&quot; </span><span class="se">}}</span><span class="s1">&#39;</span>
+                    <span class="s2">"selector"</span><span class="p">:</span> <span class="p">(</span>
+                        <span class="sa">f</span><span class="s2">"</span><span class="se">{{</span><span class="s2"> x : </span><span class="si">{</span><span class="n">cls_info</span><span class="o">.</span><span class="n">cls</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s2"> | "</span>
+                        <span class="sa">f</span><span class="s1">'@:(x.status) = "active" </span><span class="se">}}</span><span class="s1">'</span>
                     <span class="p">),</span>
-                    <span class="s2">&quot;borderStyle&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;color&quot;</span><span class="p">:</span> <span class="s2">&quot;seagreen&quot;</span><span class="p">},</span>
+                    <span class="s2">"borderStyle"</span><span class="p">:</span> <span class="p">{</span><span class="s2">"color"</span><span class="p">:</span> <span class="s2">"seagreen"</span><span class="p">},</span>
                 <span class="p">},</span>
-                <span class="n">confidence</span><span class="o">=</span><span class="s2">&quot;high&quot;</span><span class="p">,</span>
-                <span class="n">rationale</span><span class="o">=</span><span class="s2">&quot;active status → green&quot;</span><span class="p">,</span>
-                <span class="n">source_field</span><span class="o">=</span><span class="s2">&quot;status&quot;</span><span class="p">,</span>
+                <span class="n">confidence</span><span class="o">=</span><span class="s2">"high"</span><span class="p">,</span>
+                <span class="n">rationale</span><span class="o">=</span><span class="s2">"active status → green"</span><span class="p">,</span>
+                <span class="n">source_field</span><span class="o">=</span><span class="s2">"status"</span><span class="p">,</span>
             <span class="p">)</span>
         <span class="p">]</span>
     <span class="k">return</span> <span class="p">[]</span>
@@ -1584,7 +1584,7 @@ Spytial model extra and no API key:</p>
 <div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">spytial.suggest</span><span class="w"> </span><span class="kn">import</span> <span class="n">ClaudeCode</span><span class="p">,</span> <span class="n">suggest</span>
 
 <span class="n">draft</span> <span class="o">=</span> <span class="n">suggest</span><span class="p">(</span><span class="n">Ticket</span><span class="p">,</span> <span class="n">enrich</span><span class="o">=</span><span class="n">ClaudeCode</span><span class="p">())</span>
-<span class="n">draft</span> <span class="o">=</span> <span class="n">suggest</span><span class="p">(</span><span class="n">Ticket</span><span class="p">,</span> <span class="n">enrich</span><span class="o">=</span><span class="n">ClaudeCode</span><span class="p">(</span><span class="n">model</span><span class="o">=</span><span class="s2">&quot;opus&quot;</span><span class="p">))</span>
+<span class="n">draft</span> <span class="o">=</span> <span class="n">suggest</span><span class="p">(</span><span class="n">Ticket</span><span class="p">,</span> <span class="n">enrich</span><span class="o">=</span><span class="n">ClaudeCode</span><span class="p">(</span><span class="n">model</span><span class="o">=</span><span class="s2">"opus"</span><span class="p">))</span>
 </code></pre></div>
 <p>If <code>ANTHROPIC_API_KEY</code> is set, the CLI can use metered API billing instead of a
 Claude subscription. Check the current authentication behavior of the CLI before
@@ -1599,12 +1599,12 @@ JSON-schema output of that CLI:</p>
 <h3 id="a-model-identifier-through-llm">A model identifier through <code>llm</code></h3>
 <p>The <code>llm</code> library by Simon Willison resolves a string name. It supports hosted
 providers and local models through plugins:</p>
-<div class="highlight"><pre><span></span><code><span class="go">pip install &quot;spytial_diagramming[suggest-llm]&quot;</span>
+<div class="highlight"><pre><span></span><code><span class="go">pip install "spytial_diagramming[suggest-llm]"</span>
 <span class="go">llm install llm-anthropic</span>
 <span class="go">llm keys set anthropic</span>
 </code></pre></div>
-<div class="highlight"><pre><span></span><code><span class="n">draft</span> <span class="o">=</span> <span class="n">suggest</span><span class="p">(</span><span class="n">Ticket</span><span class="p">,</span> <span class="n">enrich</span><span class="o">=</span><span class="s2">&quot;claude-sonnet-4-6&quot;</span><span class="p">)</span>
-<span class="n">draft</span> <span class="o">=</span> <span class="n">suggest</span><span class="p">(</span><span class="n">Ticket</span><span class="p">,</span> <span class="n">enrich</span><span class="o">=</span><span class="s2">&quot;llama3.2&quot;</span><span class="p">)</span>  <span class="c1"># for example, through Ollama</span>
+<div class="highlight"><pre><span></span><code><span class="n">draft</span> <span class="o">=</span> <span class="n">suggest</span><span class="p">(</span><span class="n">Ticket</span><span class="p">,</span> <span class="n">enrich</span><span class="o">=</span><span class="s2">"claude-sonnet-4-6"</span><span class="p">)</span>
+<span class="n">draft</span> <span class="o">=</span> <span class="n">suggest</span><span class="p">(</span><span class="n">Ticket</span><span class="p">,</span> <span class="n">enrich</span><span class="o">=</span><span class="s2">"llama3.2"</span><span class="p">)</span>  <span class="c1"># for example, through Ollama</span>
 </code></pre></div>
 <h3 id="a-custom-provider">A custom provider</h3>
 <p>A provider is any callable with the signature <code>(prompt, *, schema) -&gt; dict</code>.

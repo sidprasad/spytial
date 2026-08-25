@@ -1271,8 +1271,8 @@ names the field alone therefore reaches the container and stops there.</p>
 </table>
 <p>For a list-valued field <code>kids</code>, the working form is:</p>
 <div class="highlight"><pre><span></span><code><span class="nd">@spytial</span><span class="o">.</span><span class="n">orientation</span><span class="p">(</span>
-    <span class="n">selector</span><span class="o">=</span><span class="s1">&#39;{ x : DagNode, y : DagNode | y in x.kids.idx[int] }&#39;</span><span class="p">,</span>
-    <span class="n">directions</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;below&#39;</span><span class="p">],</span>
+    <span class="n">selector</span><span class="o">=</span><span class="s1">'{ x : DagNode, y : DagNode | y in x.kids.idx[int] }'</span><span class="p">,</span>
+    <span class="n">directions</span><span class="o">=</span><span class="p">[</span><span class="s1">'below'</span><span class="p">],</span>
 <span class="p">)</span>
 </code></pre></div>
 <p><code>x.kids</code> is the <code>list</code> atom. <code>x.kids.idx</code> is the <code>(index, value)</code> pairs it
@@ -1280,7 +1280,7 @@ holds. <code>[int]</code> joins over every index and leaves the values. The same
 takes one position: <code>x.kids.idx[0]</code> is the first element. For a <code>dict</code>, <code>K</code> is
 the key type, so <code>x.f.kv[str]</code> is the values under string keys.</p>
 <p>Omitting the projection is quiet. This matches nothing:</p>
-<div class="highlight"><pre><span></span><code><span class="n">selector</span><span class="o">=</span><span class="s1">&#39;{ x : DagNode, y : DagNode | y in x.kids }&#39;</span>
+<div class="highlight"><pre><span></span><code><span class="n">selector</span><span class="o">=</span><span class="s1">'{ x : DagNode, y : DagNode | y in x.kids }'</span>
 </code></pre></div>
 <p>It is well formed, and it names only relations that exist, so no selector
 warning is reported. It matches no pair, because a <code>DagNode</code> is never a <code>list</code>.
@@ -1289,13 +1289,13 @@ decorator doing nothing.</p>
 <h2 id="boolean-and-optional-fields">Boolean and optional fields</h2>
 <p>A field is a relation, not a value. <code>n.flag</code> is the set of atoms the field
 points at, so it cannot stand alone where a condition is required:</p>
-<div class="highlight"><pre><span></span><code><span class="n">selector</span><span class="o">=</span><span class="s1">&#39;{ n : Node | n.flag }&#39;</span>
+<div class="highlight"><pre><span></span><code><span class="n">selector</span><span class="o">=</span><span class="s1">'{ n : Node | n.flag }'</span>
 </code></pre></div>
 <p>This is reported as <code>Expected the expression after the bar to be a boolean
 value!</code> when the layout is generated. Unlike an omitted container projection,
 it does not fail quietly. The working form compares the field against the atom
 it holds:</p>
-<div class="highlight"><pre><span></span><code><span class="n">selector</span><span class="o">=</span><span class="s1">&#39;{ n : Node | n.flag = True }&#39;</span>
+<div class="highlight"><pre><span></span><code><span class="n">selector</span><span class="o">=</span><span class="s1">'{ n : Node | n.flag = True }'</span>
 </code></pre></div>
 <p><code>True</code> and <code>False</code> are atoms. There is one of each per diagram, shared by every
 field that holds them.</p>

@@ -6894,7 +6894,7 @@ seq.diagram()
 <div class="highlight"><pre><span></span><code>with spytial.sequence(identity=lambda n: str(n.id)) as seq:
     for snap in snapshots:
         seq.record(snap)
-seq.diagram(method=&quot;file&quot;)
+seq.diagram(method="file")
 </code></pre></div>
 <p>Atom labels are kept stable across frames by <code>label_strategy</code>.  By
 default (<code>"persist"</code>) each atom's label is locked at the first frame
@@ -7088,7 +7088,7 @@ constructor; omit them to use the constructor defaults.</p>
 <p>This provides a clean syntax for reusable annotated types:</p>
 <div class="highlight"><pre><span></span><code># Define once
 Graph = AnnotatedType(Dict[int, List[int]],
-    InferredEdge(selector=EDGE_SEL, name=&quot; &quot;))
+    InferredEdge(selector=EDGE_SEL, name=" "))
 
 # Use naturally - Graph() wraps the value with type info
 g = Graph({0: [1], 1: [2], 2: []})
@@ -7848,26 +7848,30 @@ anything else as internally inconsistent.</p>
 
 
         <p>Grouping constraint.</p>
-<p>Usage (field-based):
-    Tree = Annotated[TreeNode, Group(field='children', groupOn=0, addToGroup=1)]</p>
-<p>Usage (selector-based):
-    Grouped = Annotated[MyType, Group(selector='items', name='mygroup')]</p>
-<p>For a selector-based group, <code>addEdge</code> controls the edge drawn between the
-group's key and the group itself. For a binary selector with tuples
+
+
+<details class="usage" open>
+  <summary>Usage</summary>
+  <p>Grouped = Annotated[MyType, Group(selector='items', name='mygroup')]</p>
+</details>        <p>For the by-field form spytial-core 5.0 removed
+(<code>field</code>/<code>groupOn</code>/<code>addToGroup</code>), see the <code>group</code> decorator's
+docstring, which names the selector that replaces it.</p>
+<p><code>addEdge</code> controls the edge drawn between the group's key and the group
+itself. For a binary selector with tuples
 <code>(a, b), (a, c), (a, d)</code> the group is keyed by <code>a</code> and contains
 <code>{b, c, d}</code>:</p>
-<div class="highlight"><pre><span></span><code>- ``&#39;none&#39;``      -&gt; draw nothing (default)
-- ``&#39;togroup&#39;``   -&gt; edge from the key into the group (a -&gt; group)
-- ``&#39;fromgroup&#39;`` -&gt; edge from the group back to the key (group -&gt; a)
+<div class="highlight"><pre><span></span><code>- ``'none'``      -&gt; draw nothing (default)
+- ``'togroup'``   -&gt; edge from the key into the group (a -&gt; group)
+- ``'fromgroup'`` -&gt; edge from the group back to the key (group -&gt; a)
 </code></pre></div>
 <p>Legacy <code>addEdge=True</code> is still accepted and maps to <code>'togroup'</code>.</p>
-<div class="highlight"><pre><span></span><code>Grouped = Annotated[MyType, Group(selector=&#39;...&#39;, name=&#39;g&#39;, addEdge=&#39;togroup&#39;)]
+<div class="highlight"><pre><span></span><code>Grouped = Annotated[MyType, Group(selector='...', name='g', addEdge='togroup')]
 </code></pre></div>
 <p>To also style the connector, pass a <code>GroupEdge</code> (spytial-core 3.0), and
 style the group's own label with a top-level <code>textStyle</code>:</p>
-<div class="highlight"><pre><span></span><code>Grouped = Annotated[MyType, Group(selector=&#39;...&#39;, name=&#39;g&#39;,
-    addEdge=GroupEdge(points=&#39;togroup&#39;, lineStyle=LineStyle(pattern=&#39;dashed&#39;)),
-    textStyle=TextStyle(color=&#39;navy&#39;))]
+<div class="highlight"><pre><span></span><code>Grouped = Annotated[MyType, Group(selector='...', name='g',
+    addEdge=GroupEdge(points='togroup', lineStyle=LineStyle(pattern='dashed')),
+    textStyle=TextStyle(color='navy'))]
 </code></pre></div>
 
 
@@ -8990,7 +8994,7 @@ diagram(g, as_type=Graph)</p>
 
 
 <h3 id="spytial.sequence" class="doc doc-heading">
-<code class="doc-symbol doc-symbol-heading doc-symbol-function"></code>            <code class="highlight language-python"><span class="n">sequence</span><span class="p">(</span><span class="n">identity</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">sequence_policy</span><span class="o">=</span><span class="s1">&#39;stability&#39;</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">auto_open</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">width</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">height</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">as_type</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">label_strategy</span><span class="o">=</span><span class="s1">&#39;persist&#39;</span><span class="p">)</span></code>
+<code class="doc-symbol doc-symbol-heading doc-symbol-function"></code>            <code class="highlight language-python"><span class="n">sequence</span><span class="p">(</span><span class="n">identity</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">sequence_policy</span><span class="o">=</span><span class="s1">'stability'</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">auto_open</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">width</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">height</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">as_type</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">label_strategy</span><span class="o">=</span><span class="s1">'persist'</span><span class="p">)</span></code>
 
 </h3>
 
@@ -9367,7 +9371,7 @@ seq.diagram()
 
 
 <h3 id="spytial.edit" class="doc doc-heading">
-<code class="doc-symbol doc-symbol-heading doc-symbol-function"></code>            <code class="highlight language-python"><span class="n">edit</span><span class="p">(</span><span class="n">instance</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">on_cancel</span><span class="o">=</span><span class="s1">&#39;seed&#39;</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">height</span><span class="o">=</span><span class="mi">560</span><span class="p">)</span></code>
+<code class="doc-symbol doc-symbol-heading doc-symbol-function"></code>            <code class="highlight language-python"><span class="n">edit</span><span class="p">(</span><span class="n">instance</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">on_cancel</span><span class="o">=</span><span class="s1">'seed'</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">height</span><span class="o">=</span><span class="mi">560</span><span class="p">)</span></code>
 
 </h3>
 
@@ -9639,7 +9643,7 @@ edited object back in Python directly (local script / local Jupyter), use
       </tbody>
     </table>
         <p>Example::</p>
-<div class="highlight"><pre><span></span><code>spytial.edit_html(TreeNode(value=1))   # or {&quot;a&quot;: 1}, [1, 2], …
+<div class="highlight"><pre><span></span><code>spytial.edit_html(TreeNode(value=1))   # or {"a": 1}, [1, 2], …
 </code></pre></div>
 
 
@@ -10412,7 +10416,7 @@ seq.diagram()
 <div class="highlight"><pre><span></span><code>with spytial.sequence(identity=lambda n: str(n.id)) as seq:
     for snap in snapshots:
         seq.record(snap)
-seq.diagram(method=&quot;file&quot;)
+seq.diagram(method="file")
 </code></pre></div>
 <p>Atom labels are kept stable across frames by <code>label_strategy</code>.  By
 default (<code>"persist"</code>) each atom's label is locked at the first frame
@@ -10820,7 +10824,7 @@ diagram(g, as_type=Graph)</p>
 
 
 <h3 id="spytial.visualizer.sequence" class="doc doc-heading">
-<code class="doc-symbol doc-symbol-heading doc-symbol-function"></code>            <code class="highlight language-python"><span class="n">sequence</span><span class="p">(</span><span class="n">identity</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">sequence_policy</span><span class="o">=</span><span class="s1">&#39;stability&#39;</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">auto_open</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">width</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">height</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">as_type</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">label_strategy</span><span class="o">=</span><span class="s1">&#39;persist&#39;</span><span class="p">)</span></code>
+<code class="doc-symbol doc-symbol-heading doc-symbol-function"></code>            <code class="highlight language-python"><span class="n">sequence</span><span class="p">(</span><span class="n">identity</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">sequence_policy</span><span class="o">=</span><span class="s1">'stability'</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">auto_open</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">width</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">height</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">as_type</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">label_strategy</span><span class="o">=</span><span class="s1">'persist'</span><span class="p">)</span></code>
 
 </h3>
 
@@ -11331,7 +11335,7 @@ seq.diagram()
 
 
 <h3 id="spytial.structured_input.edit" class="doc doc-heading">
-<code class="doc-symbol doc-symbol-heading doc-symbol-function"></code>            <code class="highlight language-python"><span class="n">edit</span><span class="p">(</span><span class="n">instance</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">on_cancel</span><span class="o">=</span><span class="s1">&#39;seed&#39;</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">height</span><span class="o">=</span><span class="mi">560</span><span class="p">)</span></code>
+<code class="doc-symbol doc-symbol-heading doc-symbol-function"></code>            <code class="highlight language-python"><span class="n">edit</span><span class="p">(</span><span class="n">instance</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">on_cancel</span><span class="o">=</span><span class="s1">'seed'</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">height</span><span class="o">=</span><span class="mi">560</span><span class="p">)</span></code>
 
 </h3>
 
@@ -11603,7 +11607,7 @@ edited object back in Python directly (local script / local Jupyter), use
       </tbody>
     </table>
         <p>Example::</p>
-<div class="highlight"><pre><span></span><code>spytial.edit_html(TreeNode(value=1))   # or {&quot;a&quot;: 1}, [1, 2], …
+<div class="highlight"><pre><span></span><code>spytial.edit_html(TreeNode(value=1))   # or {"a": 1}, [1, 2], …
 </code></pre></div>
 
 
@@ -12273,7 +12277,7 @@ rule set passed to :func:<code>suggest</code>.</p>
 
 
 <h4 id="spytial.suggest.HeuristicRegistry.heuristic" class="doc doc-heading">
-<code class="doc-symbol doc-symbol-heading doc-symbol-method"></code>            <code class="highlight language-python"><span class="n">heuristic</span><span class="p">(</span><span class="n">fn</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">scope</span><span class="o">=</span><span class="s1">&#39;field&#39;</span><span class="p">,</span> <span class="n">priority</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span></code>
+<code class="doc-symbol doc-symbol-heading doc-symbol-method"></code>            <code class="highlight language-python"><span class="n">heuristic</span><span class="p">(</span><span class="n">fn</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">scope</span><span class="o">=</span><span class="s1">'field'</span><span class="p">,</span> <span class="n">priority</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span></code>
 
 </h4>
 
@@ -12354,7 +12358,7 @@ rule set passed to :func:<code>suggest</code>.</p>
 
 
 <h3 id="spytial.suggest.heuristic" class="doc doc-heading">
-<code class="doc-symbol doc-symbol-heading doc-symbol-function"></code>            <code class="highlight language-python"><span class="n">heuristic</span><span class="p">(</span><span class="n">fn</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">scope</span><span class="o">=</span><span class="s1">&#39;field&#39;</span><span class="p">,</span> <span class="n">priority</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span></code>
+<code class="doc-symbol doc-symbol-heading doc-symbol-function"></code>            <code class="highlight language-python"><span class="n">heuristic</span><span class="p">(</span><span class="n">fn</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">scope</span><span class="o">=</span><span class="s1">'field'</span><span class="p">,</span> <span class="n">priority</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span></code>
 
 </h3>
 
@@ -13190,26 +13194,30 @@ anything else as internally inconsistent.</p>
 
 
         <p>Grouping constraint.</p>
-<p>Usage (field-based):
-    Tree = Annotated[TreeNode, Group(field='children', groupOn=0, addToGroup=1)]</p>
-<p>Usage (selector-based):
-    Grouped = Annotated[MyType, Group(selector='items', name='mygroup')]</p>
-<p>For a selector-based group, <code>addEdge</code> controls the edge drawn between the
-group's key and the group itself. For a binary selector with tuples
+
+
+<details class="usage" open>
+  <summary>Usage</summary>
+  <p>Grouped = Annotated[MyType, Group(selector='items', name='mygroup')]</p>
+</details>        <p>For the by-field form spytial-core 5.0 removed
+(<code>field</code>/<code>groupOn</code>/<code>addToGroup</code>), see the <code>group</code> decorator's
+docstring, which names the selector that replaces it.</p>
+<p><code>addEdge</code> controls the edge drawn between the group's key and the group
+itself. For a binary selector with tuples
 <code>(a, b), (a, c), (a, d)</code> the group is keyed by <code>a</code> and contains
 <code>{b, c, d}</code>:</p>
-<div class="highlight"><pre><span></span><code>- ``&#39;none&#39;``      -&gt; draw nothing (default)
-- ``&#39;togroup&#39;``   -&gt; edge from the key into the group (a -&gt; group)
-- ``&#39;fromgroup&#39;`` -&gt; edge from the group back to the key (group -&gt; a)
+<div class="highlight"><pre><span></span><code>- ``'none'``      -&gt; draw nothing (default)
+- ``'togroup'``   -&gt; edge from the key into the group (a -&gt; group)
+- ``'fromgroup'`` -&gt; edge from the group back to the key (group -&gt; a)
 </code></pre></div>
 <p>Legacy <code>addEdge=True</code> is still accepted and maps to <code>'togroup'</code>.</p>
-<div class="highlight"><pre><span></span><code>Grouped = Annotated[MyType, Group(selector=&#39;...&#39;, name=&#39;g&#39;, addEdge=&#39;togroup&#39;)]
+<div class="highlight"><pre><span></span><code>Grouped = Annotated[MyType, Group(selector='...', name='g', addEdge='togroup')]
 </code></pre></div>
 <p>To also style the connector, pass a <code>GroupEdge</code> (spytial-core 3.0), and
 style the group's own label with a top-level <code>textStyle</code>:</p>
-<div class="highlight"><pre><span></span><code>Grouped = Annotated[MyType, Group(selector=&#39;...&#39;, name=&#39;g&#39;,
-    addEdge=GroupEdge(points=&#39;togroup&#39;, lineStyle=LineStyle(pattern=&#39;dashed&#39;)),
-    textStyle=TextStyle(color=&#39;navy&#39;))]
+<div class="highlight"><pre><span></span><code>Grouped = Annotated[MyType, Group(selector='...', name='g',
+    addEdge=GroupEdge(points='togroup', lineStyle=LineStyle(pattern='dashed')),
+    textStyle=TextStyle(color='navy'))]
 </code></pre></div>
 
 
@@ -15724,7 +15732,7 @@ diagram(Typed(g, Graph))  # Annotations from Graph will be applied</p>
 <p>This provides a clean syntax for reusable annotated types:</p>
 <div class="highlight"><pre><span></span><code># Define once
 Graph = AnnotatedType(Dict[int, List[int]],
-    InferredEdge(selector=EDGE_SEL, name=&quot; &quot;))
+    InferredEdge(selector=EDGE_SEL, name=" "))
 
 # Use naturally - Graph() wraps the value with type info
 g = Graph({0: [1], 1: [2], 2: []})

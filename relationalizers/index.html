@@ -1154,12 +1154,12 @@ objects into atoms and relations.</p>
 <span class="nd">@relationalizer</span><span class="p">(</span><span class="n">priority</span><span class="o">=</span><span class="mi">100</span><span class="p">)</span>
 <span class="k">class</span><span class="w"> </span><span class="nc">WidgetRelationalizer</span><span class="p">(</span><span class="n">RelationalizerBase</span><span class="p">):</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">can_handle</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">obj</span><span class="p">):</span>
-        <span class="k">return</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="s2">&quot;widget_id&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="s2">"widget_id"</span><span class="p">)</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">relationalize</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">obj</span><span class="p">,</span> <span class="n">walker_func</span><span class="p">):</span>
         <span class="n">atom</span> <span class="o">=</span> <span class="n">Atom</span><span class="p">(</span>
-            <span class="nb">id</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;widget:</span><span class="si">{</span><span class="n">obj</span><span class="o">.</span><span class="n">widget_id</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
-            <span class="nb">type</span><span class="o">=</span><span class="s2">&quot;Widget&quot;</span><span class="p">,</span>
+            <span class="nb">id</span><span class="o">=</span><span class="sa">f</span><span class="s2">"widget:</span><span class="si">{</span><span class="n">obj</span><span class="o">.</span><span class="n">widget_id</span><span class="si">}</span><span class="s2">"</span><span class="p">,</span>
+            <span class="nb">type</span><span class="o">=</span><span class="s2">"Widget"</span><span class="p">,</span>
             <span class="n">label</span><span class="o">=</span><span class="n">obj</span><span class="o">.</span><span class="n">label</span><span class="p">,</span>
         <span class="p">)</span>
         <span class="k">return</span> <span class="p">[</span><span class="n">atom</span><span class="p">],</span> <span class="p">[]</span>
@@ -1177,7 +1177,7 @@ contents.</p>
 <div class="highlight"><pre><span></span><code><span class="nd">@relationalizer</span><span class="p">(</span><span class="n">priority</span><span class="o">=</span><span class="mi">100</span><span class="p">)</span>
 <span class="k">class</span><span class="w"> </span><span class="nc">WidgetRelationalizer</span><span class="p">(</span><span class="n">RelationalizerBase</span><span class="p">):</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">declared_relations</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">obj</span><span class="p">):</span>
-        <span class="k">return</span> <span class="p">[</span><span class="s2">&quot;label&quot;</span><span class="p">,</span> <span class="s2">&quot;parent&quot;</span><span class="p">]</span>
+        <span class="k">return</span> <span class="p">[</span><span class="s2">"label"</span><span class="p">,</span> <span class="s2">"parent"</span><span class="p">]</span>
 </code></pre></div>
 <p>The built-in relationalizers declare:</p>
 <ul>

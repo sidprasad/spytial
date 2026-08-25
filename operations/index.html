@@ -1447,8 +1447,8 @@ operation part by part.</p>
    also requires that nothing sits between the two atoms.</li>
 </ol>
 <div class="highlight"><pre><span></span><code><span class="nd">@spytial</span><span class="o">.</span><span class="n">orientation</span><span class="p">(</span>
-    <span class="n">selector</span><span class="o">=</span><span class="s1">&#39;{ x : TreeNode, y : TreeNode | x.left = y }&#39;</span><span class="p">,</span>  <span class="c1"># which edges</span>
-    <span class="n">directions</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;below&#39;</span><span class="p">,</span> <span class="s1">&#39;left&#39;</span><span class="p">],</span>                            <span class="c1"># where the child goes</span>
+    <span class="n">selector</span><span class="o">=</span><span class="s1">'{ x : TreeNode, y : TreeNode | x.left = y }'</span><span class="p">,</span>  <span class="c1"># which edges</span>
+    <span class="n">directions</span><span class="o">=</span><span class="p">[</span><span class="s1">'below'</span><span class="p">,</span> <span class="s1">'left'</span><span class="p">],</span>                            <span class="c1"># where the child goes</span>
 <span class="p">)</span>
 </code></pre></div>
 <h3 id="align-line-atoms-up-on-a-shared-axis"><code>align</code>: line atoms up on a shared axis</h3>
@@ -1484,10 +1484,10 @@ The same applies to <code>flag</code>, which acts on exactly <code>hideDisconnec
 <div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">spytial</span><span class="w"> </span><span class="kn">import</span> <span class="n">GroupEdge</span><span class="p">,</span> <span class="n">LineStyle</span><span class="p">,</span> <span class="n">TextStyle</span>
 
 <span class="nd">@spytial</span><span class="o">.</span><span class="n">group</span><span class="p">(</span>
-    <span class="n">selector</span><span class="o">=</span><span class="s1">&#39;Team.members&#39;</span><span class="p">,</span>
-    <span class="n">name</span><span class="o">=</span><span class="s1">&#39;Team&#39;</span><span class="p">,</span>
-    <span class="n">addEdge</span><span class="o">=</span><span class="n">GroupEdge</span><span class="p">(</span><span class="n">points</span><span class="o">=</span><span class="s1">&#39;togroup&#39;</span><span class="p">,</span> <span class="n">lineStyle</span><span class="o">=</span><span class="n">LineStyle</span><span class="p">(</span><span class="n">pattern</span><span class="o">=</span><span class="s1">&#39;dashed&#39;</span><span class="p">)),</span>
-    <span class="n">textStyle</span><span class="o">=</span><span class="n">TextStyle</span><span class="p">(</span><span class="n">color</span><span class="o">=</span><span class="s1">&#39;navy&#39;</span><span class="p">),</span>
+    <span class="n">selector</span><span class="o">=</span><span class="s1">'Team.members'</span><span class="p">,</span>
+    <span class="n">name</span><span class="o">=</span><span class="s1">'Team'</span><span class="p">,</span>
+    <span class="n">addEdge</span><span class="o">=</span><span class="n">GroupEdge</span><span class="p">(</span><span class="n">points</span><span class="o">=</span><span class="s1">'togroup'</span><span class="p">,</span> <span class="n">lineStyle</span><span class="o">=</span><span class="n">LineStyle</span><span class="p">(</span><span class="n">pattern</span><span class="o">=</span><span class="s1">'dashed'</span><span class="p">)),</span>
+    <span class="n">textStyle</span><span class="o">=</span><span class="n">TextStyle</span><span class="p">(</span><span class="n">color</span><span class="o">=</span><span class="s1">'navy'</span><span class="p">),</span>
 <span class="p">)</span>
 </code></pre></div>
 <h3 id="size-set-a-nodes-drawn-dimensions"><code>size</code>: set a node's drawn dimensions</h3>
@@ -1497,14 +1497,14 @@ The same applies to <code>flag</code>, which acts on exactly <code>hideDisconnec
 <li><strong><code>selector</code></strong> <em>(optional)</em>: which nodes to resize. Omit it to resize every
    node.</li>
 </ol>
-<div class="highlight"><pre><span></span><code><span class="nd">@spytial</span><span class="o">.</span><span class="n">size</span><span class="p">(</span><span class="n">selector</span><span class="o">=</span><span class="s1">&#39;Node&#39;</span><span class="p">,</span> <span class="n">height</span><span class="o">=</span><span class="mi">50</span><span class="p">,</span> <span class="n">width</span><span class="o">=</span><span class="mi">50</span><span class="p">)</span>
+<div class="highlight"><pre><span></span><code><span class="nd">@spytial</span><span class="o">.</span><span class="n">size</span><span class="p">(</span><span class="n">selector</span><span class="o">=</span><span class="s1">'Node'</span><span class="p">,</span> <span class="n">height</span><span class="o">=</span><span class="mi">50</span><span class="p">,</span> <span class="n">width</span><span class="o">=</span><span class="mi">50</span><span class="p">)</span>
 <span class="nd">@spytial</span><span class="o">.</span><span class="n">size</span><span class="p">(</span><span class="n">height</span><span class="o">=</span><span class="mi">50</span><span class="p">,</span> <span class="n">width</span><span class="o">=</span><span class="mi">50</span><span class="p">)</span>   <span class="c1"># every node</span>
 </code></pre></div>
 <h3 id="hideatom-remove-atoms-from-the-diagram"><code>hideAtom</code>: remove atoms from the diagram</h3>
 <ol>
 <li><strong><code>selector</code></strong>: the atoms to hide.</li>
 </ol>
-<div class="highlight"><pre><span></span><code><span class="nd">@spytial</span><span class="o">.</span><span class="n">hideAtom</span><span class="p">(</span><span class="n">selector</span><span class="o">=</span><span class="s1">&#39;{ n : Node | n.internal }&#39;</span><span class="p">)</span>
+<div class="highlight"><pre><span></span><code><span class="nd">@spytial</span><span class="o">.</span><span class="n">hideAtom</span><span class="p">(</span><span class="n">selector</span><span class="o">=</span><span class="s1">'{ n : Node | n.internal }'</span><span class="p">)</span>
 </code></pre></div>
 <blockquote>
 <p><code>size</code> and <code>hideAtom</code> are constraints, not directives. Size fixes the
@@ -1520,8 +1520,8 @@ It defaults to <code>'always'</code>. Pass <code>'never'</code> to require the o
 layout shall not satisfy the constraint. Use <code>'never'</code> to state that atoms are
 not grouped, or that <code>y</code> is never below <code>x</code>, instead of leaving the
 relationship unconstrained.</p>
-<div class="highlight"><pre><span></span><code><span class="nd">@spytial</span><span class="o">.</span><span class="n">orientation</span><span class="p">(</span><span class="n">selector</span><span class="o">=</span><span class="s1">&#39;children&#39;</span><span class="p">,</span> <span class="n">directions</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;below&#39;</span><span class="p">],</span> <span class="n">hold</span><span class="o">=</span><span class="s1">&#39;never&#39;</span><span class="p">)</span>
-<span class="nd">@spytial</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="n">selector</span><span class="o">=</span><span class="s1">&#39;Team.members&#39;</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s1">&#39;Team&#39;</span><span class="p">,</span> <span class="n">hold</span><span class="o">=</span><span class="s1">&#39;never&#39;</span><span class="p">)</span>
+<div class="highlight"><pre><span></span><code><span class="nd">@spytial</span><span class="o">.</span><span class="n">orientation</span><span class="p">(</span><span class="n">selector</span><span class="o">=</span><span class="s1">'children'</span><span class="p">,</span> <span class="n">directions</span><span class="o">=</span><span class="p">[</span><span class="s1">'below'</span><span class="p">],</span> <span class="n">hold</span><span class="o">=</span><span class="s1">'never'</span><span class="p">)</span>
+<span class="nd">@spytial</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="n">selector</span><span class="o">=</span><span class="s1">'Team.members'</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s1">'Team'</span><span class="p">,</span> <span class="n">hold</span><span class="o">=</span><span class="s1">'never'</span><span class="p">)</span>
 </code></pre></div>
 <p><code>size</code> and <code>hideAtom</code> do <strong>not</strong> take <code>hold</code>, although they are constraints.
 There is no negation of a fixed width, or of a hidden atom. spytial-core
@@ -1536,8 +1536,8 @@ the point where it is written.</p>
 <li><strong><code>textStyle</code></strong> <em>(optional)</em>: styles this attribute's line
    (<code>TextStyle(size=..., color=...)</code>).</li>
 </ol>
-<div class="highlight"><pre><span></span><code><span class="nd">@spytial</span><span class="o">.</span><span class="n">attribute</span><span class="p">(</span><span class="n">field</span><span class="o">=</span><span class="s1">&#39;value&#39;</span><span class="p">)</span>
-<span class="nd">@spytial</span><span class="o">.</span><span class="n">attribute</span><span class="p">(</span><span class="n">field</span><span class="o">=</span><span class="s1">&#39;weight&#39;</span><span class="p">,</span> <span class="n">textStyle</span><span class="o">=</span><span class="n">spytial</span><span class="o">.</span><span class="n">TextStyle</span><span class="p">(</span><span class="n">size</span><span class="o">=</span><span class="s1">&#39;small&#39;</span><span class="p">))</span>
+<div class="highlight"><pre><span></span><code><span class="nd">@spytial</span><span class="o">.</span><span class="n">attribute</span><span class="p">(</span><span class="n">field</span><span class="o">=</span><span class="s1">'value'</span><span class="p">)</span>
+<span class="nd">@spytial</span><span class="o">.</span><span class="n">attribute</span><span class="p">(</span><span class="n">field</span><span class="o">=</span><span class="s1">'weight'</span><span class="p">,</span> <span class="n">textStyle</span><span class="o">=</span><span class="n">spytial</span><span class="o">.</span><span class="n">TextStyle</span><span class="p">(</span><span class="n">size</span><span class="o">=</span><span class="s1">'small'</span><span class="p">))</span>
 </code></pre></div>
 <h3 id="atomstyle-and-edgestyle-styling"><code>atomStyle</code> and <code>edgeStyle</code>: styling</h3>
 <p>Styling is built from small <strong>style blocks</strong>, imported from <code>spytial</code>:</p>
@@ -1564,9 +1564,9 @@ the same keys work everywhere the blocks do.</p>
 </ul>
 <div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">spytial</span><span class="w"> </span><span class="kn">import</span> <span class="n">LineStyle</span><span class="p">,</span> <span class="n">TextStyle</span><span class="p">,</span> <span class="n">BorderStyle</span><span class="p">,</span> <span class="n">FillStyle</span>
 
-<span class="nd">@spytial</span><span class="o">.</span><span class="n">edgeStyle</span><span class="p">(</span><span class="n">field</span><span class="o">=</span><span class="s1">&#39;next&#39;</span><span class="p">,</span> <span class="n">lineStyle</span><span class="o">=</span><span class="n">LineStyle</span><span class="p">(</span><span class="n">color</span><span class="o">=</span><span class="s1">&#39;crimson&#39;</span><span class="p">,</span> <span class="n">pattern</span><span class="o">=</span><span class="s1">&#39;dashed&#39;</span><span class="p">))</span>
-<span class="nd">@spytial</span><span class="o">.</span><span class="n">atomStyle</span><span class="p">(</span><span class="n">selector</span><span class="o">=</span><span class="s1">&#39;Node&#39;</span><span class="p">,</span> <span class="n">borderStyle</span><span class="o">=</span><span class="n">BorderStyle</span><span class="p">(</span><span class="n">color</span><span class="o">=</span><span class="s1">&#39;steelblue&#39;</span><span class="p">),</span>
-                   <span class="n">fillStyle</span><span class="o">=</span><span class="n">FillStyle</span><span class="p">(</span><span class="n">color</span><span class="o">=</span><span class="s1">&#39;#eef6ff&#39;</span><span class="p">))</span>
+<span class="nd">@spytial</span><span class="o">.</span><span class="n">edgeStyle</span><span class="p">(</span><span class="n">field</span><span class="o">=</span><span class="s1">'next'</span><span class="p">,</span> <span class="n">lineStyle</span><span class="o">=</span><span class="n">LineStyle</span><span class="p">(</span><span class="n">color</span><span class="o">=</span><span class="s1">'crimson'</span><span class="p">,</span> <span class="n">pattern</span><span class="o">=</span><span class="s1">'dashed'</span><span class="p">))</span>
+<span class="nd">@spytial</span><span class="o">.</span><span class="n">atomStyle</span><span class="p">(</span><span class="n">selector</span><span class="o">=</span><span class="s1">'Node'</span><span class="p">,</span> <span class="n">borderStyle</span><span class="o">=</span><span class="n">BorderStyle</span><span class="p">(</span><span class="n">color</span><span class="o">=</span><span class="s1">'steelblue'</span><span class="p">),</span>
+                   <span class="n">fillStyle</span><span class="o">=</span><span class="n">FillStyle</span><span class="p">(</span><span class="n">color</span><span class="o">=</span><span class="s1">'#eef6ff'</span><span class="p">))</span>
 </code></pre></div>
 <blockquote>
 <p><strong>Migrating from 2.x:</strong> <code>atomColor</code> and <code>edgeColor</code> still work but are
@@ -1600,8 +1600,8 @@ constraint.</p>
 <li><strong><code>draw</code></strong> <em>(optional)</em>: where each end attaches. See below.</li>
 </ol>
 <div class="highlight"><pre><span></span><code><span class="nd">@spytial</span><span class="o">.</span><span class="n">inferredEdge</span><span class="p">(</span>
-    <span class="n">selector</span><span class="o">=</span><span class="s1">&#39;{ x : Vertex, y : Vertex | y in x.neighbors }&#39;</span><span class="p">,</span>  <span class="c1"># which pairs</span>
-    <span class="n">name</span><span class="o">=</span><span class="s1">&#39;edge&#39;</span><span class="p">,</span>                                               <span class="c1"># edge label</span>
+    <span class="n">selector</span><span class="o">=</span><span class="s1">'{ x : Vertex, y : Vertex | y in x.neighbors }'</span><span class="p">,</span>  <span class="c1"># which pairs</span>
+    <span class="n">name</span><span class="o">=</span><span class="s1">'edge'</span><span class="p">,</span>                                               <span class="c1"># edge label</span>
 <span class="p">)</span>
 </code></pre></div>
 <h4 id="draw-attach-an-end-to-a-groups-hull"><code>draw</code>: attach an end to a group's hull</h4>
@@ -1611,24 +1611,26 @@ constraint.</p>
 group <em>keyed by that end's atom</em>. This is what makes group-to-group and
 node-to-group edges expressible.</p>
 <div class="highlight"><pre><span></span><code><span class="c1"># A binary group selector: one group per Team, keyed by the Team atom.</span>
-<span class="nd">@spytial</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="n">selector</span><span class="o">=</span><span class="s1">&#39;{ t : Team, l : list | l in t.members }&#39;</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s1">&#39;regions&#39;</span><span class="p">)</span>
+<span class="nd">@spytial</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="n">selector</span><span class="o">=</span><span class="s1">'{ t : Team, l : list | l in t.members }'</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s1">'regions'</span><span class="p">)</span>
 <span class="nd">@spytial</span><span class="o">.</span><span class="n">inferredEdge</span><span class="p">(</span>
-    <span class="n">name</span><span class="o">=</span><span class="s1">&#39;reports to&#39;</span><span class="p">,</span>
-    <span class="n">selector</span><span class="o">=</span><span class="s1">&#39;{ a : Team, b : Team | b = a.parent }&#39;</span><span class="p">,</span>
-    <span class="n">draw</span><span class="o">=</span><span class="s1">&#39;regions -&gt; regions&#39;</span><span class="p">,</span>   <span class="c1"># hull to hull, rather than node to node</span>
+    <span class="n">name</span><span class="o">=</span><span class="s1">'reports to'</span><span class="p">,</span>
+    <span class="n">selector</span><span class="o">=</span><span class="s1">'{ a : Team, b : Team | b = a.parent }'</span><span class="p">,</span>
+    <span class="n">draw</span><span class="o">=</span><span class="s1">'regions -&gt; regions'</span><span class="p">,</span>   <span class="c1"># hull to hull, rather than node to node</span>
 <span class="p">)</span>
 </code></pre></div>
 <p><code>'_ -&gt; regions'</code> runs from the atom to a group's hull. <code>'_ -&gt; _'</code> is the same as
 an omitted <code>draw</code>. In both cases the edge's own selector ranges over atoms. With
 <code>draw</code>, a unary edge selector is allowed, and its atom feeds both ends.</p>
 <blockquote>
-<p><strong>The referenced group shall be keyed.</strong> That is, it shall be declared with a
-<em>binary</em> selector, and the first element becomes the key. <code>draw</code> resolves each
-end by looking up the group of that name keyed by that end's atom. A group
-built from a unary selector (<code>selector='Team.members'</code>) has no key for any end
-to match, so the edge is dropped and nothing is drawn. A group <em>name</em> that
-matches no <code>group</code> constraint is a hard error at render time. An atom that keys
-no group of that name is reported in the browser console.</p>
+<p><strong>A keyed group resolves per atom; an unkeyed group is one hull.</strong> A group
+declared with a <em>binary</em> selector is keyed on its first column, and <code>draw</code>
+resolves each end by looking up the group of that name keyed by that end's
+atom. An atom that keys no group of that name is reported in the browser
+console. A group built from a unary selector (<code>selector='Team.members'</code>) has
+no key at all, so an end naming it attaches to that single hull whatever the
+end's atom is. A group <em>name</em> that matches no <code>group</code> constraint raises a
+warning and the edge is skipped, so a fragment may name a group that another
+fragment defines (spytial-core 5.0; before it, a hard error at render time).</p>
 </blockquote>
 <h3 id="tag-attach-a-computed-label"><code>tag</code>: attach a computed label</h3>
 <ol>
@@ -1663,21 +1665,21 @@ constraint.</p>
 <p><strong>As class decorators</strong> (the most common way):</p>
 <div class="highlight"><pre><span></span><code><span class="kn">import</span><span class="w"> </span><span class="nn">spytial</span>
 
-<span class="nd">@spytial</span><span class="o">.</span><span class="n">orientation</span><span class="p">(</span><span class="n">selector</span><span class="o">=</span><span class="s1">&#39;children&#39;</span><span class="p">,</span> <span class="n">directions</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;below&#39;</span><span class="p">])</span>
-<span class="nd">@spytial</span><span class="o">.</span><span class="n">attribute</span><span class="p">(</span><span class="n">field</span><span class="o">=</span><span class="s1">&#39;value&#39;</span><span class="p">)</span>
+<span class="nd">@spytial</span><span class="o">.</span><span class="n">orientation</span><span class="p">(</span><span class="n">selector</span><span class="o">=</span><span class="s1">'children'</span><span class="p">,</span> <span class="n">directions</span><span class="o">=</span><span class="p">[</span><span class="s1">'below'</span><span class="p">])</span>
+<span class="nd">@spytial</span><span class="o">.</span><span class="n">attribute</span><span class="p">(</span><span class="n">field</span><span class="o">=</span><span class="s1">'value'</span><span class="p">)</span>
 <span class="k">class</span><span class="w"> </span><span class="nc">Node</span><span class="p">:</span>
     <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="n">children</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">value</span> <span class="o">=</span> <span class="n">value</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">children</span> <span class="o">=</span> <span class="n">children</span> <span class="ow">or</span> <span class="p">[]</span>
 </code></pre></div>
 <p><strong>On a single object</strong>, without a change to the class:</p>
-<div class="highlight"><pre><span></span><code><span class="n">node</span> <span class="o">=</span> <span class="n">Node</span><span class="p">(</span><span class="s1">&#39;root&#39;</span><span class="p">)</span>
-<span class="n">spytial</span><span class="o">.</span><span class="n">annotate_orientation</span><span class="p">(</span><span class="n">node</span><span class="p">,</span> <span class="n">selector</span><span class="o">=</span><span class="s1">&#39;children&#39;</span><span class="p">,</span> <span class="n">directions</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;below&#39;</span><span class="p">])</span>
+<div class="highlight"><pre><span></span><code><span class="n">node</span> <span class="o">=</span> <span class="n">Node</span><span class="p">(</span><span class="s1">'root'</span><span class="p">)</span>
+<span class="n">spytial</span><span class="o">.</span><span class="n">annotate_orientation</span><span class="p">(</span><span class="n">node</span><span class="p">,</span> <span class="n">selector</span><span class="o">=</span><span class="s1">'children'</span><span class="p">,</span> <span class="n">directions</span><span class="o">=</span><span class="p">[</span><span class="s1">'below'</span><span class="p">])</span>
 </code></pre></div>
 <p><strong>Conditionally</strong>, with <code>apply_if</code>:</p>
 <div class="highlight"><pre><span></span><code><span class="nd">@spytial</span><span class="o">.</span><span class="n">apply_if</span><span class="p">(</span>
-    <span class="k">lambda</span> <span class="bp">cls</span><span class="p">:</span> <span class="bp">cls</span><span class="o">.</span><span class="vm">__name__</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s1">&#39;Node&#39;</span><span class="p">),</span>
-    <span class="n">spytial</span><span class="o">.</span><span class="n">atomStyle</span><span class="p">(</span><span class="n">selector</span><span class="o">=</span><span class="s1">&#39;self&#39;</span><span class="p">,</span> <span class="n">borderStyle</span><span class="o">=</span><span class="n">spytial</span><span class="o">.</span><span class="n">BorderStyle</span><span class="p">(</span><span class="n">color</span><span class="o">=</span><span class="s1">&#39;lightblue&#39;</span><span class="p">)),</span>
+    <span class="k">lambda</span> <span class="bp">cls</span><span class="p">:</span> <span class="bp">cls</span><span class="o">.</span><span class="vm">__name__</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s1">'Node'</span><span class="p">),</span>
+    <span class="n">spytial</span><span class="o">.</span><span class="n">atomStyle</span><span class="p">(</span><span class="n">selector</span><span class="o">=</span><span class="s1">'self'</span><span class="p">,</span> <span class="n">borderStyle</span><span class="o">=</span><span class="n">spytial</span><span class="o">.</span><span class="n">BorderStyle</span><span class="p">(</span><span class="n">color</span><span class="o">=</span><span class="s1">'lightblue'</span><span class="p">)),</span>
 <span class="p">)</span>
 <span class="k">class</span><span class="w"> </span><span class="nc">Node</span><span class="p">:</span>
     <span class="o">...</span>
