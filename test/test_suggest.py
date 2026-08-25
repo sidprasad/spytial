@@ -761,31 +761,21 @@ def test_enrich_group_only_for_containers():
     ]
 
 
-def test_enrich_group_does_not_emit_the_deprecated_form():
+def test_enrich_group_emits_a_form_the_authoring_path_accepts():
     """The shape tier is the only producer of `group` in the codebase.
 
     It emitted the by-field spelling (`field`/`groupOn`/`addToGroup`) until
-    spytial-core 4.3 deprecated it. Nothing warns on that form -- core still
-    parses it and `_desugar_legacy_style` cannot rewrite it, because the
-    replacement needs a `name` the old kwargs do not carry -- so a regression
-    here would be invisible until a core major stopped reading it.
+    spytial-core 4.3 deprecated it and 5.0 removed it outright. Feeding the
+    emitted kwargs back through the public decorator is the check that outlives
+    the removal: the retired form raises there, so a regression fails here
+    rather than as a parse error in the browser.
     """
-    from spytial._spec_tables import DEPRECATED_ITEMS
-
-    # The keys that select the deprecated form, named by the manifest rather
-    # than restated, so retiring the form retires the test with it.
-    legacy_only = set(DEPRECATED_ITEMS["group.byField"]["mapping"]) - {"selector"}
-
     payload = {"shapes": [_shape("related", "group")]}
     draft = suggest(Ticket, enrich=_FakeProvider(payload))
     rows = _of(draft, "group")
     assert rows, "expected the model's group shape to be installed"
     for s in rows:
-        assert not (set(s.kwargs) & legacy_only), (
-            f"{s.kwargs} uses the deprecated by-field group form "
-            f"({sorted(legacy_only)})"
-        )
-        spytial.group(**s.kwargs)  # the current form is accepted as written
+        spytial.group(**s.kwargs)  # raises on the retired by-field form
 
 
 def test_enrich_rejects_unknown_field():

@@ -219,7 +219,7 @@ def test_integration_with_existing_functionality():
     # Create test data with annotations
     test_data = [1, 2, 3, 4, 5]
     annotate_orientation(test_data, selector='items', directions=['left'])
-    annotate_group(test_data, field='elements', groupOn=0, addToGroup=1)
+    annotate_group(test_data, selector='elements', name='elements')
     
     # Test that visualization still works
     result = diagram(test_data, method='file', auto_open=False)

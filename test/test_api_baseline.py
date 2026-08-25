@@ -63,15 +63,15 @@ def _accepted(field_set):
 def _match_variants(old_sets, new_sets):
     """Pair up a form's alternative field sets, by keyword overlap.
 
-    A form with alternatives (``group``) has variants whose required keys are
-    disjoint -- the by-field form needs field/groupOn/addToGroup, the selector
-    form needs selector/name -- so they cannot be matched positionally: a
-    reorder upstream would read as both removed and both added.
+    A form with alternatives has variants whose required keys are disjoint --
+    ``group`` had two until spytial-core 5.0, one needing field/groupOn/
+    addToGroup and one needing selector/name -- so they cannot be matched
+    positionally: a reorder upstream would read as both removed and both added.
 
-    They also must not be collapsed into one union. Reducing requiredness to
-    the intersection across variants makes it empty for exactly this form, and
-    an empty intersection stays empty however the variants change, so every
-    requiredness change on `group` becomes invisible.
+    They also must not be collapsed into one union. Disjoint required keys are
+    what an intersection across variants reduces to nothing, and an empty
+    intersection stays empty however the variants change, so every requiredness
+    change on such a form would become invisible.
 
     Returns (pairs, dropped, added).
     """
@@ -371,10 +371,24 @@ def test_removing_a_key_from_one_group_variant_is_breaking():
     assert any("no longer accepts `textStyle`" in line for line in breaking), breaking
 
 
-def test_dropping_a_whole_group_variant_is_breaking():
-    """Core retiring the deprecated by-field form would look like this."""
-    before = _baseline()
-    after = _baseline()
+# `group` carried the manifest's only pair of alternative field sets until
+# spytial-core 5.0 retired its by-field form -- which is the change these two
+# check for, so their fixture has to be synthetic now. `_match_variants` is
+# still live code, and the next form with alternatives will arrive the same way
+# this one left: inside a generated file, with no Python edited.
+def _two_variant_surface():
+    surface = _baseline()
+    surface["forms"]["group"]["fieldSets"] = [
+        {"required": ["selector", "name"], "optional": ["addEdge", "hold", "textStyle"]},
+        {"required": ["addToGroup", "field", "groupOn"], "optional": ["hold", "selector"]},
+    ]
+    return surface
+
+
+def test_dropping_a_whole_variant_is_breaking():
+    """Core retiring the by-field form looked like this."""
+    before = _two_variant_surface()
+    after = _two_variant_surface()
     after["forms"]["group"]["fieldSets"] = [
         fs for fs in after["forms"]["group"]["fieldSets"] if "field" not in fs["required"]
     ]
@@ -386,7 +400,7 @@ def test_dropping_a_whole_group_variant_is_breaking():
 
 def test_reordering_variants_alone_is_not_a_change():
     """Matching must be by content; the manifest's item order is not a contract."""
-    before = _baseline()
-    after = _baseline()
+    before = _two_variant_surface()
+    after = _two_variant_surface()
     after["forms"]["group"]["fieldSets"].reverse()
     assert classify(before, after) == ([], [])

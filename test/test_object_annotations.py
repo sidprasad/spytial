@@ -35,11 +35,11 @@ def test_object_annotations_builtin_types():
     
     # Test with set (immutable, no attribute assignment)
     my_set = {1, 2, 3, 4, 5}
-    annotate_group(my_set, field='elements', groupOn=0, addToGroup=1)
+    annotate_group(my_set, selector='elements', name='elements')
     
     decorators = collect_decorators(my_set)
     assert len(decorators['constraints']) == 1
-    assert decorators['constraints'][0]['group']['field'] == 'elements'
+    assert decorators['constraints'][0]['group']['selector'] == 'elements'
     
     # Test that other sets are unaffected
     other_set = {6, 7, 8}
@@ -63,7 +63,7 @@ def test_class_and_object_annotations_combined():
     tree2 = Tree(2)
 
     # Add object-specific annotations to tree2
-    annotate_group(tree2, field='children', groupOn=0, addToGroup=1)
+    annotate_group(tree2, selector='children', name='children')
     annotate_atomColor(tree2, selector='self', value='red')
 
     # tree1 should only have class annotations
@@ -128,8 +128,8 @@ def test_sub_object_annotations_persist_on_composition():
 
     # Apply object-level annotations using ergonomic API (as shown in issue)
     # Import from the same module to ensure consistency with other tests
-    fruits = group(field='contains', groupOn=0, addToGroup=1)(fruits)
-    numbers = group(field='contains', groupOn=0, addToGroup=1)(numbers)
+    fruits = group(selector='contains', name='contains')(fruits)
+    numbers = group(selector='contains', name='contains')(numbers)
 
     # Verify individual objects have annotations
     fruits_decorators = collect_decorators(fruits)

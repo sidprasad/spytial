@@ -50,7 +50,7 @@ class TestAnnotatedTypeAliases:
         ann3 = spytial.Align(selector="x", direction="horizontal")
         assert ann3._annotation_type == "align"
 
-        ann4 = spytial.Group(field="children", groupOn=0, addToGroup=1)
+        ann4 = spytial.Group(selector="children", name="children")
         assert ann4._annotation_type == "group"
 
         # Both moved out of the directives section in spytial-core 4.3: each

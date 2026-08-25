@@ -354,6 +354,7 @@ def _prepare_kwargs(annotation_type, kwargs, *, stacklevel):
     deliberately *not* here — it fires once per authoring site, which is a
     per-path decision.
     """
+    _reject_retired_forms(annotation_type, kwargs)
     annotation_type, kwargs = _desugar_legacy_style(
         annotation_type, kwargs, stacklevel=stacklevel
     )
@@ -417,6 +418,75 @@ def _warn_if_noop(annotation_type, *, stacklevel):
     message = _NOOP_ANNOTATIONS.get(annotation_type)
     if message is not None:
         warnings.warn(message, DeprecationWarning, stacklevel=stacklevel)
+
+
+def _group_by_field_rewrite(kwargs):
+    """The selector-form spelling of a by-field ``group``, for the error message."""
+    field = kwargs.get("field")
+    named = isinstance(field, str) and field
+    relation = field if named else "<field>"
+    restrict = kwargs.get("selector")
+    transposed = _is_transposed_group(kwargs)
+    if isinstance(restrict, str) and restrict:
+        # The old `selector` kept only the tuples whose *first* atom it matched,
+        # whichever column `groupOn` keyed on — a domain restriction, so it goes
+        # on the relation before any transpose.
+        relation = f"{restrict} <: {relation}"
+        if transposed:
+            relation = f"({relation})"
+    # The key was column `groupOn`. A selector keys on its *first* column, so a
+    # grouping keyed on the later column is the transposed relation.
+    if transposed:
+        relation = f"~{relation}"
+    return f"group(selector={relation!r}, name={(field if named else '<name>')!r})"
+
+
+def _is_transposed_group(kwargs):
+    """Did the by-field form key on the later column?"""
+    group_on, add_to_group = kwargs.get("groupOn"), kwargs.get("addToGroup")
+    return (
+        isinstance(group_on, int)
+        and isinstance(add_to_group, int)
+        and group_on > add_to_group
+    )
+
+
+# Forms spytial-core used to read and has since removed. Unlike the legacy style
+# forms below, there is nothing to rewrite these into here: the retired spelling
+# addresses tuple *columns*, and which columns its replacement uses depends on
+# the relation's arity — that is in the data, not at the authoring site. Core
+# 5.0 made the removed `group` form a parse error rather than a silently
+# ignored key, so an old spec fails loudly instead of quietly losing its
+# grouping. Raising here moves that failure to the line that wrote it, with the
+# rewrite for this particular call spelled out.
+def _reject_retired_forms(annotation_type, kwargs):
+    """Raise on a form spytial-core used to read and no longer does.
+
+    Shared by both authoring funnels — ``_prepare_kwargs`` for the ``**kwargs``
+    paths, ``SpytialAnnotation.__init__`` for ``Annotated[...]`` — so the same
+    call fails the same way whichever way it was written.
+    """
+    if annotation_type != "group":
+        return
+    retired = [key for key in ("field", "groupOn", "addToGroup") if key in kwargs]
+    if not retired:
+        return
+    message = (
+        f"group's by-field form ({', '.join(retired)}) was removed in "
+        f"spytial-core 5.0 — it is a parse error there now, not a deprecation. "
+        f"Group over a binary selector instead, its first column the key and "
+        f"its last the members, plus the name that form requires:\n\n"
+        f"    {_group_by_field_rewrite(kwargs)}\n\n"
+        f"groupOn/addToGroup indexed tuple columns, and a selector always "
+        f"groups its last column under its first, so a relation of more than "
+        f"two columns needs a selector naming the two ends meant here."
+    )
+    if isinstance(kwargs.get("selector"), str) and kwargs["selector"]:
+        message += (
+            "\nThe old `selector` kept only the tuples starting at the atoms "
+            "it matched; `<:` is that same domain restriction."
+        )
+    raise ValueError(message)
 
 
 # inferredEdge's pre-3.0 inline line keys, all of which fold into lineStyle.
@@ -668,6 +738,7 @@ class SpytialAnnotation:
     def __init__(self, **kwargs):
         # Every subclass funnels here, so the Annotated[...] form gets the same
         # vocabulary check as the **kwargs paths without restating it per class.
+        _reject_retired_forms(self._annotation_type, kwargs)
         _validate_values(self._annotation_type, kwargs)
         self.kwargs = kwargs
 
@@ -764,14 +835,15 @@ class Group(SpytialAnnotation):
     """
     Grouping constraint.
 
-    Usage (field-based):
-        Tree = Annotated[TreeNode, Group(field='children', groupOn=0, addToGroup=1)]
-
-    Usage (selector-based):
+    Usage:
         Grouped = Annotated[MyType, Group(selector='items', name='mygroup')]
 
-    For a selector-based group, ``addEdge`` controls the edge drawn between the
-    group's key and the group itself. For a binary selector with tuples
+    For the by-field form spytial-core 5.0 removed
+    (``field``/``groupOn``/``addToGroup``), see the ``group`` decorator's
+    docstring, which names the selector that replaces it.
+
+    ``addEdge`` controls the edge drawn between the group's key and the group
+    itself. For a binary selector with tuples
     ``(a, b), (a, c), (a, d)`` the group is keyed by ``a`` and contains
     ``{b, c, d}``:
 
@@ -1676,17 +1748,22 @@ group = _create_decorator(
     "group",
     doc="""Enclose atoms in a labelled region.
 
-    Usage (selector-based):
+    Usage:
         @spytial.group(selector='Team.members', name='Team')
-
-    Usage (field-based, legacy):
-        @spytial.group(field='children', groupOn=0, addToGroup=1)
 
     A binary selector matching tuples (a, b), (a, c), (a, d) keys the group on
     ``a`` and fills it with {b, c, d}; each distinct key gets its own region. A
-    unary selector puts every atom it matches into one region.
+    unary selector puts every atom it matches into one region. A longer tuple
+    keys on its first atom and groups its last, ignoring the columns between.
 
-    Accepted keys (selector-based):
+    The by-field form -- ``field``, ``groupOn``, ``addToGroup`` -- was removed
+    in spytial-core 5.0 and now raises. Over a relation ``F``, ``selector='F'``
+    keys on F's first column and groups its last, ``selector='~F'`` keys on the
+    last instead, and ``selector='Restrict <: F'`` keeps only the tuples whose
+    first atom is in ``Restrict`` -- what the old form's optional ``selector``
+    narrowed.
+
+    Accepted keys:
 
     - ``selector`` -- the relation (or atoms) to group.
     - ``name`` -- the label drawn on the region.

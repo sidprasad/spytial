@@ -177,6 +177,35 @@ class Plain:
         self.name = name
 
 
+class Item:
+    """Boxed by both groups below: keyed by its shelf, and by its type."""
+
+    def __init__(self, name):
+        self.name = name
+
+
+class Shelf:
+    def __init__(self, name, contents=None):
+        self.name = name
+        self.contents = contents or []
+
+
+@spytial.group(
+    selector="{s : Shelf, i : Item | i in s.contents.idx[int]}", name="shelf"
+)
+@spytial.group(selector="Item", name="stock")
+class Store:
+    """One box per shelf, plus one box holding every item.
+
+    The binary selector keys a box on its first column and fills it from the
+    last; the unary one has no key, so its box is named `stock` outright. That
+    pair is what replaced the by-field form spytial-core 5.0 removed.
+    """
+
+    def __init__(self, shelves):
+        self.shelves = shelves
+
+
 def _ring(cls, n):
     """A cycle of ``n`` nodes, returned at its head."""
     nodes = [cls(f"r{i}") for i in range(n)]
@@ -579,6 +608,62 @@ def test_size_reaches_only_what_its_selector_names():
                 "query": "nodes()",
                 "contains": ["n1"],
                 "because": "the unsized neighbour is drawn, just not at that size",
+            },
+        ],
+    )
+
+
+# --------------------------------------------------------------------------- #
+# Group. spytial-core 5.0 removed the by-field form and left the selector one
+# as the only spelling, so what a `group` now boxes is worth asserting rather
+# than assuming.
+# --------------------------------------------------------------------------- #
+
+
+def _store():
+    """Two shelves, three items. Ids are assigned in walk order."""
+    return Store([Shelf("top", [Item("mug"), Item("jar")]), Shelf("low", [Item("tin")])])
+
+
+def test_a_keyed_group_boxes_its_members_and_not_its_key():
+    check(
+        "shelves box their items",
+        _store(),
+        [
+            {
+                "query": "groups()",
+                "count": 3,
+                "because": "one box per shelf, plus the single unkeyed `stock` box",
+            },
+            {
+                "query": "grouped(n4)",
+                "count": 2,
+                "because": "the first item is in its shelf's box and in `stock`",
+            },
+            {
+                "query": "grouped(n2)",
+                "empty": True,
+                "because": "a key is what the box is named for, not something inside it",
+            },
+        ],
+    )
+
+
+def test_a_unary_group_is_one_box_named_outright():
+    """No key means no `name[key]` suffix, so the box can be named in a query."""
+    check(
+        "every item in one box",
+        _store(),
+        [
+            {
+                "query": "contains(stock)",
+                "equals": ["n4", "n5", "n8"],
+                "because": "the unary selector matched every Item and nothing else",
+            },
+            {
+                "query": "contains(stock)",
+                "excludes": ["n2", "n6"],
+                "because": "the shelves are Shelf atoms; the selector named Item",
             },
         ],
     )
