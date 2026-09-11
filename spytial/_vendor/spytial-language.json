@@ -1,7 +1,7 @@
 {
   "language": "spytial-layout-spec",
-  "languageVersion": "2026-08-14",
-  "spytialCoreVersion": "5.2.1",
+  "languageVersion": "2026-08-25",
+  "spytialCoreVersion": "5.4.3",
   "versioning": {
     "note": "`languageVersion` is the date the language last changed (YYYY-MM-DD). If it has not moved since the manifest you generated against, nothing you emit needs revisiting. `spytialCoreVersion` records which release produced this file.",
     "deprecations": "A deprecated form keeps parsing and keeps its meaning while it is listed in `deprecations`, and each entry names its replacement and the rewrite to apply. Removal is signalled by `languageVersion` moving, not by the `spytialCoreVersion` major: a removed form leaves this manifest and becomes a parse error, so check `languageVersion` before assuming a spec you generated earlier still parses."
@@ -20,6 +20,7 @@
       "`size` and `hideAtom` are constraints. Both are still accepted among the directives, with identical meaning, but that placement is deprecated and warns — emit them under `constraints`. Each item lists where to write it in `sections`, and any tolerated-but-deprecated placement in `deprecatedSections`.",
       "Duplicate constraints (same selector and same parameters) are de-duplicated at parse time.",
       "Parsing returns advisory `warnings` alongside the spec. Each carries a `code` (currently `deprecated`) and a `specType` naming the form, so a consumer can surface them without matching prose.",
+      "Every block-bodied item accepts an optional `source` block carrying the rule as its author wrote it in the host surface; conflict reports cite that text instead of the engine’s own rendering. See the top-level `source` entry for the block’s shape and which items display it.",
       "The old group-by-field shape, `group: { field, groupOn, addToGroup }`, is removed. It is a parse error, not a silently ignored key, so an old spec fails loudly instead of losing its grouping. Write a `group` whose binary `selector` has the key in its first column and the members in its second; over `worksIn: Employee -> Department`, `groupOn: 1` / `addToGroup: 0` becomes `selector: ~worksIn` plus a `name`, and `groupOn: 0` / `addToGroup: 1` becomes `selector: worksIn`."
     ]
   },
@@ -37,6 +38,48 @@
       "group"
     ],
     "note": "`hold: never` negates a constraint: it asserts the relationship must not hold. Only the value `never` has an effect — `always`, any other string, and an absent field all mean the positive constraint. Double negation is not supported. `size` and `hideAtom` accept the key syntactically but ignore it."
+  },
+  "source": {
+    "field": "source",
+    "fields": [
+      {
+        "name": "text",
+        "type": "string",
+        "required": true,
+        "enforcement": "value-ignored",
+        "description": "The rule exactly as its author wrote it in the host surface — a Python decorator, a Rust attribute, a Forge annotation. Shown (escaped, as code) in conflict reports and warnings in place of the engine’s own description of the rule. A missing or empty `text` makes the whole `source` block ignored."
+      },
+      {
+        "name": "location",
+        "type": "string",
+        "description": "Where the rule was written, e.g. `tree.py:12`. Appended to the displayed text."
+      }
+    ],
+    "supportedBy": [
+      "orientation",
+      "cyclic",
+      "align",
+      "group",
+      "size",
+      "hideAtom",
+      "atomStyle",
+      "edgeStyle",
+      "attribute",
+      "tag",
+      "hideField",
+      "inferredEdge",
+      "icon",
+      "atomColor",
+      "edgeColor"
+    ],
+    "displayedBy": [
+      "orientation",
+      "cyclic",
+      "align",
+      "group",
+      "hideAtom"
+    ],
+    "note": "For generators only — hand-written YAML needs no `source`, because there the YAML is the author’s text. Accepted on every block-bodied item so a generator can stamp it uniformly. The engine carries and displays it for the forms that appear in conflict reports (the `displayedBy` list: the layout constraints and `hideAtom`); on the rest it parses and is ignored. Duplicate rules de-duplicate to one entry, which keeps the first provided source."
   },
   "blocks": [
     {
