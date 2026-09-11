@@ -1186,6 +1186,17 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#spytial.SpytialAnnotation.__new__" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        __new__
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#spytial.SpytialAnnotation.to_entry" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2539,6 +2550,17 @@
   
     <nav class="md-nav" aria-label="SpytialAnnotation">
       <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#spytial.annotations.SpytialAnnotation.__new__" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        __new__
+      
+    </span>
+  </a>
+  
+</li>
         
           <li class="md-nav__item">
   <a href="#spytial.annotations.SpytialAnnotation.to_entry" class="md-nav__link">
@@ -3932,6 +3954,17 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#spytial.SpytialAnnotation.__new__" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        __new__
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#spytial.SpytialAnnotation.to_entry" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -5285,6 +5318,17 @@
   
     <nav class="md-nav" aria-label="SpytialAnnotation">
       <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#spytial.annotations.SpytialAnnotation.__new__" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        __new__
+      
+    </span>
+  </a>
+  
+</li>
         
           <li class="md-nav__item">
   <a href="#spytial.annotations.SpytialAnnotation.to_entry" class="md-nav__link">
@@ -7633,6 +7677,34 @@ attached to type aliases using typing.Annotated.</p>
 
 
 
+
+<div class="doc doc-object doc-function">
+
+
+<h4 id="spytial.SpytialAnnotation.__new__" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-method"></code>            <code class="highlight language-python"><span class="fm">__new__</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></code>
+
+</h4>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Keep the arguments as passed, before any subclass touches them.</p>
+<p>A subclass <strong>init</strong> coerces style blocks to plain dicts and rewrites a
+deprecated spelling into its replacement before calling up, so by the
+time <code>self.kwargs</code> exists it describes what the rule <em>became</em>. The
+source block has to say what was written: <code>Group(addEdge=GroupEdge(
+points='togroup'))</code>, not <code>Group(addEdge={'points': 'togroup'})</code>, and
+<code>AtomColor(value='red')</code>, not <code>AtomColor(borderStyle={'color':
+'red'})</code>. An <code>Annotated[...]</code> rule is a call and not a decorator, so it
+never has AST text to read back and this is the only record of it.</p>
+<p>Every subclass takes keyword arguments only, so <code>kwargs</code> is the whole
+call.</p>
+
+
+    </div>
+
+</div>
 
 <div class="doc doc-object doc-function">
 
@@ -12979,6 +13051,34 @@ attached to type aliases using typing.Annotated.</p>
 
 
 
+
+<div class="doc doc-object doc-function">
+
+
+<h4 id="spytial.annotations.SpytialAnnotation.__new__" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-method"></code>            <code class="highlight language-python"><span class="fm">__new__</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></code>
+
+</h4>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Keep the arguments as passed, before any subclass touches them.</p>
+<p>A subclass <strong>init</strong> coerces style blocks to plain dicts and rewrites a
+deprecated spelling into its replacement before calling up, so by the
+time <code>self.kwargs</code> exists it describes what the rule <em>became</em>. The
+source block has to say what was written: <code>Group(addEdge=GroupEdge(
+points='togroup'))</code>, not <code>Group(addEdge={'points': 'togroup'})</code>, and
+<code>AtomColor(value='red')</code>, not <code>AtomColor(borderStyle={'color':
+'red'})</code>. An <code>Annotated[...]</code> rule is a call and not a decorator, so it
+never has AST text to read back and this is the only record of it.</p>
+<p>Every subclass takes keyword arguments only, so <code>kwargs</code> is the whole
+call.</p>
+
+
+    </div>
+
+</div>
 
 <div class="doc doc-object doc-function">
 

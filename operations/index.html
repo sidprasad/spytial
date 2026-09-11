@@ -794,6 +794,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#rules-in-error-messages" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Rules in error messages
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#examples" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1393,6 +1404,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#rules-in-error-messages" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Rules in error messages
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#examples" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1684,6 +1706,31 @@ constraint.</p>
 <span class="k">class</span><span class="w"> </span><span class="nc">Node</span><span class="p">:</span>
     <span class="o">...</span>
 </code></pre></div>
+<h2 id="rules-in-error-messages">Rules in error messages</h2>
+<p>Every rule carries the text that declared it. Spytial stamps each operation it
+emits with a <code>source</code> block, which holds the decorator as it was written and
+the place it was written:</p>
+<div class="highlight"><pre><span></span><code><span class="nt">orientation</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">selector</span><span class="p">:</span><span class="w"> </span><span class="s">'{</span><span class="nv"> </span><span class="s">x</span><span class="nv"> </span><span class="s">:</span><span class="nv"> </span><span class="s">TreeNode,</span><span class="nv"> </span><span class="s">y</span><span class="nv"> </span><span class="s">:</span><span class="nv"> </span><span class="s">TreeNode</span><span class="nv"> </span><span class="s">|</span><span class="nv"> </span><span class="s">x.left</span><span class="nv"> </span><span class="s">=</span><span class="nv"> </span><span class="s">y</span><span class="nv"> </span><span class="s">}'</span>
+<span class="w">  </span><span class="nt">directions</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">below</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">left</span><span class="p p-Indicator">]</span>
+<span class="w">  </span><span class="nt">source</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">text</span><span class="p">:</span><span class="w"> </span><span class="s">"@spytial.orientation(selector=LEFT_EDGE,</span><span class="nv"> </span><span class="s">directions=['below',</span><span class="nv"> </span><span class="s">'left'])"</span>
+<span class="w">    </span><span class="nt">location</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">tree.py:12</span>
+</code></pre></div>
+<p>When spytial-core reports a conflict between constraints, it cites this text in
+place of its own description of the rule. A report therefore names the
+decorator to edit, rather than the derived constraint that could not be
+satisfied.</p>
+<p>The text is read back from the source file, so a name appears unexpanded: a
+selector written as <code>LEFT_EDGE</code> is reported as <code>LEFT_EDGE</code>, which is what the
+reader finds at <code>tree.py:12</code>. Where no source file can be read, as in a REPL or
+in <code>exec</code> of a string, the call is reconstructed from its arguments and no
+location is given.</p>
+<p>The block is informational and does not affect layout. De-duplication ignores
+it, so two identical rules written in different places remain one rule.
+<code>location</code> is a file name and a line, never a full path, because the spec
+travels inside the generated HTML file.</p>
+<p>Set <code>SPYTIAL_NO_SOURCE=1</code> to emit no <code>source</code> blocks.</p>
 <h2 id="examples">Examples</h2>
 <p>Try these operations on real data structures in the
 <a href="../playground/">Playground</a>. The
