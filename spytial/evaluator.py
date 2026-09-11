@@ -23,6 +23,7 @@ except ImportError:
 
 try:
     from jinja2 import Environment, FileSystemLoader
+    from ._templating import template_environment
 
     HAS_JINJA2 = True
 except ImportError:
@@ -164,7 +165,7 @@ def _generate_evaluator_html(data_instance, width=800, height=600):
 
     # Set up Jinja2 environment
     current_dir = Path(__file__).parent
-    env = Environment(loader=FileSystemLoader(current_dir))
+    env = template_environment(current_dir)
 
     try:
         template = env.get_template("evaluator_template.html")
