@@ -281,6 +281,41 @@ HOLD_SUPPORTED_BY = frozenset([
     'orientation',
 ])
 
+# The forms that accept a `source` block -- the rule as its author wrote
+# it, which conflict reports cite in place of the engine's own rendering.
+# Every block-bodied item accepts one; a scalar item (`- flag: ...`) has
+# no block to carry it. spytial/_source.py builds the block, annotations.py
+# stamps it on the entries named here.
+SOURCE_SUPPORTED_BY = frozenset([
+    'align',
+    'atomColor',
+    'atomStyle',
+    'attribute',
+    'cyclic',
+    'edgeColor',
+    'edgeStyle',
+    'group',
+    'hideAtom',
+    'hideField',
+    'icon',
+    'inferredEdge',
+    'orientation',
+    'size',
+    'tag',
+])
+
+# The subset core actually shows a source for today: the layout constraints
+# and hideAtom, the forms that turn up in conflict reports. On the rest the
+# block parses and is ignored, so this is advisory -- spytial stamps every
+# form in SOURCE_SUPPORTED_BY, uniformly, and lets core decide what to show.
+SOURCE_DISPLAYED_BY = frozenset([
+    'align',
+    'cyclic',
+    'group',
+    'hideAtom',
+    'orientation',
+])
+
 
 # --------------------------------------------------------------------------- #
 # Author-time value checking

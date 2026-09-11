@@ -50,7 +50,12 @@ from ._spec_tables import (  # noqa: F401  (names re-exported from this module)
     ROTATION_DIRECTIONS,
     SCALAR_ITEMS,
     SELECTOR_ARITY,
+    SOURCE_SUPPORTED_BY,
     TEXT_SIZES,
+)
+from ._source import (
+    describe as _describe_source,
+    render_call as _render_call,
 )
 
 # =============================================
@@ -741,6 +746,15 @@ class SpytialAnnotation:
         _reject_retired_forms(self._annotation_type, kwargs)
         _validate_values(self._annotation_type, kwargs)
         self.kwargs = kwargs
+        # Captured at construction, while the author's frame is still on the
+        # stack: to_entry() runs later, from whatever is collecting the spec.
+        # Here the rule was written as a class in a type expression rather than
+        # as a decorator, so that is what the fallback text spells.
+        self._source = _describe_source(
+            self._annotation_type,
+            kwargs,
+            fallback=_render_call(type(self).__name__, kwargs),
+        )
 
     def to_entry(self):
         """Convert to the internal registry format.
@@ -753,7 +767,13 @@ class SpytialAnnotation:
         scalar_key = SCALAR_ITEMS.get(self._annotation_type)
         if scalar_key is not None and scalar_key in self.kwargs:
             return {self._annotation_type: self.kwargs[scalar_key]}
-        return {self._annotation_type: self.kwargs}
+        return {
+            self._annotation_type: _with_source(
+                self._annotation_type,
+                self.kwargs,
+                getattr(self, "_source", None),
+            )
+        }
 
     def __repr__(self):
         args = ", ".join(f"{k}={v!r}" for k, v in self.kwargs.items())
@@ -1377,6 +1397,7 @@ def annotate_type_alias(type_alias, annotation_type, **kwargs):
     :param kwargs: The annotation parameters.
     :return: The type alias (for chaining).
     """
+    source = _describe_source(annotation_type, kwargs)
     annotation_type, kwargs = _prepare_kwargs(annotation_type, kwargs, stacklevel=3)
     _warn_if_noop(annotation_type, stacklevel=3)
 
@@ -1390,7 +1411,7 @@ def annotate_type_alias(type_alias, annotation_type, **kwargs):
     # Validate and add the annotation
     if annotation_type in CONSTRAINT_TYPES:
         validate_fields(annotation_type, kwargs, CONSTRAINT_TYPES[annotation_type])
-        entry = {annotation_type: kwargs}
+        entry = {annotation_type: _with_source(annotation_type, kwargs, source)}
         registry["constraints"].append(entry)
     elif annotation_type in DIRECTIVE_TYPES:
         validate_fields(annotation_type, kwargs, DIRECTIVE_TYPES[annotation_type])
@@ -1398,7 +1419,7 @@ def annotate_type_alias(type_alias, annotation_type, **kwargs):
         if annotation_type == "flag" and "name" in kwargs:
             entry = {annotation_type: kwargs["name"]}
         else:
-            entry = {annotation_type: kwargs}
+            entry = {annotation_type: _with_source(annotation_type, kwargs, source)}
         registry["directives"].append(entry)
     else:
         raise ValueError(
@@ -1594,6 +1615,29 @@ def validate_fields(type_, kwargs, valid_fields):
             print(f"Warning: Unknown fields for '{type_}': {', '.join(unknown_fields)}")
 
 
+def _with_source(annotation_type, payload, source):
+    """Attach the author's own text to a rule, where core accepts one.
+
+    ``source`` is spytial-core 5.4.3's channel for the rule as it was written
+    at the authoring site; conflict reports cite it in place of the engine's
+    own rendering. SOURCE_SUPPORTED_BY comes from the language manifest, so
+    which forms carry one is core's answer rather than a list kept here.
+
+    Returns a copy rather than writing into ``payload``. One ``@spytial.x(...)``
+    call builds one kwargs dict and reuses it for every target it decorates,
+    running validate_fields over it again each time -- a ``source`` key left in
+    that dict would come back as an unknown field on the second class.
+    """
+    if source is None or annotation_type not in SOURCE_SUPPORTED_BY:
+        return payload
+    if not isinstance(payload, dict):
+        # A scalar form (`- flag: hideDisconnected`) is a bare value with no
+        # block to carry a source. SOURCE_SUPPORTED_BY already excludes those;
+        # this keeps the invariant local to where it matters.
+        return payload
+    return dict(payload, source=source)
+
+
 def _create_decorator(constraint_type, doc=None):
     """
     Create a decorator function for a specific constraint or directive type.
@@ -1606,6 +1650,13 @@ def _create_decorator(constraint_type, doc=None):
     """
 
     def decorator(**kwargs):
+        # Read back what the author wrote here, before _prepare_kwargs rewrites
+        # a deprecated spelling into its replacement: the source block records
+        # the rule as written, not as rewritten. Captured once per authoring
+        # site, so every target this decorator is applied to cites the one line
+        # that actually carries the rule.
+        source = _describe_source(constraint_type, kwargs)
+
         # Rewrite deprecated 2.x style forms once, at the authoring site, so the
         # deprecation warning points at the user's line and fires once even if
         # the returned decorator is applied to many targets.
@@ -1631,7 +1682,9 @@ def _create_decorator(constraint_type, doc=None):
                     validate_fields(
                         effective_type, kwargs, CONSTRAINT_TYPES[effective_type]
                     )
-                    entry = {effective_type: kwargs}
+                    entry = {
+                        effective_type: _with_source(effective_type, kwargs, source)
+                    }
                     target.__spytial_registry__["constraints"].append(entry)
                 elif effective_type in DIRECTIVE_TYPES:
                     # Validate fields for directives
@@ -1647,7 +1700,11 @@ def _create_decorator(constraint_type, doc=None):
                     if scalar_key is not None and scalar_key in kwargs:
                         entry = {effective_type: kwargs[scalar_key]}
                     else:
-                        entry = {effective_type: kwargs}
+                        entry = {
+                            effective_type: _with_source(
+                                effective_type, kwargs, source
+                            )
+                        }
 
                     target.__spytial_registry__["directives"].append(entry)
                 else:
@@ -1658,7 +1715,9 @@ def _create_decorator(constraint_type, doc=None):
                 return target
             else:
                 # Object annotation (new ergonomic behavior)
-                return _annotate_object(target, effective_type, **kwargs)
+                return _annotate_object(
+                    target, effective_type, _source=source, **kwargs
+                )
 
         return unified_decorator
 
@@ -2092,14 +2151,23 @@ def _ensure_object_registry(obj):
         )
 
 
-def _annotate_object(obj, annotation_type, **kwargs):
+def _annotate_object(obj, annotation_type, *, _source=None, **kwargs):
     """
     Apply an annotation to a specific object instance.
     :param obj: The object to annotate.
     :param annotation_type: The type of annotation (e.g., 'orientation', 'cyclic').
+    :param _source: The source block for the rule, when the caller already built
+        one. The decorator path does: it captures at `@spytial.x(...)`, which is
+        the line carrying the rule, rather than at the line applying it.
     :param kwargs: The annotation parameters.
     :return: The annotated object (for chaining).
     """
+    # Capture before _prepare_kwargs rewrites a deprecated spelling, and before
+    # the self-selector substitution below turns `selector='self'` into an
+    # object id: the block records what the author wrote.
+    if _source is None:
+        _source = _describe_source(annotation_type, kwargs)
+
     # Rewrite deprecated 2.x style forms and flatten style blocks. Idempotent,
     # so the decorator path (already desugared) doesn't warn twice.
     annotation_type, kwargs = _prepare_kwargs(annotation_type, kwargs, stacklevel=4)
@@ -2122,7 +2190,9 @@ def _annotate_object(obj, annotation_type, **kwargs):
         validate_fields(
             annotation_type, processed_kwargs, CONSTRAINT_TYPES[annotation_type]
         )
-        entry = {annotation_type: processed_kwargs}
+        entry = {
+            annotation_type: _with_source(annotation_type, processed_kwargs, _source)
+        }
         registry["constraints"].append(entry)
     elif annotation_type in DIRECTIVE_TYPES:
         validate_fields(
@@ -2133,7 +2203,11 @@ def _annotate_object(obj, annotation_type, **kwargs):
         if annotation_type == "flag" and "name" in processed_kwargs:
             entry = {annotation_type: processed_kwargs["name"]}
         else:
-            entry = {annotation_type: processed_kwargs}
+            entry = {
+                annotation_type: _with_source(
+                    annotation_type, processed_kwargs, _source
+                )
+            }
 
         registry["directives"].append(entry)
     else:
@@ -2304,7 +2378,11 @@ def _warn_style_conflicts(directives):
             style_payload = {
                 key: value
                 for key, value in payload.items()
-                if key not in match_fields
+                # `source` records where the rule was written, not what it
+                # styles. Left in, two rules setting the same property to the
+                # same value would look like a disagreement whenever they were
+                # written on different lines -- about their own source text.
+                if key not in match_fields and key != "source"
             }
             for leaf, value in _iter_style_leaves(style_payload):
                 key = (directive_type, match_key, leaf)
@@ -2324,19 +2402,41 @@ def _warn_style_conflicts(directives):
     return directives
 
 
+def _strip_source(entry):
+    """An entry as core compares it for de-duplication, with `source` removed."""
+    if not isinstance(entry, dict):
+        return entry
+    return {
+        item: (
+            {key: value for key, value in payload.items() if key != "source"}
+            if isinstance(payload, dict)
+            else payload
+        )
+        for item, payload in entry.items()
+    }
+
+
 def _deduplicate_entries(entries):
     """
     Remove duplicate entries while preserving order. Entries can be dicts
     (e.g., {"orientation": {...}}) or scalar values (e.g., flag name).
     We use a JSON-stable canonicalization for dicts and fallback to repr.
+
+    The `source` block is excluded from that canonicalization. It records where
+    a rule was written, so two identical rules written at different sites --
+    the same constraint on a class and its subclass, most often -- would stop
+    de-duplicating the moment they started carrying one, and the diagram would
+    gain a duplicate rule for no reason anyone could see. Core de-duplicates on
+    the rule and keeps the first source it was given; keeping the first entry
+    here is the same rule, applied on the same side of the wire.
     """
     seen = set()
     unique = []
     for entry in entries:
         try:
-            key = json.dumps(entry, sort_keys=True, default=str)
+            key = json.dumps(_strip_source(entry), sort_keys=True, default=str)
         except Exception:
-            key = repr(entry)
+            key = repr(_strip_source(entry))
         if key not in seen:
             seen.add(key)
             unique.append(entry)
