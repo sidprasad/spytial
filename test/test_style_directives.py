@@ -11,6 +11,7 @@ import pytest
 from typing import Annotated
 
 import spytial
+from spytial.annotations import _strip_source
 from spytial import (
     LineStyle,
     TextStyle,
@@ -28,7 +29,15 @@ from spytial import (
 
 
 def _directives(obj):
-    return collect_decorators(obj)["directives"]
+    """The directives an object emits, minus the `source` block on each.
+
+    Every rule carries one from spytial-core 5.4.3 on -- the decorator as its
+    author wrote it, for conflict reports to cite. It is provenance, not style,
+    and it moves whenever a line in this file moves, so the goldens below stay
+    about the desugaring they were written to pin. What the block itself
+    contains is test_source_block.py's subject.
+    """
+    return [_strip_source(entry) for entry in collect_decorators(obj)["directives"]]
 
 
 EDGE_STYLE_ENTRY = {
@@ -93,7 +102,7 @@ def test_annotated_classes():
         spytial.AtomStyle(selector="self", fillStyle=FillStyle(color="mistyrose")),
     ]
     extracted = spytial.extract_spytial_annotations(X)
-    assert extracted["directives"] == [
+    assert [_strip_source(e) for e in extracted["directives"]] == [
         {"edgeStyle": {"field": "next", "lineStyle": {"color": "red"}}},
         {"atomStyle": {"selector": "self", "fillStyle": {"color": "mistyrose"}}},
     ]
@@ -297,12 +306,14 @@ def test_deprecation_per_entry_point():
 def test_deprecated_classes_emit_new_entries():
     with pytest.deprecated_call():
         entry = spytial.EdgeColor(field="n", value="red", style="dashed").to_entry()
-    assert entry == {
+    assert _strip_source(entry) == {
         "edgeStyle": {"field": "n", "lineStyle": {"color": "red", "pattern": "dashed"}}
     }
     with pytest.deprecated_call():
         entry = spytial.AtomColor(selector="s", value="blue").to_entry()
-    assert entry == {"atomStyle": {"selector": "s", "borderStyle": {"color": "blue"}}}
+    assert _strip_source(entry) == {
+        "atomStyle": {"selector": "s", "borderStyle": {"color": "blue"}}
+    }
 
 
 # --------------------------------------------------------------------------- #

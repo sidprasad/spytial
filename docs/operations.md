@@ -297,6 +297,39 @@ class Node:
     ...
 ```
 
+## Rules in error messages
+
+Every rule carries the text that declared it. Spytial stamps each operation it
+emits with a `source` block, which holds the decorator as it was written and
+the place it was written:
+
+```yaml
+orientation:
+  selector: '{ x : TreeNode, y : TreeNode | x.left = y }'
+  directions: [below, left]
+  source:
+    text: "@spytial.orientation(selector=LEFT_EDGE, directions=['below', 'left'])"
+    location: tree.py:12
+```
+
+When spytial-core reports a conflict between constraints, it cites this text in
+place of its own description of the rule. A report therefore names the
+decorator to edit, rather than the derived constraint that could not be
+satisfied.
+
+The text is read back from the source file, so a name appears unexpanded: a
+selector written as `LEFT_EDGE` is reported as `LEFT_EDGE`, which is what the
+reader finds at `tree.py:12`. Where no source file can be read, as in a REPL or
+in `exec` of a string, the call is reconstructed from its arguments and no
+location is given.
+
+The block is informational and does not affect layout. De-duplication ignores
+it, so two identical rules written in different places remain one rule.
+`location` is a file name and a line, never a full path, because the spec
+travels inside the generated HTML file.
+
+Set `SPYTIAL_NO_SOURCE=1` to emit no `source` blocks.
+
 ## Examples
 
 Try these operations on real data structures in the

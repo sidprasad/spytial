@@ -9,11 +9,11 @@
 #
 # It also re-vendors the language manifest and regenerates the annotation
 # tables from it. Core's parser ignores anything it does not recognize, so a
-# release that adds a field or moves a form to the other section would
-# otherwise leave the Python side accepting exactly what it accepted before --
-# emitting a spec core silently drops part of, with no error anywhere. The
-# regeneration turns that into a diff in review, and into a test failure if it
-# is skipped.
+# release that adds a field, moves a form to the other section, or introduces a
+# whole new top-level construct would otherwise leave the Python side accepting
+# exactly what it accepted before -- emitting a spec core silently drops part
+# of, with no error anywhere. The regeneration turns that into a diff in
+# review, and into a test failure if it is skipped.
 #
 # Usage:  ./update-spytial-core.sh
 
@@ -122,6 +122,8 @@ echo
 echo "Next:"
 echo "  1. Review spytial/_spec_tables.py -- that diff IS the language change."
 echo "     If LANGUAGE_VERSION did not move, the language did not change."
+echo "     If it moved and the tables did not, the change is one the tables do"
+echo "     not describe -- read the manifest diff, not just the generated file."
 echo "  2. Run 'pytest'. Failures name whatever hand-written surface is now behind."
 echo "  3. Run 'python3 scripts/generate_api_baseline.py' if the public API changed;"
 echo "     test_api_baseline.py will say whether the change is additive or breaking,"

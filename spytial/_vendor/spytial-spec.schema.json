@@ -1,10 +1,10 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "urn:spytial:layout-spec-schema:2026-08-14",
+  "$id": "urn:spytial:layout-spec-schema:2026-08-25",
   "title": "Spytial layout specification",
-  "description": "A Spytial spec: constraints (structural layout) and directives (presentation). Spec language 2026-08-14, from spytial-core 5.2.1. This schema is stricter than the engine parser, which silently ignores anything it does not recognize — validating here is how a misspelled key or an out-of-range value gets caught at all. Fetch it from https://cdn.jsdelivr.net/gh/sidprasad/spytial-core@<tag>/docs/spytial-spec.schema.json; pin a tag, since the @main path is overwritten each release.",
-  "x-spytial-language-version": "2026-08-14",
-  "x-spytial-core-version": "5.2.1",
+  "description": "A Spytial spec: constraints (structural layout) and directives (presentation). Spec language 2026-08-25, from spytial-core 5.4.3. This schema is stricter than the engine parser, which silently ignores anything it does not recognize — validating here is how a misspelled key or an out-of-range value gets caught at all. Fetch it from https://cdn.jsdelivr.net/gh/sidprasad/spytial-core@<tag>/docs/spytial-spec.schema.json; pin a tag, since the @main path is overwritten each release.",
+  "x-spytial-language-version": "2026-08-25",
+  "x-spytial-core-version": "5.4.3",
   "type": "object",
   "properties": {
     "constraints": {
@@ -191,6 +191,25 @@
       },
       "additionalProperties": false
     },
+    "source": {
+      "description": "For generators only — hand-written YAML needs no `source`, because there the YAML is the author’s text. Accepted on every block-bodied item so a generator can stamp it uniformly. The engine carries and displays it for the forms that appear in conflict reports (the `displayedBy` list: the layout constraints and `hideAtom`); on the rest it parses and is ignored. Duplicate rules de-duplicate to one entry, which keeps the first provided source.",
+      "type": "object",
+      "properties": {
+        "text": {
+          "description": "The rule exactly as its author wrote it in the host surface — a Python decorator, a Rust attribute, a Forge annotation. Shown (escaped, as code) in conflict reports and warnings in place of the engine’s own description of the rule. A missing or empty `text` makes the whole `source` block ignored.",
+          "type": "string",
+          "minLength": 1
+        },
+        "location": {
+          "description": "Where the rule was written, e.g. `tree.py:12`. Appended to the displayed text.",
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "text"
+      ]
+    },
     "orientation": {
       "title": "Orientation",
       "description": "Place the two ends of each selected tuple relative to one another.",
@@ -329,6 +348,10 @@
                 "never"
               ],
               "description": "Negation. `never` asserts the constraint must not hold; `always` (the default) is the positive form."
+            },
+            "source": {
+              "$ref": "#/$defs/source",
+              "description": "The rule as its author wrote it in the host surface. Cited in conflict reports in place of the engine’s own rendering."
             }
           },
           "additionalProperties": false,
@@ -371,6 +394,10 @@
                 "never"
               ],
               "description": "Negation. `never` asserts the constraint must not hold; `always` (the default) is the positive form."
+            },
+            "source": {
+              "$ref": "#/$defs/source",
+              "description": "The rule as its author wrote it in the host surface. Cited in conflict reports in place of the engine’s own rendering."
             }
           },
           "additionalProperties": false,
@@ -412,6 +439,10 @@
                 "never"
               ],
               "description": "Negation. `never` asserts the constraint must not hold; `always` (the default) is the positive form."
+            },
+            "source": {
+              "$ref": "#/$defs/source",
+              "description": "The rule as its author wrote it in the host surface. Cited in conflict reports in place of the engine’s own rendering."
             }
           },
           "additionalProperties": false,
@@ -497,6 +528,10 @@
                 "never"
               ],
               "description": "Negation. `never` asserts the constraint must not hold; `always` (the default) is the positive form."
+            },
+            "source": {
+              "$ref": "#/$defs/source",
+              "description": "The rule as its author wrote it in the host surface. Cited in conflict reports in place of the engine’s own rendering."
             }
           },
           "additionalProperties": false,
@@ -557,6 +592,10 @@
             "selector": {
               "description": "Which nodes to resize. Omit to resize every node. Selector arity: unary — 1 column.",
               "type": "string"
+            },
+            "source": {
+              "$ref": "#/$defs/source",
+              "description": "The rule as its author wrote it in the host surface. Accepted here for uniform generation; not displayed for this item today."
             }
           },
           "additionalProperties": false,
@@ -583,6 +622,10 @@
               "description": "Which atoms to hide. Selector arity: unary — 1 column.",
               "type": "string",
               "minLength": 1
+            },
+            "source": {
+              "$ref": "#/$defs/source",
+              "description": "The rule as its author wrote it in the host surface. Cited in conflict reports in place of the engine’s own rendering."
             }
           },
           "additionalProperties": false,
@@ -646,6 +689,10 @@
             "showLabel": {
               "description": "Whether the atom's label is drawn. Independent of the icon: `iconStyle.placement` controls the icon's geometry, this controls the label. Default when omitted: true.",
               "type": "boolean"
+            },
+            "source": {
+              "$ref": "#/$defs/source",
+              "description": "The rule as its author wrote it in the host surface. Accepted here for uniform generation; not displayed for this item today."
             }
           },
           "additionalProperties": false
@@ -692,6 +739,10 @@
             "hidden": {
               "description": "Hide the edge entirely while keeping the relation in the data. Default when omitted: false.",
               "type": "boolean"
+            },
+            "source": {
+              "$ref": "#/$defs/source",
+              "description": "The rule as its author wrote it in the host surface. Accepted here for uniform generation; not displayed for this item today."
             }
           },
           "additionalProperties": false,
@@ -729,6 +780,10 @@
             "textStyle": {
               "description": "This attribute line's own styling.",
               "$ref": "#/$defs/textStyle"
+            },
+            "source": {
+              "$ref": "#/$defs/source",
+              "description": "The rule as its author wrote it in the host surface. Accepted here for uniform generation; not displayed for this item today."
             }
           },
           "additionalProperties": false,
@@ -768,6 +823,10 @@
             "textStyle": {
               "description": "This tag line's own styling.",
               "$ref": "#/$defs/textStyle"
+            },
+            "source": {
+              "$ref": "#/$defs/source",
+              "description": "The rule as its author wrote it in the host surface. Accepted here for uniform generation; not displayed for this item today."
             }
           },
           "additionalProperties": false,
@@ -803,6 +862,10 @@
             "filter": {
               "description": "Hide only the tuples this selector returns. Selector arity: n-ary — 2+ columns.",
               "type": "string"
+            },
+            "source": {
+              "$ref": "#/$defs/source",
+              "description": "The rule as its author wrote it in the host surface. Accepted here for uniform generation; not displayed for this item today."
             }
           },
           "additionalProperties": false,
@@ -872,6 +935,10 @@
               "description": "Legacy inline highlight underlay. Deprecated — use `lineStyle.highlight` instead.",
               "deprecated": true,
               "type": "string"
+            },
+            "source": {
+              "$ref": "#/$defs/source",
+              "description": "The rule as its author wrote it in the host surface. Accepted here for uniform generation; not displayed for this item today."
             }
           },
           "additionalProperties": false,
@@ -907,6 +974,10 @@
             "showLabels": {
               "description": "Whether the atom's label is drawn alongside the icon. Default when omitted: false.",
               "type": "boolean"
+            },
+            "source": {
+              "$ref": "#/$defs/source",
+              "description": "The rule as its author wrote it in the host surface. Accepted here for uniform generation; not displayed for this item today."
             }
           },
           "additionalProperties": false,
@@ -939,6 +1010,10 @@
               "description": "Which atoms to recolor. Omitting it drops the directive — it never means \"every atom\". Selector arity: unary — 1 column.",
               "type": "string",
               "minLength": 1
+            },
+            "source": {
+              "$ref": "#/$defs/source",
+              "description": "The rule as its author wrote it in the host surface. Accepted here for uniform generation; not displayed for this item today."
             }
           },
           "additionalProperties": false,
@@ -1005,6 +1080,10 @@
             "hidden": {
               "description": "Hide the edge entirely. Default when omitted: false.",
               "type": "boolean"
+            },
+            "source": {
+              "$ref": "#/$defs/source",
+              "description": "The rule as its author wrote it in the host surface. Accepted here for uniform generation; not displayed for this item today."
             }
           },
           "additionalProperties": false,
