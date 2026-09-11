@@ -237,6 +237,15 @@ class TestTranslate:
         builder.build_instance(root)
         assert builder.atom_id_for(kid) == before
 
+    def test_the_source_block_names_the_function(self):
+        # A function's repr carries a memory address, which would differ on
+        # every run in a spec meant to be committed. The page says
+        # `selector=child_edges`, so that is what the source block records.
+        from spytial._source import _render_value
+
+        assert _render_value(child_edges) == "child_edges"
+        assert _render_value(lambda values: []) == "<lambda>"
+
     def test_the_editor_refuses_one(self):
         # Unlike a sequence, the editor writes the specification once and the
         # browser changes the data afterwards; the function cannot run again.
@@ -404,7 +413,11 @@ class TestWiring:
         builder, instance = built(root)
         for term in terms(materialise(child_edges, root, builder, instance)):
             assert term in html or term.replace(">", "&gt;") in html
-        assert "child_edges" not in html
+        # The function object shall not reach the spec; its *name* legitimately
+        # does, in the 5.4.3 source block that records the rule as written.
+        assert "!!python/name:" not in html
+        assert "<function" not in html
+        assert "selector=child_edges" in html
 
 
 # --------------------------------------------------------------------------- #

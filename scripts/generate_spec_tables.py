@@ -136,6 +136,29 @@ KNOWN_FIELD_TYPES = frozenset(
     }
 )
 
+# Top-level manifest keys this generator knows how to read. Everything else it
+# checks -- fields, enums, sections, arities -- it checks *inside* `items` and
+# `blocks`, so a release that introduces a construct one level above those was
+# free to land with nothing on this side noticing. That is exactly how `source`
+# arrived in 5.4.3: a new top-level key describing a block every item accepts,
+# generating cleanly and silently, because nothing here was looking at the
+# manifest's own shape. A new key now stops the update and names itself.
+KNOWN_MANIFEST_KEYS = frozenset(
+    {
+        "language",
+        "languageVersion",
+        "spytialCoreVersion",
+        "versioning",
+        "document",
+        "documentation",
+        "hold",
+        "source",
+        "blocks",
+        "items",
+        "deprecations",
+    }
+)
+
 KNOWN_SECTIONS = frozenset({"constraints", "directives"})
 KNOWN_VALUE_SHAPES = frozenset({"mapping", "scalar"})
 
@@ -154,6 +177,86 @@ KNOWN_ARITIES = frozenset({"unary", "binary", "n-ary"})
 def load_manifest(path=MANIFEST_PATH):
     with open(path, encoding="utf-8") as handle:
         return json.load(handle)
+
+
+def check_manifest_shape(manifest):
+    """Fail on a top-level construct this generator was never written for.
+
+    The rest of the drift checking assumes the manifest is a bag of `items` and
+    `blocks`; this is the one that notices when it stops being only that.
+    """
+    unknown = sorted(set(manifest) - KNOWN_MANIFEST_KEYS)
+    if unknown:
+        raise ManifestDrift(
+            f"the manifest has top-level key(s) {unknown} this generator was not "
+            f"written for. Each describes part of the spec language with nothing "
+            f"on the Python side reading it, so specs would keep generating while "
+            f"silently not using it. Add it to KNOWN_MANIFEST_KEYS, with a build_* "
+            f"for whatever it describes if it needs one, before regenerating."
+        )
+
+
+def build_source_support(manifest):
+    """Which items carry a ``source`` block, and which display it, as yaml keys.
+
+    `source` is the language's channel for the rule as its author wrote it, so
+    a generator that does not stamp one is leaving conflict reports to describe
+    rules in the engine's words instead of the author's. Which items accept one
+    is the manifest's call: an item outside `supportedBy` has the block parsed
+    and thrown away, and a scalar item has no block to put it in at all.
+    """
+    source = manifest["source"]
+    if source.get("field") != "source":
+        raise ManifestDrift(
+            f"the source block is written under {source.get('field')!r}, not "
+            f"'source'; annotations.py stamps the key by name."
+        )
+
+    fields = {field["name"]: field for field in source.get("fields", [])}
+    if set(fields) != {"text", "location"}:
+        raise ManifestDrift(
+            f"the source block's fields are {sorted(fields)}, not ['location', "
+            f"'text']; spytial/_source.py emits exactly those two."
+        )
+    if not fields["text"].get("required"):
+        raise ManifestDrift("source.text is no longer required; revisit _source.py.")
+    if fields["location"].get("required"):
+        raise ManifestDrift(
+            "source.location is now required, but spytial omits it when the "
+            "authoring site is a REPL or has no readable file; revisit _source.py."
+        )
+
+    ids_to_keys = {item["id"]: item["yamlKey"] for item in manifest["items"]}
+    lists = {}
+    for name in ("supportedBy", "displayedBy"):
+        keys = []
+        for item_id in source[name]:
+            if item_id not in ids_to_keys:
+                raise ManifestDrift(
+                    f"source.{name} names unknown item {item_id!r}."
+                )
+            keys.append(ids_to_keys[item_id])
+        lists[name] = keys
+
+    scalar = {
+        item["yamlKey"]
+        for item in manifest["items"]
+        if item.get("valueShape") == "scalar"
+    }
+    carried_by_scalars = scalar & set(lists["supportedBy"])
+    if carried_by_scalars:
+        raise ManifestDrift(
+            f"source.supportedBy lists scalar item(s) {sorted(carried_by_scalars)}, "
+            f"which serialize as a bare value and have no block to carry a source."
+        )
+    undeclared = set(lists["displayedBy"]) - set(lists["supportedBy"])
+    if undeclared:
+        raise ManifestDrift(
+            f"source.displayedBy names {sorted(undeclared)}, which "
+            f"source.supportedBy does not accept a source on."
+        )
+
+    return sorted(lists["supportedBy"]), sorted(lists["displayedBy"])
 
 
 def _python_name(item_id, field):
@@ -454,10 +557,12 @@ def _tuple_lit(values):
 def render(manifest=None):
     """The exact bytes ``spytial/_spec_tables.py`` should contain."""
     manifest = manifest or load_manifest()
+    check_manifest_shape(manifest)
 
     enums = _collect_enums(manifest)
     constraints, directives = build_tables(manifest)
     hold_supported_by = build_hold_support(manifest)
+    source_supported_by, source_displayed_by = build_source_support(manifest)
     enum_values = build_enum_values(manifest)
     selector_arity = build_selector_arity(manifest)
     blocks = build_blocks(manifest)
@@ -540,6 +645,19 @@ def render(manifest=None):
         "# so a spec reading `hold: never` there quietly means the opposite of what",
         "# it says. annotations.py rejects it rather than emitting a no-op.",
         f"HOLD_SUPPORTED_BY = frozenset({_lit(hold_supported_by)})",
+        "",
+        "# The forms that accept a `source` block -- the rule as its author wrote",
+        "# it, which conflict reports cite in place of the engine's own rendering.",
+        "# Every block-bodied item accepts one; a scalar item (`- flag: ...`) has",
+        "# no block to carry it. spytial/_source.py builds the block, annotations.py",
+        "# stamps it on the entries named here.",
+        f"SOURCE_SUPPORTED_BY = frozenset({_lit(source_supported_by)})",
+        "",
+        "# The subset core actually shows a source for today: the layout constraints",
+        "# and hideAtom, the forms that turn up in conflict reports. On the rest the",
+        "# block parses and is ignored, so this is advisory -- spytial stamps every",
+        "# form in SOURCE_SUPPORTED_BY, uniformly, and lets core decide what to show.",
+        f"SOURCE_DISPLAYED_BY = frozenset({_lit(source_displayed_by)})",
         "",
         "",
         "# --------------------------------------------------------------------------- #",

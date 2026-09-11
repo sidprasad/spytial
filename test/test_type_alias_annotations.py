@@ -5,6 +5,7 @@ Test suite for type alias annotations in spytial using typing.Annotated.
 import pytest
 from typing import Annotated, Dict, List
 import spytial
+from spytial.annotations import _strip_source
 
 
 class TestAnnotatedTypeAliases:
@@ -129,7 +130,11 @@ class TestAnnotatedTypeAliases:
         ann = spytial.Orientation(selector="items", directions=["left"])
         entry = ann.to_entry()
 
-        assert entry == {"orientation": {"selector": "items", "directions": ["left"]}}
+        # Minus the `source` block every rule carries from spytial-core 5.4.3
+        # on; test_source_block.py is where its content is pinned.
+        assert _strip_source(entry) == {
+            "orientation": {"selector": "items", "directions": ["left"]}
+        }
 
     def test_flag_to_entry_special_format(self):
         """Test that Flag directive uses scalar format."""
@@ -145,7 +150,7 @@ class TestAnnotatedTypeAliases:
         # Legacy EdgeColor rewrites to an edgeStyle entry
         ec1 = spytial.EdgeColor(field="children", value="red")
         assert "selector" not in ec1.kwargs
-        assert ec1.to_entry() == {
+        assert _strip_source(ec1.to_entry()) == {
             "edgeStyle": {"field": "children", "lineStyle": {"color": "red"}}
         }
 
@@ -156,7 +161,7 @@ class TestAnnotatedTypeAliases:
         es = spytial.EdgeStyle(
             field="children", lineStyle=spytial.LineStyle(color="red")
         )
-        assert es.to_entry() == {
+        assert _strip_source(es.to_entry()) == {
             "edgeStyle": {"field": "children", "lineStyle": {"color": "red"}}
         }
 

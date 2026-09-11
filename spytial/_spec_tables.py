@@ -3,7 +3,7 @@
 GENERATED FILE -- DO NOT EDIT BY HAND.
 
     Source:   spytial/_vendor/spytial-language.json
-    Language: 2026-08-14 (spytial-core 5.2.1)
+    Language: 2026-08-25 (spytial-core 5.4.3)
     Regenerate with: python3 scripts/generate_spec_tables.py
 
 Everything here is derived from the manifest spytial-core publishes, so a
@@ -16,8 +16,8 @@ tables, each with its reason.
 # The manifest this was generated from. `LANGUAGE_VERSION` only moves when
 # the spec language itself changes, so an unchanged value across a
 # spytial-core bump means nothing here needed revisiting.
-LANGUAGE_VERSION = '2026-08-14'
-CORE_VERSION = '5.2.1'
+LANGUAGE_VERSION = '2026-08-25'
+CORE_VERSION = '5.4.3'
 
 
 # --------------------------------------------------------------------------- #
@@ -278,6 +278,41 @@ HOLD_SUPPORTED_BY = frozenset([
     'align',
     'cyclic',
     'group',
+    'orientation',
+])
+
+# The forms that accept a `source` block -- the rule as its author wrote
+# it, which conflict reports cite in place of the engine's own rendering.
+# Every block-bodied item accepts one; a scalar item (`- flag: ...`) has
+# no block to carry it. spytial/_source.py builds the block, annotations.py
+# stamps it on the entries named here.
+SOURCE_SUPPORTED_BY = frozenset([
+    'align',
+    'atomColor',
+    'atomStyle',
+    'attribute',
+    'cyclic',
+    'edgeColor',
+    'edgeStyle',
+    'group',
+    'hideAtom',
+    'hideField',
+    'icon',
+    'inferredEdge',
+    'orientation',
+    'size',
+    'tag',
+])
+
+# The subset core actually shows a source for today: the layout constraints
+# and hideAtom, the forms that turn up in conflict reports. On the rest the
+# block parses and is ignored, so this is advisory -- spytial stamps every
+# form in SOURCE_SUPPORTED_BY, uniformly, and lets core decide what to show.
+SOURCE_DISPLAYED_BY = frozenset([
+    'align',
+    'cyclic',
+    'group',
+    'hideAtom',
     'orientation',
 ])
 
