@@ -27,6 +27,7 @@ import pytest
 import spytial
 from spytial import _source
 from spytial._spec_tables import SOURCE_SUPPORTED_BY, SCALAR_ITEMS
+from spytial.annotations import _strip_source
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 
@@ -367,7 +368,91 @@ def test_a_rule_written_in_a_repl_still_carries_its_text():
 
 def test_an_unparseable_file_falls_back_rather_than_raising(tmp_path):
     """The AST read is best-effort; a file it cannot parse is not an error."""
-    assert _source._decorator_spans(str(tmp_path / "nope.py"), None) == ()
+    assert _source._decorator_spans(str(tmp_path / "nope.py"), None) == (0, ())
+
+    unparseable = tmp_path / "broken.py"
+    unparseable.write_text("def (:\n", encoding="utf-8")
+    line_count, spans = _source._decorator_spans(
+        str(unparseable), _source._mtime(str(unparseable))
+    )
+    # Readable but not parseable: no decorator text, but the file is there, so
+    # a location pointing into it is still good.
+    assert spans == ()
+    assert line_count == 1
+
+
+def test_no_location_when_the_file_behind_the_frame_is_gone():
+    """A module can run from bytecode whose .py has been moved or deleted.
+
+    `co_filename` still looks like a real path, so the location would cite a
+    file that is not there -- and the reader would be sent to look at nothing.
+    """
+    namespace = {"spytial": spytial}
+    code = compile(
+        "@spytial.orientation(selector='x', directions=['below'])\nclass Gone: pass\n",
+        "/nonexistent/ghost.py",
+        "exec",
+    )
+    exec(code, namespace)
+
+    block = namespace["Gone"].__spytial_registry__["constraints"][0]["orientation"][
+        "source"
+    ]
+    assert block["text"] == "spytial.orientation(selector='x', directions=['below'])"
+    assert "location" not in block
+
+
+def test_no_location_for_a_line_past_the_end_of_the_file(tmp_path):
+    """A stale .pyc can report a line the current file does not reach."""
+    short = tmp_path / "short.py"
+    short.write_text("x = 1\n", encoding="utf-8")
+    text, real_line = _source._read(str(short), 500)
+    assert text is None
+    assert not real_line
+
+
+# --------------------------------------------------------------------------- #
+# The class form records the call, not what the call was turned into
+# --------------------------------------------------------------------------- #
+
+
+def test_a_style_block_is_recorded_as_the_block_not_as_a_dict():
+    """Subclasses coerce style blocks to plain dicts before the base sees them.
+
+    `Annotated[...]` rules are calls rather than decorators, so they always
+    use the reconstructed text -- which makes this the only record of them.
+    """
+    rule = spytial.Group(
+        selector="Team.members",
+        name="Team",
+        addEdge=spytial.GroupEdge(
+            points="togroup", lineStyle=spytial.LineStyle(pattern="dashed")
+        ),
+    )
+    assert rule._source["text"] == (
+        "Group(selector='Team.members', name='Team', "
+        "addEdge=GroupEdge(points='togroup', lineStyle=LineStyle(pattern='dashed')))"
+    )
+
+
+def test_unset_style_fields_are_not_invented():
+    """The generated dataclass repr spells every field, including the None ones."""
+    assert _source._render_value(spytial.LineStyle(color="red")) == (
+        "LineStyle(color='red')"
+    )
+
+
+def test_a_deprecated_class_records_the_spelling_that_was_written():
+    """The rewrite happens before the base constructor; the text must precede it."""
+    with pytest.warns(DeprecationWarning):
+        rule = spytial.AtomColor(selector="Node", value="red")
+
+    # The entry is rewritten to atomStyle/borderStyle, as it should be.
+    assert _strip_source(rule.to_entry()) == {
+        "atomStyle": {"selector": "Node", "borderStyle": {"color": "red"}}
+    }
+    # The source still quotes what is on the page.
+    assert rule._source["text"] == "AtomColor(selector='Node', value='red')"
 
 
 def test_the_block_is_omitted_rather_than_emitted_empty():

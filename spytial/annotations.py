@@ -740,6 +740,25 @@ class SpytialAnnotation:
     _annotation_type: str = None
     _is_constraint: bool = True
 
+    def __new__(cls, *args, **kwargs):
+        """Keep the arguments as passed, before any subclass touches them.
+
+        A subclass __init__ coerces style blocks to plain dicts and rewrites a
+        deprecated spelling into its replacement before calling up, so by the
+        time `self.kwargs` exists it describes what the rule *became*. The
+        source block has to say what was written: `Group(addEdge=GroupEdge(
+        points='togroup'))`, not `Group(addEdge={'points': 'togroup'})`, and
+        `AtomColor(value='red')`, not `AtomColor(borderStyle={'color':
+        'red'})`. An `Annotated[...]` rule is a call and not a decorator, so it
+        never has AST text to read back and this is the only record of it.
+
+        Every subclass takes keyword arguments only, so `kwargs` is the whole
+        call.
+        """
+        instance = super().__new__(cls)
+        instance._raw_kwargs = dict(kwargs)
+        return instance
+
     def __init__(self, **kwargs):
         # Every subclass funnels here, so the Annotated[...] form gets the same
         # vocabulary check as the **kwargs paths without restating it per class.
@@ -753,7 +772,9 @@ class SpytialAnnotation:
         self._source = _describe_source(
             self._annotation_type,
             kwargs,
-            fallback=_render_call(type(self).__name__, kwargs),
+            fallback=_render_call(
+                type(self).__name__, getattr(self, "_raw_kwargs", None) or kwargs
+            ),
         )
 
     def to_entry(self):

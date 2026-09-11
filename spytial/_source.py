@@ -40,6 +40,7 @@ did before 5.4.3, which is also what makes the difference testable.
 """
 
 import ast
+import dataclasses
 import functools
 import inspect
 import linecache
@@ -62,7 +63,15 @@ def _mtime(filename):
 
 @functools.lru_cache(maxsize=128)
 def _decorator_spans(filename, _stamp):
-    """Every decorator expression in one file, as ``(start, end, text)``.
+    """``(line count, spans)`` for one file; the count is 0 when it cannot be read.
+
+    The two halves of a source block fail independently, so the caller has to
+    be able to tell them apart. No spans covering a line means the rule was
+    written as a call rather than a decorator, and the location is still good.
+    No readable file at all means there is nowhere to send anyone, and the
+    location has to be dropped rather than cite a path that is not there.
+
+    Each span is ``(start, end, text)``.
 
     Parsing a whole module to recover one line is only worth it once per file,
     hence the cache; ``_stamp`` is the file's mtime, so a module edited and
@@ -76,11 +85,13 @@ def _decorator_spans(filename, _stamp):
     linecache.checkcache(filename)
     lines = linecache.getlines(filename)
     if not lines:
-        return ()
+        return 0, ()
     try:
         tree = ast.parse("".join(lines), filename)
     except (SyntaxError, ValueError):
-        return ()
+        # Readable but not parseable: the file is still there to be opened, so
+        # the location stands even though no decorator text can be recovered.
+        return len(lines), ()
 
     # Sliced here rather than through ast.get_source_segment, which re-splits
     # the whole file on every call: that is quadratic in the number of
@@ -99,7 +110,7 @@ def _decorator_spans(filename, _stamp):
             text = _slice(encoded, decorator, end)
             if text:
                 spans.append((decorator.lineno, end, "@" + text))
-    return tuple(spans)
+    return len(lines), tuple(spans)
 
 
 def _slice(encoded, node, end):
@@ -119,18 +130,25 @@ def _slice(encoded, node, end):
         return None
 
 
-def _decorator_text(filename, lineno):
-    """The decorator expression covering ``lineno``, ``@`` included, or None.
+def _read(filename, lineno):
+    """``(text, is_real_line)`` for one authoring site.
 
-    A decorator written across several lines is returned whole, which is the
+    ``text`` is the decorator expression covering ``lineno``, ``@`` included,
+    or None where the rule is not a decorator or the file cannot be read. A
+    decorator written across several lines is returned whole, which is the
     point of going through the AST rather than reading the one line the frame
     reports.
+
+    ``is_real_line`` says whether the file is readable and long enough to
+    contain ``lineno`` -- whether, that is, there is anything at the location
+    to go and look at.
     """
+    line_count, spans = _decorator_spans(filename, _mtime(filename))
     best = None
-    for start, end, text in _decorator_spans(filename, _mtime(filename)):
+    for start, end, text in spans:
         if start <= lineno <= end and (best is None or end - start < best[0]):
             best = (end - start, text)
-    return best[1] if best else None
+    return (best[1] if best else None), 0 < lineno <= line_count
 
 
 def _authoring_frame():
@@ -156,9 +174,31 @@ def _authoring_frame():
         del frame
 
 
+def _render_value(value):
+    """One argument, as its author would have written it.
+
+    A style block is a frozen dataclass whose optional fields default to None,
+    and whose generated repr spells every one of them. Quoting that back gives
+    `GroupEdge(points='togroup', lineStyle=None, textStyle=None)` for a call
+    that read `GroupEdge(points='togroup')` -- text that is not on the page the
+    location points at. Only the fields actually set are rendered, and nested
+    blocks the same way.
+    """
+    if dataclasses.is_dataclass(value) and not isinstance(value, type):
+        set_fields = ", ".join(
+            f"{field.name}={_render_value(getattr(value, field.name))}"
+            for field in dataclasses.fields(value)
+            if getattr(value, field.name) is not None
+        )
+        return f"{type(value).__name__}({set_fields})"
+    return repr(value)
+
+
 def render_call(name, kwargs):
     """A rule rebuilt from its arguments, for when the real text is unavailable."""
-    arguments = ", ".join(f"{key}={value!r}" for key, value in kwargs.items())
+    arguments = ", ".join(
+        f"{key}={_render_value(value)}" for key, value in kwargs.items()
+    )
     return f"{name}({arguments})"
 
 
@@ -176,11 +216,14 @@ def describe(annotation_type, kwargs, fallback=None):
     filename, lineno = _authoring_frame()
     text = None
     location = None
-    if filename:
-        # A synthetic filename -- '<stdin>', '<string>' -- names no file to
-        # read or to send anyone to, so neither half applies.
-        if not filename.startswith("<"):
-            text = _decorator_text(filename, lineno)
+    if filename and not filename.startswith("<"):
+        # A synthetic filename -- '<stdin>', '<string>' -- names no file at
+        # all. A real-looking one still might not be there: a module can run
+        # from bytecode whose .py has been moved or deleted, and a location
+        # citing it would send the reader to a file that does not exist. Only
+        # a line that can actually be opened earns one.
+        text, real_line = _read(filename, lineno)
+        if real_line:
             location = f"{os.path.basename(filename)}:{lineno}"
 
     if text is None:
