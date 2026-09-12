@@ -25,7 +25,7 @@ yaml = pytest.importorskip("yaml")
 pytest.importorskip("jinja2")
 
 import spytial  # noqa: E402  (after the importorskip guards above)
-from spytial._templating import js_literal  # noqa: E402
+from spytial._templating import js_literal, js_json  # noqa: E402
 from spytial.visualizer import _generate_visualizer_html  # noqa: E402
 
 EMPTY_DATUM = {"atoms": [], "relations": [], "types": []}
@@ -128,3 +128,68 @@ def test_the_spec_is_not_embedded_in_a_template_literal():
     ):
         source = (Path(spytial.__file__).parent / name).read_text(encoding="utf-8")
         assert "`{{" not in source, f"{name} interpolates into a template literal"
+
+
+# --------------------------------------------------------------------------- #
+# The structured payloads, which are literals rather than strings
+# --------------------------------------------------------------------------- #
+
+
+def test_a_label_cannot_end_the_script_element():
+    """`</script>` in an atom label used to close the element early.
+
+    The data instance is a JSON *object* literal, so it was never exposed to
+    the template-literal problem above -- but the HTML parser finds `</script>`
+    before any JavaScript runs, whatever the surrounding syntax is. An object
+    label is ordinary user data, so this is reachable without trying.
+    """
+
+    class Node:
+        def __init__(self, name):
+            self.name = name
+
+    payload = "</script><script>alert(1)</script>"
+    datum = spytial.CnDDataInstanceBuilder().build_instance(Node(payload))
+    html = _generate_visualizer_html(datum, "constraints: []\ndirectives: []\n")
+
+    embedded = html.split("const jsonData = ", 1)[1].split("\n", 1)[0]
+    assert "</script>" not in embedded
+
+    literal = re.search(r"const jsonData = (\{.*?\});\n", html, re.S).group(1)
+    labels = [atom["label"] for atom in json.loads(literal)["atoms"]]
+    assert payload in labels, "escaping must not alter the value"
+
+
+@pytest.mark.parametrize(
+    "value",
+    [
+        {"label": "</script>"},
+        {"nested": {"deep": ["</SCRIPT >", "\u2028"]}},
+        ["a", 1, None, True],
+        "a bare string",
+        42,
+    ],
+)
+def test_js_json_round_trips_and_leaves_no_raw_angle_bracket(value):
+    encoded = js_json(value)
+    assert "<" not in encoded
+    assert json.loads(encoded) == value
+
+
+def test_no_template_embeds_a_payload_unescaped():
+    """`| safe` in a script is the shape of both bugs; neither may come back."""
+    from pathlib import Path
+
+    for name in (
+        "visualizer_template.html",
+        "sequence_visualizer_template.html",
+        "input_template.html",
+        "evaluator_template.html",
+    ):
+        source = (Path(spytial.__file__).parent / name).read_text(encoding="utf-8")
+        for block in re.findall(r"<script\b[^>]*>(.*?)</script>", source, re.S):
+            for interpolation in re.findall(r"\{\{[^}]*\}\}", block):
+                assert "| safe" not in interpolation, (
+                    f"{name} embeds {interpolation} in a script unescaped; "
+                    f"use | js for a string or | js_json for a payload"
+                )

@@ -283,9 +283,9 @@
 
     <script>
         const cndSpec = {{ cnd_spec | js }};
-        const sequenceData = {{ sequence_data | safe }};
-        const frameLabels = {{ frame_labels | safe }};
-        const frameNotes = {{ frame_notes | safe }};
+        const sequenceData = {{ sequence_data | js_json }};
+        const frameLabels = {{ frame_labels | js_json }};
+        const frameNotes = {{ frame_notes | js_json }};
         let sequencePolicyName = {{ sequence_policy | js }};
 
         let graphElement = null;

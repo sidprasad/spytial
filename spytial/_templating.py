@@ -31,20 +31,43 @@ import json
 from jinja2 import Environment, FileSystemLoader
 
 
+def _inert(encoded):
+    """Neutralize the one character JavaScript syntax cannot protect.
+
+    ``</script>`` ends the element wherever it appears, string literal or not:
+    the HTML parser finds it before any JavaScript runs. ``<`` never occurs in
+    JSON outside a string, and ``\\u003c`` inside one denotes the same
+    character, so escaping every one of them is meaning-preserving in both
+    filters below.
+    """
+    return encoded.replace("<", "\\u003c")
+
+
 def js_literal(value):
     """A complete JavaScript string literal for ``value``, quotes included.
 
     JSON string syntax is a subset of JavaScript's, and ``json.dumps`` escapes
     every backslash, quote, control character and non-ASCII codepoint, which
     covers U+2028 and U+2029 -- legal in JSON but line terminators in older
-    JavaScript. ``<`` is escaped on top of that: ``</script>`` inside a string
-    still ends the element, whatever the string syntax says.
+    JavaScript.
     """
-    return json.dumps("" if value is None else str(value)).replace("<", "\\u003c")
+    return _inert(json.dumps("" if value is None else str(value)))
+
+
+def js_json(value):
+    """``value`` as a JavaScript literal: an object, array, number or string.
+
+    For the structured payloads -- the data instance, a sequence of them, the
+    frame labels. Takes the Python value rather than JSON text, so that
+    serializing and making it safe to embed are one step that a caller cannot
+    do half of.
+    """
+    return _inert(json.dumps(value))
 
 
 def template_environment(directory):
     """The Jinja environment the templates are rendered with."""
     env = Environment(loader=FileSystemLoader(directory))
     env.filters["js"] = js_literal
+    env.filters["js_json"] = js_json
     return env

@@ -111,7 +111,7 @@
 
     <script>
         // Embedded data passed from the server
-        const jsonData = {{ python_data | safe }};
+        const jsonData = {{ python_data | js_json }};
         const cndSpec = {{ cnd_spec | js }};
         const dataclassName = {{ dataclass_name | js }};
 

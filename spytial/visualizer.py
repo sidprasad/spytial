@@ -22,7 +22,6 @@ except ImportError:
     HAS_IPYTHON = False
 
 try:
-    from jinja2 import Environment, FileSystemLoader
     from ._templating import template_environment
 
     HAS_JINJA2 = True
@@ -126,16 +125,6 @@ def _normalize_as_type(as_type: Optional[Any]) -> Optional[Any]:
 
 
 _LABEL_MAX_LEN = 200
-
-
-def _safe_json_for_script(value: Any) -> str:
-    """JSON-encode a value safely for embedding inside a <script> block.
-
-    `json.dumps` does not escape ``</``, so a string containing ``</script>``
-    would close the tag and allow markup injection. Escaping ``/`` after ``<``
-    is the standard mitigation; the result is still valid JSON.
-    """
-    return json.dumps(value).replace("</", "<\\/")
 
 
 def _normalize_label(label: Optional[str]) -> Optional[str]:
@@ -733,7 +722,7 @@ def _generate_visualizer_html(
 
     # Render the template with our data
     html_content = template.render(
-        python_data=json.dumps(data_instance),  # Properly serialize to JSON
+        python_data=data_instance,  # Serialized by the js_json filter
         cnd_spec=spytial_spec,  # Embed the sPyTial specification
         title=title,  # Page title for browser tab
         width=width,  # Container width
@@ -780,9 +769,9 @@ def _generate_sequence_visualizer_html(
         frame_notes = [None] * len(data_instances)
 
     html_content = template.render(
-        sequence_data=json.dumps(data_instances),
-        frame_labels=_safe_json_for_script(frame_labels),
-        frame_notes=_safe_json_for_script(frame_notes),
+        sequence_data=data_instances,
+        frame_labels=frame_labels,
+        frame_notes=frame_notes,
         cnd_spec=spytial_spec,
         sequence_policy=sequence_policy,
         title=title,
@@ -990,8 +979,6 @@ def _run_headless(
 
                     # Save metrics to file if path provided
                     if perf_path:
-                        import json
-
                         with open(perf_path, "w", encoding="utf-8") as f:
                             json.dump(metrics, f, indent=2)
                         print(f"  Metrics saved to: {perf_path}")
