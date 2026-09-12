@@ -25,7 +25,7 @@
 
     <script>
         // Embedded data passed from the server
-        const jsonData = {{ python_data | safe }};
+        const jsonData = {{ python_data | js_json }};
         const spytialCore = window.spytialcore || window.CndCore || window.CnDCore;
 
         // Initialize the evaluator
