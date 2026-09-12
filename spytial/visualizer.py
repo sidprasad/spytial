@@ -13,6 +13,7 @@ from typing import Any, Callable, Dict, Optional, Sequence, Union
 
 from .utils import default_method
 from .core_assets import get_template_asset_context
+from .selectors import emit, resolve_decorators, rows_for, slot_widths
 
 try:
     from IPython.display import display, HTML
@@ -306,6 +307,11 @@ def diagram(
     # Get all decorators collected during the build process (from all sub-objects)
     decorators = builder.get_collected_decorators()
 
+    # Translate any Python selector against the instance just built. It happens
+    # here, and not where the annotation was written, because an atom ID exists
+    # only once the walk has run. See spytial.selectors.
+    decorators = resolve_decorators(decorators, obj, builder, data_instance)
+
     # Serialize the collected decorators into a YAML string
     spytial_spec = serialize_to_yaml_string(decorators)
 
@@ -422,6 +428,12 @@ class SequenceRecorder:
         self._frame_labels: list = []
         self._frame_notes: list = []
         self._merged_decorators = {"constraints": [], "directives": []}
+        # (spec type, keyword, id(function)) -> the rows it selected, unioned
+        # over every frame. A Python selector is translated per frame, because
+        # only that frame's builder knows which values it walked; the union is
+        # meaningful because the shared builder keeps atom IDs stable across
+        # frames, so a term names the same value in all of them.
+        self._python_rows = {}
 
     def __enter__(self):
         return self
@@ -452,10 +464,66 @@ class SequenceRecorder:
         self._data_instances.append(instance)
         self._frame_labels.append(_normalize_label(label))
         self._frame_notes.append(_normalize_note(note))
+        frame_decorators = self._builder.get_collected_decorators()
+        self._accumulate_python_rows(frame_decorators, obj, instance)
+        # Merged unresolved, so one entry survives deduplication; the functions
+        # are replaced by their unioned rows in diagram().
         self._merged_decorators = _merge_decorator_registries(
-            self._merged_decorators,
-            self._builder.get_collected_decorators(),
+            self._merged_decorators, frame_decorators
         )
+
+    def _accumulate_python_rows(self, decorators, obj, instance):
+        """Run each Python selector against this frame and union its rows."""
+        for entries in decorators.values():
+            for entry in entries or ():
+                if not isinstance(entry, dict):
+                    continue
+                for spec_type, kwargs in entry.items():
+                    if not isinstance(kwargs, dict):
+                        continue
+                    for key, value in kwargs.items():
+                        if not callable(value):
+                            continue
+                        seen = self._python_rows.setdefault(
+                            (spec_type, key, id(value)), []
+                        )
+                        rows = rows_for(
+                            value,
+                            obj,
+                            self._builder,
+                            instance,
+                            widths=slot_widths(spec_type, key),
+                            slot="%s.%s" % (spec_type, key),
+                        )
+                        for row in rows:
+                            if row not in seen:
+                                seen.append(row)
+
+    def _resolved_decorators(self):
+        """The merged spec with each Python selector replaced by its rows."""
+        if not self._python_rows:
+            return self._merged_decorators
+        return {
+            section: [
+                {
+                    spec_type: {
+                        key: (
+                            emit(self._python_rows[(spec_type, key, id(value))])
+                            if callable(value)
+                            else value
+                        )
+                        for key, value in kwargs.items()
+                    }
+                    if isinstance(kwargs, dict)
+                    else kwargs
+                    for spec_type, kwargs in entry.items()
+                }
+                if isinstance(entry, dict)
+                else entry
+                for entry in entries or ()
+            ]
+            for section, entries in self._merged_decorators.items()
+        }
 
     def diagram(
         self,
@@ -501,7 +569,7 @@ class SequenceRecorder:
 
         from .annotations import serialize_to_yaml_string
 
-        spytial_spec = serialize_to_yaml_string(self._merged_decorators)
+        spytial_spec = serialize_to_yaml_string(self._resolved_decorators())
         html_content = _generate_sequence_visualizer_html(
             data_instances=self._data_instances,
             frame_labels=self._frame_labels,

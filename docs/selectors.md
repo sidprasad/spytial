@@ -156,6 +156,117 @@ For a more precise result, combine operators. `left & (TreeNode -> TreeNode)`
 keeps only the left edges whose endpoints are both nodes. `~left` is the
 child-to-parent direction.
 
+## Selectors written in Python
+
+A `selector` may be a Python function instead of an sgq expression. Three steps
+turn one into the other:
+
+1. The function returns the values to select. A value per row for a unary
+   selector, a tuple per row for a higher arity.
+2. Each value is translated to the ID of its atom. A value with no atom is an
+   error.
+3. The IDs become the selector: `->` within a tuple, `+` between elements.
+
+The function runs during `spytial.diagram()`, after the walk and before the
+specification is written, so the IDs it translates against are the ones the
+relationalizer assigned to the instance about to be drawn. It is handed the
+values the walk reached, which is exactly the set of values that have atoms:
+
+```python
+def child_edges(values):
+    return [(n, k) for n in values if isinstance(n, Node) for k in n.kids]
+
+def odd_nodes(values):
+    return [n for n in values if isinstance(n, Node) and n.val % 2]
+
+spytial.annotate_orientation(tree, selector=child_edges, directions=["below"])
+spytial.annotate_atomStyle(
+    tree, selector=odd_nodes, borderStyle=spytial.BorderStyle(color="coral")
+)
+```
+
+Which compile to `n0 -> n2 + n0 -> n4 + n4 -> n6` and `n2 + n6`. An empty result
+compiles to `none`, the empty relation.
+
+The first value in the list is the diagrammed object itself, so a
+root-anchored selector needs no extra parameter:
+
+```python
+selector=lambda values: [(values[0], k) for k in values[0].kids]
+```
+
+Because the function runs at diagramming time, the same one may be given to a
+class decorator, where no instance exists yet:
+
+```python
+@spytial.orientation(selector=child_edges, directions=["below"])
+@dataclass
+class Node:
+    val: int
+    kids: list["Node"] = field(default_factory=list)
+```
+
+The reason to write a selector this way is that it reads the object's own
+attributes. `n.kids` replaces `p.kids.idx[int]`, so the relationalization need
+not be known. Nothing is intercepted: the comprehension is ordinary Python, so a
+fault in it raises at the line that wrote it, with an ordinary traceback.
+
+### Choosing between the two forms
+
+Neither form replaces the other.
+
+| | Python function | sgq expression |
+| --- | --- | --- |
+| Reads | the objects themselves | the relationalized instance |
+| Suits | conditions on a value: `n.color == RED`, `n is NIL`, `len(n.keys) > 2` | conditions on the shape of the graph: `^parent`, `~next`, `iden` |
+| Scope | translated per build, so `diagram()` and `sequence()` | any instance, `edit()` included |
+| In the specification | a union of atom IDs | the expression as written |
+
+A rough rule: reach for a Python function when the condition is about a value,
+and for sgq when it is about the shape of the graph. A DSU forest oriented by
+`^(~parent)` -- the transitive closure of the inverted parent relation -- has no
+comprehension form; the Python version would be a hand-written fixpoint.
+
+Because a translated selector names atom IDs, and an atom ID is a position in
+one walk, it describes exactly the instance it was translated against. That is
+why the function runs during the diagram rather than before it.
+
+`spytial.sequence()` supports one. It rebuilds every frame in Python through a
+single shared builder, which keeps atom IDs stable across frames, so the
+function is run once per frame and the rows are unioned into one entry. Each
+frame then sees terms naming values from the other frames; spytial-core styles
+by atom, so a term matching no atom in the frame being drawn does nothing there.
+That is what a structure growing over a sequence should do.
+
+`spytial.edit()` does not. It writes the specification once and the browser
+changes the data afterwards, so the function cannot run again and the selector
+would go on naming the atoms of the seed. It rejects one with a `SelectorError`
+naming the slot; write that selector as an sgq expression.
+
+### What is reported
+
+A value the walk never reached is dropped, with an `AtomNotInInstance` warning
+naming it. The report cannot be left to the evaluator: a literal naming no atom
+evaluates non-empty in sgq, so a wrong value would apply the rule to a phantom
+atom silently. Make it fatal with
+`warnings.simplefilter("error", spytial.AtomNotInInstance)`.
+
+Rows of the wrong width for the slot raise, because spytial-core discards rows
+of the wrong width and the directive would otherwise stop applying without a
+word. (`group` accepts either width: a unary selector builds a single unkeyed
+group.)
+
+A `bytes` or `complex` value raises. Their atom IDs have no sgq spelling in any
+form, so the error comes from the translation rather than from the browser. This
+is a limit of naming such an atom in a selector at all, not of this form in
+particular.
+
+`str` values and `-inf` are emitted as a type binding -- `{s : str | @:s = "x"}`
+-- rather than as literals. A quoted string is a *value* in sgq and not a member
+of `univ`, so a directive given one selects no atom, and a `hideAtom` on a
+string would draw it anyway. This is the spelling the sgq-written notebooks use
+for the same reason.
+
 ## Where selectors show up
 
 A selector is used by every [operation](operations.md) that takes a `selector`

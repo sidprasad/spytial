@@ -16,6 +16,38 @@ from typing import Any, Callable, Dict, List, Optional, Tuple, Type
 from .domain_relationalizers.base import RelationalizerBase, Atom, Relation
 
 
+def _primitive_atom_id(obj: Any) -> Optional[str]:
+    """The value-based atom ID of a primitive, or ``None`` for anything else.
+
+    Primitives take a value-based ID so that memory addresses cannot make two
+    equal values into two atoms. Enum members (incl. IntEnum/StrEnum) are
+    excluded: they are singletons handled by reference, and a value-based ID
+    would collide with the plain int/str atom carrying the same value.
+
+    ``bytearray`` also returns ``None`` and so stays on the memory-based path.
+    It is mutable, and a value-based ID would alias equal-but-distinct
+    bytearrays into one reified object.
+
+    Single source of truth for :meth:`CnDDataInstanceBuilder._get_id` and
+    :meth:`CnDDataInstanceBuilder.atom_id_for`.
+    """
+    if isinstance(obj, enum.Enum):
+        return None
+    if isinstance(obj, (int, float, bool)) or obj is None:
+        return str(obj)
+    if isinstance(obj, str):
+        # For strings, use quoted representation to distinguish from other IDs
+        return f'"{obj}"'
+    if isinstance(obj, complex):
+        return str(obj)
+    if isinstance(obj, bytes):
+        # bytes repr starts with b' so it cannot collide with quoted str IDs
+        return repr(obj)
+    if obj is NotImplemented or obj is Ellipsis:
+        return str(obj)
+    return None
+
+
 def _invoke_custom_reifier(fn, atom, relations, reify_atom, register):
     """Call a user-registered reifier, passing ``register`` only if it accepts it.
 
@@ -227,6 +259,8 @@ class CnDDataInstanceBuilder:
         # keep an atom's displayed label stable from the frame it first appears.
         self._persistent_atom_labels: Dict[str, str] = {}
         self._collected_decorators = {"constraints": [], "directives": []}
+        # id(value) -> value for everything the walk reached. See walked_objects().
+        self._walked_objects = {}
         self._current_depth = 0  # Track current recursion depth
         # Refreshed per build_instance so a caller who raises the interpreter's
         # recursion limit gets a deeper walk without rebuilding the builder.
@@ -255,6 +289,7 @@ class CnDDataInstanceBuilder:
         self._id_counter = 0
         self._build_identity_objects = {}
         self._collected_decorators = {"constraints": [], "directives": []}
+        self._walked_objects = {}
         self._current_depth = 0  # Reset depth
         self._max_depth = default_max_depth()
         # Persist placeholder counters across builds when atom IDs are also
@@ -460,33 +495,36 @@ class CnDDataInstanceBuilder:
             ),
         }
 
+    def walked_objects(self) -> List[Any]:
+        """Every value the last walk reached, in the order it was reached.
+
+        Membership here is the same condition as having an atom, so this is the
+        domain a Python selector may range over. See :mod:`spytial.selectors`.
+        """
+        return list(self._walked_objects.values())
+
+    def atom_id_for(self, obj: Any) -> Optional[str]:
+        """The atom ID *obj* already has, or ``None`` if the walk never saw it.
+
+        The read-only counterpart of :meth:`_get_id`. ``_get_id`` mints an ID for
+        an unknown object and records it, which would invent an atom the instance
+        does not contain. A Python selector needs the opposite: a value the walk
+        never reached shall be reported, not given a fresh ID.
+        """
+        primitive = _primitive_atom_id(obj)
+        if primitive is not None:
+            return primitive
+        return self._seen.get(id(obj))
+
     def _get_id(self, obj: Any) -> str:
         """Get or create an ID for an object.
 
         For primitives, uses value-based lookup to avoid race conditions with memory addresses.
         For objects, uses memory-based ID with spytial registry fallback.
         """
-        # For primitive types, always use value-based ID (no memory address
-        # confusion). Enum members (incl. IntEnum/StrEnum) are excluded: they
-        # are singletons handled by reference, and a value-based ID would
-        # collide with the plain int/str atom carrying the same value.
-        if isinstance(obj, enum.Enum):
-            pass
-        elif isinstance(obj, (int, float, bool)) or obj is None:
-            return str(obj)
-        elif isinstance(obj, str):
-            # For strings, use quoted representation to distinguish from other IDs
-            return f'"{obj}"'
-        elif isinstance(obj, complex):
-            return str(obj)
-        elif isinstance(obj, bytes):
-            # bytes repr starts with b' so it cannot collide with quoted str IDs
-            return repr(obj)
-        elif obj is NotImplemented or obj is Ellipsis:
-            return str(obj)
-        # NOTE: bytearray stays on the memory-based path below — it is mutable,
-        # and a value-based ID would alias equal-but-distinct bytearrays into
-        # one reified object.
+        primitive = _primitive_atom_id(obj)
+        if primitive is not None:
+            return primitive
 
         # For non-primitive objects, use memory-based ID with caching
         oid = id(obj)
@@ -607,6 +645,11 @@ class CnDDataInstanceBuilder:
             return None
 
         oid = id(obj)
+        # Retain the value itself, not only its ID. A Python selector ranges over
+        # what the walk reached. Holding the reference also closes a latent
+        # hazard: `_seen` keys on id(obj) and held no reference, so a value freed
+        # mid-walk could have its address reused and alias to a stale atom.
+        self._walked_objects[oid] = obj
         if oid in self._seen:
             self._current_depth -= 1
             return self._seen[oid]
