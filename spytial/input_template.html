@@ -112,8 +112,8 @@
     <script>
         // Embedded data passed from the server
         const jsonData = {{ python_data | safe }};
-        const cndSpec = `{{ cnd_spec | safe }}`;
-        const dataclassName = `{{ dataclass_name | safe }}`;
+        const cndSpec = {{ cnd_spec | js }};
+        const dataclassName = {{ dataclass_name | js }};
 
         function getSpytialCore() {
             const candidates = [

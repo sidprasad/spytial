@@ -670,3 +670,42 @@ def test_one_parse_per_file_however_many_decorators(tmp_path):
     info = _source._decorator_spans.cache_info()
     assert info.misses == 1, "the file was parsed more than once"
     assert info.hits == 19
+
+
+def test_a_notebook_cell_gets_its_text_and_no_location(tmp_path):
+    """ipykernel writes each cell to a real file with a meaningless name.
+
+    `1976988758.py:12` names nothing a reader can open -- and the directory is
+    deleted when the kernel exits. The text is still worth quoting; the path
+    is not.
+    """
+    cell_dir = tmp_path / "ipykernel_8231"
+    cell_dir.mkdir()
+    cell = cell_dir / "1976988758.py"
+    cell.write_text(
+        "@spytial.orientation(\n"
+        "    selector='x',\n"
+        "    directions=['below'],\n"
+        ")\n"
+        "class Cell: pass\n",
+        encoding="utf-8",
+    )
+
+    namespace = {"spytial": spytial}
+    exec(compile(cell.read_text(encoding="utf-8"), str(cell), "exec"), namespace)
+
+    block = namespace["Cell"].__spytial_registry__["constraints"][0]["orientation"][
+        "source"
+    ]
+    assert block["text"] == (
+        "@spytial.orientation(\n    selector='x',\n    directions=['below'],\n)"
+    )
+    assert "location" not in block
+
+
+def test_an_ordinary_file_in_a_normal_directory_still_gets_one():
+    """Guards the check above against dropping every location."""
+    block = _source_of(
+        WrittenWithAName.__spytial_registry__["constraints"][0], "orientation"
+    )
+    assert block["location"].startswith("test_source_block.py:")

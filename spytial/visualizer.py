@@ -23,6 +23,7 @@ except ImportError:
 
 try:
     from jinja2 import Environment, FileSystemLoader
+    from ._templating import template_environment
 
     HAS_JINJA2 = True
 except ImportError:
@@ -717,7 +718,7 @@ def _generate_visualizer_html(
 
     # Set up Jinja2 environment
     current_dir = Path(__file__).parent
-    env = Environment(loader=FileSystemLoader(current_dir))
+    env = template_environment(current_dir)
 
     # And error handling in react components COULD go here, depending on What we want to include?
     # Like, mount stuff if needed?
@@ -764,7 +765,7 @@ def _generate_sequence_visualizer_html(
         )
 
     current_dir = Path(__file__).parent
-    env = Environment(loader=FileSystemLoader(current_dir))
+    env = template_environment(current_dir)
 
     try:
         template = env.get_template("sequence_visualizer_template.html")

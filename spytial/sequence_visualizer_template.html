@@ -282,11 +282,11 @@
     </div>
 
     <script>
-        const cndSpec = `{{ cnd_spec | safe }}`;
+        const cndSpec = {{ cnd_spec | js }};
         const sequenceData = {{ sequence_data | safe }};
         const frameLabels = {{ frame_labels | safe }};
         const frameNotes = {{ frame_notes | safe }};
-        let sequencePolicyName = `{{ sequence_policy }}`;
+        let sequencePolicyName = {{ sequence_policy | js }};
 
         let graphElement = null;
         let currentIndex = null;
