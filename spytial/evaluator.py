@@ -4,7 +4,6 @@ sPyTial Evaluator Module
 This module provides functions to evaluate expressions using the sPyTial evaluator.
 """
 
-import json
 import tempfile
 import webbrowser
 from pathlib import Path
@@ -22,7 +21,7 @@ except ImportError:
     HAS_IPYTHON = False
 
 try:
-    from jinja2 import Environment, FileSystemLoader
+    from ._templating import template_environment
 
     HAS_JINJA2 = True
 except ImportError:
@@ -164,7 +163,7 @@ def _generate_evaluator_html(data_instance, width=800, height=600):
 
     # Set up Jinja2 environment
     current_dir = Path(__file__).parent
-    env = Environment(loader=FileSystemLoader(current_dir))
+    env = template_environment(current_dir)
 
     try:
         template = env.get_template("evaluator_template.html")
@@ -175,7 +174,7 @@ def _generate_evaluator_html(data_instance, width=800, height=600):
 
     # Render the template with our data
     html_content = template.render(
-        python_data=json.dumps(data_instance),  # Properly serialize to JSON
+        python_data=data_instance,  # Serialized by the js_json filter
         width=width,  # Container width
         height=height,  # Container height
         **get_template_asset_context(),

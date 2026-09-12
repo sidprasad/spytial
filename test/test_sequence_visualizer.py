@@ -155,7 +155,7 @@ def test_sequence_recorder_writes_navigation_html(tmp_path, monkeypatch):
     assert result.endswith("spytial_sequence_visualization.html")
     assert 'id="prev-step"' in html
     assert 'id="next-step"' in html
-    assert "let sequencePolicyName = `stability`;" in html
+    assert 'let sequencePolicyName = "stability";' in html
     assert "prevInstance" in html
     assert "currInstance" in html
 
@@ -191,7 +191,7 @@ def test_sequence_recorder_accepts_all_valid_policies(tmp_path, monkeypatch, pol
     seq.record({"v": 1})
     result = seq.diagram()
     html = Path(result).read_text(encoding="utf-8")
-    assert f"let sequencePolicyName = `{policy}`" in html
+    assert f'let sequencePolicyName = "{policy}"' in html
 
 
 def test_sequence_recorder_rejects_invalid_policy_at_construction():
@@ -213,7 +213,7 @@ def test_sequence_recorder_policy_can_be_overridden_at_diagram(tmp_path, monkeyp
     seq.record({"v": 1})
     result = seq.diagram(sequence_policy="change_emphasis")
     html = Path(result).read_text(encoding="utf-8")
-    assert "let sequencePolicyName = `change_emphasis`" in html
+    assert 'let sequencePolicyName = "change_emphasis"' in html
 
 
 def test_sequence_recorder_renders_policy_select_in_html(tmp_path, monkeypatch):
@@ -233,7 +233,7 @@ def test_sequence_recorder_initial_policy_matches_python_arg(tmp_path, monkeypat
     seq = sequence(sequence_policy="change_emphasis", method="file", auto_open=False)
     seq.record({"v": 1})
     html = Path(seq.diagram()).read_text(encoding="utf-8")
-    assert "let sequencePolicyName = `change_emphasis`;" in html
+    assert 'let sequencePolicyName = "change_emphasis";' in html
 
 
 def test_sequence_recorder_accepts_label_and_embeds_in_html(tmp_path, monkeypatch):

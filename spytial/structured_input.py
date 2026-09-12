@@ -15,7 +15,6 @@ Two ways to edit a structured value and get it back as a Python object:
   :func:`edit` uses where the local server isn't reachable.
 """
 
-import json
 import sys
 import tempfile
 import webbrowser
@@ -39,7 +38,7 @@ except ImportError:
     HAS_IPYTHON = False
 
 try:
-    from jinja2 import Environment, FileSystemLoader
+    from ._templating import template_environment
 
     HAS_JINJA2 = True
 except ImportError:
@@ -174,7 +173,7 @@ def _generate_editor_html(
         )
 
     current_dir = Path(__file__).parent
-    env = Environment(loader=FileSystemLoader(current_dir))
+    env = template_environment(current_dir)
 
     try:
         template = env.get_template("input_template.html")
@@ -182,7 +181,7 @@ def _generate_editor_html(
         raise FileNotFoundError(f"input_template.html not found in {current_dir}: {e}")
 
     return template.render(
-        python_data=json.dumps(initial_data),
+        python_data=initial_data,
         cnd_spec=cnd_spec,
         dataclass_name=dataclass_name,
         # "<type> — sPyTial editor"; "Builder" was a leftover from the old

@@ -419,6 +419,25 @@ class TestWiring:
         assert "<function" not in html
         assert "selector=child_edges" in html
 
+    def test_a_quoted_selector_survives_the_script_embedding(self, tmp_path, monkeypatch):
+        # The spec rides in a JSON string inside a <script>, and a str selector
+        # is the one form this module emits that carries double quotes.
+        @dataclass
+        class Coloured:
+            colour: str
+
+        def colours(values):
+            return [v for v in values if isinstance(v, str)]
+
+        root = Coloured("black")
+        spytial.annotate_hideAtom(root, selector=colours)
+        monkeypatch.chdir(tmp_path)
+        html = pathlib.Path(
+            spytial.diagram(root, method="file", auto_open=False)
+        ).read_text()
+        assert "const cndSpec" in html
+        assert '{s : str | @:s = ' in html
+
 
 # --------------------------------------------------------------------------- #
 @requires_bridge

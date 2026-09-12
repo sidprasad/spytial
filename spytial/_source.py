@@ -45,6 +45,7 @@ import functools
 import inspect
 import linecache
 import os
+from pathlib import Path
 
 _PACKAGE_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -52,6 +53,23 @@ _PACKAGE_DIR = os.path.dirname(os.path.abspath(__file__))
 def enabled():
     """Whether to stamp source blocks at all (``SPYTIAL_NO_SOURCE`` turns it off)."""
     return not os.environ.get("SPYTIAL_NO_SOURCE")
+
+
+def _is_ephemeral(filename):
+    """Whether the file behind a frame is a notebook cell rather than a file.
+
+    ipykernel writes each executed cell to a real file under a per-kernel temp
+    directory, `.../ipykernel_8231/1976988758.py`, so the text is genuinely
+    readable and worth quoting. The path is not: the name is a hash of the
+    cell, it means nothing to the person reading the diagram, and the whole
+    directory is deleted when the kernel exits -- as it had been by the time
+    the spec that prompted this was looked at. A location is a promise that
+    there is somewhere to go and look, so a cell gets its text and no
+    location.
+    """
+    return any(
+        part.startswith("ipykernel_") for part in Path(filename).parts
+    ) or Path(filename).name.startswith("ipython-input-")
 
 
 def _mtime(filename):
@@ -230,7 +248,7 @@ def describe(annotation_type, kwargs, fallback=None):
         # citing it would send the reader to a file that does not exist. Only
         # a line that can actually be opened earns one.
         text, real_line = _read(filename, lineno)
-        if real_line:
+        if real_line and not _is_ephemeral(filename):
             location = f"{os.path.basename(filename)}:{lineno}"
 
     if text is None:
