@@ -380,8 +380,15 @@ def _vocabulary(datums: List[dict]) -> dict:
                 pop[t] = pop.get(t, 0) + 1
         for rel in datum.get("relations", []):
             name = rel.get("name")
-            if name and name not in relations:
-                relations[name] = len(rel.get("types", []))
+            if name:
+                # Core 6 keeps distinct IDs under one query name. Ground the
+                # model in every record, including ragged tuples whose types
+                # summary is empty. Match the evaluator's maximum-arity view.
+                arity = max(
+                    (len(t["atoms"]) for t in rel.get("tuples", [])),
+                    default=len(rel.get("types", [])),
+                )
+                relations[name] = max(relations.get(name, 0), arity)
     return {"types": sorted(pop.items()), "relations": sorted(relations.items())}
 
 

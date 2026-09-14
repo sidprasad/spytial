@@ -332,7 +332,7 @@ class CnDDataInstanceBuilder:
 
         # Convert relations to include types (matching IRelation interface)
         relations = []
-        for rel_name, tuples in self._rels.items():
+        for rel_id, (rel_name, tuples) in self._rels.items():
             # Deduplicate tuples — the walker may reach the same
             # (source, target) pair via multiple traversal paths
             # (e.g. forward pointers and back-pointers through a
@@ -354,16 +354,18 @@ class CnDDataInstanceBuilder:
                     }
                 )
 
-            # Set the types to the types of the first relation in the tuple
-            # Assume arity is constant across all tuples in a relation
-            if typed_tuples:
+            # Ragged relations have no single column signature in core.
+            arities = {len(t["atoms"]) for t in typed_tuples}
+            if len(arities) > 1:
+                relation_types = []
+            elif typed_tuples:
                 relation_types = ["object"] * len(typed_tuples[0]["types"])
             else:
                 relation_types = ["object", "object"]  # Default binary
 
             relations.append(
                 {
-                    "id": rel_name,
+                    "id": rel_id,
                     "name": rel_name,
                     "types": relation_types,
                     "tuples": typed_tuples,
@@ -376,9 +378,15 @@ class CnDDataInstanceBuilder:
         # nothing rather than a name the datum has never heard of. Arity can't
         # be measured without a tuple, so these default to binary like the
         # empty case above.
+        populated_names = {name for name, _ in self._rels.values()}
         for rel_name in self._declared_rels:
-            if rel_name in self._rels:
+            if rel_name in populated_names:
                 continue
+            if rel_name in self._rels:
+                raise ValueError(
+                    f"Relation ID {rel_name!r} conflicts with declared relation "
+                    f"{rel_name!r}"
+                )
             relations.append(
                 {
                     "id": rel_name,
@@ -652,12 +660,6 @@ class CnDDataInstanceBuilder:
         # Convert to old format for compatibility with existing code
         atoms = [atom_obj.to_dict() for atom_obj in atoms_list]
 
-        # Process relations - use to_tuple() method for consistent format
-        relations = []
-        for rel in relations_list:
-            # Use the to_tuple method: (name, atom1, atom2, ...)
-            relations.append(rel.to_tuple())
-
         # Add full type hierarchy to each atom
         type_hierarchy = [cls.__name__ for cls in inspect.getmro(type(obj))]
 
@@ -694,17 +696,22 @@ class CnDDataInstanceBuilder:
             self._atoms.append(atom)
 
         # Process relations - handle tuples of arbitrary length
-        for rel_data in relations:
-            # Relations now come as (name, atom1, atom2, ...) tuples
-            rel_name = rel_data[0]
-            atom_ids = list(rel_data[1:])  # All atoms after the name
+        for rel in relations_list:
+            rel_name = rel.name
+            rel_id = rel.id if rel.id is not None else rel_name
+            atom_ids = list(rel.atoms)
             # A None means the walk refused that value (spytial machinery).
             # Built-in relationalizers skip these tuples themselves; dropping
             # the stragglers here keeps third-party relationalizers that
             # don't check the walker's return safe too.
             if any(atom_id is None for atom_id in atom_ids):
                 continue
-            self._rels.setdefault(rel_name, []).append(atom_ids)
+            if rel_id in self._rels and self._rels[rel_id][0] != rel_name:
+                raise ValueError(
+                    f"Relation ID {rel_id!r} has conflicting names: "
+                    f"{self._rels[rel_id][0]!r} and {rel_name!r}"
+                )
+            self._rels.setdefault(rel_id, (rel_name, []))[1].append(atom_ids)
 
         # Decrement depth after processing
         self._current_depth -= 1

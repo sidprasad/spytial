@@ -73,10 +73,25 @@ function analyzeOne(sel, di) {
     ev.initialize({ sourceData: di });
 
     // The closed vocabulary a model may reference -- types and relation names,
-    // straight off the datum. Mirrors what tier-2 grounds the model in.
+    // projected by name without replacing the stored datum. Core 6 preserves
+    // separate IDs, while a selector sees the union of their tuples.
+    const relationsByName = new Map();
+    for (const r of di.getRelations()) {
+      if (!relationsByName.has(r.name)) {
+        relationsByName.set(r.name, { name: r.name, arity: 0, tuples: new Set() });
+      }
+      const entry = relationsByName.get(r.name);
+      if (r.tuples.length === 0) entry.arity = Math.max(entry.arity, r.types.length);
+      for (const tuple of r.tuples) {
+        entry.arity = Math.max(entry.arity, tuple.atoms.length);
+        entry.tuples.add(JSON.stringify(tuple.atoms));
+      }
+    }
     const vocabulary = {
       types: di.getTypes().map((t) => ({ id: t.id, atoms: t.atoms.length })),
-      relations: di.getRelations().map((r) => ({ name: r.name, arity: r.types.length, tuples: r.tuples.length })),
+      relations: Array.from(relationsByName.values(), (r) => ({
+        name: r.name, arity: r.arity, tuples: r.tuples.size,
+      })),
     };
     const results = (selectors || []).map((sel) => {
       const out = evalOne(ev, sel);
