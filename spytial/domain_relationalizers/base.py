@@ -48,6 +48,9 @@ class Relation:
 
     name: str
     atoms: List[str]
+    # Stored identity; omitted IDs retain the historical grouping by name.
+    # Selectors and edge labels continue to use name, even with distinct IDs.
+    id: Optional[str] = None
 
     def __post_init__(self):
         """Validate that relation connects at least 2 atoms."""
@@ -55,7 +58,10 @@ class Relation:
             raise ValueError("Relations must connect at least 2 atoms")
 
     def to_tuple(self) -> Tuple[str, ...]:
-        """Convert relation to tuple format.
+        """Convert relation to the legacy name-based tuple format.
+
+        This representation omits the optional stored ID. Pass Relation objects
+        to the builder to preserve identity.
 
         Returns:
             Tuple where first element is the relation name,

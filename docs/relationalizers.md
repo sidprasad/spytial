@@ -40,6 +40,33 @@ class WidgetRelationalizer(RelationalizerBase):
         return [atom], []
 ```
 
+## Relation identity
+
+With spytial-core 6.0.0, a relation's `id` identifies its stored record, while
+its `name` controls selectors and edge labels. Custom relationalizers can emit
+different records with the same name:
+
+```python
+Relation("child", [parent_id, child_id], id="Tree:child")
+Relation("child", [group_id, member_id], id="Group:child")
+```
+
+Both records survive export and core normalization. The selector `child`
+still selects the set union of their tuples. Repeated IDs combine tuples;
+using one ID with different names raises `ValueError`.
+
+Omitting `id` keeps the existing behavior: the name is the ID, and same-named
+relations combine. Built-in relationalizers retain this grouping. The legacy
+`Relation.to_tuple()` representation contains only the name and atoms; return
+`Relation` objects from `relationalize()` to preserve IDs.
+
+A stored relation can contain tuples of different widths. Its `types` summary
+is then empty; read each tuple's `atoms` to determine its arity.
+
+Python's default `reify()` reconstructs attributes by relation name and source
+atom. Separate IDs do not define a new Python attribute or change the custom
+reifier's name-based input.
+
 ## Declared relations
 
 `relationalize()` is extensional. It emits a tuple only where an instance
