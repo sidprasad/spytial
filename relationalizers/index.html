@@ -766,6 +766,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#relation-identity" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Relation identity
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#declared-relations" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1054,6 +1065,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#relation-identity" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Relation identity
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#declared-relations" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1164,6 +1186,25 @@ objects into atoms and relations.</p>
         <span class="p">)</span>
         <span class="k">return</span> <span class="p">[</span><span class="n">atom</span><span class="p">],</span> <span class="p">[]</span>
 </code></pre></div>
+<h2 id="relation-identity">Relation identity</h2>
+<p>With spytial-core 6.0.0, a relation's <code>id</code> identifies its stored record, while
+its <code>name</code> controls selectors and edge labels. Custom relationalizers can emit
+different records with the same name:</p>
+<div class="highlight"><pre><span></span><code><span class="n">Relation</span><span class="p">(</span><span class="s2">"child"</span><span class="p">,</span> <span class="p">[</span><span class="n">parent_id</span><span class="p">,</span> <span class="n">child_id</span><span class="p">],</span> <span class="nb">id</span><span class="o">=</span><span class="s2">"Tree:child"</span><span class="p">)</span>
+<span class="n">Relation</span><span class="p">(</span><span class="s2">"child"</span><span class="p">,</span> <span class="p">[</span><span class="n">group_id</span><span class="p">,</span> <span class="n">member_id</span><span class="p">],</span> <span class="nb">id</span><span class="o">=</span><span class="s2">"Group:child"</span><span class="p">)</span>
+</code></pre></div>
+<p>Both records survive export and core normalization. The selector <code>child</code>
+still selects the set union of their tuples. Repeated IDs combine tuples;
+using one ID with different names raises <code>ValueError</code>.</p>
+<p>Omitting <code>id</code> keeps the existing behavior: the name is the ID, and same-named
+relations combine. Built-in relationalizers retain this grouping. The legacy
+<code>Relation.to_tuple()</code> representation contains only the name and atoms; return
+<code>Relation</code> objects from <code>relationalize()</code> to preserve IDs.</p>
+<p>A stored relation can contain tuples of different widths. Its <code>types</code> summary
+is then empty; read each tuple's <code>atoms</code> to determine its arity.</p>
+<p>Python's default <code>reify()</code> reconstructs attributes by relation name and source
+atom. Separate IDs do not define a new Python attribute or change the custom
+reifier's name-based input.</p>
 <h2 id="declared-relations">Declared relations</h2>
 <p><code>relationalize()</code> is extensional. It emits a tuple only where an instance
 holds a value. A field that no instance populates therefore leaves no trace,
