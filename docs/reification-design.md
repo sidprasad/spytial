@@ -56,6 +56,11 @@ oracle, type-corpus, and property-based tests using `python -m pytest -m reify`.
 New tests for this contract should carry `@pytest.mark.reify`, or set
 `pytestmark = pytest.mark.reify` for a whole module. The general CI job runs
 `python -m pytest -m "not reify"`; plain `python -m pytest` still runs everything.
+On PRs and pushes, the reify job runs only when the workflow's path filter
+matches reconstruction/relationalization code, its tests/helpers, or shared
+runtime, dependency, and CI configuration. Documentation-only changes skip it.
+Manual workflow runs always include it. If a new marked test module has a name
+outside the existing filter patterns, add its path to the filter too.
 
 ### Encoding consequences
 

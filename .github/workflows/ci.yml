@@ -11,6 +11,55 @@ on:
   workflow_dispatch:  # enables the manual "Run workflow" button (for browser-e2e)
 
 jobs:
+  changes:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      reify: ${{ steps.filter.outputs.reify }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Detect reconstruction-related changes
+        if: github.event_name != 'workflow_dispatch'
+        id: filter
+        uses: dorny/paths-filter@v4
+        with:
+          # PRs use their actual base (including stacked PRs). For pushes,
+          # compare against the same branch's state before the push.
+          base: ${{ github.ref }}
+          filters: |
+            reify:
+              - 'spytial/provider_system.py'
+              - 'spytial/domain_relationalizers/**'
+              - 'spytial/structured_input.py'
+              - 'spytial/__init__.py'
+              - 'spytial/annotations.py'
+              - 'spytial/utils.py'
+              - 'spytial/_source.py'
+              - 'spytial/_spec_tables.py'
+              - 'spytial/core_assets.py'
+              - 'spytial/_vendor/**'
+              - 'spytial/suggest/_eval.py'
+              - 'spytial/suggest/_vendor/**'
+              - 'test/test_reify*.py'
+              - 'test/test_relation*.py'
+              - 'test/test_datamodel_inspection.py'
+              - 'test/test_inspection.py'
+              - 'test/inspection.py'
+              - 'test/conftest.py'
+              - 'pyproject.toml'
+              - 'setup.py'
+              - 'setup.cfg'
+              - 'requirements*.txt'
+              - 'spytial/requirements.txt'
+              - 'pytest.ini'
+              - 'tox.ini'
+              - '.github/workflows/ci.yml'
+              - 'update-spytial-core.sh'
+
   test:
     runs-on: ubuntu-latest
     steps:
@@ -46,6 +95,8 @@ jobs:
   # separate check. The marker keeps the two jobs disjoint; plain pytest still
   # runs both suites locally.
   reify:
+    needs: changes
+    if: github.event_name == 'workflow_dispatch' || needs.changes.outputs.reify == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
