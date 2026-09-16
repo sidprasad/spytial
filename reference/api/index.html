@@ -346,7 +346,7 @@
     
     
       <li class="md-tabs__item md-tabs__item--active">
-        <a href="../../usage/evaluator/" class="md-tabs__link">
+        <a href="../relationalization/" class="md-tabs__link">
           
   
   
@@ -789,6 +789,90 @@
 
           </label>
           <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../relationalization/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Relationalization
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reification/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reification
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../python-types/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Python Type Coverage
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
             
               
                 
@@ -8772,12 +8856,14 @@ attribute values to nodes based on selector evaluation.</p>
     <div class="doc doc-contents ">
 
         <p>Reconstruct a Python object from a Spytial data instance.</p>
-<p>The inverse of :meth:<code>CnDDataInstanceBuilder.build_instance</code>: rebuild the
-object named by the instance's root (or <code>root_id</code>). Works for any value —
-builtins, arbitrary classes (rebuilt via <code>__module__</code>/<code>__qualname__</code>),
-and cyclic structures. For dataclass instances whose fields an editor may
-have stripped, prefer :func:<code>spytial.edit</code>, which registers dataclass
-reifiers that fill declared field defaults.</p>
+<p>Rebuild the object named by the instance's root (or <code>root_id</code>).
+Supports built-in values, resolvable references, and class instances with
+reconstructible state. Unsupported types can return attribute proxies or
+incomplete instances. Shared references and many mutable cycles survive;
+cycles through immutable containers can lose identity. This is not a
+lossless inverse for every Python value. For dataclass instances whose
+fields an editor may have stripped, :func:<code>spytial.edit</code> registers reifiers
+that apply declared field defaults before restoring recorded values.</p>
 
 
     </div>
@@ -15337,12 +15423,10 @@ inferred from the relation topology.</p>
     <div class="doc doc-contents ">
 
         <p>Reproduce the host REPL's output for a data instance.</p>
-<p>Equivalent to <code>repr(self.reify(data_instance, root_id))</code> — rebuild the
-object, then let Python's own <code>repr</code> render it. Matches <code>repr(v)</code>
-exactly for any importable, ordinarily-constructed value (custom
-<code>__repr__</code> and cycle handling included, since it delegates to Python);
-values that fall back to a structural proxy render as
-<code>TypeName(field=value)</code>.</p>
+<p>Equivalent to <code>repr(self.reify(data_instance, root_id))</code>. Agreement
+with the original value's repr depends on reconstruction support and
+that repr's dependence on identity or iteration order. Proxies render
+as <code>TypeName(field=value)</code>; a cyclic proxy can raise RecursionError.</p>
 
 
     </div>
@@ -15685,12 +15769,14 @@ which makes the walk iterative and drops the ceiling entirely.</p>
     <div class="doc doc-contents ">
 
         <p>Reconstruct a Python object from a Spytial data instance.</p>
-<p>The inverse of :meth:<code>CnDDataInstanceBuilder.build_instance</code>: rebuild the
-object named by the instance's root (or <code>root_id</code>). Works for any value —
-builtins, arbitrary classes (rebuilt via <code>__module__</code>/<code>__qualname__</code>),
-and cyclic structures. For dataclass instances whose fields an editor may
-have stripped, prefer :func:<code>spytial.edit</code>, which registers dataclass
-reifiers that fill declared field defaults.</p>
+<p>Rebuild the object named by the instance's root (or <code>root_id</code>).
+Supports built-in values, resolvable references, and class instances with
+reconstructible state. Unsupported types can return attribute proxies or
+incomplete instances. Shared references and many mutable cycles survive;
+cycles through immutable containers can lose identity. This is not a
+lossless inverse for every Python value. For dataclass instances whose
+fields an editor may have stripped, :func:<code>spytial.edit</code> registers reifiers
+that apply declared field defaults before restoring recorded values.</p>
 
 
     </div>
