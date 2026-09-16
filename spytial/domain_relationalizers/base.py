@@ -27,6 +27,8 @@ class Atom:
     # relationalizers to record a value's own importable identity (e.g.
     # __ref_module__/__ref_qualname__). spytial-core ignores unknown keys,
     # matching the existing __module__/__qualname__ convention set by _walk.
+    # This helper does not emit IAtom.metadata (removed in core 6.0.1).
+    # These Python-only keys are not part of core's portable atom contract.
     meta: Optional[Dict[str, str]] = None
 
     def to_dict(self) -> Dict[str, str]:

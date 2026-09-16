@@ -58,6 +58,10 @@ txt = spytial.replit(di)           # repr() of what reify() would return
 
 `reify()` handles builtins, arbitrary classes, and cyclic structures.
 
+Reconstruction does not use `IAtom.metadata`. Its current host-specific hints
+and the remaining work on relation identity and portable reconstruction are
+described in the [reification design note](../reification-design.md).
+
 ## Standalone HTML (no server)
 
 `spytial.edit_html()` renders the editor as standalone HTML. It uses the built-in **Export** button to copy constructor code. This function is useful where the local server is not reachable (for example, pyodide). `edit_html()` also accepts any value.
