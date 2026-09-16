@@ -14,8 +14,12 @@ import math
 from dataclasses import dataclass, field
 from typing import List, Optional
 
+import pytest
+
 from spytial.provider_system import CnDDataInstanceBuilder
 from spytial.structured_input import _make_dataclass_reifier
+
+pytestmark = pytest.mark.reify
 
 
 # ---------------------------------------------------------------------------

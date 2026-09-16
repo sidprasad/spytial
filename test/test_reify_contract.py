@@ -11,6 +11,8 @@ import pytest
 from spytial import CnDDataInstanceBuilder, reify
 from spytial.suggest import _eval
 
+pytestmark = pytest.mark.reify
+
 
 @dataclass
 class Cell:
