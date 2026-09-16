@@ -4,6 +4,8 @@ import pytest
 
 from inspection import inspection
 
+pytestmark = pytest.mark.reify
+
 
 def test_nested_dictionary_order_is_ignored():
     first = [{"b": {"y": 2, "x": 1}, "a": (3, 4)}]

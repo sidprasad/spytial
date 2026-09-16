@@ -19,11 +19,13 @@ systematic corpus rather than counted as generated structural reconstruction.
 
 import json
 
+import pytest
 from inspection import inspection
-
 from hypothesis import given, settings, strategies as st
 
 from spytial.provider_system import CnDDataInstanceBuilder
+
+pytestmark = pytest.mark.reify
 
 
 def _roundtrip(value):

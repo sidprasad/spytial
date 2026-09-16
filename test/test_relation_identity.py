@@ -10,6 +10,8 @@ from spytial import Atom, CnDDataInstanceBuilder, Relation, RelationalizerBase, 
 from spytial.provider_system import RelationalizerRegistry
 from spytial.suggest import _eval
 
+pytestmark = pytest.mark.reify
+
 
 @pytest.fixture
 def build(monkeypatch):

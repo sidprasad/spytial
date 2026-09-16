@@ -45,6 +45,8 @@ from inspection import inspection
 from spytial import reify
 from spytial.provider_system import CnDDataInstanceBuilder
 
+pytestmark = pytest.mark.reify
+
 
 # ---------------------------------------------------------------------------
 # Corpus classes — module-level so __module__/__qualname__ resolve in reify

@@ -51,6 +51,12 @@ Passing these tests provides evidence over the stated generated domain, not a
 proof for every Python object. Aliasing and unsupported cycles require their
 own structural checks because ordinary printing need not expose identity.
 
+The dedicated CI job `reify` runs reconstruction, relation-identity, inspection
+oracle, type-corpus, and property-based tests using `python -m pytest -m reify`.
+New tests for this contract should carry `@pytest.mark.reify`, or set
+`pytestmark = pytest.mark.reify` for a whole module. The general CI job runs
+`python -m pytest -m "not reify"`; plain `python -m pytest` still runs everything.
+
 ### Encoding consequences
 
 Dictionary positions need not be encoded: `kv(dict, key, value)` suffices for
