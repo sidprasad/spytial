@@ -28,6 +28,38 @@ composition path: those keys are outside the `IAtom` interface. Core's
 
 ## Gaps the next design must address
 
+### Evaluation claim
+
+The target is preservation of the information exposed by Python's standard
+printed/debug output, **modulo dictionary and set ordering**. Dictionary
+insertion order is deliberately outside this observation; key/value
+associations remain significant. Lists and tuples retain positions and repeated
+elements. Type distinctions and leaf representations remain significant too.
+
+The test-only `inspection` comparator in `test/inspection.py` recursively
+normalizes exact built-in dictionaries, sets, and frozensets. It preserves list
+and tuple order, handles container cycles, and compares other values through
+their native `repr` and qualified type name. It never parses arbitrary repr
+strings or treats a string that looks like a dictionary as a dictionary.
+Custom repr output remains exact: normalization inside user-written text would
+need an explicit additional observation contract. Named-reference recovery is
+still a separate capability, not evidence of rebuilding a value's state.
+
+Generated round-trips cross JSON and reconstruct with a fresh builder. A
+second property permutes stored atoms, relations, and tuples before reifying.
+Passing these tests provides evidence over the stated generated domain, not a
+proof for every Python object. Aliasing and unsupported cycles require their
+own structural checks because ordinary printing need not expose identity.
+
+### Encoding consequences
+
+Dictionary positions need not be encoded: `kv(dict, key, value)` suffices for
+this observation. Relation IDs need not contain positional information. The
+existing `idx(list, index, value)` encodes list order in relational data; tuple
+positions currently use the `t0`, `t1`, ... relation names. Retain these until a
+separate encoding change is justified. Do not infer semantic order from the
+JSON arrays holding relation records or tuples.
+
 | Case | Current behavior | Required decision |
 | --- | --- | --- |
 | Same name and different IDs on different source atoms | Attributes reconstruct separately | Preserve this behavior |
@@ -49,11 +81,12 @@ composition path: those keys are outside the `IAtom` interface. Core's
    must be self-contained or may require a supplied host schema. Do not introduce
    `IAtom.metadata`, put reconstruction data in display labels, or assume arbitrary
    extra atom keys are portable.
-3. For a self-contained relational encoding, use versioned, unambiguously encoded
-   relation IDs for field identity and tuple positions for order. Specify where
-   type identity, empty containers, and literal values live before claiming that
-   relation IDs alone make the encoding invertible. Preserve the familiar query
-   names, such as `value`, `idx`, and `kv`.
+3. Keep meaningful order in relational data, with explicit indices or ordering
+   relations where needed. Dictionary/set order needs no recovery for this
+   observation. Keep relation IDs as identities rather than requiring positional
+   encoding. Specify type identity, empty containers, and literal values as part
+   of the host contract; preserve familiar query names such as `value`, `idx`,
+   and `kv`.
 4. Validate reference integrity, field cardinality, and tuple shape before
    reconstruction. Report unsupported or ambiguous cases instead of silently
    changing a scalar into a list, duplicating a list index, or overwriting a dict entry.

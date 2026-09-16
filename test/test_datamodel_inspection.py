@@ -1,12 +1,12 @@
 """Python instance of the cross-language evaluation harness.
 
 For each host language, the evaluation plan compares the textual inspection
-output exposed by the language's own mechanism with a string reconstructed
-from the corresponding Spytial datum. In Python the mechanism is runtime
+output exposed by the language's own mechanism with an observation reconstructed
+from the corresponding Spytial datum, modulo dictionary/set ordering. In Python the mechanism is runtime
 introspection and the inspection output is ``repr`` — the REPL's echo::
 
-    value ── repr ──────────────────────────────────────────► string
-    value ── build_instance ─► datum ─► replit ─────────────► string
+    value ── inspection ──────────────────────────────────► observation
+    value ── build_instance ─► datum ─► reify ─► inspection ► observation
 
 ``test_reify_pbt.py`` asserts this property on *randomly generated* values;
 this file is the systematic counterpart: one row per supported built-in form
@@ -17,7 +17,7 @@ plus dataclasses and ordinary user-defined objects.
 Every row is classified by its observed verdict, so the suite documents the
 exact boundary of what the relational model reproduces:
 
-* **supported** — the reconstructed string equals ``repr(value)``. This
+* **supported** — the normalized inspection observations match. This
   includes named singletons (enum members, functions, classes, modules):
   they reify by *reference* — the datum records an importable identity and
   reify returns the identical object — so even an address-bearing repr
@@ -29,9 +29,9 @@ exact boundary of what the relational model reproduces:
   address) *and* the value has no importable name to reference (lambdas,
   memoryviews, default-repr instances), so no reconstruction can match.
 
-``set``/``frozenset`` rows are compared canonically (type + sorted element
-reprs) rather than by raw ``repr``: a set's repr order is not a function of
-its elements — see the rationale in ``test_reify_pbt.py``.
+The shared ``inspection`` oracle ignores dictionary/set order recursively
+inside built-in containers, preserving types, associations, multiplicity and
+sequence positions. Custom repr text is opaque and compared exactly.
 """
 
 import dataclasses
@@ -41,7 +41,8 @@ import math
 
 import pytest
 
-from spytial import reify, replit
+from inspection import inspection
+from spytial import reify
 from spytial.provider_system import CnDDataInstanceBuilder
 
 
@@ -297,7 +298,7 @@ CASES = [
 @pytest.mark.parametrize("factory", CASES)
 def test_inspection_string_reproduced(factory):
     value = factory()
-    assert replit(_datum(value)) == repr(value)
+    assert inspection(reify(_datum(value))) == inspection(value)
 
 
 # ---------------------------------------------------------------------------
@@ -320,4 +321,4 @@ def test_set_inspection_canonicalized(factory):
     value = factory()
     rebuilt = reify(_datum(value))
     assert type(rebuilt) is type(value)
-    assert sorted(repr(e) for e in rebuilt) == sorted(repr(e) for e in value)
+    assert inspection(rebuilt) == inspection(value)
