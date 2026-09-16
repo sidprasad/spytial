@@ -954,12 +954,10 @@ class CnDDataInstanceBuilder:
     def replit(self, data_instance: Dict, root_id: Optional[str] = None) -> str:
         """Reproduce the host REPL's output for a data instance.
 
-        Equivalent to ``repr(self.reify(data_instance, root_id))`` — rebuild the
-        object, then let Python's own ``repr`` render it. Matches ``repr(v)``
-        exactly for any importable, ordinarily-constructed value (custom
-        ``__repr__`` and cycle handling included, since it delegates to Python);
-        values that fall back to a structural proxy render as
-        ``TypeName(field=value)``.
+        Equivalent to ``repr(self.reify(data_instance, root_id))``. Agreement
+        with the original value's repr depends on reconstruction support and
+        that repr's dependence on identity or iteration order. Proxies render
+        as ``TypeName(field=value)``; a cyclic proxy can raise RecursionError.
         """
         return repr(self.reify(data_instance, root_id))
 
@@ -1116,9 +1114,10 @@ class CnDDataInstanceBuilder:
         """Reconstruct a tuple from its relations.
 
         TupleRelationalizer emits one binary relation per index named
-        ``t0``, ``t1``, … Tuples are immutable so we cannot register a
-        placeholder; a genuinely self-referential tuple is not representable
-        in Python. Non-self shared references still resolve via memoization.
+        ``t0``, ``t1``, … No placeholder is registered for the immutable tuple.
+        A cycle through a mutable child can therefore reconstruct the tuple
+        twice and lose identity when traversal starts from the tuple.
+        Acyclic sharing resolves via memoization after construction.
         """
         indexed_items = []
         for rel_name, target_ids in relations.items():
@@ -1353,12 +1352,14 @@ class CnDDataInstanceBuilder:
 def reify(data_instance: Dict, root_id: Optional[str] = None) -> Any:
     """Reconstruct a Python object from a Spytial data instance.
 
-    The inverse of :meth:`CnDDataInstanceBuilder.build_instance`: rebuild the
-    object named by the instance's root (or ``root_id``). Works for any value —
-    builtins, arbitrary classes (rebuilt via ``__module__``/``__qualname__``),
-    and cyclic structures. For dataclass instances whose fields an editor may
-    have stripped, prefer :func:`spytial.edit`, which registers dataclass
-    reifiers that fill declared field defaults.
+    Rebuild the object named by the instance's root (or ``root_id``).
+    Supports built-in values, resolvable references, and class instances with
+    reconstructible state. Unsupported types can return attribute proxies or
+    incomplete instances. Shared references and many mutable cycles survive;
+    cycles through immutable containers can lose identity. This is not a
+    lossless inverse for every Python value. For dataclass instances whose
+    fields an editor may have stripped, :func:`spytial.edit` registers reifiers
+    that apply declared field defaults before restoring recorded values.
     """
     return CnDDataInstanceBuilder().reify(data_instance, root_id=root_id)
 
