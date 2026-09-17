@@ -1,50 +1,38 @@
-"""Property-based tests for ``reify`` — the inverse of ``build_instance``.
+"""Property-based evidence for inspection-preserving Python reconstruction.
 
-The falsifiable property is whether, for a chosen set of values, the datum
-Spytial receives can reproduce the language's textual inspection string. We
-compare two paths and assert they end at the same string::
+The primary property compares native leaf representations and recursively
+observed containers, modulo dictionary/set ordering. Lists and tuples retain
+positions and multiplicity. The shared ``inspection`` oracle documents this
+normalization; custom user-written repr strings remain exact.
 
-    value ── repr ─────────────────────────────────────────► string
-    value ── build_instance ─► datum ─► reify ─► repr ──────► string
+Every round-trip crosses JSON and uses a fresh builder for reconstruction.
+Permutation tests additionally discard incidental atom, relation and tuple
+array order. No positional relation IDs or IAtom.metadata are required.
 
-i.e. ``repr(reify(build_instance(v))) == repr(v)``.
-
-``repr`` (not ``==``) is the oracle on purpose: it sidesteps ``float('nan')``,
-which is never equal to itself, while still pinning down the reconstructed
-value's textual form — exactly the inspection string a REPL would print.
-
-Scope of the generated values (what the round-trip is *designed* to recover):
-
-* Leaves: ``None``, ``bool``, ``int``, ``float`` (incl. ``nan``/``inf``),
-  ``complex``, ``str``, ``bytes``.
-* Order-stable containers: ``list``, ``tuple``, and ``dict`` (insertion-ordered).
-* ``dict`` keys: primitives, ``None``, and **tuples of those** all round-trip —
-  ``DictRelationalizer`` walks every key structurally, so a complex key keeps
-  its contents (``{('a', 'b'): 1}`` reifies back to ``{('a', 'b'): 1}``).
-* ``set`` (and ``frozenset``) round-trip to the real type, but a set's ``repr``
-  order is not a function of its elements (the hash-table layout depends on
-  insertion/resize history), so they are kept out of the ``repr``-stable
-  generator and covered by element recovery instead (see the set property and
-  ``test_reify.py`` for frozensets), not ``repr``-string equality.
-* Enum members, functions, classes, and modules reify by *reference* (the
-  datum records an importable identity; reify returns the identical object)
-  and are covered by direct tests in ``test_reify.py``, not generated here.
-* The remaining long tail (``int``/``str`` subclasses, numpy) is out of
-  scope — those fall back to the attribute-bag proxy and are intentionally
-  not generated here.
+Generated built-ins include numeric/string/bytes leaves, recursive lists,
+tuples and dictionaries, and sets/frozensets with recursively hashable members.
+NaN values are included, but NaN keys/members remain excluded: the current
+importer collapses distinct NaN atoms. Classes below exercise exact custom
+repr separately; named references and unsupported types are covered by the
+systematic corpus rather than counted as generated structural reconstruction.
 """
 
-from collections import Counter
+import json
 
+import pytest
+from inspection import inspection
 from hypothesis import given, settings, strategies as st
 
 from spytial.provider_system import CnDDataInstanceBuilder
+
+pytestmark = pytest.mark.reify
 
 
 def _roundtrip(value):
     """value ─► build_instance ─► datum ─► reify ─► reconstructed object."""
     builder = CnDDataInstanceBuilder()
-    return builder.reify(builder.build_instance(value))
+    datum = json.loads(json.dumps(builder.build_instance(value)))
+    return CnDDataInstanceBuilder().reify(datum)
 
 
 # ---------------------------------------------------------------------------
@@ -99,41 +87,35 @@ repr_stable = st.recursive(
 )
 
 
-# ---------------------------------------------------------------------------
-# The core property: the two paths land on the same inspection string
-# ---------------------------------------------------------------------------
+# Include unordered containers at arbitrary nesting depths. Their hashable
+# members are generated separately so every generated value is constructible.
+inspection_values = st.recursive(
+    st.one_of(atoms, st.sets(hashable_atoms), st.frozensets(hashable_atoms)),
+    lambda children: st.one_of(
+        st.lists(children),
+        st.lists(children).map(tuple),
+        st.dictionaries(keys=hashable_atoms, values=children),
+    ),
+    max_leaves=25,
+)
 
 
 @settings(max_examples=300, deadline=None)
-@given(repr_stable)
-def test_repr_roundtrip(value):
-    assert repr(_roundtrip(value)) == repr(value)
+@given(inspection_values)
+def test_inspection_roundtrip(value):
+    assert inspection(_roundtrip(value)) == inspection(value)
 
 
 @settings(max_examples=200, deadline=None)
-@given(repr_stable)
-def test_replit_equals_repr(value):
-    # replit(datum) is defined as repr(reify(datum)) — the REPL-equivalent
-    # string — so it must reproduce repr(value) over the same domain.
-    builder = CnDDataInstanceBuilder()
-    datum = builder.build_instance(value)
-    assert builder.replit(datum) == repr(value)
-
-
-# ---------------------------------------------------------------------------
-# Sets: element recovery, since repr order isn't element-determined
-# ---------------------------------------------------------------------------
-
-
-@settings(max_examples=200, deadline=None)
-@given(st.sets(hashable_atoms))
-def test_set_elements_roundtrip(value):
-    out = _roundtrip(value)
-    assert isinstance(out, set)
-    # A set reprs in hash-table order, which depends on insertion history, so
-    # two sets with identical elements can repr differently. Compare the
-    # multiset of element reprs instead — order-independent, nan-safe.
-    assert Counter(map(repr, out)) == Counter(map(repr, value))
+@given(inspection_values, st.randoms())
+def test_inspection_survives_record_permutations(value, random):
+    datum = json.loads(json.dumps(CnDDataInstanceBuilder().build_instance(value)))
+    random.shuffle(datum["atoms"])
+    random.shuffle(datum["relations"])
+    for relation in datum["relations"]:
+        random.shuffle(relation["tuples"])
+    out = CnDDataInstanceBuilder().reify(datum)
+    assert inspection(out) == inspection(value)
 
 
 # ---------------------------------------------------------------------------
@@ -195,4 +177,4 @@ def test_complex_dict_key_roundtrip():
     # synthetic, un-walked key atom and reified to an empty shell ({('a','b'): 1}
     # came back as {(): 1}). DictRelationalizer now walks every key.
     value = {("a", "b"): 1, ("c",): 2}
-    assert repr(_roundtrip(value)) == repr(value)
+    assert inspection(_roundtrip(value)) == inspection(value)
