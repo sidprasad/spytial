@@ -268,14 +268,33 @@ class TestTranslate:
 class TestTiming:
     """The IDs shall be the ones the relationalizer assigned to this instance."""
 
-    def test_the_domain_is_exactly_what_has_atoms(self):
-        # Why the function needs no separate walk: the values it is handed are
-        # the values with atoms, so a comprehension over them always translates.
+    def test_every_walked_value_has_an_atom(self):
+        # Why the function needs no separate walk: every value it is handed has
+        # an atom, so a comprehension over them always translates.
         root = tree()
         builder, instance = built(root)
         ids = {a["id"] for a in instance["atoms"]}
         for value in builder.walked_objects():
             assert builder.atom_id_for(value) in ids
+
+    def test_not_every_atom_was_walked(self):
+        # The converse is false, and was once claimed: a list's idx(list, index,
+        # element) makes its indices atoms without walking them. A selector that
+        # filters the values for ints therefore misses them -- found when a
+        # "hide every int" selector left two stray index boxes drawn.
+        # Values chosen not to equal any index. A primitive atom is identified
+        # by value, so an index 0 and a walked int 0 are one atom, and a fixture
+        # holding 0 and 1 would hide the gap entirely.
+        root = Node(10, [Node(20), Node(30)])
+        builder, instance = built(root)
+        walked = {builder.atom_id_for(v) for v in builder.walked_objects()}
+        unwalked = {a["id"] for a in instance["atoms"]} - walked
+        assert unwalked, "expected the list's index atoms to be unwalked"
+        assert all(
+            a["type"] == "int" for a in instance["atoms"] if a["id"] in unwalked
+        )
+        # They are still selectable by naming them.
+        assert materialise(lambda values: [0, 1], root, builder, instance) == "0 + 1"
 
     def test_the_first_walked_value_is_the_root(self):
         # values[0] is the diagrammed object, so a root-anchored selector needs

@@ -506,8 +506,14 @@ class CnDDataInstanceBuilder:
     def walked_objects(self) -> List[Any]:
         """Every value the last walk reached, in the order it was reached.
 
-        Membership here is the same condition as having an atom, so this is the
-        domain a Python selector may range over. See :mod:`spytial.selectors`.
+        This is the domain a Python selector ranges over, and every value in it
+        has an atom. The converse does not hold: a relationalizer may mint an
+        atom without walking a value for it. The index column of a list's
+        ``idx(list, index, element)`` is the usual case -- the ints ``0``,
+        ``1``, ... are atoms, but no index was ever walked. Such an atom is not
+        in this list, though a selector may still name it directly (``0``
+        translates, because translation checks the instance's atoms). See
+        :mod:`spytial.selectors`.
         """
         return list(self._walked_objects.values())
 

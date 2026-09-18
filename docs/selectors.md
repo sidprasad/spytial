@@ -173,7 +173,8 @@ turn one into the other:
 The function runs during `spytial.diagram()`, after the walk and before the
 specification is written, so the IDs it translates against are the ones the
 relationalizer assigned to the instance about to be drawn. It is handed the
-values the walk reached, which is exactly the set of values that have atoms:
+values the walk reached. Every one of them has an atom, so a comprehension over
+them always translates:
 
 ```python
 def child_edges(values):
@@ -213,6 +214,20 @@ The reason to write a selector this way is that it reads the object's own
 attributes. `n.kids` replaces `p.kids.idx[int]`, so the relationalization need
 not be known. Nothing is intercepted: the comprehension is ordinary Python, so a
 fault in it raises at the line that wrote it, with an ordinary traceback.
+
+### Atoms the walk did not reach
+
+The values handed to the function are the values the walk reached. A
+relationalizer may also mint an atom for which no value was walked. The index
+column of a list is the usual case: `idx(list, index, element)` makes the ints
+`0`, `1`, ... into atoms, but no index was ever walked, so no comprehension over
+the values finds them. A selector meant to hide every `int` therefore leaves the
+list indices drawn.
+
+Such an atom may still be named directly. `lambda values: [0, 1]` translates to
+`0 + 1`, because translation checks the instance's atoms rather than the values.
+An sgq expression over the relation, such as `idx[object]`, reaches the index
+column without naming the values at all.
 
 ### Choosing between the two forms
 
