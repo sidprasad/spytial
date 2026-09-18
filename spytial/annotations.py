@@ -879,6 +879,11 @@ class Group(SpytialAnnotation):
     Usage:
         Grouped = Annotated[MyType, Group(selector='items', name='mygroup')]
 
+    Set ``showLabel=False`` to hide the caption and its background pill while
+    keeping the group boundary. Keyed captions use the key's readable label;
+    IDs are added only to distinguish duplicate captions. Unary groups show
+    only ``name``.
+
     For the by-field form spytial-core 5.0 removed
     (``field``/``groupOn``/``addToGroup``), see the ``group`` decorator's
     docstring, which names the selector that replaces it.
@@ -1862,6 +1867,9 @@ group = _create_decorator(
 
     - ``selector`` -- the relation (or atoms) to group.
     - ``name`` -- the label drawn on the region.
+    - ``showLabel`` -- False hides the caption and its background pill while
+      preserving the region boundary (default True). Keyed captions prefer
+      readable labels, adding IDs only to distinguish duplicate captions.
     - ``addEdge`` -- the connector between the group's key and the group:
 
         - ``'none'`` (default) -- draw nothing

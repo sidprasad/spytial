@@ -3,7 +3,7 @@
 GENERATED FILE -- DO NOT EDIT BY HAND.
 
     Source:   spytial/_vendor/spytial-language.json
-    Language: 2026-09-18 (spytial-core 6.1.0)
+    Language: 2026-09-18 (spytial-core 6.2.0)
     Regenerate with: python3 scripts/generate_spec_tables.py
 
 Everything here is derived from the manifest spytial-core publishes, so a
@@ -17,7 +17,7 @@ tables, each with its reason.
 # the spec language itself changes, so an unchanged value across a
 # spytial-core bump means nothing here needed revisiting.
 LANGUAGE_VERSION = '2026-09-18'
-CORE_VERSION = '6.1.0'
+CORE_VERSION = '6.2.0'
 
 
 # --------------------------------------------------------------------------- #
@@ -130,6 +130,7 @@ CONSTRAINT_TYPES = {
         ],
         'optional': [
             'addEdge',
+            'showLabel',
             'textStyle',
             'hold',
         ],

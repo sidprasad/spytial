@@ -237,6 +237,18 @@ def test_block_numeric_bounds_match_the_manifest(block_name):
 # Every form in the tables is reachable from Python
 # --------------------------------------------------------------------------- #
 
+@pytest.mark.parametrize("show_label", [False, True])
+def test_group_label_visibility_survives_both_python_spellings(show_label):
+    @spytial.group(selector="Team.members", name="Team", showLabel=show_label)
+    class Team:
+        pass
+
+    emitted = Team.__spytial_registry__["constraints"][0]["group"]
+    assert emitted["showLabel"] is show_label
+    annotation = spytial.Group(selector="Team.members", name="Team", showLabel=show_label)
+    assert annotation.kwargs["showLabel"] is show_label
+
+
 ALL_FORMS = sorted(set(tables.CONSTRAINT_TYPES) | set(tables.DIRECTIVE_TYPES))
 
 # Decorator name -> Annotated[...] class, where the two spellings differ.
@@ -470,7 +482,7 @@ def test_emitted_spec_validates_against_the_core_schema():
     @sp.orientation(selector="children", directions=["below"])
     @sp.align(selector="row", direction="horizontal")
     @sp.cyclic(selector="next", direction="clockwise")
-    @sp.group(selector="Team.members", name="Team", addEdge="togroup")
+    @sp.group(selector="Team.members", name="Team", addEdge="togroup", showLabel=False)
     @sp.atomStyle(
         selector="Dir",
         borderStyle=sp.BorderStyle(color="steelblue", width=2),
