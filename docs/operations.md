@@ -236,11 +236,31 @@ an omitted `draw`. In both cases the edge's own selector ranges over atoms. With
 
 ### `tag`: attach a computed label
 
-1. **`toTag`**: the type to tag.
-2. **`name`**: the label name.
-3. **`value`**: the field or expression to show.
+1. **`toTag`**: a unary selector for the atoms to tag.
+2. **`name`**: the literal label name, not a selector.
+3. **`value`**: a selector returning tuples whose first column is the tagged
+   atom and last column is the displayed value. Intermediate columns form one
+   comma-separated key: `(node, low, high, max)` displays as `f[low,high]: max`.
 4. **`textStyle`** *(optional)*: styles this tag's line
    (`TextStyle(size=..., color=...)`).
+
+For a simple field, use the relation itself: `@spytial.tag(toTag='Person',
+name='age', value='age')` displays `age: 25`. `value='Person.age'` returns ages
+without their owners and cannot attach those values to the Person nodes.
+
+For a computed tag, preserve the owning atom as the first column:
+
+```python
+@spytial.tag(
+    toTag='IntervalNode',
+    name='f',
+    value='{n: IntervalNode, l, h, m: Int | n.low = l and n.high = h and n.max = m}',
+    textStyle=TextStyle(size='large'),
+)
+```
+
+If the labels are `1`, `10`, and `20`, the line is `f[1,10]: 20`. Use `and`
+between the conditions; `&` is set intersection, not logical conjunction.
 
 ### `icon`: draw an atom as an icon
 

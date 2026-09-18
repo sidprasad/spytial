@@ -19,6 +19,9 @@ nav:
       - Custom Relationalizers: relationalizers.md
       - Suggesting Annotations: suggest.md
   - Reference:
+      - Relationalization: reference/relationalization.md
+      - Reification: reference/reification.md
+      - Python Type Coverage: reference/python-types.md
       - Evaluator: usage/evaluator.md
       - API Reference: reference/api.md
       - CLRS Notebook Examples: examples/spytial-clrs.md

@@ -6,6 +6,11 @@
 Relationalizers are plug-ins. They define how Spytial serializes custom
 objects into atoms and relations.
 
+See [Relationalization](reference/relationalization.md) for the data model,
+built-in conversion rules, and traversal procedure.
+The reverse direction requires a compatible reconstruction rule; see
+[Custom reconstruction](reference/reification.md#custom-reconstruction).
+
 ## When to use a relationalizer
 
 Use a relationalizer when:

@@ -18,6 +18,9 @@ Before any layout, Spytial turns an object into a graph:
   `TreeNode`, `int`, `str`, `list`, `dict`. The type of `None` is `NoneType`,
   not `None`.
 
+See [Relationalization](reference/relationalization.md) for the formal data
+model and the rules that convert Python values into atoms and relation tuples.
+
 ## Unary and binary selectors
 
 A selector selects one thing or two:

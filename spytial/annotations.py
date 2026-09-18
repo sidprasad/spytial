@@ -1292,6 +1292,16 @@ class Tag(SpytialAnnotation):
 
         # Ternary selector - displays as "score[Math]: 95"
         Graded = Annotated[MyType, Tag(toTag='Student', name='score', value='grades')]
+
+        # Four-column result (student, course, exam, grade) displays as
+        # "score[Math,Midterm]: 95".
+        ExamGraded = Annotated[MyType, Tag(toTag='Student', name='score',
+                                          value='examGrades')]
+
+    ``name`` is literal. The ``value`` selector must preserve the tagged atom
+    as its first column; its last column is displayed as the value. A selector
+    such as ``Person.age`` returns ages without their owning Person atoms and
+    therefore cannot attach those values as tags. Use ``age`` instead.
     """
 
     _annotation_type = "tag"
@@ -2127,14 +2137,15 @@ tag = _create_decorator(
     doc="""Attach a computed label to a type's atoms.
 
     Usage:
-        @spytial.tag(toTag='Node', name='depth', value='n.depth',
+        @spytial.tag(toTag='Node', name='depth', value='depth',
                      textStyle=TextStyle(size='small'))
 
     Accepted keys:
 
-    - ``toTag`` -- the type to tag.
-    - ``name`` -- the label's name.
-    - ``value`` -- the field or expression to show.
+    - ``toTag`` -- unary selector for the atoms to tag.
+    - ``name`` -- literal label name (not a selector).
+    - ``value`` -- selector yielding ``(tagged atom, ..., value)`` tuples.
+      Intermediate columns share one bracketed key: ``f[low,high]: max``.
     - ``textStyle`` -- TextStyle(size=..., color=...) -- styles this line.
     """,
 )
