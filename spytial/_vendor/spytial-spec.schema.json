@@ -2,9 +2,9 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "urn:spytial:layout-spec-schema:2026-09-18",
   "title": "Spytial layout specification",
-  "description": "A Spytial spec: constraints (structural layout) and directives (presentation). Spec language 2026-09-18, from spytial-core 6.1.0. This schema is stricter than the engine parser, which silently ignores anything it does not recognize — validating here is how a misspelled key or an out-of-range value gets caught at all. Fetch it from https://cdn.jsdelivr.net/gh/sidprasad/spytial-core@<tag>/docs/spytial-spec.schema.json; pin a tag, since the @main path is overwritten each release.",
+  "description": "A Spytial spec: constraints (structural layout) and directives (presentation). Spec language 2026-09-18, from spytial-core 6.2.0. This schema is stricter than the engine parser, which silently ignores anything it does not recognize — validating here is how a misspelled key or an out-of-range value gets caught at all. Fetch it from https://cdn.jsdelivr.net/gh/sidprasad/spytial-core@<tag>/docs/spytial-spec.schema.json; pin a tag, since the @main path is overwritten each release.",
   "x-spytial-language-version": "2026-09-18",
-  "x-spytial-core-version": "6.1.0",
+  "x-spytial-core-version": "6.2.0",
   "type": "object",
   "properties": {
     "constraints": {
@@ -471,7 +471,7 @@
               "minLength": 1
             },
             "name": {
-              "description": "Display name on the group, and the handle an `inferredEdge` `draw` endpoint refers to. Required unless the constraint is negated (`hold: never`), where a name is generated.",
+              "description": "Display name on the group, and the handle an `inferredEdge` `draw` endpoint refers to. Keyed captions use `<name>[<key label>]`, adding the key ID only to distinguish duplicate captions. Required unless the constraint is negated (`hold: never`), where a name is generated.",
               "type": "string",
               "minLength": 1
             },
@@ -516,6 +516,10 @@
                   "description": "Legacy spelling of `togroup`."
                 }
               ]
+            },
+            "showLabel": {
+              "description": "Whether the group caption and its background pill are drawn. The group hull remains visible. Default when omitted: true.",
+              "type": "boolean"
             },
             "textStyle": {
               "description": "The group's own label. Only `color` applies today — group labels auto-fit their box, so `size` is reserved.",
