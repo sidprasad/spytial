@@ -1586,7 +1586,12 @@ The same applies to <code>flag</code>, which acts on exactly <code>hideDisconnec
    group. It is <code>'none'</code> (default), <code>'togroup'</code>, or <code>'fromgroup'</code>. To also style
    the connector, pass a <code>GroupEdge</code> instead of a bare string.</li>
 <li><strong><code>textStyle</code></strong> <em>(optional)</em>: styles the group's own label.</li>
+<li><strong><code>showLabel</code></strong> <em>(optional, default <code>True</code>)</em>: set to <code>False</code> to hide the
+   group's caption and its background pill while keeping the group boundary.</li>
 </ol>
+<p>Keyed groups display readable captions such as <code>Team[Alice]</code>. Core adds the
+key ID only when needed to distinguish duplicate captions, such as
+<code>Team[Alice:k1]</code> and <code>Team[Alice:k2]</code>. Unary groups display only <code>name</code>.</p>
 <div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">spytial</span><span class="w"> </span><span class="kn">import</span> <span class="n">GroupEdge</span><span class="p">,</span> <span class="n">LineStyle</span><span class="p">,</span> <span class="n">TextStyle</span>
 
 <span class="nd">@spytial</span><span class="o">.</span><span class="n">group</span><span class="p">(</span>
@@ -1596,6 +1601,9 @@ The same applies to <code>flag</code>, which acts on exactly <code>hideDisconnec
     <span class="n">textStyle</span><span class="o">=</span><span class="n">TextStyle</span><span class="p">(</span><span class="n">color</span><span class="o">=</span><span class="s1">'navy'</span><span class="p">),</span>
 <span class="p">)</span>
 </code></pre></div>
+<p>To keep the boundary without a caption, use
+<code>@spytial.group(selector='Team.members', name='Team', showLabel=False)</code>.
+The same option works with <code>Group(...)</code> in an <code>Annotated</code> type.</p>
 <h3 id="size-set-a-nodes-drawn-dimensions"><code>size</code>: set a node's drawn dimensions</h3>
 <ol>
 <li><strong><code>height</code></strong> and <strong><code>width</code></strong>: the node dimensions in pixels. Each is
