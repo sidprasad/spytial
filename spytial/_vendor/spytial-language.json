@@ -1,7 +1,7 @@
 {
   "language": "spytial-layout-spec",
-  "languageVersion": "2026-08-25",
-  "spytialCoreVersion": "6.0.0",
+  "languageVersion": "2026-09-18",
+  "spytialCoreVersion": "6.1.0",
   "versioning": {
     "note": "`languageVersion` is the date the language last changed (YYYY-MM-DD). If it has not moved since the manifest you generated against, nothing you emit needs revisiting. `spytialCoreVersion` records which release produced this file.",
     "deprecations": "A deprecated form keeps parsing and keeps its meaning while it is listed in `deprecations`, and each entry names its replacement and the rewrite to apply. Removal is signalled by `languageVersion` moving, not by the `spytialCoreVersion` major: a removed form leaves this manifest and becomes a parse error, so check `languageVersion` before assuming a spec you generated earlier still parses."
@@ -850,7 +850,7 @@
           "type": "string",
           "required": true,
           "enforcement": "unchecked",
-          "description": "The label shown before the value."
+          "description": "The literal label shown before the value; this field is not a selector."
         },
         {
           "name": "value",
@@ -860,7 +860,7 @@
             {
               "arity": "n-ary",
               "minColumns": 2,
-              "meaning": "One line per tuple whose first atom is the tagged atom: the last column is the value and any columns between become the key, as `name[k1][k2]: value`. A binary result is the plain `name: value` case."
+              "meaning": "One line per tuple whose first atom is the tagged atom: the last column is the value and any columns between become one comma-separated key tuple, as `name[k1,k2]: value`. A binary result is the plain `name: value` case."
             },
             {
               "arity": "unary",
@@ -871,7 +871,7 @@
           ],
           "required": true,
           "enforcement": "unchecked",
-          "description": "Evaluated per tagged atom; its result becomes the value. A binary result shows as `name: value`; a longer tuple shows one line per tuple, as `name[k1][k2]: value`. A unary result tags each selected atom with its own label."
+          "description": "Evaluated once; each tuple is attached to the tagged atom in its first column. A binary result shows as `name: value`; a longer tuple shows one line per tuple, as `name[k1,k2]: value`. A unary result tags each selected atom with its own label."
         },
         {
           "name": "textStyle",
