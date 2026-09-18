@@ -59,6 +59,12 @@ operation part by part.
    group. It is `'none'` (default), `'togroup'`, or `'fromgroup'`. To also style
    the connector, pass a `GroupEdge` instead of a bare string.
 4. **`textStyle`** *(optional)*: styles the group's own label.
+5. **`showLabel`** *(optional, default `True`)*: set to `False` to hide the
+   group's caption and its background pill while keeping the group boundary.
+
+Keyed groups display readable captions such as `Team[Alice]`. Core adds the
+key ID only when needed to distinguish duplicate captions, such as
+`Team[Alice:k1]` and `Team[Alice:k2]`. Unary groups display only `name`.
 
 ```python
 from spytial import GroupEdge, LineStyle, TextStyle
@@ -70,6 +76,10 @@ from spytial import GroupEdge, LineStyle, TextStyle
     textStyle=TextStyle(color='navy'),
 )
 ```
+
+To keep the boundary without a caption, use
+`@spytial.group(selector='Team.members', name='Team', showLabel=False)`.
+The same option works with `Group(...)` in an `Annotated` type.
 
 ### `size`: set a node's drawn dimensions
 
