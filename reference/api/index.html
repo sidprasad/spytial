@@ -1495,6 +1495,28 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#spytial.Tag--four-column-result-student-course-exam-grade-displays-as" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Four-column result (student, course, exam, grade) displays as
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#spytial.Tag--scoremathmidterm-95" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        "score[Math,Midterm]: 95".
+      
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -2866,6 +2888,28 @@
     <span class="md-ellipsis">
       
         Ternary selector - displays as "score[Math]: 95"
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#spytial.annotations.Tag--four-column-result-student-course-exam-grade-displays-as" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Four-column result (student, course, exam, grade) displays as
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#spytial.annotations.Tag--scoremathmidterm-95" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        "score[Math,Midterm]: 95".
       
     </span>
   </a>
@@ -4263,6 +4307,28 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#spytial.Tag--four-column-result-student-course-exam-grade-displays-as" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Four-column result (student, course, exam, grade) displays as
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#spytial.Tag--scoremathmidterm-95" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        "score[Math,Midterm]: 95".
+      
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -5634,6 +5700,28 @@
     <span class="md-ellipsis">
       
         Ternary selector - displays as "score[Math]: 95"
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#spytial.annotations.Tag--four-column-result-student-course-exam-grade-displays-as" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Four-column result (student, course, exam, grade) displays as
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#spytial.annotations.Tag--scoremathmidterm-95" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        "score[Math,Midterm]: 95".
       
     </span>
   </a>
@@ -8707,7 +8795,15 @@ attribute values to nodes based on selector evaluation.</p>
 <p>Tagged = Annotated[MyType, Tag(toTag='Person', name='age', value='age')]</p>
 <h4 id="spytial.Tag--ternary-selector-displays-as-scoremath-95">Ternary selector - displays as "score[Math]: 95"</h4>
 <p>Graded = Annotated[MyType, Tag(toTag='Student', name='score', value='grades')]</p>
-</details>
+<h4 id="spytial.Tag--four-column-result-student-course-exam-grade-displays-as">Four-column result (student, course, exam, grade) displays as</h4>
+<h4 id="spytial.Tag--scoremathmidterm-95">"score[Math,Midterm]: 95".</h4>
+<p>ExamGraded = Annotated[MyType, Tag(toTag='Student', name='score',
+                                  value='examGrades')]</p>
+</details>        <p><code>name</code> is literal. The <code>value</code> selector must preserve the tagged atom
+as its first column; its last column is displayed as the value. A selector
+such as <code>Person.age</code> returns ages without their owning Person atoms and
+therefore cannot attach those values as tags. Use <code>age</code> instead.</p>
+
 
 
 
@@ -14139,7 +14235,15 @@ attribute values to nodes based on selector evaluation.</p>
 <p>Tagged = Annotated[MyType, Tag(toTag='Person', name='age', value='age')]</p>
 <h4 id="spytial.annotations.Tag--ternary-selector-displays-as-scoremath-95">Ternary selector - displays as "score[Math]: 95"</h4>
 <p>Graded = Annotated[MyType, Tag(toTag='Student', name='score', value='grades')]</p>
-</details>
+<h4 id="spytial.annotations.Tag--four-column-result-student-course-exam-grade-displays-as">Four-column result (student, course, exam, grade) displays as</h4>
+<h4 id="spytial.annotations.Tag--scoremathmidterm-95">"score[Math,Midterm]: 95".</h4>
+<p>ExamGraded = Annotated[MyType, Tag(toTag='Student', name='score',
+                                  value='examGrades')]</p>
+</details>        <p><code>name</code> is literal. The <code>value</code> selector must preserve the tagged atom
+as its first column; its last column is displayed as the value. A selector
+such as <code>Person.age</code> returns ages without their owning Person atoms and
+therefore cannot attach those values as tags. Use <code>age</code> instead.</p>
+
 
 
 

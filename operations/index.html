@@ -1740,12 +1740,27 @@ fragment defines (spytial-core 5.0; before it, a hard error at render time).</p>
 </blockquote>
 <h3 id="tag-attach-a-computed-label"><code>tag</code>: attach a computed label</h3>
 <ol>
-<li><strong><code>toTag</code></strong>: the type to tag.</li>
-<li><strong><code>name</code></strong>: the label name.</li>
-<li><strong><code>value</code></strong>: the field or expression to show.</li>
+<li><strong><code>toTag</code></strong>: a unary selector for the atoms to tag.</li>
+<li><strong><code>name</code></strong>: the literal label name, not a selector.</li>
+<li><strong><code>value</code></strong>: a selector returning tuples whose first column is the tagged
+   atom and last column is the displayed value. Intermediate columns form one
+   comma-separated key: <code>(node, low, high, max)</code> displays as <code>f[low,high]: max</code>.</li>
 <li><strong><code>textStyle</code></strong> <em>(optional)</em>: styles this tag's line
    (<code>TextStyle(size=..., color=...)</code>).</li>
 </ol>
+<p>For a simple field, use the relation itself: <code>@spytial.tag(toTag='Person',
+name='age', value='age')</code> displays <code>age: 25</code>. <code>value='Person.age'</code> returns ages
+without their owners and cannot attach those values to the Person nodes.</p>
+<p>For a computed tag, preserve the owning atom as the first column:</p>
+<div class="highlight"><pre><span></span><code><span class="nd">@spytial</span><span class="o">.</span><span class="n">tag</span><span class="p">(</span>
+    <span class="n">toTag</span><span class="o">=</span><span class="s1">'IntervalNode'</span><span class="p">,</span>
+    <span class="n">name</span><span class="o">=</span><span class="s1">'f'</span><span class="p">,</span>
+    <span class="n">value</span><span class="o">=</span><span class="s1">'{n: IntervalNode, l, h, m: Int | n.low = l and n.high = h and n.max = m}'</span><span class="p">,</span>
+    <span class="n">textStyle</span><span class="o">=</span><span class="n">TextStyle</span><span class="p">(</span><span class="n">size</span><span class="o">=</span><span class="s1">'large'</span><span class="p">),</span>
+<span class="p">)</span>
+</code></pre></div>
+<p>If the labels are <code>1</code>, <code>10</code>, and <code>20</code>, the line is <code>f[1,10]: 20</code>. Use <code>and</code>
+between the conditions; <code>&amp;</code> is set intersection, not logical conjunction.</p>
 <h3 id="icon-draw-an-atom-as-an-icon"><code>icon</code>: draw an atom as an icon</h3>
 <ol>
 <li><strong><code>selector</code></strong>: which atoms get the icon.</li>
