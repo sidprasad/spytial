@@ -201,7 +201,14 @@ def _render_value(value):
     that read `GroupEdge(points='togroup')` -- text that is not on the page the
     location points at. Only the fields actually set are rendered, and nested
     blocks the same way.
+
+    A Python selector is a function, whose repr carries a memory address. That
+    address would differ on every run, in a spec meant to be committed and
+    mailed around, and it is not what the author wrote either: the page says
+    `selector=child_edges`. So a callable is rendered by its name.
     """
+    if callable(value) and not isinstance(value, type):
+        return getattr(value, "__name__", None) or repr(value)
     if dataclasses.is_dataclass(value) and not isinstance(value, type):
         set_fields = ", ".join(
             f"{field.name}={_render_value(getattr(value, field.name))}"

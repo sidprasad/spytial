@@ -19,6 +19,7 @@ from .visualizer import (
     LABEL_STRATEGY_NAMES,
 )
 from .evaluator import evaluate
+from .selectors import AtomNotInInstance, SelectorError
 from .structured_input import edit, edit_html, EditCancelled
 from .utils import AnnotatedType
 from .core_assets import get_spytial_core_version
@@ -117,6 +118,9 @@ __all__ = [
     "SEQUENCE_POLICY_NAMES",
     "LABEL_STRATEGY_NAMES",
     "evaluate",
+    # Selectors written in Python
+    "SelectorError",
+    "AtomNotInInstance",
     # Structured input (the inverse of diagram)
     "edit",
     "edit_html",
