@@ -27,6 +27,7 @@ meaning of the page.
 """
 
 import json
+from html import escape
 
 from jinja2 import Environment, FileSystemLoader
 
@@ -71,3 +72,13 @@ def template_environment(directory):
     env.filters["js"] = js_literal
     env.filters["js_json"] = js_json
     return env
+
+
+def iframe_document(html_content, height):
+    """Embed a page without data-URL size limits, keeping its origin isolated."""
+    return (
+        '<div style="border: 2px solid #007acc; border-radius: 8px; overflow: hidden;">'
+        '<iframe sandbox="allow-scripts allow-downloads allow-modals allow-popups" '
+        f'srcdoc="{escape(html_content, quote=True)}" width="100%" '
+        f'height="{height}px" frameborder="0" style="display: block;"></iframe></div>'
+    )

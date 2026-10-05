@@ -1,60 +1,73 @@
 #!/usr/bin/env python3
-"""Record which spytial-core release each vendored artifact came from.
+"""Record or verify the exact spytial-core artifacts shipped by this checkout.
 
-    python3 scripts/vendor_lock.py
-
-spytial vendors four files out of the spytial-core npm tarball -- the language
-manifest, the spec schema, the tier-2 evaluator bundle, and the conformance
-harness bin -- and separately pins a version in ``spytial/core_assets.py`` that
-decides which browser bundle is loaded from the CDN. All five have to be the
-same release. A spec validated against one version of the language and rendered
-by another is exactly the silent mismatch the vendoring exists to prevent; a
-harness from one release checking specs written against another is that same
-mismatch, in the one place meant to catch it.
-
-The manifest, the schema, and the harness bin each state their own version, so
-they can be checked directly. The evaluator bundle does not: it is a minified
-build with no version string anywhere in it, so nothing about the file itself
-says which release produced it. This lockfile is what makes that one checkable
--- it records the version and a content hash at vendor time, written by
-``update-spytial-core.sh`` as part of the same step that copies the files.
-
-The hash catches a file edited or replaced without re-vendoring; the version
-catches a pin moved by hand without re-running the update script. The hash is
-the stronger check even where a version string exists, so every vendored file
-is recorded here, not only the one that has no other option.
+Use --check in CI. Regenerating a lock alone does not establish provenance;
+update-spytial-core.sh copies all artifacts from one npm tarball first.
 """
 
 from __future__ import annotations
 
+import argparse
 import hashlib
 import json
 import pathlib
 import re
+import zipfile
 
 REPO_ROOT = pathlib.Path(__file__).resolve().parent.parent
 LOCK_PATH = REPO_ROOT / "spytial" / "_vendor" / "VENDORED.json"
 CORE_ASSETS = REPO_ROOT / "spytial" / "core_assets.py"
 
-# Vendored artifact -> what it is, for the lockfile's own readability.
-VENDORED_FILES = {
-    "spytial/_vendor/spytial-language.json": "language manifest (drives _spec_tables.py)",
-    "spytial/_vendor/spytial-spec.schema.json": "spec schema (validates emitted specs)",
-    "spytial/suggest/_vendor/spytial-core-evaluator.js": "tier-2 evaluator bundle",
-    # Test-only, so it lives under test/ and stays out of the wheel (MANIFEST.in
-    # excludes test/). It is still vendored and locked like the rest: the point of
-    # the harness is that it agrees with the release whose specs it is checking.
-    "test/_vendor/spytial-check.js": "conformance harness bin (test/conformance.py)",
+# One inventory for copying, hashing, packaging checks, and update tests.
+ARTIFACTS = {
+    "docs/spytial-language.json": (
+        "spytial/_vendor/spytial-language.json",
+        "language manifest (drives _spec_tables.py)",
+    ),
+    "docs/spytial-spec.schema.json": (
+        "spytial/_vendor/spytial-spec.schema.json",
+        "spec schema (validates emitted specs)",
+    ),
+    "dist/evaluator.js": (
+        "spytial/suggest/_vendor/spytial-core-evaluator.js",
+        "tier-2 evaluator bundle",
+    ),
+    "dist/cli/spytial-check.js": (
+        "test/_vendor/spytial-check.js",
+        "conformance harness bin (test/conformance.py)",
+    ),
+    "dist/browser/spytial-core-complete.global.js": (
+        "spytial/_vendor/browser/spytial-core-complete.global.js",
+        "minified browser renderer",
+    ),
+    "dist/components/react-component-integration.global.js": (
+        "spytial/_vendor/browser/react-component-integration.global.js",
+        "minified browser components",
+    ),
+    "dist/components/react-component-integration.css": (
+        "spytial/_vendor/browser/react-component-integration.css",
+        "browser component styles",
+    ),
+    "package.json": (
+        "spytial/_vendor/browser/package.json",
+        "upstream package version and license metadata",
+    ),
+}
+VENDORED_FILES = dict(ARTIFACTS.values())
+VERSION_METADATA = {
+    "spytial/_vendor/spytial-language.json": "spytialCoreVersion",
+    "spytial/_vendor/spytial-spec.schema.json": "x-spytial-core-version",
+    "spytial/_vendor/browser/package.json": "version",
 }
 
 
-def pinned_version():
-    """The spytial-core release ``core_assets.py`` pins."""
+def pinned_version(root=None):
+    path = pathlib.Path(root) / "spytial/core_assets.py" if root else CORE_ASSETS
     match = re.search(
-        r'SPYTIAL_CORE_VERSION = "([^"]+)"', CORE_ASSETS.read_text(encoding="utf-8")
+        r'SPYTIAL_CORE_VERSION = "([^"]+)"', path.read_text(encoding="utf-8")
     )
     if match is None:
-        raise SystemExit("could not read SPYTIAL_CORE_VERSION from core_assets.py")
+        raise ValueError("could not read SPYTIAL_CORE_VERSION from core_assets.py")
     return match.group(1)
 
 
@@ -62,20 +75,20 @@ def digest(path):
     return hashlib.sha256(pathlib.Path(path).read_bytes()).hexdigest()
 
 
-def capture(version=None):
-    """The lockfile contents for the current tree."""
-    version = version or pinned_version()
+def capture(version=None, root=None, contents=None):
+    root = pathlib.Path(root or REPO_ROOT)
     return {
-        "_comment": (
-            "Generated by scripts/vendor_lock.py via update-spytial-core.sh. "
-            "Records which spytial-core release each vendored file came from and "
-            "what it hashed to, so every one of them can be checked against the "
-            "pin in core_assets.py -- including the evaluator bundle, which "
-            "carries no version string of its own."
-        ),
-        "spytialCoreVersion": version,
+        "_comment": "Generated by scripts/vendor_lock.py via update-spytial-core.sh. All artifacts come from one published spytial-core npm package. Verify with scripts/vendor_lock.py --check.",
+        "spytialCoreVersion": version or pinned_version(root),
         "files": {
-            name: {"sha256": digest(REPO_ROOT / name), "role": role}
+            name: {
+                "sha256": (
+                    hashlib.sha256(contents[name]).hexdigest()
+                    if contents is not None
+                    else digest(root / name)
+                ),
+                "role": role,
+            }
             for name, role in sorted(VENDORED_FILES.items())
         },
     }
@@ -85,9 +98,81 @@ def render(version=None):
     return json.dumps(capture(version), indent=2) + "\n"
 
 
+def verify(root=None):
+    root = pathlib.Path(root or REPO_ROOT)
+    try:
+        recorded = json.loads((root / "spytial/_vendor/VENDORED.json").read_text())
+        expected = capture(root=root)
+    except (OSError, ValueError) as exc:
+        return [str(exc)]
+    errors = []
+    if recorded.get("spytialCoreVersion") != expected["spytialCoreVersion"]:
+        errors.append("Vendored release does not match core_assets.py")
+    if recorded.get("files") != expected["files"]:
+        errors.append(
+            "Vendored file inventory or hashes differ; run ./update-spytial-core.sh"
+        )
+    for name, field in VERSION_METADATA.items():
+        value = json.loads((root / name).read_text())
+        if value.get(field) != expected["spytialCoreVersion"]:
+            errors.append(f"{name} comes from a different release")
+    return errors
+
+
+def verify_wheel(path):
+    """Check the built distribution, including bytes and version pin, offline."""
+    errors = []
+    with zipfile.ZipFile(path) as wheel:
+        lock = json.loads(wheel.read("spytial/_vendor/VENDORED.json"))
+        pin = re.search(
+            r'SPYTIAL_CORE_VERSION = "([^"]+)"',
+            wheel.read("spytial/core_assets.py").decode(),
+        )
+        if not pin or pin.group(1) != lock.get("spytialCoreVersion"):
+            errors.append("Wheel pin and vendor lock disagree")
+        if set(lock.get("files", {})) != set(VENDORED_FILES):
+            errors.append("Wheel vendor inventory is incomplete")
+        for name in VENDORED_FILES:
+            if name.startswith("test/"):
+                continue  # conformance executable is intentionally source-only
+            try:
+                data = wheel.read(name)
+            except KeyError:
+                errors.append(f"Wheel is missing {name}")
+                continue
+            if hashlib.sha256(data).hexdigest() != lock.get("files", {}).get(
+                name, {}
+            ).get("sha256"):
+                errors.append(f"Wheel artifact differs from its lock: {name}")
+            if name in VERSION_METADATA:
+                value = json.loads(data)
+                if value.get(VERSION_METADATA[name]) != lock.get("spytialCoreVersion"):
+                    errors.append(f"Wheel artifact comes from a different release: {name}")
+    return errors
+
+
 def main():
-    LOCK_PATH.write_text(render(), encoding="utf-8")
-    print(f"Wrote {LOCK_PATH.relative_to(REPO_ROOT)} (spytial-core {pinned_version()}).")
+    parser = argparse.ArgumentParser(description=__doc__)
+    action = parser.add_mutually_exclusive_group()
+    action.add_argument(
+        "--wheel", type=pathlib.Path, help="verify packaged assets in a built wheel"
+    )
+    action.add_argument(
+        "--check", action="store_true", help="verify without rewriting the lock"
+    )
+    args = parser.parse_args()
+    if args.check or args.wheel:
+        errors = verify_wheel(args.wheel) if args.wheel else verify()
+        if errors:
+            raise SystemExit("\n".join(errors))
+        print(
+            f"Verified {len(VENDORED_FILES)} artifacts for spytial-core {pinned_version()}."
+        )
+    else:
+        LOCK_PATH.write_text(render(), encoding="utf-8")
+        print(
+            f"Wrote {LOCK_PATH.relative_to(REPO_ROOT)} (spytial-core {pinned_version()})."
+        )
 
 
 if __name__ == "__main__":

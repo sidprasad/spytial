@@ -6,8 +6,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ title | default("sPyTial Sequence Visualization") }}</title>
 
-    <script src="{{ spytial_core_browser_bundle_url }}"></script>
-    <script src="{{ spytial_core_components_bundle_url }}"></script>
+    <script defer src="{{ spytial_core_browser_bundle_url }}"></script>
+    <script defer src="{{ spytial_core_components_bundle_url }}"></script>
     <link rel="stylesheet" href="{{ spytial_core_components_css_url }}" />
 
     <style>
@@ -272,7 +272,7 @@
 
         <div class="graph-wrapper">
             <span id="loading-indicator">Loading step...</span>
-            <webcola-cnd-graph id="graph-container" width="{{ width }}" height="{{ height }}" layoutFormat="default"
+            <webcola-cnd-graph {% if spytial_core_offline %}font-family="'Atkinson Hyperlegible', system-ui, -apple-system, sans-serif"{% endif %} id="graph-container" width="{{ width }}" height="{{ height }}" layoutFormat="default"
                 aria-label="Interactive sequence graph visualization">
             </webcola-cnd-graph>
         </div>

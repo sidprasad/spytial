@@ -37,7 +37,7 @@ except ImportError:
     HAS_IPYTHON = False
 
 try:
-    from ._templating import template_environment
+    from ._templating import template_environment, iframe_document
 
     HAS_JINJA2 = True
 except ImportError:
@@ -157,6 +157,7 @@ def _generate_editor_html(
     cnd_spec: str,
     dataclass_name: str,
     commit: bool = False,
+    method: Optional[str] = None,
 ) -> str:
     """Generate HTML for the interactive structured-input editor (template-based).
 
@@ -186,7 +187,7 @@ def _generate_editor_html(
         # export codegen — kept as the template var name to avoid churn there.)
         title=f"{dataclass_name} — sPyTial editor",
         commit=commit,
-        **get_template_asset_context(),
+        **get_template_asset_context("server" if commit else method),
     )
 
 
@@ -210,18 +211,8 @@ def _deliver_html_content(
     if method == "inline":
         if HAS_IPYTHON:
             try:
-                import base64
+                iframe_html = iframe_document(html_content, height + 50)
 
-                encoded_html = base64.b64encode(
-                    html_content.encode("utf-8")
-                ).decode("utf-8")
-                iframe_html = (
-                    '<div style="border: 2px solid #007acc; border-radius: 8px; '
-                    'overflow: hidden;">'
-                    f'<iframe src="data:text/html;base64,{encoded_html}" '
-                    f'width="100%" height="{height + 50}px" frameborder="0" '
-                    'style="display: block;"></iframe></div>'
-                )
                 display(HTML(iframe_html))
                 return None
             except Exception:
@@ -499,14 +490,15 @@ def edit_html(
     initial_data = inst_builder.build_instance(instance)
     cnd_spec = _generate_cnd_spec(instance)
 
+    if method is None:
+        method = default_method()
+
     html = _generate_editor_html(
         initial_data=initial_data,
         cnd_spec=cnd_spec,
         dataclass_name=type(instance).__name__,
+        method=method,
     )
-
-    if method is None:
-        method = default_method()
 
     return _deliver_html_content(
         html, method=method, auto_open=auto_open, height=height

@@ -1,13 +1,13 @@
 """Real-browser end-to-end tests for ``spytial.edit()``.
 
 These drive a real headless Chromium against the live editor page (which loads
-spytial-core from the CDN) — covering the one surface the unit tests can't: the
+vendored spytial-core) — covering the one surface the unit tests can't: the
 actual web component rendering, ``getDataInstance()``, and the Done/Cancel POST →
 ``reify`` chain.
 
-**Opt-in.** They are skipped unless ``SPYTIAL_BROWSER_TESTS=1`` is set, so the
-normal suite / CI never depends on a browser or network. Even when opted in they
-skip gracefully if Playwright, Chromium, or the CDN is unavailable.
+The browser CI job sets ``SPYTIAL_BROWSER_TESTS=1``; use the same flag locally.
+External requests are blocked. The ordinary suite skips these tests, and local
+runs also skip if Playwright or Chromium is unavailable.
 
 Run with::
 
@@ -26,7 +26,7 @@ import spytial.structured_input as si
 
 pytestmark = pytest.mark.skipif(
     os.environ.get("SPYTIAL_BROWSER_TESTS") != "1",
-    reason="set SPYTIAL_BROWSER_TESTS=1 to run real-browser e2e (needs playwright + chromium + network)",
+    reason="set SPYTIAL_BROWSER_TESTS=1 to run real-browser e2e (needs playwright + chromium)",
 )
 
 DONE = "#spytial-done"
@@ -42,21 +42,31 @@ def pw_browser():
         pytest.skip("playwright not installed")
 
     # CDN reachability — turn "offline" into a skip, not a failure.
-    import urllib.request
-    from spytial.core_assets import SPYTIAL_CORE_BROWSER_BUNDLE_URL
-
-    try:
-        urllib.request.urlopen(SPYTIAL_CORE_BROWSER_BUNDLE_URL, timeout=8).read(1)
-    except Exception as exc:  # noqa: BLE001
-        pytest.skip(f"spytial-core CDN unreachable: {exc}")
-
     pw = sync_playwright().start()
     try:
         b = pw.chromium.launch(headless=True)
     except Exception as exc:  # noqa: BLE001 — browser binary may be missing
         pw.stop()
-        pytest.skip(f"chromium not available (run `playwright install chromium`): {exc}")
-    yield b
+        pytest.skip(
+            f"chromium not available (run `playwright install chromium`): {exc}"
+        )
+
+    def offline(route):
+        from urllib.parse import urlparse
+
+        url = urlparse(route.request.url)
+        if url.scheme in ("http", "https") and url.hostname not in (
+            "127.0.0.1",
+            "localhost",
+        ):
+            route.abort()
+        else:
+            route.continue_()
+
+    b_context = b.new_context()
+    b_context.route("**/*", offline)
+    yield b_context
+    b_context.close()
     b.close()
     pw.stop()
 
@@ -131,8 +141,7 @@ def test_an_edit_is_reflected(pw_browser, monkeypatch):
         page.wait_for_selector(f"{DONE}:not([disabled])", timeout=40000)
         # Change the int atom labelled "3" to "99" and push it back through the
         # component, proving edit() returns the *current* state, not the seed.
-        n = page.evaluate(
-            """() => {
+        n = page.evaluate("""() => {
                 const el = document.getElementById('structured-graph');
                 const core = window.spytialcore || window.CnDCore || window.CndCore;
                 const di = el.getDataInstance();
@@ -140,8 +149,7 @@ def test_an_edit_is_reflected(pw_browser, monkeypatch):
                 for (const a of di.atoms) if (a.type === 'int' && a.label === '3') { a.label = '99'; n++; }
                 el.setDataInstance(new core.JSONDataInstance(di));
                 return n;
-            }"""
-        )
+            }""")
         assert n == 1
         page.wait_for_selector(f"{DONE}:not([disabled])", timeout=20000)
         page.click(DONE)
