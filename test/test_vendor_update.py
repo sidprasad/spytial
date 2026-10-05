@@ -5,6 +5,7 @@ import json
 from pathlib import Path
 import sys
 import tarfile
+import zipfile
 
 import pytest
 
@@ -122,6 +123,28 @@ def test_lock_rejects_an_omitted_browser_asset(checkout):
     del lock["files"]["spytial/_vendor/browser/react-component-integration.css"]
     path.write_text(json.dumps(lock))
     assert vendor_lock.verify(checkout)
+
+
+@pytest.mark.parametrize("name,field", vendor_lock.VERSION_METADATA.items())
+def test_regenerated_lock_rejects_mismatched_release_metadata(checkout, name, field):
+    vendor_core.install(vendor_core.prepare(archive(checkout), checkout)[1], checkout)
+    metadata_path = checkout / name
+    metadata = json.loads(metadata_path.read_text())
+    metadata[field] = "6.6.1"
+    metadata_path.write_text(json.dumps(metadata))
+    # Rehashing the copied artifacts must not bless a mixed release.
+    (checkout / "spytial/_vendor/VENDORED.json").write_text(
+        json.dumps(vendor_lock.capture(root=checkout))
+    )
+    assert vendor_lock.verify(checkout) == [f"{name} comes from a different release"]
+    wheel_path = checkout / "mixed-release.whl"
+    with zipfile.ZipFile(wheel_path, "w") as wheel:
+        for path in (checkout / "spytial").rglob("*"):
+            if path.is_file():
+                wheel.write(path, path.relative_to(checkout))
+    assert vendor_lock.verify_wheel(wheel_path) == [
+        f"Wheel artifact comes from a different release: {name}"
+    ]
 
 
 def test_write_failure_restores_previous_release(checkout, monkeypatch):

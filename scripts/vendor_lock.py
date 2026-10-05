@@ -54,6 +54,11 @@ ARTIFACTS = {
     ),
 }
 VENDORED_FILES = dict(ARTIFACTS.values())
+VERSION_METADATA = {
+    "spytial/_vendor/spytial-language.json": "spytialCoreVersion",
+    "spytial/_vendor/spytial-spec.schema.json": "x-spytial-core-version",
+    "spytial/_vendor/browser/package.json": "version",
+}
 
 
 def pinned_version(root=None):
@@ -107,11 +112,8 @@ def verify(root=None):
         errors.append(
             "Vendored file inventory or hashes differ; run ./update-spytial-core.sh"
         )
-    for name, field in (
-        ("spytial-language.json", "spytialCoreVersion"),
-        ("spytial-spec.schema.json", "x-spytial-core-version"),
-    ):
-        value = json.loads((root / "spytial/_vendor" / name).read_text())
+    for name, field in VERSION_METADATA.items():
+        value = json.loads((root / name).read_text())
         if value.get(field) != expected["spytialCoreVersion"]:
             errors.append(f"{name} comes from a different release")
     return errors
@@ -142,6 +144,10 @@ def verify_wheel(path):
                 name, {}
             ).get("sha256"):
                 errors.append(f"Wheel artifact differs from its lock: {name}")
+            if name in VERSION_METADATA:
+                value = json.loads(data)
+                if value.get(VERSION_METADATA[name]) != lock.get("spytialCoreVersion"):
+                    errors.append(f"Wheel artifact comes from a different release: {name}")
     return errors
 
 
