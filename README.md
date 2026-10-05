@@ -62,3 +62,35 @@ For stepping through sequences of states, custom relationalizers, and annotation
 ## License
 
 MIT — see [LICENSE](LICENSE).
+
+
+## Browser assets and offline use
+
+The Python package includes its pinned spytial-core browser JS and CSS. Normal
+`diagram(..., method="browser")` and `method="file"` outputs are self-contained;
+`edit()` serves these assets through its existing local server. The evaluator,
+sequence viewer, and standalone editor follow the same delivery policy.
+
+Notebook output and the Pyodide playground use pinned CDN URLs by default, keeping
+saved notebook cells small. Set `SPYTIAL_ASSETS=embedded` for offline notebook use,
+or `SPYTIAL_ASSETS=cdn` to opt into CDN delivery for every output. The default is
+`SPYTIAL_ASSETS=auto`. Explicit file exports embed the assets even under Pyodide.
+For example, before generating a notebook output:
+
+```python
+import os
+os.environ["SPYTIAL_ASSETS"] = "embedded"
+```
+
+Embedded output includes several megabytes of JavaScript per page; saved notebook
+outputs use isolated `srcdoc` iframes to avoid data-URL size limits. CDN output requires network access on a
+cold load. Vendoring removes that network dependency for local output, but each
+new page still initializes JavaScript and computes its layout. Offline pages use
+locally available fonts instead of requesting the default Google Font. Explicit
+remote resources in your own spec (such as image URLs) still need a connection.
+
+Maintainers: run `./update-spytial-core.sh` to update **all** vendored core assets,
+or `./update-spytial-core.sh --version 6.6.0` to select or repair an exact release.
+`./update-spytial-core.sh --check` verifies hashes and the complete file inventory
+offline. See [the vendoring instructions](spytial/_vendor/browser/README.md) for
+offline tarballs and wheel verification.
