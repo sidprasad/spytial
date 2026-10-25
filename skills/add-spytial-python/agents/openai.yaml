@@ -1,0 +1,4 @@
+interface:
+  display_name: "Add sPyTial (Python)"
+  short_description: "Help users add sPyTial to Python programs"
+  default_prompt: "Use $add-spytial-python to integrate sPyTial into my Python project with clear examples and constraints."
