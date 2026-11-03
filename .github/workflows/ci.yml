@@ -8,7 +8,7 @@ on:
     branches:
       - main
       - master
-  workflow_dispatch:  # enables the manual "Run workflow" button (for browser-e2e)
+  workflow_dispatch:
 
 jobs:
   test:
@@ -66,7 +66,7 @@ jobs:
       - name: Regenerate everything derived from spytial-core
         run: |
           python3 scripts/generate_spec_tables.py
-          python3 scripts/vendor_lock.py
+          python3 scripts/vendor_lock.py --check
           python3 scripts/generate_api_baseline.py
 
       - name: Fail if anything regenerated differently
@@ -79,12 +79,15 @@ jobs:
             exit 1
           fi
 
-  # Real-browser end-to-end for spytial.edit(). Opt-in: runs only on a manual
-  # "Run workflow" (workflow_dispatch), never on PRs/pushes — it needs a browser
-  # and the spytial-core CDN, kept out of the required PR checks.
+      - name: Verify vendored assets survive sdist and wheel packaging
+        run: |
+          python -m pip install build
+          python -m build
+          python scripts/vendor_lock.py --wheel dist/*.whl
+
+  # Browser tests exercise packaged assets with external requests blocked.
   browser-e2e:
     runs-on: ubuntu-latest
-    if: github.event_name == 'workflow_dispatch'
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -105,4 +108,4 @@ jobs:
         env:
           SPYTIAL_BROWSER_TESTS: "1"
         run: |
-          python -m pytest test/test_edit_browser.py -v
+          python -m pytest test/test_edit_browser.py test/test_visualizer_browser.py -v

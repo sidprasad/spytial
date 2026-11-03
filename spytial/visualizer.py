@@ -22,7 +22,7 @@ except ImportError:
     HAS_IPYTHON = False
 
 try:
-    from ._templating import template_environment
+    from ._templating import template_environment, iframe_document
 
     HAS_JINJA2 = True
 except ImportError:
@@ -172,23 +172,7 @@ def _deliver_html_content(
     if method == "inline":
         if HAS_IPYTHON:
             try:
-                import base64
-
-                encoded_html = base64.b64encode(html_content.encode("utf-8")).decode(
-                    "utf-8"
-                )
-
-                iframe_html = f"""
-                <div style="border: 2px solid #007acc; border-radius: 8px; overflow: hidden;">
-                    <iframe 
-                        src="data:text/html;base64,{encoded_html}" 
-                        width="100%" 
-                        height="{height + 50}px" 
-                        frameborder="0"
-                        style="display: block;">
-                    </iframe>
-                </div>
-                """
+                iframe_html = iframe_document(html_content, height + 50)
 
                 display(HTML(iframe_html))
                 return None
@@ -320,6 +304,7 @@ def diagram(
         title,
         perf_path,
         perf_iterations,
+        method=method,
     )
 
     if method == "headless":
@@ -511,6 +496,7 @@ class SequenceRecorder:
             width=_width,
             height=_height,
             title=_title,
+            method=_method,
         )
 
         return _deliver_html_content(
@@ -697,6 +683,7 @@ def _generate_visualizer_html(
     title=None,
     perf_path=None,
     perf_iterations=None,
+    method=None,
 ):
     """Generate HTML content using Jinja2 templating."""
 
@@ -731,7 +718,7 @@ def _generate_visualizer_html(
         or "",  # Performance metrics endpoint path (empty string if None)
         perf_iterations=perf_iterations
         or 0,  # Number of iterations for benchmarking (0 = disabled)
-        **get_template_asset_context(),
+        **get_template_asset_context(method),
     )
 
     return html_content
@@ -746,6 +733,7 @@ def _generate_sequence_visualizer_html(
     title=None,
     frame_labels=None,
     frame_notes=None,
+    method=None,
 ):
     """Generate HTML content for a sequence visualizer using Jinja2 templating."""
     if not HAS_JINJA2:
@@ -777,7 +765,7 @@ def _generate_sequence_visualizer_html(
         title=title,
         width=width,
         height=height,
-        **get_template_asset_context(),
+        **get_template_asset_context(method),
     )
 
     return html_content

@@ -347,3 +347,22 @@ def test_edit_unsupported_env_falls_back_to_edit_html(monkeypatch, env):
     monkeypatch.setattr(si, "edit_html", lambda inst, **k: calls.setdefault("inst", inst))
     assert si.edit({"a": 1}) is None
     assert calls["inst"] == {"a": 1}
+
+
+
+def test_packaged_asset_routes_are_versioned_and_allowlisted():
+    from spytial.core_assets import SPYTIAL_CORE_VERSION, browser_asset
+    server = _EditServer("<html></html>")
+    thread, _ = _serve_in_thread(server, timeout=5, poll=0.05)
+    try:
+        name = "react-component-integration.css"
+        path = f"assets/{SPYTIAL_CORE_VERSION}/{name}"
+        status, data = _request(server, "GET", _tok(server, path))
+        assert status == 200
+        assert data == browser_asset(name)
+        for path in ("assets/0.0.0/" + name, "assets/" + SPYTIAL_CORE_VERSION + "/../core_assets.py"):
+            assert _request(server, "GET", _tok(server, path))[0] == 404
+        assert _request(server, "GET", "/wrong-token/assets/" + SPYTIAL_CORE_VERSION + "/" + name)[0] == 404
+    finally:
+        server._done.set()
+        thread.join(timeout=3)

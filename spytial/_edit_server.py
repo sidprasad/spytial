@@ -27,6 +27,8 @@ import threading
 import time
 from typing import Optional
 
+from .core_assets import BROWSER_ASSETS, SPYTIAL_CORE_VERSION, browser_asset
+
 _MAX_BODY = 1_000_000  # 1 MB cap on a committed data instance
 
 
@@ -79,6 +81,20 @@ class _EditServer:
                 rest = self._route()
                 if rest is None:
                     self.send_error(404)
+                    return
+                asset_prefix = f"assets/{SPYTIAL_CORE_VERSION}/"
+                if rest.startswith(asset_prefix):
+                    name = rest[len(asset_prefix):]
+                    if name not in BROWSER_ASSETS:
+                        self.send_error(404)
+                        return
+                    data = browser_asset(name)
+                    self.send_response(200)
+                    self.send_header("Content-Type", BROWSER_ASSETS[name])
+                    self.send_header("Content-Length", str(len(data)))
+                    self.send_header("Cache-Control", "private, max-age=31536000, immutable")
+                    self.end_headers()
+                    self.wfile.write(data)
                     return
                 if rest == "heartbeat":
                     server._touch()

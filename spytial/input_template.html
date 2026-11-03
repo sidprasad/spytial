@@ -6,8 +6,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ title | default("sPyTial Visualization") }}</title>
 
-    <script src="{{ spytial_core_browser_bundle_url }}"></script>
-    <script src="{{ spytial_core_components_bundle_url }}"></script>
+    <script defer data-spytial-core src="{{ spytial_core_browser_bundle_url }}"></script>
+    <script defer src="{{ spytial_core_components_bundle_url }}"></script>
     <link rel="stylesheet" href="{{ spytial_core_components_css_url }}" /> 
     
     <style>
@@ -79,7 +79,7 @@
     <div class="container">
         <div class="graph-wrapper">
             <!-- Structured Input Graph Element -->
-            <structured-input-graph
+            <structured-input-graph {% if spytial_core_offline %}font-family="'Atkinson Hyperlegible', system-ui, -apple-system, sans-serif"{% endif %}
                 id="structured-graph"
                 cnd-spec=""
                 show-export="{% if commit %}false{% else %}true{% endif %}"
@@ -445,7 +445,7 @@
                 // Try to load the library again
                 console.log('Attempting to reload spytial-core...');
                 const script = document.createElement('script');
-                script.src = '{{ spytial_core_browser_bundle_url }}';
+                script.src = document.querySelector('script[data-spytial-core]').src;
                 script.onload = function() {
                     console.log('spytial-core reloaded, retrying...');
                     setTimeout(loadGraph, 500);

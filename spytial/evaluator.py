@@ -21,7 +21,7 @@ except ImportError:
     HAS_IPYTHON = False
 
 try:
-    from ._templating import template_environment
+    from ._templating import template_environment, iframe_document
 
     HAS_JINJA2 = True
 except ImportError:
@@ -73,31 +73,13 @@ def evaluate(
     data_instance = builder.build_instance(obj, as_type=as_type)
 
     # Generate the HTML content
-    html_content = _generate_evaluator_html(data_instance, width, height)
+    html_content = _generate_evaluator_html(data_instance, width, height, method=method)
 
     if method == "inline":
         # Display inline in Jupyter notebook using iframe
         if HAS_IPYTHON:
             try:
-                import base64
-
-                # Encode HTML as base64 for iframe
-                encoded_html = base64.b64encode(html_content.encode("utf-8")).decode(
-                    "utf-8"
-                )
-
-                # Create iframe HTML
-                iframe_html = f"""
-                <div style="border: 2px solid #007acc; border-radius: 8px; overflow: hidden;">
-                    <iframe 
-                        src="data:text/html;base64,{encoded_html}" 
-                        width="100%" 
-                        height="{height}px" 
-                        frameborder="0"
-                        style="display: block;">
-                    </iframe>
-                </div>
-                """
+                iframe_html = iframe_document(html_content, height)
 
                 display(HTML(iframe_html))
                 return
@@ -144,7 +126,7 @@ def evaluate(
         raise ValueError(f"Unknown display method: {method}")
 
 
-def _generate_evaluator_html(data_instance, width=800, height=600):
+def _generate_evaluator_html(data_instance, width=800, height=600, method=None):
     """
     Generate HTML content for the evaluator using Jinja2 templating.
 
@@ -177,7 +159,7 @@ def _generate_evaluator_html(data_instance, width=800, height=600):
         python_data=data_instance,  # Serialized by the js_json filter
         width=width,  # Container width
         height=height,  # Container height
-        **get_template_asset_context(),
+        **get_template_asset_context(method),
     )
 
     return html_content

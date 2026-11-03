@@ -1,0 +1,269 @@
+{
+  "name": "spytial-core",
+  "version": "6.6.0",
+  "description": "A fully client-side application for SpyTial.",
+  "main": "./dist/browser/spytial-core-complete.global.js",
+  "types": "./dist/types/index.d.ts",
+  "files": [
+    "dist/browser",
+    "dist/components",
+    "dist/esm",
+    "dist/types",
+    "docs/spytial-language.json",
+    "docs/spytial-spec.schema.json",
+    "dist/alloy-instance.js",
+    "dist/alloy-instance.mjs",
+    "dist/alloy-instance.d.ts",
+    "dist/alloy-instance.d.mts",
+    "dist/alloy-instance.js.map",
+    "dist/alloy-instance.mjs.map",
+    "dist/evaluator.js",
+    "dist/evaluator.mjs",
+    "dist/evaluator.d.ts",
+    "dist/evaluator.d.mts",
+    "dist/evaluator.js.map",
+    "dist/evaluator.mjs.map",
+    "dist/sql-evaluator.js",
+    "dist/sql-evaluator.mjs",
+    "dist/sql-evaluator.d.ts",
+    "dist/sql-evaluator.d.mts",
+    "dist/sql-evaluator.js.map",
+    "dist/sql-evaluator.mjs.map",
+    "dist/react.mjs",
+    "dist/react.mjs.map",
+    "dist/react.css",
+    "dist/routers",
+    "dist/conformance.js",
+    "dist/conformance.mjs",
+    "dist/conformance.d.ts",
+    "dist/conformance.d.mts",
+    "dist/conformance.js.map",
+    "dist/conformance.mjs.map",
+    "dist/cli"
+  ],
+  "bin": {
+    "spytial-check": "./dist/cli/spytial-check.js"
+  },
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/types/index.d.ts",
+        "default": "./dist/esm/index.mjs"
+      },
+      "require": {
+        "types": "./dist/types/index.d.ts",
+        "default": "./dist/browser/spytial-core-complete.global.js"
+      }
+    },
+    "./global": "./dist/browser/spytial-core-complete.global.js",
+    "./language.json": "./docs/spytial-language.json",
+    "./spec.schema.json": "./docs/spytial-spec.schema.json",
+    "./react": {
+      "import": {
+        "types": "./dist/types/components/index.d.ts",
+        "default": "./dist/react.mjs"
+      }
+    },
+    "./react.css": "./dist/react.css",
+    "./explorer": {
+      "import": {
+        "types": "./dist/types/explorer.d.ts",
+        "default": "./dist/esm/explorer.mjs"
+      }
+    },
+    "./conformance": {
+      "import": {
+        "types": "./dist/conformance.d.mts",
+        "default": "./dist/conformance.mjs"
+      },
+      "require": {
+        "types": "./dist/conformance.d.ts",
+        "default": "./dist/conformance.js"
+      }
+    },
+    "./sql-evaluator": {
+      "import": {
+        "types": "./dist/sql-evaluator.d.mts",
+        "default": "./dist/sql-evaluator.mjs"
+      },
+      "require": {
+        "types": "./dist/sql-evaluator.d.ts",
+        "default": "./dist/sql-evaluator.js"
+      }
+    },
+    "./routers/libavoid": {
+      "import": {
+        "types": "./dist/routers/libavoid.d.mts",
+        "default": "./dist/routers/libavoid.mjs"
+      }
+    },
+    "./alloy-instance": {
+      "import": {
+        "types": "./dist/alloy-instance.d.mts",
+        "default": "./dist/alloy-instance.mjs"
+      },
+      "require": {
+        "types": "./dist/alloy-instance.d.ts",
+        "default": "./dist/alloy-instance.js"
+      }
+    },
+    "./evaluator": {
+      "import": {
+        "types": "./dist/evaluator.d.mts",
+        "default": "./dist/evaluator.mjs"
+      },
+      "require": {
+        "types": "./dist/evaluator.d.ts",
+        "default": "./dist/evaluator.js"
+      }
+    },
+    "./components/*": {
+      "import": "./dist/components/*.global.js",
+      "require": "./dist/components/*.global.js"
+    }
+  },
+  "scripts": {
+    "build": "npm run build:all",
+    "build:parser": "peggy --plugin ts-pegjs -o src/evaluators/layout/layout-query-parser.ts src/evaluators/layout/layout-query.pegjs",
+    "build:lib": "tsup --config tsup.alloy-instance.config.ts",
+    "build:evaluator": "tsup --config tsup.evaluator.config.ts",
+    "build:browser": "tsup --config tsup.browser.config.ts",
+    "build:components": "tsup --config tsup.components.config.ts",
+    "build:sql": "tsup --config tsup.sql.config.ts",
+    "build:conformance": "tsup --config tsup.conformance.config.ts",
+    "build:react": "tsup --config tsup.react.config.ts",
+    "build:esm": "tsup --config tsup.esm.config.ts",
+    "build:types": "tsc -p tsconfig.types.json && node -e \"['dist/types/index.d.ts','dist/types/components/index.d.ts','dist/types/explorer.d.ts'].forEach(f=>require('fs').accessSync(f))\"",
+    "build:language": "tsx scripts/generate-language-artifacts.ts",
+    "sync:versions": "tsx scripts/sync-versions.ts",
+    "build:all": "npm run build:parser && npm run build:language && npm run sync:versions && npm run build:browser && npm run build:components && npm run build:lib && npm run build:evaluator && npm run build:sql && npm run build:conformance && npm run build:routers && npm run build:react && npm run build:esm && npm run build:types",
+    "dev": "tsup --watch",
+    "test": "vitest",
+    "test:ui": "vitest --ui",
+    "test:run": "vitest run",
+    "test:language": "vitest run tests/language-manifest.test.ts",
+    "test:validator-equivalence": "vitest run tests/z3-equivalence.test.ts",
+    "test:perf": "vitest run --config vitest.bench.config.ts",
+    "bench": "vitest run --config vitest.bench.config.ts",
+    "lint": "eslint src --ext .ts,.tsx",
+    "lint:fix": "eslint src --ext .ts,.tsx --fix",
+    "format": "prettier --write src/**/*.{ts,tsx,json,md}",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist",
+    "prepublishOnly": "npm run clean && npm run build:all",
+    "serve": "python3 -m http.server 8080",
+    "analysis:run": "tsx analysis/runner/run.ts",
+    "analysis:aggregate": "tsx analysis/runner/aggregate.ts",
+    "analysis:test": "vitest run --config vitest.analysis.config.ts",
+    "build:routers": "tsup --config tsup.routers.config.ts",
+    "version": "npm run sync:versions && npm run build:language && git add README.md docs/YAML_SPECIFICATION.md docs/agent-manifest.json docs/spytial-language.json docs/spytial-spec.schema.json site/api-reference.md site/new-language-integration.md site/index.html .claude/skills/integrate-language/SKILL.md"
+  },
+  "keywords": [
+    "typescript",
+    "library",
+    "client-side",
+    "npm"
+  ],
+  "author": "Siddhartha Prasad",
+  "license": "MIT",
+  "engines": {
+    "node": ">=16"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sidprasad/spytial-core.git"
+  },
+  "bugs": {
+    "url": "https://github.com/sidprasad/spytial-core/issues"
+  },
+  "homepage": "https://github.com/sidprasad/spytial-core#readme",
+  "devDependencies": {
+    "@eslint/js": "^9.29.0",
+    "@testing-library/jest-dom": "^6.6.3",
+    "@testing-library/react": "^16.3.0",
+    "@testing-library/user-event": "^14.5.0",
+    "@types/chroma-js": "^3.1.1",
+    "@types/dagre": "^0.7.52",
+    "@types/ejs": "^3.1.5",
+    "@types/graphlib": "^2.1.12",
+    "@types/js-yaml": "^4.0.9",
+    "@types/lodash": "^4.17.18",
+    "@types/node": "^24.0.3",
+    "@types/uuid": "^10.0.0",
+    "@typescript-eslint/eslint-plugin": "^8.34.1",
+    "@typescript-eslint/parser": "^8.34.1",
+    "@vitejs/plugin-react": "^4.6.0",
+    "@vitest/ui": "^3.2.4",
+    "ajv": "^8.20.0",
+    "alasql": "^4.17.0",
+    "axe-core": "^4.11.2",
+    "data-navigator": "^2.4.1",
+    "eslint": "^9.29.0",
+    "fast-check": "^4.6.0",
+    "globals": "^17.6.0",
+    "jsdom": "^26.1.0",
+    "libavoid-js": "^0.5.0-beta.5",
+    "peggy": "^3.0.2",
+    "prettier": "^3.5.3",
+    "react": "19.1.0",
+    "react-dom": "19.1.0",
+    "ts-pegjs": "^4.2.1",
+    "tsup": "^8.5.0",
+    "tsx": "^4.21.0",
+    "typescript": "^5.8.3",
+    "typescript-plugin-css-modules": "^5.1.0",
+    "vite": "^6.3.5",
+    "vitest": "^3.2.4",
+    "z3-solver": "^4.16.0"
+  },
+  "dependencies": {
+    "@codemirror/commands": "^6.10.4",
+    "@codemirror/lang-yaml": "^6.1.3",
+    "@codemirror/language": "^6.12.4",
+    "@codemirror/lint": "^6.9.7",
+    "@codemirror/state": "^6.7.1",
+    "@codemirror/view": "^6.43.6",
+    "@lezer/highlight": "^1.2.3",
+    "@types/d3": "^4.13.12",
+    "@types/graphlib-dot": "^0.6.4",
+    "@types/react": "^19.1.8",
+    "@types/react-dom": "^19.1.6",
+    "@xmldom/xmldom": "^0.9.8",
+    "chroma-js": "^3.1.2",
+    "d3": "^7.9.0",
+    "dagre": "^0.8.5",
+    "forge-expr-evaluator": "^1.1.0",
+    "graphlib": "^2.1.8",
+    "graphlib-dot": "^0.6.4",
+    "js-yaml": "^4.1.0",
+    "kiwi.js": "^1.1.3",
+    "lodash": "^4.17.21",
+    "simple-graph-query": "^3.3.0",
+    "webcola": "^3.4.0",
+    "yaml": "^2.9.0"
+  },
+  "peerDependencies": {
+    "alasql": "^4.0.0",
+    "data-navigator": "^2.4.1",
+    "libavoid-js": "^0.5.0-beta.5",
+    "react": ">=18",
+    "react-dom": ">=18"
+  },
+  "peerDependenciesMeta": {
+    "alasql": {
+      "optional": true
+    },
+    "data-navigator": {
+      "optional": true
+    },
+    "react": {
+      "optional": true
+    },
+    "react-dom": {
+      "optional": true
+    },
+    "libavoid-js": {
+      "optional": true
+    }
+  }
+}
