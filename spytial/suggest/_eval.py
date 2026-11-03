@@ -15,7 +15,7 @@ Degrades like the rest of suggest's optional machinery. If ``node`` or a
 resolvable ``spytial-core`` install is missing, :func:`is_available` returns
 ``False`` and :func:`evaluate_selectors` raises :class:`EvaluatorUnavailable`;
 callers catch it, note it, and fall back to schema-level validation. It never
-crashes ``suggest()``.
+crashes ``suggest_draft()``.
 
 Resolving the JS side
 ---------------------

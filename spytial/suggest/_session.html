@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Diagram comparisons</title>
+<style>
+:root { color-scheme: light dark; font: 13px system-ui, sans-serif;
+  --paper: #fff; --ink: #30343b; --line: #e0e3e7; --hover: #f3f4f6;
+  --up: #398258; --down: #b14e50; --muted: #747b85; }
+@media (prefers-color-scheme: dark) {
+  :root { --paper: #202124; --ink: #e2e4e8; --line: #42454b;
+    --hover: #303238; --up: #83ba95; --down: #dc8d8d; --muted: #a2a8b2; }
+}
+* { box-sizing: border-box; }
+body { margin: 0; padding: 8px; background: var(--paper); color: var(--ink); }
+[hidden] { display: none !important; }
+.pair { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: 12px; }
+.card { min-width: 0; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+.card[data-vote="upvote"] { border-color: var(--up); }
+.card[data-vote="downvote"] { border-color: var(--down); }
+.card[data-vote="unsure"] { border-color: var(--muted); }
+.diagram, webcola-cnd-graph { display: block; width: 100%; height: 330px; }
+.diagram { padding: 8px; }
+.diagram.skeleton { background: var(--hover); }
+.votes { display: flex; justify-content: center; gap: 8px; padding: 8px; }
+button { font: inherit; cursor: pointer; }
+.vote { display: inline-flex; align-items: center; justify-content: center;
+  width: 36px; height: 32px; border: 1px solid transparent; border-radius: 5px;
+  background: transparent; font-size: 18px; line-height: 1; }
+.vote[data-value="upvote"] { color: var(--up); }
+.vote[data-value="downvote"] { color: var(--down); }
+.vote[data-value="unsure"] { color: var(--muted); }
+.vote:hover:not(:disabled), .vote[aria-pressed="true"] { background: var(--hover); }
+.vote[aria-pressed="true"] { border-color: currentColor; }
+.vote:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+.vote:disabled { opacity: .45; cursor: default; }
+.vote[aria-pressed="true"]:disabled { opacity: 1; }
+#status, #error { margin: 10px 2px 2px; color: var(--muted); line-height: 1.5; }
+#error { color: var(--down); }
+@media (max-width: 480px) { .diagram, webcola-cnd-graph { height: 270px; } .pair { gap: 8px; } }
+</style>
+<script src="__CORE_URL__"></script>
+<script src="session.js" defer></script>
+</head>
+<body>
+<main class="pair" aria-label="Diagram comparisons">
+  <section class="card" data-side="0" aria-label="First diagram">
+    <div id="diagram-0" class="diagram skeleton"></div>
+    <div class="votes" role="group" aria-label="Rate first diagram">
+      <button class="vote" data-value="upvote" aria-label="Upvote" title="Upvote" aria-pressed="false" disabled><span aria-hidden="true">▲</span></button>
+      <button class="vote" data-value="downvote" aria-label="Downvote" title="Downvote" aria-pressed="false" disabled><span aria-hidden="true">▼</span></button>
+      <button class="vote" data-value="unsure" aria-label="Unsure" title="Unsure" aria-pressed="false" disabled><span aria-hidden="true">?</span></button>
+    </div>
+  </section>
+  <section class="card" data-side="1" aria-label="Second diagram">
+    <div id="diagram-1" class="diagram skeleton"></div>
+    <div class="votes" role="group" aria-label="Rate second diagram">
+      <button class="vote" data-value="upvote" aria-label="Upvote" title="Upvote" aria-pressed="false" disabled><span aria-hidden="true">▲</span></button>
+      <button class="vote" data-value="downvote" aria-label="Downvote" title="Downvote" aria-pressed="false" disabled><span aria-hidden="true">▼</span></button>
+      <button class="vote" data-value="unsure" aria-label="Unsure" title="Unsure" aria-pressed="false" disabled><span aria-hidden="true">?</span></button>
+    </div>
+  </section>
+</main>
+<p id="status" role="status">Preparing examples…</p>
+<p id="error" role="alert" hidden></p>
+</body>
+</html>

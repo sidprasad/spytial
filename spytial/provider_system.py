@@ -201,12 +201,17 @@ class RelationalizerRegistry:
 
 
 class CnDDataInstanceBuilder:
-    """Main builder that composes providers to build data instances."""
+    """Main builder that composes providers to build data instances.
+
+    Disable infer_variable_names for generated examples: their labels should
+    depend on the data, not the search function's local variable names.
+    """
 
     def __init__(
         self,
         preserve_object_ids: bool = False,
         identity_resolver: Optional[Callable[[Any], Optional[str]]] = None,
+        infer_variable_names: bool = True,
     ):
         self._seen = {}
         self._atoms = []
@@ -218,6 +223,7 @@ class CnDDataInstanceBuilder:
         self._id_counter = 0
         self._preserve_object_ids = preserve_object_ids
         self._identity_resolver = identity_resolver
+        self._infer_variable_names = infer_variable_names
         self._identity_prefix = "identity:"
         self._build_identity_objects = {}
         self._persistent_object_ids = {}
@@ -294,7 +300,7 @@ class CnDDataInstanceBuilder:
                 else:
                     break
 
-            if user_frame:
+            if user_frame and self._infer_variable_names:
                 # Merge locals and globals from the user's frame
                 self._caller_namespace = {**user_frame.f_globals, **user_frame.f_locals}
             else:

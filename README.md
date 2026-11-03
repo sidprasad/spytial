@@ -50,7 +50,13 @@ spytial.diagram(data)
 spytial.diagram(data, method="file")
 ```
 
-Not sure where to start with a class of your own? `from spytial.suggest import suggest` then `suggest(MyClass)` reads the class and scaffolds a starting set of layout directives you can edit — see [Suggesting Specs](https://sidprasad.github.io/spytial/suggest/).
+Not sure which diagramming rules you want? `from spytial.suggest import suggest`
+then `suggest(MyClass).show()` starts a critique session: an LLM proposes programs,
+Hypothesis searches for useful examples, and you rate each of two contrasting
+diagrams with upvote, downvote, or unsure. The notebook view opens immediately;
+`session.revise("...")` lets you add a rule later while keeping earlier votes.
+Use `suggest_draft(MyClass)` for a one-shot editable draft. See
+[Suggesting Specs](https://sidprasad.github.io/spytial/suggest/) for setup and the notebook demo.
 
 For stepping through sequences of states, custom relationalizers, and annotation-driven layouts, see the [docs](https://sidprasad.github.io/spytial/).
 

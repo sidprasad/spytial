@@ -219,7 +219,7 @@ __all__ = [
 def __getattr__(name):
     # ``spytial.suggest`` stays out of the eager imports (it is optional
     # machinery that must remain dormant until reached for), but the natural
-    # call spelling — ``spytial.suggest(tree, ask=..., enrich=...)`` — should
+    # call spelling — ``spytial.suggest(tree, rules=[...])`` — should
     # work. PEP 562: load the subpackage on first attribute access; the module
     # itself is callable (see spytial/suggest/__init__.py), so both the call
     # form and ``spytial.suggest.SpecDraft`` behave.

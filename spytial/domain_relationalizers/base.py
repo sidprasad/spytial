@@ -235,7 +235,11 @@ class RelationalizerBase(abc.ABC):
             A label string like "varname" or "Node0"
         """
         # Try to get variable name
-        var_name = self._try_get_variable_name(obj, caller_namespace)
+        var_name = (
+            self._try_get_variable_name(obj, caller_namespace)
+            if getattr(walker_func, "_infer_variable_names", True)
+            else None
+        )
         if var_name:
             return var_name
 

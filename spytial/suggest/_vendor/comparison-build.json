@@ -1,0 +1,11 @@
+{
+  "artifact": "spytial-compare.js",
+  "spytialCoreVersion": "6.6.0",
+  "sourceRevision": "aec514ecf8fd9df3f1b6523126cb36fee65d0271",
+  "developmentBuild": true,
+  "sourceFiles": {
+    "src/cli/spytial-compare.ts": "c105c71ce0e6520faaf7af59c37d97f8381ed95287699eef26de21d7e51633d0",
+    "src/layout/compare-programs.ts": "c04c29bce937f5a455a33975cefebbc6226c318e477818a19a97ca1285770d8b"
+  },
+  "sha256": "efef859ddbfe19a5b763afdfceda0563b7eed72104e19c79ecf1cbe1f7b609bd"
+}

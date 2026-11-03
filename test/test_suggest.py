@@ -22,7 +22,7 @@ from spytial.suggest import (
     HeuristicRegistry,
     Suggestion,
     build_class_info,
-    suggest,
+    suggest_draft as suggest,
 )
 from spytial.suggest.rules import _LIST_HIDE
 
@@ -965,6 +965,7 @@ def test_codex_uses_native_output_schema(monkeypatch):
 
     def fake_run(cmd, **kw):
         captured["cmd"] = cmd
+        captured["stdin"] = kw.get("stdin")
         i = cmd.index("--output-schema")
         captured["schema_exists"] = os.path.exists(cmd[i + 1])
         return _Proc()
@@ -976,3 +977,40 @@ def test_codex_uses_native_output_schema(monkeypatch):
     assert out == {"selectors": []}
     assert "--output-schema" in captured["cmd"]
     assert captured["schema_exists"]  # temp schema file present during the call
+    # Notebook kernels keep stdin open. Inheriting it makes codex wait forever
+    # for extra prompt input even though the prompt is already an argument.
+    assert captured["stdin"] == providers.subprocess.DEVNULL
+
+
+def test_codex_resolves_gui_install_without_path(monkeypatch):
+    from spytial.suggest import providers
+
+    bundled = "/Applications/ChatGPT.app/Contents/Resources/codex-cli/CodexCLI.app/Contents/MacOS/codex"
+    monkeypatch.delenv("SPYTIAL_CODEX", raising=False)
+    monkeypatch.setattr(providers.shutil, "which", lambda _: None)
+    monkeypatch.setattr(providers.Path, "is_file", lambda path: str(path) == bundled)
+    monkeypatch.setattr(providers.os, "access", lambda path, mode: str(path) == bundled)
+    assert providers._codex_executable("codex") == bundled
+
+
+def test_codex_explicit_missing_path_does_not_select_another_install(monkeypatch):
+    from spytial.suggest import providers
+
+    monkeypatch.setattr(providers.shutil, "which", lambda _: None)
+    monkeypatch.setattr(providers.Path, "is_file", lambda _: True)
+    monkeypatch.setattr(providers.os, "access", lambda *_: True)
+    with pytest.raises(providers.EnrichError, match="Cannot find"):
+        providers._codex_executable("/missing/custom-codex")
+    monkeypatch.setenv("SPYTIAL_CODEX", "/missing/configured-codex")
+    with pytest.raises(providers.EnrichError, match="configured-codex"):
+        providers._codex_executable("codex")
+
+
+def test_codex_missing_cli_has_notebook_recovery_instructions(monkeypatch):
+    from spytial.suggest import providers
+
+    monkeypatch.delenv("SPYTIAL_CODEX", raising=False)
+    monkeypatch.setattr(providers.shutil, "which", lambda _: None)
+    monkeypatch.setattr(providers.Path, "is_file", lambda _: False)
+    with pytest.raises(providers.EnrichError, match="rerun the session cell"):
+        providers.Codex()("unused", schema={})

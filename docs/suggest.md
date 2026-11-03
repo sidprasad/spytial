@@ -1,4 +1,132 @@
-# Suggesting Spytial Annotations
+# Develop diagramming rules with suggest
+
+Start with the [interactive notebook demo](../demos/06-suggest-session.ipynb).
+`suggest` uses an LLM, Hypothesis, and Spytial's solver together. You work with
+two diagrams at a time, with an upvote, downvote, or unsure vote for each.
+
+```python
+from spytial.suggest import suggest
+
+session = suggest(
+    TreeNode,
+    rules=["Put children below their parents", "Align children"],
+)
+session.show()  # Or display `session` in a local Jupyter notebook.
+```
+
+`rules` is optional. The default proposer is `Codex()`, using your configured,
+authenticated Codex CLI. Supply `proposer=ClaudeCode()`, another provider callable,
+or a model-id string to use a different model. Model failures are reported;
+they do not silently switch to a simpler workflow.
+
+If VS Code's notebook kernel cannot find `codex`, the provider also checks common
+local installation paths. You can explicitly select it with
+`proposer=Codex(bin="/absolute/path/to/codex")` or the `SPYTIAL_CODEX` environment
+variable. The notebook interface appears immediately; model proposals and formal
+checks run in the background. A short status line shows progress and any failure.
+In scripts, call `session.wait()` before inspecting candidates or rules. Methods
+such as `next()`, `vote()`, `revise()`, and `finish()` wait for startup themselves;
+startup failures raise there as well as appearing in the notebook.
+
+## The combined loop
+
+1. The LLM proposes a few **complete programs**. Additional rules it suggests
+   are labeled separately from your requests.
+2. Hypothesis generates data and checks complete programs for conflicts.
+3. The session searches for data on which the programs can be distinguished.
+   Spytial's core solver constructs two arrangements of that **same data**.
+   At least one satisfies one program while violating the other, using negated
+   constraints. These are not two arbitrary renderer runs.
+4. Each diagram has three controls: **▲ upvote**, **▼ downvote**, **? unsure**.
+   Each vote is saved immediately. Once both diagrams are rated, the next pair
+   appears. Mixed judgments, such as upvote and unsure, stay separate.
+5. Later, `session.revise("Keep whole subtrees together")` sends your correction
+   and earlier judgments to the proposer. New programs go through the same checks.
+   The embedded interface follows the same session; no restart is needed.
+
+An answer is saved with the data, complete programs, witness programs, and (in the
+browser) node positions. It is evidence about those pictures, not a universal
+rule. An upvote paired with a downvote sets a working draft without eliminating
+alternatives. Reloading the view restores a partially rated pair. Programmatic
+revision preserves all earlier votes, including partial pairs; a failed revision
+also leaves the current question intact.
+
+`examples=` adds fixed cases **alongside generated data**. Use `strategy=` for a
+Hypothesis strategy that respects your class's invariants; the default derives
+one from its type. `max_examples=20` bounds each search invocation, including
+candidate checks and contrast searches. Initial witness selection may try several
+searches to find useful data. Exhaustion means “no further contrast found,”
+never equivalence or a finished design.
+
+This version varies orientation, alignment, and cyclic arrangement while keeping
+hiding, attributes, styles, and inferred edges fixed. It does not yet replay old
+judgments as formal acceptance tests for new programs, or minimize unrelated
+visual changes between layouts.
+
+## Replace components explicitly
+
+The proposal and search components are independent:
+
+- `proposer=` accepts a callable `(prompt, *, schema) -> dict`. Its response has
+  `rules` and `programs`; each program has a readable `summary` and an `operations`
+  list. The supplied schema describes the supported operations. Every proposal
+  passes the same selector and whole-program checks.
+- `search=` accepts an `ExampleSearch`: `initial(cls, *, max_examples)` supplies
+  an optional seed, and `find(cls, predicate, *, max_examples)` searches for a
+  value satisfying the predicate. Return `None` when nothing is found; raise
+  generation errors. Both candidate checking and contrast search use this backend.
+- `FixedExamples()` explicitly disables generated search; supply `examples=`.
+- `FixedProposals(programs)` replays saved proposals without an LLM. Natural-language
+  revision is disabled for this proposer. This is useful for controlled ablations.
+
+```python
+from spytial.suggest import FixedExamples, FixedProposals
+
+# `saved_programs` uses the same summary/operations format as proposer output.
+session = suggest(
+    TreeNode,
+    examples=[root],
+    proposer=FixedProposals(saved_programs),
+    search=FixedExamples(),
+)
+```
+
+`strategy=` is shorthand for configuring the default `HypothesisSearch`; do not
+combine it with `search=`. Neither backend needs to implement layout semantics:
+those remain in spytial-core.
+
+## Use and close a session
+
+The view contains only diagrams and votes. Revisions and export stay in Python:
+
+```python
+session.revise("All nodes at the same depth should share a row")
+# Previous judgments remain in session.history.
+draft = session.finish()
+# print(draft.to_source())  # Inspect Spytial only when you want to.
+```
+
+`finish()` returns a copy of the working `SpecDraft` without applying it to the
+class. Pass a candidate ID to choose a specific program. Without a browser,
+`next()` returns a comparison and `vote(0, "upvote")` / `vote(1, "unsure")`
+rate its images independently. `judge("both", "...")` remains a convenience for
+rating both together. `session.close()` stops the local server; sessions support
+`with` blocks.
+
+Run `python -m demos.suggest_session` for the combined browser demo. Keep the
+Python process running while using it. Requires Node and the `suggest-search`
+extra, plus the configured model provider. The browser loads the pinned renderer
+from the CDN unless `SPYTIAL_BROWSER_BUNDLE=/absolute/path/to/spytial-core-complete.global.js`
+selects a local build. The UI is intended for local scripts and local notebooks.
+
+## Migration from draft-only suggest
+
+`suggest(...)` now returns a `SuggestSession`. Existing one-shot draft code
+should import `suggest_draft` instead. Its `enrich=` and `ask=` behavior is
+preserved. Sessions use `proposer=` and `rules=`; `interactive=True` is no longer
+needed or accepted.
+
+## Generate an editable draft
 
 Spytial annotations are the decorators that shape a diagram, such as
 `@orientation` and `@hideAtom`. The hard part is starting them from a blank
@@ -8,18 +136,18 @@ noticed only after it is broken. Diagonal children suggest the rule "put every
 child directly below its parent." A visible parent pointer suggests the rule
 "hide that implementation detail."
 
-`spytial.suggest` replaces the blank page with a concrete, editable draft, a
+`suggest_draft` replaces the blank page with a concrete, editable draft, a
 `SpecDraft`. A draft that is almost right is easier to fix than a blank page is
 to fill. Even a wrong suggestion points at one specific thing to change. So a
 suggested default need not be correct to be useful. If it is correct, apply it.
 If it is wrong, read its selectors and correct one part.
 
-By default, `suggest` runs locally and is deterministic. Models and Hypothesis
+By default, `suggest_draft` runs locally and is deterministic. Models and Hypothesis
 witness search are optional. They load only when they are requested.
 
 ## How it works
 
-`suggest` inspects a class or object and returns a `SpecDraft`: a set of
+`suggest_draft` inspects a class or object and returns a `SpecDraft`: a set of
 proposed annotations, each with a rationale and a source.
 
 The default path is deterministic. It matches common field shapes to directives,
@@ -44,7 +172,7 @@ from dataclasses import dataclass
 from typing import Optional
 
 import spytial
-from spytial.suggest import suggest
+from spytial.suggest import suggest_draft
 
 
 @dataclass
@@ -55,7 +183,7 @@ class TreeNode:
 
 
 root = TreeNode(8, TreeNode(3), TreeNode(10))
-draft = suggest(root)
+draft = suggest_draft(root)
 print(draft.to_source())
 ```
 
@@ -89,7 +217,7 @@ If the layout is close but not correct, state the correction:
 ```python
 from spytial.suggest import ClaudeCode
 
-draft = suggest(
+draft = suggest_draft(
     root,
     ask="put every child directly below its parent",
     enrich=ClaudeCode(),
@@ -100,18 +228,18 @@ Spytial accepts the request. It selects `left + right` and uses `below`. The
 earlier below-left and below-right rules move to `draft.alternatives`. Spytial
 does not discard them.
 
-Either import style can be used. The `suggest` subpackage is lazy and callable:
+Either import style can be used; both explicitly select draft construction:
 
 ```python
 import spytial
 
-draft = spytial.suggest(root)
+draft = spytial.suggest.suggest_draft(root)
 ```
 
 ```python
-from spytial.suggest import suggest
+from spytial.suggest import suggest_draft
 
-draft = suggest(root)
+draft = suggest_draft(root)
 ```
 
 ## What each parameter does
@@ -119,7 +247,7 @@ draft = suggest(root)
 The full interface is:
 
 ```python
-suggest(
+suggest_draft(
     target,
     *,
     instance=None,
@@ -149,22 +277,22 @@ are not the same thing.
 Static analysis of a type needs no value, model, or optional dependency:
 
 ```python
-draft = suggest(TreeNode)
+draft = suggest_draft(TreeNode)
 ```
 
 Pass an object, or a type with `instance=`, when runtime values show structure
 that static inspection cannot find:
 
 ```python
-draft = suggest(root)
-draft = suggest(TreeNode, instance=root)  # equivalent input
+draft = suggest_draft(root)
+draft = suggest_draft(TreeNode, instance=root)  # equivalent input
 ```
 
 Use `examples=` for fixed cases. Every model-written selector shall pass all of
 them:
 
 ```python
-draft = suggest(
+draft = suggest_draft(
     TreeNode,
     examples=[empty_tree, balanced_tree, zig_zag_tree],
     enrich=model,
@@ -175,7 +303,7 @@ Use `strategy=` for a family of valid values. Spytial adds one generated witness
 to the fixed set:
 
 ```python
-draft = suggest(
+draft = suggest_draft(
     RedBlackNode,
     examples=[empty_tree, deletion_corner_case],
     strategy=valid_red_black_trees(),
@@ -186,7 +314,7 @@ draft = suggest(
 For a request on a class alone, Spytial uses `strategy="auto"`:
 
 ```python
-draft = suggest(
+draft = suggest_draft(
     TreeNode,
     ask="put every child below its parent",
     enrich=ClaudeCode(),
@@ -205,11 +333,11 @@ Install witness search separately:
 pip install "spytial_diagramming[suggest-search]"
 ```
 
-The plain `suggest(TreeNode)` path does not import Hypothesis.
+The plain `suggest_draft(TreeNode)` path does not import Hypothesis.
 
 ## Working with `SpecDraft`
 
-`suggest()` returns a draft. It does not change the target class. The main
+`suggest_draft()` returns a draft. It does not change the target class. The main
 collections show both the suggestion and the reason for it:
 
 | Member | Contents |
@@ -241,7 +369,7 @@ class. This changes every later diagram of its instances.
 
 ## Deterministic heuristics
 
-Without a model, `suggest` reads the field types, the field names, the
+Without a model, `suggest_draft` reads the field types, the field names, the
 `__init__` assignments, and any instance values, then maps common structures to
 directives. Three examples:
 
@@ -284,7 +412,7 @@ heuristic receives `ClassInfo` and can find multi-field patterns. On the same
 field, the higher priority wins, and the losing suggestion becomes an
 alternative.
 
-Pass `suggest(cls, registry=my_registry)` for a separate rule set. Use
+Pass `suggest_draft(cls, registry=my_registry)` for a separate rule set. Use
 `DEFAULT_REGISTRY.copy()` to extend the built-in rules without changing the
 global registry.
 
@@ -299,10 +427,10 @@ makes no model call.
 Spytial model extra and no API key:
 
 ```python
-from spytial.suggest import ClaudeCode, suggest
+from spytial.suggest import ClaudeCode, suggest_draft
 
-draft = suggest(Ticket, enrich=ClaudeCode())
-draft = suggest(Ticket, enrich=ClaudeCode(model="opus"))
+draft = suggest_draft(Ticket, enrich=ClaudeCode())
+draft = suggest_draft(Ticket, enrich=ClaudeCode(model="opus"))
 ```
 
 If `ANTHROPIC_API_KEY` is set, the CLI can use metered API billing instead of a
@@ -315,9 +443,9 @@ choosing a provider.
 JSON-schema output of that CLI:
 
 ```python
-from spytial.suggest import Codex, suggest
+from spytial.suggest import Codex, suggest_draft
 
-draft = suggest(Ticket, enrich=Codex())
+draft = suggest_draft(Ticket, enrich=Codex())
 ```
 
 ### A model identifier through `llm`
@@ -332,8 +460,8 @@ llm keys set anthropic
 ```
 
 ```python
-draft = suggest(Ticket, enrich="claude-sonnet-4-6")
-draft = suggest(Ticket, enrich="llama3.2")  # for example, through Ollama
+draft = suggest_draft(Ticket, enrich="claude-sonnet-4-6")
+draft = suggest_draft(Ticket, enrich="llama3.2")  # for example, through Ollama
 ```
 
 ### A custom provider
@@ -350,7 +478,7 @@ def my_provider(prompt, *, schema):
     return extract_json(text)
 
 
-draft = suggest(Ticket, enrich=my_provider)
+draft = suggest_draft(Ticket, enrich=my_provider)
 ```
 
 The shape layer sends the class, field, and type names. When values are present,
@@ -401,7 +529,7 @@ arity check is important. An invented bareword can parse as an arity-zero
 literal. It does not fail as a syntax error.
 
 An explicit request receives one repair attempt. The repair uses the concrete
-validation diagnostics. If Spytial can accept no part of the request, `suggest`
+validation diagnostics. If Spytial can accept no part of the request, `suggest_draft`
 raises `spytial.suggest.AskError`. A request with several parts can accept the
 valid parts. Spytial records the rest in `draft.notes`.
 
@@ -443,7 +571,7 @@ named by `SPYTIAL_NODE`. Spytial uses it to run the vendored headless evaluator.
 
 ## Limits
 
-Program structure is input for a layout. It is not the layout. `suggest`
+Program structure is input for a layout. It is not the layout. `suggest_draft`
 cannot recover a tree that exists only as index arithmetic in an array-backed
 heap. A model can read a real field in the wrong
 way. A selector can pass every supplied example and still fail on the next one.

@@ -1,6 +1,6 @@
 """Hypothesis-backed witness generation for :mod:`spytial.suggest`.
 
-This module is deliberately lazy.  The ordinary static ``suggest(Cls)`` path
+This module is deliberately lazy.  The explicit static ``suggest_draft(Cls)`` path
 does not import Hypothesis (and the package does not require it); only an
 explicit ``strategy=`` or class-only ``ask=`` reaches this file's imports.
 
@@ -44,7 +44,9 @@ class _BuildTracker:
         self.last_error: Optional[Exception] = None
 
 
-def find_witness(cls: type, ci: ClassInfo, strategy: Any) -> Any:
+def find_witness(
+    cls: type, ci: ClassInfo, strategy: Any, *, max_examples: int = _MAX_EXAMPLES
+) -> Any:
     """Return one buildable ``cls`` instance drawn from ``strategy``.
 
     ``strategy="auto"`` asks Hypothesis to derive ``from_type(cls)``.  For a
@@ -76,7 +78,7 @@ def find_witness(cls: type, ci: ClassInfo, strategy: Any) -> Any:
         source = strategy
 
     search_settings = settings(
-        max_examples=_MAX_EXAMPLES,
+        max_examples=max_examples,
         database=None,
         deadline=None,
         derandomize=True,

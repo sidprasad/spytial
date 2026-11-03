@@ -5,7 +5,7 @@ The enrichment tiers are *unprompted*: the model proposes shapes
 initiative, quietly, off-by-default or demotable. This tier is the opposite: the
 **user hands over a sentence** —
 
-    suggest(tree, ask="all binary tree children should be below their parents",
+    suggest_draft(tree, ask="all binary tree children should be below their parents",
             enrich=ClaudeCode())
 
 — and the model's only job is to translate that sentence into directive(s). A

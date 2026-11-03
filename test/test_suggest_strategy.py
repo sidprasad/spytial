@@ -9,7 +9,7 @@ from typing import Optional
 import pytest
 from hypothesis import strategies as st
 
-from spytial.suggest import AskError, build_class_info, suggest
+from spytial.suggest import AskError, build_class_info, suggest_draft as suggest
 from spytial.suggest import _eval, _strategy
 from spytial.suggest._strategy import StrategyError, find_witness
 

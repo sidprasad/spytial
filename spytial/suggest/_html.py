@@ -57,7 +57,7 @@ def render_html(draft: SpecDraft) -> str:
         'padding:16px 18px;font-family:-apple-system,Segoe UI,sans-serif;background:#fbfaf7;">',
         f'<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:2px;">'
         f'<span style="font-family:ui-monospace,Menlo,monospace;font-size:14px;color:#2c2c2a;">'
-        f"spytial.suggest({cls_name})</span>"
+        f"suggest_draft({cls_name})</span>"
         f'<span style="font-size:11px;color:#888780;">{provenance}</span></div>',
         f'<div style="font-size:12px;color:#5f5e5a;margin-bottom:14px;">'
         f"{len(draft.suggestions)} proposed · "
