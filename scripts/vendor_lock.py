@@ -41,10 +41,8 @@ VENDORED_FILES = {
     "spytial/_vendor/spytial-language.json": "language manifest (drives _spec_tables.py)",
     "spytial/_vendor/spytial-spec.schema.json": "spec schema (validates emitted specs)",
     "spytial/suggest/_vendor/spytial-core-evaluator.js": "tier-2 evaluator bundle",
-    # Test-only, so it lives under test/ and stays out of the wheel (MANIFEST.in
-    # excludes test/). It is still vendored and locked like the rest: the point of
-    # the harness is that it agrees with the release whose specs it is checking.
-    "test/_vendor/spytial-check.js": "conformance harness bin (test/conformance.py)",
+    # Runtime suggest and integration tests share this released core checker.
+    "spytial/_vendor/spytial-check.js": "conformance harness bin (suggest and integration tests)",
 }
 
 
@@ -87,7 +85,9 @@ def render(version=None):
 
 def main():
     LOCK_PATH.write_text(render(), encoding="utf-8")
-    print(f"Wrote {LOCK_PATH.relative_to(REPO_ROOT)} (spytial-core {pinned_version()}).")
+    print(
+        f"Wrote {LOCK_PATH.relative_to(REPO_ROOT)} (spytial-core {pinned_version()})."
+    )
 
 
 if __name__ == "__main__":

@@ -34,9 +34,10 @@ startup failures raise there as well as appearing in the notebook.
    are labeled separately from your requests.
 2. Hypothesis generates data and checks complete programs for conflicts.
 3. The session searches for data on which the programs can be distinguished.
-   Spytial's core solver constructs two arrangements of that **same data**.
-   At least one satisfies one program while violating the other, using negated
-   constraints. These are not two arbitrary renderer runs.
+   Suggest constructs candidate contrast programs and checks them with core's
+   existing `spytial-check` conformance API. Both diagrams use the **same data**;
+   at least one satisfies one program while violating the other. Core interprets
+   and solves the constraints; suggest chooses what to compare.
 4. Each diagram has three controls: **▲ upvote**, **▼ downvote**, **? unsure**.
    Each vote is saved immediately. Once both diagrams are rated, the next pair
    appears. Mixed judgments, such as upvote and unsure, stay separate.
@@ -93,7 +94,14 @@ session = suggest(
 
 `strategy=` is shorthand for configuring the default `HypothesisSearch`; do not
 combine it with `search=`. Neither backend needs to implement layout semantics:
-those remain in spytial-core.
+those remain in spytial-core. The comparison strategy lives in
+`spytial.suggest._compare` and uses the released checker already shared with
+integration tests. There is no custom core build or new core comparison API.
+
+Every comparison result is specific to its datum. Programs that agree on a leaf
+may differ on a branching tree, which is why Hypothesis searches over data too.
+Even on one datum, finding no contrast is not an equivalence proof: this search
+tries particular constraint negations and can miss a possible distinction.
 
 ## Use and close a session
 

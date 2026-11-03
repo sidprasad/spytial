@@ -1,16 +1,10 @@
 # Vendored spytial-core evaluator
 
-## Experimental whole-program comparison
-
-`spytial-compare.js` is built from the local core checkout for interactive
-suggest sessions. It is not a published-release artifact. Its source revision,
-source hashes and bundle hash are recorded in `comparison-build.json`.
-Rebuild with core's `npm run build:conformance`, then run
-`python scripts/vendor_suggest_compare.py ../spytial-core` in this repository.
-The bridge requires only Node; no local npm dependencies are needed.
-`SPYTIAL_COMPARE` can point to a different built bridge during development.
-
-The existing evaluator below remains pinned to the published release.
+The comparison strategy lives in Python ([`../_compare.py`](../_compare.py)).
+It uses the released `spytial-check` CLI shared with integration tests, vendored
+at [`../../_vendor/spytial-check.js`](../../_vendor/spytial-check.js).
+There is no custom core build or comparison API. Both artifacts are pinned by
+[`../../_vendor/VENDORED.json`](../../_vendor/VENDORED.json).
 
 `spytial-core-evaluator.js` is the **self-contained** `./evaluator` build of
 [`spytial-core`](https://github.com/sidprasad/spytial-core), copied verbatim from

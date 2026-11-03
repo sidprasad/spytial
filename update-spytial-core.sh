@@ -26,7 +26,7 @@ VENDOR_EVALUATOR="$REPO_ROOT/spytial/suggest/_vendor/spytial-core-evaluator.js"
 VENDOR_README="$REPO_ROOT/spytial/suggest/_vendor/README.md"
 VENDOR_MANIFEST="$REPO_ROOT/spytial/_vendor/spytial-language.json"
 VENDOR_SCHEMA="$REPO_ROOT/spytial/_vendor/spytial-spec.schema.json"
-VENDOR_CHECK="$REPO_ROOT/test/_vendor/spytial-check.js"
+VENDOR_CHECK="$REPO_ROOT/spytial/_vendor/spytial-check.js"
 GENERATOR="$REPO_ROOT/scripts/generate_spec_tables.py"
 VENDOR_LOCK="$REPO_ROOT/scripts/vendor_lock.py"
 
@@ -78,9 +78,9 @@ trap 'rm -rf "$TMP"' EXIT
 cp "$TMP/package/dist/evaluator.js" "$VENDOR_EVALUATOR"
 
 # The conformance harness bin, which answers what a decorator's spec *entails*
-# (test/conformance.py). It has to move with this same pin: a harness from one
-# release checking specs written against another is the drift the rest of this
-# script exists to prevent, arriving through the thing meant to catch it.
+# (suggest and test/conformance.py). It has to move with this same pin: a
+# harness from one release checking specs written against another is the drift
+# this script exists to prevent, arriving through the thing meant to catch it.
 cp "$TMP/package/dist/cli/spytial-check.js" "$VENDOR_CHECK"
 
 # Re-vendor the language manifest and regenerate the annotation tables from it.

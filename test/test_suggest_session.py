@@ -1,4 +1,4 @@
-"""Behavioral tests for the critique loop, using the real core comparison bridge."""
+"""Behavioral tests for the critique loop, using the released core conformance checker."""
 
 from copy import deepcopy
 from dataclasses import dataclass
@@ -6,8 +6,6 @@ import json
 from typing import Optional
 from urllib.error import HTTPError
 from urllib.request import Request, urlopen
-from pathlib import Path
-import hashlib
 
 import pytest
 from hypothesis import strategies as st
@@ -39,18 +37,6 @@ class Tree:
 
 def tree():
     return Tree(8, Tree(3), Tree(10))
-
-
-def test_comparison_bundle_has_matching_provenance():
-    from spytial.core_assets import SPYTIAL_CORE_VERSION
-
-    root = Path(__file__).resolve().parents[1] / "spytial/suggest/_vendor"
-    metadata = json.loads((root / "comparison-build.json").read_text())
-    assert metadata["spytialCoreVersion"] == SPYTIAL_CORE_VERSION
-    assert (
-        metadata["sha256"]
-        == hashlib.sha256((root / metadata["artifact"]).read_bytes()).hexdigest()
-    )
 
 
 def proposal(directions, summary="Children below their parent"):
