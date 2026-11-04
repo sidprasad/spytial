@@ -69,6 +69,9 @@ def suggest(
     strategy=None,
     registry=None,
     max_examples=20,
+    elimination_threshold=2,
+    min_positive_votes=1,
+    max_candidates=4,
 ) -> "SuggestSession":
     """Start a critique session over complete candidate Spytial programs.
 
@@ -89,8 +92,13 @@ def suggest(
     session in a local notebook. Startup runs in the background so the view
     opens immediately. ``wait()`` waits explicitly before inspecting attributes;
     ``next()``, ``vote()``, ``revise()``, and ``finish()`` wait automatically.
-    Each image has independent upvote/downvote/unsure judgments. ``revise()``
-    preserves history; ``finish()`` exports a draft without applying it.
+    Each image has independent upvote/downvote/unsure judgments. PICK uses
+    ``elimination_threshold=2`` negative votes and ``min_positive_votes=1``
+    positive vote. ``max_candidates=4`` caps each proposal batch, including repair.
+    Definite programmatic votes require the displayed ``layout_state``.
+    ``revise()`` replays history; ``finish()`` exports the supported, consistent
+    conjunction without applying it. ``done()`` checkpoints any result;
+    ``resume()`` continues. ``save()`` / ``SuggestSession.load()`` persist the loop.
     """
     from ._session import SuggestSession
 
@@ -104,6 +112,9 @@ def suggest(
         strategy=strategy,
         registry=registry,
         max_examples=max_examples,
+        elimination_threshold=elimination_threshold,
+        min_positive_votes=min_positive_votes,
+        max_candidates=max_candidates,
     )
 
 

@@ -174,13 +174,24 @@ def compare(datum, a, b):
             "message": "A candidate has conflicting constraints on this example.",
         }
 
+    unsupported = []
+
     def difference(choices):
-        return next(
-            (w for w, overlap in choices if feasible(w) and not feasible(overlap)), None
-        )
+        for witness, overlap in choices:
+            try:
+                if feasible(witness) and not feasible(overlap):
+                    return witness
+            except ValueError as exc:
+                # Core may reject a synthetic conjunction at parse time (e.g.
+                # clockwise + counterclockwise on one selector). The original
+                # candidates were checked above; this probe gives no evidence.
+                unsupported.append(str(exc))
+        return None
 
     wa, wb = difference(ab), difference(ba)
     if wa is None and wb is None:
+        if unsupported:
+            return {"status": "unsupported", "message": unsupported[0]}
         return {"status": "no-difference"}
     sides = [
         {

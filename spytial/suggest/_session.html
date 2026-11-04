@@ -38,6 +38,11 @@ button { font: inherit; cursor: pointer; }
 .vote[aria-pressed="true"]:disabled { opacity: 1; }
 #status, #error { margin: 10px 2px 2px; color: var(--muted); line-height: 1.5; }
 #error { color: var(--down); }
+.session-actions { display: flex; align-items: center; gap: 10px; margin-top: 6px; }
+.session-actions button { border: 1px solid var(--line); border-radius: 5px;
+  color: var(--ink); background: var(--paper); padding: 5px 10px; }
+#done { margin-left: auto; }
+#history-position { color: var(--muted); }
 @media (max-width: 480px) { .diagram, webcola-cnd-graph { height: 270px; } .pair { gap: 8px; } }
 </style>
 <script src="__CORE_URL__"></script>
@@ -62,6 +67,13 @@ button { font: inherit; cursor: pointer; }
     </div>
   </section>
 </main>
+<nav class="session-actions" aria-label="Session">
+  <button id="history" disabled>History</button>
+  <button id="previous" aria-label="Previous judgment" hidden>‹</button>
+  <span id="history-position" hidden></span>
+  <button id="next-history" aria-label="Next judgment" hidden>›</button>
+  <button id="done" disabled>I'm done</button>
+</nav>
 <p id="status" role="status">Preparing examples…</p>
 <p id="error" role="alert" hidden></p>
 </body>

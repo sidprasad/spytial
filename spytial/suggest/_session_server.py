@@ -8,7 +8,7 @@ from pathlib import Path
 import secrets
 import threading
 
-from ..core_assets import SPYTIAL_CORE_BROWSER_BUNDLE_URL
+from ..core_assets import browser_asset
 
 
 class SessionServer:
@@ -61,19 +61,22 @@ class SessionServer:
                         page = Path(__file__).with_name("_session.html").read_text()
                         import html
 
-                        src = (
-                            "core.js"
-                            if server.bundle
-                            else SPYTIAL_CORE_BROWSER_BUNDLE_URL
-                        )
+                        src = "core.js"
                         self.reply(
                             page.replace(
                                 "__CORE_URL__", html.escape(src, quote=True)
                             ).encode(),
                             "text/html; charset=utf-8",
                         )
-                    elif route == "core.js" and server.bundle:
-                        self.reply(Path(server.bundle).read_bytes(), "text/javascript")
+                    elif route == "core.js":
+                        self.reply(
+                            (
+                                Path(server.bundle).read_bytes()
+                                if server.bundle
+                                else browser_asset("spytial-core-complete.global.js")
+                            ),
+                            "text/javascript",
+                        )
                     elif route == "session.js":
                         self.reply(
                             Path(__file__).with_name("_session.js").read_bytes(),
@@ -82,6 +85,9 @@ class SessionServer:
                     elif route == "state":
                         with server.lock:
                             self.reply(server.state())
+                    elif route == "history":
+                        with server.session._operation_lock:
+                            self.reply({"records": server.session.history})
                     else:
                         self.send_error(404)
                 except Exception as exc:
@@ -89,7 +95,7 @@ class SessionServer:
 
             def do_POST(self):
                 route = self.route()
-                if route != "vote":
+                if route not in {"vote", "reclassify", "done", "resume"}:
                     self.send_error(404)
                     return
                 if self.headers.get("Origin") != f"http://127.0.0.1:{server.port}":
@@ -103,15 +109,36 @@ class SessionServer:
                     if not isinstance(data, dict):
                         raise ValueError("Expected an object")
                     with server.lock:
-                        if not data.get("question_id"):
-                            raise ValueError("A question ID is required")
-                        record = server.session.vote(
-                            data.get("side"),
-                            data.get("value"),
-                            question_id=data["question_id"],
-                            layout_state=data.get("layout_state"),
-                        )
-                        self.reply({"recorded": True, "complete": record["complete"]})
+                        if route == "done":
+                            checkpoint = server.session.done()
+                            self.reply(
+                                {
+                                    "status": checkpoint["status"],
+                                    "message": checkpoint["message"],
+                                }
+                            )
+                        elif route == "resume":
+                            server.session.resume()
+                            self.reply({"resumed": True})
+                        else:
+                            if not data.get("question_id"):
+                                raise ValueError("A question ID is required")
+                            if route == "reclassify":
+                                record = server.session.reclassify(
+                                    data["question_id"],
+                                    data.get("side"),
+                                    data.get("value"),
+                                )
+                            else:
+                                record = server.session.vote(
+                                    data.get("side"),
+                                    data.get("value"),
+                                    question_id=data["question_id"],
+                                    layout_state=data.get("layout_state"),
+                                )
+                            self.reply(
+                                {"recorded": True, "complete": record["complete"]}
+                            )
                 except Exception as exc:
                     self.reply({"error": str(exc)}, status=400)
 

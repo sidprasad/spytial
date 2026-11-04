@@ -111,6 +111,8 @@ def proposal_prompt(cls, vocab, requests, candidates, history, critique):
     return f"""Help a person develop diagramming rules without reading Spytial.
 Return 2-4 COMPLETE alternative positional programs, not isolated rule fragments.
 Keep requirements that are not disputed. Alternatives may change one or several rules.
+Eliminated complete programs are history, not active choices. Reuse useful rules
+in a different combination when appropriate, but respect the retained judgments.
 Distinguish requested rules from optional rules suggested by domain knowledge.
 Use short ordinary-language summaries. Do not claim a proposal is verified.
 Available operations: orientation(selector, directions), align(selector, direction),
@@ -126,7 +128,7 @@ Class: {cls.__name__}
 Fields: {[(f.name, f.type_repr) for f in build_class_info(cls).fields]}
 Vocabulary: {json.dumps(vocab)}
 User requests: {json.dumps(requests)}
-Current programs: {json.dumps([dict(summary=c.summary, program=c.program) for c in candidates])}
+Candidate history: {json.dumps([dict(summary=c.summary, program=c.program, positive_votes=c.positive_votes, negative_votes=c.negative_votes, eliminated=c.eliminated) for c in candidates])}
 Each history entry has votes in the same order as its two programs and sides.
 Upvote means acceptable, downvote means unacceptable, unsure means undecided,
 and null means not yet rated. Preserve these independent judgments.

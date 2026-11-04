@@ -45,24 +45,46 @@ startup failures raise there as well as appearing in the notebook.
    and earlier judgments to the proposer. New programs go through the same checks.
    The embedded interface follows the same session; no restart is needed.
 
-An answer is saved with the data, complete programs, witness programs, and (in the
-browser) node positions. It is evidence about those pictures, not a universal
-rule. An upvote paired with a downvote sets a working draft without eliminating
-alternatives. Reloading the view restores a partially rated pair. Programmatic
-revision preserves all earlier votes, including partial pairs; a failed revision
-also leaves the current question intact.
+An answer is saved with the datum, complete programs, witness program, and the
+actual layout you judged, including dragging. Drag to explore first; voting checks
+that arrangement against **every candidate** using core's conformance solver.
+
+| Judgment | Candidate permits the arrangement | Candidate excludes it |
+| --- | --- | --- |
+| Upvote | Positive vote | Negative vote |
+| Downvote | Negative vote | No vote |
+| Unsure | No vote | No vote |
+
+The defaults are `elimination_threshold=2`, `min_positive_votes=1`, and
+`max_candidates=4` per proposal batch (including a repair attempt). The LLM is
+asked for 2–4 complete programs. Invalid proposals are discarded; one repair call
+is allowed. Later revisions may add another batch. Eliminated candidates stay in
+history but cannot contribute to the living spec. Reclassifying an old example
+recomputes all scores and can restore a candidate. Repeated classifications of the
+same datum and qualitative arrangement count once; the latest classification wins.
+
+The living draft combines positively supported survivors. Before any are
+supported, it combines survivors provisionally. The combination must be feasible
+and agree with the retained judgments before export. Individual support does not
+stand in for support of the combination: a shared approved arrangement must
+satisfy it. When needed, the loop shows confirmation examples even if only one
+candidate remains. Insufficient evidence or a conflicting combination remains an
+explicit draft/conflict, not a successful result. If core cannot check a synthetic
+comparison or combination, the session reports it as unsupported; it does not count
+as evidence against either candidate. Confirmation examples can still be judged.
+
+The current membership adapter observes the order and alignment of visible node
+centres, ignoring absolute distances, font metrics and canvas translation. Centres
+within half a layout-coordinate pixel are grouped into an alignment class. Those
+observations become ordinary Spytial constraints; core checks their joint
+feasibility with each candidate. This supports suggest's orientation, alignment
+and cyclic proposals; grouping and changing presentation are not supported.
 
 `examples=` adds fixed cases **alongside generated data**. Use `strategy=` for a
 Hypothesis strategy that respects your class's invariants; the default derives
 one from its type. `max_examples=20` bounds each search invocation, including
-candidate checks and contrast searches. Initial witness selection may try several
-searches to find useful data. Exhaustion means “no further contrast found,”
-never equivalence or a finished design.
-
-This version varies orientation, alignment, and cyclic arrangement while keeping
-hiding, attributes, styles, and inferred edges fixed. It does not yet replay old
-judgments as formal acceptance tests for new programs, or minimize unrelated
-visual changes between layouts.
+candidate checks, contrast searches, and checking the combined result at finish.
+Exhaustion means “no further contrast found,” never equivalence or a finished design.
 
 ## Replace components explicitly
 
@@ -105,27 +127,42 @@ tries particular constraint negations and can miss a possible distinction.
 
 ## Use and close a session
 
-The view contains only diagrams and votes. Revisions and export stay in Python:
+Drag the diagrams to explore, then rate them. **History** reopens the saved
+arrangements and lets you correct classifications. Historical arrangements are
+held fixed so a correction refers to the same example. **I'm done** saves a
+checkpoint and pauses; **Resume** continues with the same data and evidence.
 
 ```python
-session.revise("All nodes at the same depth should share a row")
-# Previous judgments remain in session.history.
-draft = session.finish()
-# print(draft.to_source())  # Inspect Spytial only when you want to.
+session.done()                       # Save this round, even if unresolved.
+session.resume()                     # Continue exploring.
+session.revise("Keep subtrees together")
+draft = session.finish()             # Export only a supported, consistent result.
+# draft.apply()                      # Apply explicitly when you want to.
+
+session.save("tree-spec.json")       # Includes candidates, data, layouts and votes.
+from spytial.suggest import SuggestSession
+restored = SuggestSession.load(TreeNode, "tree-spec.json")
+restored.resume()                    # No new LLM proposals needed to load.
 ```
 
-`finish()` returns a copy of the working `SpecDraft` without applying it to the
-class. Pass a candidate ID to choose a specific program. Without a browser,
-`next()` returns a comparison and `vote(0, "upvote")` / `vote(1, "unsure")`
-rate its images independently. `judge("both", "...")` remains a convenience for
-rating both together. `session.close()` stops the local server; sessions support
-`with` blocks.
+`session.draft` returns a copy of the provisional combined spec without applying
+it; it raises if the combination is infeasible. `finish()` checks support and
+conflicts, checkpoints the round, and raises if the result is not ready.
+`session.checkpoints` preserves earlier results; `session.history` preserves
+judged examples. `session.reclassify(question_id, side, "unsure")` corrects a
+classification programmatically and reopens the session.
 
-Run `python -m demos.suggest_session` for the combined browser demo. Keep the
-Python process running while using it. Requires Node and the `suggest-search`
-extra, plus the configured model provider. The browser loads the pinned renderer
-from the CDN unless `SPYTIAL_BROWSER_BUNDLE=/absolute/path/to/spytial-core-complete.global.js`
-selects a local build. The UI is intended for local scripts and local notebooks.
+Without a browser, `next()` returns a question. Definite votes require the actual
+positions: `vote(0, "upvote", layout_state={"positions": [...]})`. Each position
+contains `id`, `x`, and `y` for a visible node. `judge("both", layout_states=[...,
+...])` rates both together. Missing, invalid, or incomplete positions cannot
+produce elimination evidence. Unsure can be recorded without positions.
+
+Run `python -m demos.suggest_session` for the browser demo. Keep the Python
+process running while using it. Requires Node and the `suggest-search` extra,
+plus the configured model provider. The local server serves the packaged renderer;
+`SPYTIAL_BROWSER_BUNDLE` can select another build for development. `close()` stops
+the local server; sessions support `with` blocks.
 
 ## Migration from draft-only suggest
 

@@ -25,7 +25,51 @@ from spytial.suggest._session import ProgramCandidate
 
 def suggest(*args, **kwargs):
     """Most behavioral tests need the prepared session; startup is tested separately."""
-    return start_session(*args, **kwargs).wait()
+    session = start_session(*args, **kwargs).wait()
+    original_vote = session.vote
+
+    def vote(side, value, **kwargs):
+        if (
+            kwargs.get("layout_state") is None
+            and type(side) is int
+            and side in (0, 1)
+            and session.current
+        ):
+            kwargs["layout_state"] = layout_states(session)[side]
+        return original_vote(side, value, **kwargs)
+
+    session.vote = vote
+    return session
+
+
+def layout_states(session):
+    datum = session.current["datum"]
+    nodes = [a["id"] for a in datum["atoms"] if a["type"] == "Tree"]
+    edges = [
+        t["atoms"]
+        for r in datum["relations"]
+        if r["name"] in ("left", "right")
+        for t in r["tuples"]
+        if t["atoms"][1] in nodes
+    ]
+    depths = {datum["rootId"]: 0}
+    for _ in nodes:
+        for parent, child in edges:
+            if parent in depths:
+                depths[child] = depths[parent] + 1
+    return [
+        {
+            "positions": [
+                {
+                    "id": n,
+                    "x": (1 if side == 0 else -1) * int(n[1:]) * 120,
+                    "y": depths.get(n, 0) * 150,
+                }
+                for n in nodes
+            ]
+        }
+        for side in (0, 1)
+    ]
 
 
 @dataclass
@@ -106,7 +150,8 @@ def test_judgments_preserve_evidence_without_eliminating_candidates():
     )
     assert record["datum"] == question["datum"]
     assert record["programs"] == question["programs"]
-    assert session.active_id == question["candidate_ids"][1]
+    assert session.candidates[0].negative_votes == 1
+    assert session.candidates[1].positive_votes == 1
     assert len(session.candidates) == count
     with pytest.raises(ValueError, match="no longer current"):
         session.judge("both", question_id=question["id"])
@@ -188,6 +233,8 @@ def test_search_varies_data_when_fixed_example_does_not_distinguish():
         ),
     ]
     session.active_id = "a"
+    session.current = None
+    session._living_cache = None
     session.search = HypothesisSearch(
         st.integers(0, 3).map(lambda n: Tree(n, Tree(n + 1)) if n else Tree())
     )
@@ -231,16 +278,23 @@ def test_generated_data_can_reject_a_program_that_passes_fixed_examples():
     assert len(session.candidates) == before
 
 
-def test_finish_returns_copy_without_applying_it():
-    session = suggest(tree(), search=FixedExamples(), proposer=Provider())
-    original = session.draft.to_registry()
+def test_finish_requires_support_and_returns_combination_without_applying():
+    session = suggest(
+        tree(), search=FixedExamples(), proposer=Provider(), elimination_threshold=1
+    )
+    with pytest.raises(ValueError, match="positive evidence"):
+        session.finish()
+    assert session.paused
+    session.resume()
+    session.judge("right")
     result = session.finish()
+    expected = result.to_registry()
     result.suggestions.clear()
-    assert session.draft.to_registry() == original
-    if len(session.candidates) > 1:
-        chosen = session.candidates[1]
-        session.finish(chosen.id)
-        assert session.finish().to_registry() == chosen.program
+    assert session.draft.to_registry() == expected
+    assert expected == session.candidates[1].program
+    assert session.candidates[0].eliminated
+    with pytest.raises(ValueError, match="no longer selects"):
+        session.finish(session.candidates[0].id)
 
 
 def test_server_gates_mutations_and_rejects_stale_questions():
@@ -249,7 +303,12 @@ def test_server_gates_mutations_and_rejects_stale_questions():
         state = json.load(urlopen(url + "state"))
         question = state["question"]
         payload = json.dumps(
-            {"question_id": question["id"], "side": 0, "value": "upvote"}
+            {
+                "question_id": question["id"],
+                "side": 0,
+                "value": "upvote",
+                "layout_state": layout_states(session)[0],
+            }
         ).encode()
         with pytest.raises(HTTPError) as exc:
             urlopen(
@@ -465,7 +524,9 @@ def test_new_proposals_preserve_partial_votes():
             "programs": [proposal(["above"])],
         }
         session.revise("Children above")
-        assert session.history == [previous]
+        assert session.history[0]["votes"] == previous["votes"]
+        assert session.history[0]["layout_states"] == previous["layout_states"]
+        assert session.history[0]["datum"] == previous["datum"]
         with pytest.raises(ValueError, match="no longer current"):
             session.vote(1, "downvote", question_id=previous["id"])
         assert session.next()["id"] != previous["id"]

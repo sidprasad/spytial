@@ -7,11 +7,21 @@ let polling = false;
 let timer;
 let displayedId = null;
 let pendingPoll = Promise.resolve();
+let paused = false;
+let history = null;
+let historyIndex = 0;
+let available = false;
 
 function lock() {
   document.querySelectorAll('.vote').forEach(button => {
-    button.disabled = busy || !rendered;
+    const side = Number(button.closest('.card').dataset.side);
+    button.disabled = busy || !rendered || (!history && paused) ||
+      (history && !current.observations?.[side]);
   });
+  el('done').disabled = busy || !available;
+  el('history').disabled = busy || !available;
+  el('previous').disabled = busy || historyIndex === 0;
+  el('next-history').disabled = busy || !history || historyIndex >= history.length - 1;
 }
 
 function status(message) {
@@ -42,7 +52,7 @@ async function api(route, body) {
   return result;
 }
 
-async function render(side, index, datum) {
+async function render(side, index, datum, savedState) {
   const core = window.spytialcore || window.SpytialCore || window.CndCore || window.CnDCore;
   if (!core) throw Error('The diagram renderer could not load. Reload to try again.');
   const instance = new core.JSONDataInstance(datum);
@@ -56,7 +66,7 @@ async function render(side, index, datum) {
     const slot = el(`diagram-${index}`);
     slot.classList.remove('skeleton');
     slot.replaceChildren(graph);
-    await graph.setViewOptions({toolbar: 'none', interaction: {nodeDrag: false, structuralEditing: false}});
+    await graph.setViewOptions({toolbar: 'none', interaction: {nodeDrag: !history, structuralEditing: false}});
     graph.addEventListener('layout-error', event => {
       if (!graph.isConnected) return;
       graph.dataset.failed = 'true';
@@ -72,7 +82,8 @@ async function render(side, index, datum) {
       graph.addEventListener('layout-error', onError, {once: true});
       timeout = setTimeout(() => reject(Error('The diagram did not finish. Reload to try again.')), 30000);
     });
-    try { await Promise.all([graph.renderLayout(result.layout), complete]); }
+    try { await Promise.all([graph.renderLayout(result.layout, savedState ?
+      {priorPositions: savedState, transitionMode: 'replace'} : undefined), complete]); }
     finally {
       clearTimeout(timeout);
       graph.removeEventListener('layout-complete', onComplete);
@@ -83,9 +94,13 @@ async function render(side, index, datum) {
 
 async function refresh() {
   const state = await api('state');
+  available = ['ready', 'empty', 'paused'].includes(state.status);
+  paused = state.status === 'paused';
+  el('done').textContent = paused ? 'Resume' : "I'm done";
+  if (history) return;
   if (state.status === 'error') throw Error(state.message);
   status(state.message);
-  if (state.status !== 'ready') {
+  if (state.status !== 'ready' && !(paused && state.question)) {
     rendered = false;
     lock();
     return;
@@ -95,7 +110,8 @@ async function refresh() {
     lock();
     current = state.question;
     selections(current.votes);
-    await Promise.all(current.sides.map((side, index) => render(side, index, current.datum)));
+    await Promise.all(current.sides.map((side, index) =>
+      render(side, index, current.datum, current.layout_states?.[index])));
     displayedId = current.id;
   } else {
     // Reloading restores partial votes; programmatic revisions may supply a new pair.
@@ -128,15 +144,59 @@ document.querySelectorAll('.vote').forEach(button => button.addEventListener('cl
   try {
     await pendingPoll;
     if (!rendered || current?.id !== questionId) return;
-    await api('vote', {
+    await api(history ? 'reclassify' : 'vote', {
       question_id: questionId, side, value: button.dataset.value,
       layout_state: el(`diagram-${side}`).querySelector('webcola-cnd-graph').getLayoutState()
     });
     current.votes[side] = button.dataset.value;
     selections(current.votes);
-    await refresh();
+    if (!history) await refresh();
   } catch (err) { error(err.message); }
   finally { busy = false; lock(); timer = setTimeout(poll, 750); }
 }));
+
+async function showHistory() {
+  current = history[historyIndex];
+  if (!current) { status('No judgments yet.'); return; }
+  rendered = false;
+  lock();
+  await Promise.all(current.sides.map((side, i) => render(side, i, current.datum, current.layout_states?.[i])));
+  rendered = !document.querySelector('webcola-cnd-graph[data-failed]');
+  selections(current.votes);
+  status('');
+  el('history-position').textContent = `${historyIndex + 1} / ${history.length}`;
+  el('previous').disabled = historyIndex === 0;
+  el('next-history').disabled = historyIndex === history.length - 1;
+}
+
+async function action(fn) {
+  if (busy) return;
+  busy = true; clearTimeout(timer); lock(); error('');
+  try { await pendingPoll; await fn(); }
+  catch (err) { error(err.message); }
+  finally { busy = false; lock(); timer = setTimeout(poll, 750); }
+}
+el('done').addEventListener('click', () => action(async () => {
+  status(paused ? 'Resuming…' : 'Saving…');
+  await api(paused ? 'resume' : 'done', {});
+  if (history) closeHistory();
+  await refresh();
+}));
+function closeHistory() {
+  history = null; current = null; displayedId = null;
+  el('history').textContent = 'History';
+  for (const id of ['previous', 'next-history', 'history-position']) el(id).hidden = true;
+}
+el('history').addEventListener('click', () => action(async () => {
+  if (history) { closeHistory(); await refresh(); return; }
+  const records = (await api('history')).records;
+  if (!records.length) { status('No judgments yet.'); return; }
+  history = records; historyIndex = records.length - 1;
+  el('history').textContent = 'Back';
+  for (const id of ['previous', 'next-history', 'history-position']) el(id).hidden = false;
+  await showHistory();
+}));
+el('previous').addEventListener('click', () => action(async () => { historyIndex--; await showHistory(); }));
+el('next-history').addEventListener('click', () => action(async () => { historyIndex++; await showHistory(); }));
 window.addEventListener('pagehide', () => clearTimeout(timer));
 poll();

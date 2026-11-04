@@ -160,3 +160,26 @@ def test_no_witness_is_not_even_an_equivalence_proof_on_the_same_datum():
     )["cases"]
     assert results[0]["ok"]
     assert {e["code"] for e in results[1]["errors"]} == {"layout/unsatisfiable"}
+
+
+def test_uncheckable_cyclic_probe_does_not_invalidate_individual_candidates():
+    datum = {
+        "atoms": [{"id": n, "type": "Node", "label": n} for n in "abcd"],
+        "relations": [
+            {
+                "name": "r",
+                "types": ["Node", "Node"],
+                "tuples": [
+                    {"atoms": list(pair), "types": ["Node", "Node"]}
+                    for pair in ["ab", "bc", "cd", "da"]
+                ],
+            }
+        ],
+    }
+    a, b = [
+        program({"cyclic": {"selector": "r", "direction": d}})
+        for d in ("clockwise", "counterclockwise")
+    ]
+    assert compare(datum, a, a)["status"] == "no-difference"
+    assert compare(datum, b, b)["status"] == "no-difference"
+    assert compare(datum, a, b)["status"] == "unsupported"
