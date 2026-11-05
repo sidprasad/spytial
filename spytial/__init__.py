@@ -102,6 +102,7 @@ from .annotations import (
     serialize_to_yaml_string,
     reset_object_ids,
     apply_if,
+    SpecUnavailableError,
 )
 
 # Main data instance builder
@@ -209,6 +210,7 @@ __all__ = [
     "serialize_to_yaml_string",
     "reset_object_ids",
     "apply_if",
+    "SpecUnavailableError",
     # Core version
     "get_spytial_core_version",
     # Spec scaffolding (lazy — see __getattr__)

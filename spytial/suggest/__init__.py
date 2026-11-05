@@ -17,6 +17,8 @@ if TYPE_CHECKING:
 from . import rules  # noqa: F401  (import for the side effect of registering built-ins)
 from ._ask import AskError
 from ._model import ClassInfo, FieldInfo, SpecDraft, Suggestion
+from ._living import LivingSpec
+from ..annotations import SpecUnavailableError
 from .introspect import build_class_info
 from .providers import (
     ClaudeCode,
@@ -40,6 +42,8 @@ __all__ = [
     "DEFAULT_REGISTRY",
     "Suggestion",
     "SpecDraft",
+    "LivingSpec",
+    "SpecUnavailableError",
     "FieldInfo",
     "ClassInfo",
     "build_class_info",
@@ -99,6 +103,10 @@ def suggest(
     ``revise()`` replays history; ``finish()`` exports the supported, consistent
     conjunction without applying it. ``done()`` checkpoints any result;
     ``resume()`` continues. ``save()`` / ``SuggestSession.load()`` persist the loop.
+    ``session.spec`` is a stable living spec. ``session.apply()`` connects it
+    to the target class so later diagrams use the current supported rules.
+    Alternatively pass ``spec=session.spec`` to ``spytial.diagram``. A living
+    spec without a supported result raises ``SpecUnavailableError`` on use.
     """
     from ._session import SuggestSession
 

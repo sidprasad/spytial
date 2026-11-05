@@ -132,18 +132,63 @@ arrangements and lets you correct classifications. Historical arrangements are
 held fixed so a correction refers to the same example. **I'm done** saves a
 checkpoint and pauses; **Resume** continues with the same data and evidence.
 
+Once the session has a supported result, apply its **living spec**:
+
+```python
+import spytial
+
+spec = session.apply()               # Same object as session.spec.
+spytial.diagram(root)                # Uses the current rules for TreeNode.
+
+session.resume()
+session.revise("Keep subtrees together")
+# Continue judging in the session. Once the result is supported again:
+spytial.diagram(root)                # Picks up the updated rules automatically.
+```
+
+Applying connects the spec to the target class; existing and future instances
+use its current rules on each `diagram()` call. The spec object keeps its identity
+as votes, corrections, and new proposals change the program. Applying repeatedly
+does not accumulate old rules, and ordinary class/object annotations remain intact.
+Existing diagrams stay as they were; the next call uses the updated spec.
+
+To use the spec for one diagram without changing the class:
+
+```python
+spec = session.spec
+spytial.diagram(root, spec=spec)
+snapshot = spec.snapshot()           # Independent, supported SpecDraft.
+spytial.diagram(root, spec=snapshot)  # Keeps that version's rules.
+spec.unapply()                       # Remove only this spec's class binding.
+```
+
+An explicit `spec=` replaces collected annotations for that call and accepts a
+living spec, a `SpecDraft`, or a registry dictionary. `spec.status` and
+`spec.result` expose the current support/conflict state. Application and use run
+the same bounded generated-data check as `finish()`, cached until the living
+result changes. They do not pause the exploration session.
+
+If later evidence leaves no supported, consistent result, the same spec object
+becomes unavailable and drawing raises `SpecUnavailableError`. It never silently
+keeps eliminated rules or substitutes an unconstrained diagram. Further feedback
+can make it usable again. `snapshot()` and `finish()` provide fixed copies when
+that is wanted; `session.draft` also exposes a provisional copy for inspection.
+
 ```python
 session.done()                       # Save this round, even if unresolved.
 session.resume()                     # Continue exploring.
-session.revise("Keep subtrees together")
 draft = session.finish()             # Export only a supported, consistent result.
-# draft.apply()                      # Apply explicitly when you want to.
 
 session.save("tree-spec.json")       # Includes candidates, data, layouts and votes.
 from spytial.suggest import SuggestSession
 restored = SuggestSession.load(TreeNode, "tree-spec.json")
 restored.resume()                    # No new LLM proposals needed to load.
+restored.apply()                     # Explicitly bind the restored living spec.
 ```
+
+Loading does not change class bindings. Applying the restored spec replaces the
+previous living binding for that class. Closing a session's server leaves its
+last usable spec available for drawing.
 
 `session.draft` returns a copy of the provisional combined spec without applying
 it; it raises if the combination is infeasible. `finish()` checks support and

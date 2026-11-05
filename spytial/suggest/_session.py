@@ -20,6 +20,7 @@ from ._compare import compare
 from ._evidence import observe, membership
 from ._enrich_from_examples import _vocabulary
 from ._model import SpecDraft
+from ._living import LivingSpec
 from ._search import HypothesisSearch
 from ._proposals import PROPOSAL_SCHEMA, proposal_prompt, validate_operations
 from .providers import Codex, as_provider
@@ -142,6 +143,8 @@ class SuggestSession:
         self._revision = 0
         self._membership_cache = {}
         self._living_cache = None
+        self._checked_living_cache = None
+        self._spec = LivingSpec(self)
         self.candidates = []
         self.current = None
         self._asked = set()
@@ -263,7 +266,11 @@ class SuggestSession:
     def _datum(self, obj):
         if not isinstance(obj, self.cls):
             raise ValueError(f"Examples must be instances of {self.cls.__name__}.")
-        return CnDDataInstanceBuilder(infer_variable_names=False).build_instance(obj)
+        # Data search must not resolve an applied living spec: validating that
+        # spec itself generates data, and the current spec may be unresolved.
+        return CnDDataInstanceBuilder(
+            infer_variable_names=False, collect_annotations=False
+        ).build_instance(obj)
 
     def _compare(self, datum, a, b):
         key = json.dumps([datum, a, b], sort_keys=True)
@@ -359,6 +366,15 @@ class SuggestSession:
         self._replay()
 
     @property
+    def spec(self):
+        """The stable living spec; later judgments update what it resolves to."""
+        return self._spec
+
+    def apply(self):
+        """Bind the living spec to the target class, returning the same object."""
+        return self.spec.apply()
+
+    @property
     def draft(self):
         self.wait()
         with self._operation_lock:
@@ -450,10 +466,10 @@ class SuggestSession:
             "positive_votes": 0,
             "conflicts": [],
             "program": None,
-            "message": "Saved as a draft; positive evidence is still needed.",
+            "message": "The spec needs positive evidence before use.",
         }
         if not pool:
-            result.update(status="empty", message="Saved. No candidates remain.")
+            result.update(status="empty", message="No candidates remain.")
             self._living_cache = (result, None)
             return deepcopy(self._living_cache)
         unique = {}
@@ -469,14 +485,14 @@ class SuggestSession:
             except ValueError:
                 result.update(
                     status="unsupported",
-                    message="Saved. Core cannot check this combination of rules.",
+                    message="Core cannot check this combination of rules.",
                 )
                 self._living_cache = (result, None)
                 return deepcopy(self._living_cache)
             if verdict["status"] != "no-difference":
                 result.update(
                     status="conflict",
-                    message="Saved. The remaining rules conflict on an example.",
+                    message="The remaining rules conflict on an example.",
                 )
                 self._living_cache = (result, None)
                 return deepcopy(self._living_cache)
@@ -492,12 +508,10 @@ class SuggestSession:
         if result["conflicts"]:
             result.update(
                 status="conflict",
-                message="Saved. Some earlier judgments still conflict with the combined spec.",
+                message="Some earlier judgments still conflict with the combined spec.",
             )
         elif supported and result["positive_votes"] >= self.min_positive_votes:
-            result.update(
-                status="supported", message="Saved. Your spec is ready to use."
-            )
+            result.update(status="supported", message="Your spec is ready to use.")
         self._living_cache = (result, draft)
         return deepcopy(self._living_cache)
 
@@ -828,25 +842,8 @@ class SuggestSession:
         """End this round, retaining a resumable checkpoint even if unresolved."""
         if self.paused:
             return deepcopy(self.checkpoints[-1])
-        result, draft = self._living()
-        if draft is not None and result["status"] in {"supported", "draft"}:
-            program = draft.to_registry()
-            witness = self.search.find(
-                self.cls,
-                lambda obj: self._compare(self._datum(obj), program, program)["status"]
-                != "no-difference",
-                max_examples=self.max_examples,
-            )
-            if witness is not None:
-                datum = self._datum(witness)
-                if datum not in self._datums:
-                    self.examples.append(witness)
-                    self._datums.append(datum)
-                result.update(
-                    status="conflict",
-                    message="Saved. Generated data exposed conflicting rules.",
-                )
-                self._living_cache = None
+        result, _ = self._checked_living()
+        result["message"] = "Saved. " + result["message"]
         result.update(
             revision=self._revision,
             history=deepcopy(self.history),
@@ -865,6 +862,36 @@ class SuggestSession:
         self.checkpoints.append(deepcopy(result))
         self.paused = True
         return deepcopy(result)
+
+    def _checked_living(self):
+        """Check generated data once per living result, without ending the round."""
+        result, draft = self._living()
+        if (
+            self._checked_living_cache is not None
+            and self._checked_living_cache[0] is self._living_cache
+        ):
+            return deepcopy(self._checked_living_cache[1:])
+        if draft is not None and result["status"] in {"supported", "draft"}:
+            program = draft.to_registry()
+            witness = self.search.find(
+                self.cls,
+                lambda obj: self._compare(self._datum(obj), program, program)["status"]
+                != "no-difference",
+                max_examples=self.max_examples,
+            )
+            if witness is not None:
+                datum = self._datum(witness)
+                if datum not in self._datums:
+                    self.examples.append(witness)
+                    self._datums.append(datum)
+                result.update(
+                    status="conflict",
+                    message="Generated data exposed conflicting rules.",
+                )
+                draft = None
+                self._living_cache = (result, draft)
+        self._checked_living_cache = (self._living_cache, result, draft)
+        return deepcopy((result, draft))
 
     @_ready_method
     def resume(self):

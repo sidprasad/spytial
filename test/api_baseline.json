@@ -457,6 +457,7 @@
     "SEQUENCE_POLICY_NAMES",
     "SequenceRecorder",
     "Size",
+    "SpecUnavailableError",
     "SpytialAnnotation",
     "Tag",
     "TextStyle",

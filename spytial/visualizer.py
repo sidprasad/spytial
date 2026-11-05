@@ -91,9 +91,7 @@ def _back_construct_labels(data_instances: list) -> None:
             aid = atom.get("id")
             if aid is None:
                 continue
-            observed.setdefault(aid, []).append(
-                (atom.get("label"), atom.get("type"))
-            )
+            observed.setdefault(aid, []).append((atom.get("label"), atom.get("type")))
 
     chosen: Dict[str, str] = {}
     for aid, pairs in observed.items():
@@ -222,6 +220,8 @@ def diagram(
     headless: bool = False,
     timeout: Optional[float] = None,
     as_type: Optional[Any] = None,
+    *,
+    spec=None,
 ) -> Optional[Union[str, Dict[str, Any]]]:
     """
     Display a Python object in the sPyTial visualizer.
@@ -247,6 +247,9 @@ def diagram(
         as_type: Optional annotated type to treat the object as. Annotations from this type
                  will be applied in addition to any introspected from the object itself.
                  Use AnnotatedType() or typing.Annotated to define types with spytial annotations.
+        spec: An explicit specification (LivingSpec, SpecDraft, or registry dict).
+              Replaces collected annotations for this call. A living spec reads
+              its latest supported rules each time; existing diagrams stay fixed.
 
     Examples:
         # Define an annotated type
@@ -282,13 +285,27 @@ def diagram(
     # Serialize the object using the provider system (which now also collects decorators)
     if headless and title:
         print(f"Building data instance for: {title}", flush=True)
-    builder = CnDDataInstanceBuilder()
+    builder = CnDDataInstanceBuilder(collect_annotations=spec is None)
 
     # Pass as_type to the builder so it can extract annotations
     data_instance = builder.build_instance(obj, as_type=as_type)
 
     # Get all decorators collected during the build process (from all sub-objects)
-    decorators = builder.get_collected_decorators()
+    if spec is None:
+        decorators = builder.get_collected_decorators()
+    else:
+        from copy import deepcopy
+
+        decorators = (
+            spec.to_registry()
+            if callable(getattr(spec, "to_registry", None))
+            else deepcopy(spec)
+        )
+        if not isinstance(decorators, dict) or any(
+            not isinstance(decorators.get(key), list)
+            for key in ("constraints", "directives")
+        ):
+            raise TypeError("spec must provide constraints and directives lists.")
 
     # Serialize the collected decorators into a YAML string
     spytial_spec = serialize_to_yaml_string(decorators)
