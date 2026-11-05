@@ -133,6 +133,9 @@ Hypothesis strategy that respects your class's invariants; the default derives
 one from its type. `max_examples=20` bounds each search invocation, including
 candidate checks, contrast searches, and checking the combined result before use.
 Exhaustion means “no further contrast found,” never equivalence or a finished design.
+Data generation ignores existing diagram annotations, including an unavailable
+living spec bound to the class. A replacement session can therefore start without
+removing the earlier binding. It does not replace that binding until `apply()`.
 
 ## Replace components explicitly
 
@@ -258,8 +261,11 @@ classification programmatically and reopens the session.
 Without a browser, `next()` returns a question. Definite votes require the actual
 positions: `vote(0, "upvote", layout_state={"positions": [...]})`. Each position
 contains `id`, `x`, and `y` for a visible node. `judge("both", layout_states=[...,
-...])` rates both together. Missing, invalid, or incomplete positions cannot
-produce elimination evidence. Unsure can be recorded without positions.
+...])` validates both layouts before saving either judgment. It can replace a
+partial pair; the session updates scores and advances only after both judgments
+are saved. If either layout is invalid, the question and saved evidence remain
+unchanged. Missing, invalid, or incomplete positions cannot produce elimination
+evidence. Unsure can be recorded without positions.
 
 Run `python -m demos.suggest_session` for the browser demo. Keep the Python
 process running while using it. Requires Node and the `suggest-search` extra,

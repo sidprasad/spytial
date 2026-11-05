@@ -1,5 +1,6 @@
 """PICK evidence, elimination, conjunction, and resumable checkpoints."""
 
+from copy import deepcopy
 import json
 import pytest
 
@@ -35,6 +36,67 @@ def session(**kwargs):
         ),
         **kwargs,
     ).wait()
+
+
+@pytest.mark.parametrize("previous_side", [None, 0, 1])
+def test_batch_judgment_replaces_partial_votes_before_advancing(previous_side):
+    with session() as s:
+        question = s.next()
+        states = [state(-120, 150), state(120, -150)]
+        if previous_side is not None:
+            s.vote(
+                previous_side,
+                "downvote" if previous_side == 0 else "upvote",
+                layout_state=states[previous_side],
+            )
+
+        record = s.judge(
+            "left",
+            "Keep children below",
+            question_id=question["id"],
+            layout_states=states,
+        )
+
+        assert record["votes"] == ["upvote", "downvote"]
+        assert record["complete"]
+        assert record["choice"] == "left"
+        assert record["explanation"] == "Keep children below"
+        assert s.history == [record]
+        assert [(c.positive_votes, c.negative_votes) for c in s.candidates] == [
+            (1, 0),
+            (0, 2),
+        ]
+        assert s.current is None
+        record["votes"][0] = "unsure"
+        assert s.history[0]["votes"] == ["upvote", "downvote"]
+
+
+@pytest.mark.parametrize("partial", [False, True])
+@pytest.mark.parametrize("invalid", ["coordinates", "rendering_program"])
+def test_invalid_second_batch_layout_leaves_all_evidence_unchanged(
+    partial, invalid, tmp_path
+):
+    with session() as s:
+        states = [state(-120, 150), state(120, -150)]
+        if partial:
+            s.vote(0, "downvote", layout_state=states[0])
+        question = deepcopy(s.current)
+        path = tmp_path / "session.json"
+        s.save(path)
+        before = path.read_text()
+        if invalid == "coordinates":
+            states[1]["positions"][1]["x"] = "invalid"
+            message = "finite numbers"
+        else:
+            states[1] = states[0]
+            message = "violates its rendering program"
+
+        with pytest.raises(ValueError, match=message):
+            s.judge("left", layout_states=states)
+
+        assert s.current == question
+        s.save(path)
+        assert path.read_text() == before
 
 
 def test_all_candidates_scored_asymmetrically_and_eliminated_rules_removed():

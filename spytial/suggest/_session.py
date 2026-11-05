@@ -539,7 +539,12 @@ class SuggestSession:
         A partial pair survives reloads and programmatic revision. Only after
         both images are rated does the session advance to another comparison.
         """
-        validate_vote(side, value)
+        return deepcopy(self._record_votes([(side, value, layout_state)], question_id))
+
+    def _record_votes(self, votes, question_id):
+        """Validate the whole update, then record it and advance once."""
+        for side, value, _ in votes:
+            validate_vote(side, value)
         if self.current is None or (
             question_id is not None and question_id != self.current["id"]
         ):
@@ -549,31 +554,37 @@ class SuggestSession:
         if self.paused:
             raise ValueError("Resume the session before rating a new example.")
         existing = self._history.get(self.current["id"])
-        if layout_state is None and value == "unsure" and existing is not None:
-            layout_state = existing.get("layout_states", [None, None])[side]
-        observation = None
-        if layout_state is not None or value != "unsure":
-            observation = observe(self.current["datum"], layout_state)
-            # Check the actual displayed arrangement before recording any vote.
-            if not self._checks.memberships(
-                self.current["datum"],
-                [self.current["sides"][side]["program"]],
-                observation,
-            )[0]:
-                raise ValueError(
-                    "The displayed arrangement violates its rendering program."
+        prepared = []
+        for side, value, layout_state in votes:
+            if layout_state is None and value == "unsure" and existing is not None:
+                layout_state = existing.get("layout_states", [None, None])[side]
+            observation = None
+            if layout_state is not None or value != "unsure":
+                observation = observe(self.current["datum"], layout_state)
+                # No vote changes until every layout and membership check succeeds.
+                if not self._checks.memberships(
+                    self.current["datum"],
+                    [self.current["sides"][side]["program"]],
+                    observation,
+                )[0]:
+                    raise ValueError(
+                        "The displayed arrangement violates its rendering program."
+                    )
+                self._checks.memberships(
+                    self.current["datum"],
+                    [c.program for c in self.candidates],
+                    observation,
                 )
-            self._checks.memberships(
-                self.current["datum"], [c.program for c in self.candidates], observation
+            prepared.append((side, value, observation, layout_state))
+        for side, value, observation, layout_state in prepared:
+            record = self._history.record(
+                self.current, side, value, observation, layout_state
             )
-        record = self._history.record(
-            self.current, side, value, observation, layout_state
-        )
-        self.current["votes"][side] = value
-        if layout_state is not None:
-            self.current.setdefault("layout_states", [None, None])[side] = deepcopy(
-                layout_state
-            )
+            self.current["votes"][side] = value
+            if layout_state is not None:
+                self.current.setdefault("layout_states", [None, None])[side] = deepcopy(
+                    layout_state
+                )
         self._replay()
         if record["complete"]:
             self._asked.add(
@@ -581,7 +592,7 @@ class SuggestSession:
             )
             self.current = None
             self._prepared = False
-        return deepcopy(record)
+        return record
 
     @_ready_method
     def reclassify(self, question_id, side, value):
@@ -595,7 +606,7 @@ class SuggestSession:
 
     @_ready_method
     def judge(self, choice, explanation="", *, question_id=None, layout_states=None):
-        """Programmatic convenience for rating both diagrams together."""
+        """Validate both diagrams before saving either judgment or advancing."""
         choices = {
             "left": ["upvote", "downvote"],
             "right": ["downvote", "upvote"],
@@ -615,15 +626,15 @@ class SuggestSession:
             or any(not isinstance(s, dict) for s in layout_states)
         ):
             raise ValueError("Expected two displayed layout states.")
-        for side, value in enumerate(choices[choice]):
-            self.vote(
-                side,
-                value,
-                question_id=question_id,
-                layout_state=layout_states[side] if layout_states else None,
-            )
-        self.history[-1].update(choice=choice, explanation=explanation)
-        return deepcopy(self.history[-1])
+        record = self._record_votes(
+            [
+                (side, value, layout_states[side] if layout_states else None)
+                for side, value in enumerate(choices[choice])
+            ],
+            question_id,
+        )
+        record.update(choice=choice, explanation=explanation)
+        return deepcopy(record)
 
     @property
     def can_revise(self):

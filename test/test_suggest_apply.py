@@ -13,6 +13,7 @@ from spytial.annotations import LIVE_SPEC_ATTR, collect_decorators
 from spytial.provider_system import CnDDataInstanceBuilder
 from spytial.suggest import (
     FixedExamples,
+    FixedProposals,
     HypothesisSearch,
     LivingSpec,
     SpecUnavailableError,
@@ -115,6 +116,33 @@ def test_losing_all_candidates_blocks_drawing_and_correction_restores_it(
     s.reclassify(question, 1, "upvote")
     assert spec.status == "supported"
     assert emitted_spec(tree()) == spec.to_registry()
+
+
+@pytest.mark.parametrize("supplied_examples", [False, True])
+def test_replacement_session_can_generate_with_an_unavailable_bound_spec(
+    live_session, supplied_examples
+):
+    old = live_session.apply()
+    live_session.reclassify(live_session.history[0]["id"], 1, "downvote")
+    assert old.status == "empty"
+    # Neither value populates both recursive fields. Witness search must still
+    # prefer the nontrivial tree over the leaf, ignoring the old binding in both
+    # the buildability and the nontrivial-witness checks.
+    witness = Tree(1, Tree(2))
+    with spytial.suggest(
+        Tree,
+        examples=[tree()] if supplied_examples else None,
+        strategy=st.sampled_from([Tree(), witness]),
+        proposer=FixedProposals([proposal(["below"]), proposal(["right"])]),
+        max_examples=3,
+    ).wait() as replacement:
+        assert isinstance(replacement.search, HypothesisSearch)
+        assert replacement.examples[-1] is witness
+        assert len(replacement.candidates) == 2
+        assert replacement.next() is not None
+        assert old.applied and not replacement.spec.applied
+        with pytest.raises(SpecUnavailableError, match="No candidates remain"):
+            CnDDataInstanceBuilder().build_instance(tree())
 
 
 def test_done_with_multiple_unreviewed_candidates_does_not_allow_application(

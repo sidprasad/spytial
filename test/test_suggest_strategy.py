@@ -129,7 +129,9 @@ def test_builder_failure_reads_as_a_builder_error_not_an_empty_search(monkeypatc
         def build_instance(self, _obj):
             raise RuntimeError("builder exploded")
 
-    monkeypatch.setattr(_strategy, "CnDDataInstanceBuilder", BrokenBuilder)
+    monkeypatch.setattr(
+        _strategy, "CnDDataInstanceBuilder", lambda **kw: BrokenBuilder()
+    )
 
     with pytest.raises(StrategyError) as excinfo:
         find_witness(AutoTree, build_class_info(AutoTree), "auto")

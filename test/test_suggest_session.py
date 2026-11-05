@@ -147,7 +147,10 @@ def test_judgments_preserve_evidence_without_eliminating_candidates():
     question = session.next()
     count = len(session.candidates)
     record = session.judge(
-        "right", "Keep the entire branch on the left", question_id=question["id"]
+        "right",
+        "Keep the entire branch on the left",
+        question_id=question["id"],
+        layout_states=layout_states(session),
     )
     assert record["datum"] == question["datum"]
     assert record["programs"] == question["programs"]
@@ -163,7 +166,11 @@ def test_revisions_carry_judgments_forward():
     provider = Provider()
     session = suggest(tree(), search=FixedExamples(), proposer=provider)
     session.next()
-    session.judge("neither", "The entire subtree must stay left")
+    session.judge(
+        "neither",
+        "The entire subtree must stay left",
+        layout_states=layout_states(session),
+    )
     original = deepcopy(session.history)
     session.revise("The entire subtree must stay left")
     assert session.history == original
@@ -179,7 +186,7 @@ def test_judging_one_example_does_not_suppress_other_data_for_the_same_programs(
         examples=[tree(), Tree(8, Tree(3, Tree(1)), Tree(10))],
     )
     first = session.next()
-    session.judge("both")
+    session.judge("both", layout_states=layout_states(session))
     second = session.next()
     assert second is not None
     assert set(first["candidate_ids"]) == set(second["candidate_ids"])
@@ -287,7 +294,7 @@ def test_finish_requires_support_and_returns_combination_without_applying():
         session.finish()
     assert session.paused
     session.resume()
-    session.judge("right")
+    session.judge("right", layout_states=layout_states(session))
     result = session.finish()
     expected = result.to_registry()
     result.suggestions.clear()
@@ -369,7 +376,7 @@ def test_hypothesis_finds_more_data_after_a_judgment():
         max_examples=10,
     )
     first = session.next()
-    session.judge("both")
+    session.judge("both", layout_states=layout_states(session))
     second = session.next()
     assert second is not None
     assert first["datum"] != second["datum"]
@@ -392,7 +399,7 @@ def test_alternative_search_and_proposer_still_use_formal_checks():
     )
     first = session.next()
     assert any(s["excludes"] for s in first["sides"])
-    session.judge("both")
+    session.judge("both", layout_states=layout_states(session))
     assert session.next()["datum"] != first["datum"]
     assert not session.can_revise
     with pytest.raises(ValueError, match="does not support"):
@@ -436,7 +443,9 @@ def test_failed_revision_rolls_back_partial_proposals_and_keeps_question():
     assert state() == before
     assert session.history == original_history
     assert session.next() == question
-    session.judge("both", question_id=question["id"])
+    session.judge(
+        "both", question_id=question["id"], layout_states=layout_states(session)
+    )
 
 
 def test_returned_judgment_and_draft_are_snapshots():
@@ -445,7 +454,7 @@ def test_returned_judgment_and_draft_are_snapshots():
     session.draft.suggestions.clear()
     assert session.draft.to_registry() == original
     session.next()
-    record = session.judge("both")
+    record = session.judge("both", layout_states=layout_states(session))
     record["datum"].clear()
     assert session.history[0]["datum"]["atoms"]
 

@@ -58,6 +58,8 @@ def find_witness(
 
     ``hypothesis.find`` is used rather than ``SearchStrategy.example()``: it is
     the public API for bounded search and gives us deterministic shrinking.
+    Witness checks inspect data without collecting diagram annotations. An
+    existing living spec must not constrain generation of its replacement.
     """
     find, settings, strategies, no_such_example = _hypothesis_api()
 
@@ -148,7 +150,9 @@ def _buildable_predicate(cls: type, tracker: _BuildTracker) -> Callable[[Any], b
         if not isinstance(obj, cls):
             return False
         try:
-            datum = CnDDataInstanceBuilder().build_instance(obj)
+            datum = CnDDataInstanceBuilder(collect_annotations=False).build_instance(
+                obj
+            )
         except Exception as exc:  # noqa: BLE001 — Hypothesis should keep searching
             tracker.last_error = exc
             return False
@@ -189,7 +193,9 @@ def _nontrivial_predicate(
         if not buildable(obj):
             return False
         try:
-            datum = CnDDataInstanceBuilder().build_instance(obj)
+            datum = CnDDataInstanceBuilder(collect_annotations=False).build_instance(
+                obj
+            )
         except Exception:  # pragma: no cover — buildable just established this
             return False
         # >=2 node atoms means at least one structural edge exists, so a self-ref
