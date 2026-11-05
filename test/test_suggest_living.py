@@ -3,7 +3,13 @@
 import json
 import pytest
 
-from spytial.suggest import suggest, SuggestSession, FixedExamples, FixedProposals
+from spytial.suggest import (
+    suggest,
+    SuggestSession,
+    FixedExamples,
+    FixedProposals,
+    SpecUnavailableError,
+)
 from test_suggest_session import Tree, tree, proposal, Provider
 
 
@@ -101,10 +107,7 @@ def test_common_approved_layout_supports_combination_of_complementary_rules():
     with session() as s:
         # Generate a confirmation of the conjunction instead of either directed
         # difference, then approve a shared layout.
-        for a in s.candidates:
-            for b in s.candidates:
-                s._asked.add(s._question_key([a.id, b.id], s._datums[0]))
-        s.current = None
+        s.judge("unsure")
         q = s.next()
         assert q["kind"] == "confirmation"
         s.vote(0, "upvote", layout_state=state(120, 150))
@@ -128,6 +131,8 @@ def test_opposing_survivors_are_not_silently_combined_into_a_usable_spec():
     ).wait() as s:
         with pytest.raises(ValueError, match="remaining rules conflict"):
             _ = s.draft
+        with pytest.raises(SpecUnavailableError, match="remaining rules conflict"):
+            s.apply()
         assert s.done()["status"] == "conflict"
 
 
@@ -136,6 +141,9 @@ def test_zero_survivors_can_be_saved_but_not_exported_as_a_spec():
         s.judge("neither", layout_states=[state(-120, 150), state(120, -150)])
         assert not s.survivors
         assert s.next() is None
+        with pytest.raises(SpecUnavailableError, match="No candidates remain"):
+            s.apply()
+        assert not s.spec.applied
         with pytest.raises(ValueError, match="No candidates remain"):
             s.finish()
         assert s.checkpoints[-1]["program"] is None

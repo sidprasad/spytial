@@ -1,6 +1,6 @@
 # Develop diagramming rules with suggest
 
-Start with the [interactive notebook demo](../demos/06-suggest-session.ipynb).
+Start with the [interactive notebook demo](https://github.com/sidprasad/spytial/blob/main/demos/06-suggest-session.ipynb).
 `suggest` uses an LLM, Hypothesis, and Spytial's solver together. You work with
 two diagrams at a time, with an upvote, downvote, or unsure vote for each.
 
@@ -55,23 +55,71 @@ that arrangement against **every candidate** using core's conformance solver.
 | Downvote | Negative vote | No vote |
 | Unsure | No vote | No vote |
 
-The defaults are `elimination_threshold=2`, `min_positive_votes=1`, and
-`max_candidates=4` per proposal batch (including a repair attempt). The LLM is
-asked for 2–4 complete programs. Invalid proposals are discarded; one repair call
-is allowed. Later revisions may add another batch. Eliminated candidates stay in
-history but cannot contribute to the living spec. Reclassifying an old example
-recomputes all scores and can restore a candidate. Repeated classifications of the
-same datum and qualitative arrangement count once; the latest classification wins.
+Each candidate is a complete program. A **survivor** has fewer than
+`elimination_threshold` negative votes. A **supported survivor** also has at least
+`min_positive_votes` positive votes. The defaults are 2 and 1, respectively.
+Individual rules do not receive scores.
 
-The living draft combines positively supported survivors. Before any are
-supported, it combines survivors provisionally. The combination must be feasible
-and agree with the retained judgments before export. Individual support does not
-stand in for support of the combination: a shared approved arrangement must
-satisfy it. When needed, the loop shows confirmation examples even if only one
-candidate remains. Insufficient evidence or a conflicting combination remains an
-explicit draft/conflict, not a successful result. If core cannot check a synthetic
-comparison or combination, the session reports it as unsupported; it does not count
-as evidence against either candidate. Confirmation examples can still be judged.
+The LLM is asked for 2–4 programs. `max_candidates=4` limits each proposal batch,
+including one repair attempt. Invalid and duplicate proposals are discarded.
+Later revisions can add another batch.
+
+Eliminated candidates remain in history but contribute no rules to the living
+spec. Reclassifying an old example recomputes all scores and can restore a
+candidate. Repeated classifications of the same datum and qualitative arrangement
+count once; the latest classification wins. Changing that classification to
+unsure removes its effect on the scores.
+
+## Apply with multiple survivors
+
+The session does not require a single remaining candidate. It selects programs
+using the following rules:
+
+| Remaining candidates | Program constructed | Live application |
+| --- | --- | --- |
+| No survivors | None | Rejected |
+| Survivors exist; none have sufficient positive support | All surviving programs combined, for inspection and confirmation examples | Rejected |
+| One or more supported survivors | Only the supported surviving programs combined | Requires the checks below |
+
+**Combine** means include all rules from the selected programs and remove exact
+duplicates. All included rules apply together. The permitted layouts are the
+intersection of the layouts permitted by those programs. Surviving candidates
+below the positive threshold remain available for comparison, but contribute no
+rules when supported survivors exist.
+
+Before `session.apply()`, `session.spec.snapshot()`, `session.finish()`, or a
+diagram call using the living spec can succeed, the combined program must:
+
+1. Be checkable by core and feasible on every retained datum. A bounded search
+   over generated data must find no additional conflict.
+2. Permit every currently upvoted arrangement.
+3. Exclude every currently downvoted arrangement.
+4. Have at least `min_positive_votes` distinct, currently upvoted examples that
+   satisfy the complete combination.
+
+The negative-vote threshold controls candidate elimination. It does not relax
+these application checks. A rejected arrangement can block application before
+any candidate reaches the elimination threshold. The bounded data check does
+not prove feasibility for every possible datum.
+
+For example, candidate A puts a child **below** its parent. Candidate B puts it
+**left** of its parent. With no votes, the inspection draft requires **below and
+left**, but application is unavailable. An upvote for a below-right arrangement
+supports A and counts against B. With the default thresholds, both survive, but
+only A contributes to the applicable program.
+
+If an above-left arrangement is then upvoted, both candidates have positive
+support. Their combination requires below and left and excludes both approved
+arrangements. Application is therefore rejected. In a separate session, approving
+a below-left confirmation example can support both candidates and their
+combination. It remains subject to all other retained judgments.
+
+When positive support is missing, the loop can show confirmation examples even
+with one survivor. A single survivor or exhausted search does not establish a
+supported result. If core cannot check a synthetic comparison or combination,
+the session reports it as unsupported; this produces no negative evidence.
+
+## What the formal checks establish
 
 The current membership adapter observes the order and alignment of visible node
 centres, ignoring absolute distances, font metrics and canvas translation. Centres
@@ -83,7 +131,7 @@ and cyclic proposals; grouping and changing presentation are not supported.
 `examples=` adds fixed cases **alongside generated data**. Use `strategy=` for a
 Hypothesis strategy that respects your class's invariants; the default derives
 one from its type. `max_examples=20` bounds each search invocation, including
-candidate checks, contrast searches, and checking the combined result at finish.
+candidate checks, contrast searches, and checking the combined result before use.
 Exhaustion means “no further contrast found,” never equivalence or a finished design.
 
 ## Replace components explicitly
@@ -130,7 +178,10 @@ tries particular constraint negations and can miss a possible distinction.
 Drag the diagrams to explore, then rate them. **History** reopens the saved
 arrangements and lets you correct classifications. Historical arrangements are
 held fixed so a correction refers to the same example. **I'm done** saves a
-checkpoint and pauses; **Resume** continues with the same data and evidence.
+checkpoint and pauses. It neither selects a candidate nor applies a spec. It is
+available with zero, one, or several survivors, including unresolved results.
+**Resume** continues with the same data and evidence. If no candidates remain,
+correct earlier classifications or call `revise()` to request new candidates.
 
 Once the session has a supported result, apply its **living spec**:
 
@@ -172,7 +223,7 @@ If later evidence leaves no supported, consistent result, the same spec object
 becomes unavailable and drawing raises `SpecUnavailableError`. It never silently
 keeps eliminated rules or substitutes an unconstrained diagram. Further feedback
 can make it usable again. `snapshot()` and `finish()` provide fixed copies when
-that is wanted; `session.draft` also exposes a provisional copy for inspection.
+that is wanted; `session.draft` exposes a separate editable copy for inspection.
 
 ```python
 session.done()                       # Save this round, even if unresolved.
@@ -187,12 +238,19 @@ restored.apply()                     # Explicitly bind the restored living spec.
 ```
 
 Loading does not change class bindings. Applying the restored spec replaces the
-previous living binding for that class. Closing a session's server leaves its
-last usable spec available for drawing.
+previous living binding for that class. Closing a session stops its server.
+An already supported living spec remains usable for drawing.
 
-`session.draft` returns a copy of the provisional combined spec without applying
-it; it raises if the combination is infeasible. `finish()` checks support and
-conflicts, checkpoints the round, and raises if the result is not ready.
+`session.draft` is available when the combination is checkable and feasible on
+retained data. The copy can lack positive support or conflict with classifications.
+Calling that copy's `apply()` or passing it as `diagram(..., spec=draft)` bypasses
+the session's support and classification checks. It is a fixed `SpecDraft` and
+does not follow later session changes. Use `session.apply()` or `session.spec`
+for the checked, living result.
+
+`finish()` checks support and conflicts, checkpoints the round, and raises if the
+result is not ready. `session.spec.snapshot()` makes the same supported fixed
+copy without pausing.
 `session.checkpoints` preserves earlier results; `session.history` preserves
 judged examples. `session.reclassify(question_id, side, "unsure")` corrects a
 classification programmatically and reopens the session.
@@ -208,6 +266,48 @@ process running while using it. Requires Node and the `suggest-search` extra,
 plus the configured model provider. The local server serves the packaged renderer;
 `SPYTIAL_BROWSER_BUNDLE` can select another build for development. `close()` stops
 the local server; sessions support `with` blocks.
+
+## Test the session contract
+
+Mechanism tests use `FixedProposals` and known data and arrangements. They call
+the released core checker; they require Node but no model credentials or external
+network.
+Expected votes and application results are specified independently of the
+session's implementation.
+
+| Behavior | Tests |
+| --- | --- |
+| All nine pairs of upvote, downvote, and unsure; candidate scores, elimination, and result availability | `test/test_suggest_session.py` |
+| Evidence counted once; correction and replay; zero survivors; shared support; save and load | `test/test_suggest_living.py` |
+| Several survivors; supported rules selected; combination applied or refused; configurable positive threshold; next diagram uses the same updated handle | `test/test_suggest_apply.py` |
+| Generated data distinguishes programs and exposes conflicts missed by supplied examples | `test/test_suggest_session.py`, `test/test_suggest_apply.py` |
+| Arrangement membership and datum-specific contrast witnesses | `test/test_suggest_evidence.py`, `test/test_suggest_compare.py` |
+| Actual dragging, independent controls, history restoration, notebook startup, and rendered output after revision | `test/test_suggest_session_browser.py`, `test/test_suggest_apply.py` |
+
+Run the mechanism checks from the repository root:
+
+```bash
+python -m pip install -e '.[dev]'
+python -m pytest test/test_suggest_session.py test/test_suggest_living.py \
+  test/test_suggest_apply.py test/test_suggest_evidence.py test/test_suggest_compare.py
+```
+
+Hypothesis integration tests use explicit strategies with known distinguishing
+or conflicting cases. Exhausting a search must leave the result unresolved when
+positive evidence is missing. Model proposal quality requires a separate
+evaluation; these tests establish the behavior of the interaction mechanism.
+
+Run the browser checks with the packaged renderer:
+
+```bash
+python -m pip install -e '.[dev,e2e]'
+python -m playwright install chromium
+SPYTIAL_BROWSER_TESTS=1 python -m pytest \
+  test/test_suggest_session_browser.py test/test_suggest_apply.py
+```
+
+CI runs both sets. The browser checks include a real `diagram()` call after a
+revision and verify that an earlier exported diagram remains unchanged.
 
 ## Migration from draft-only suggest
 

@@ -55,8 +55,12 @@ then `suggest(MyClass).show()` starts a critique session: an LLM proposes progra
 Hypothesis searches for useful examples, and you rate each of two contrasting
 diagrams with upvote, downvote, or unsure. The notebook view opens immediately;
 `session.revise("...")` lets you add a rule later while keeping earlier votes.
-Once supported, `spec = session.apply()` connects the living spec to the class:
-later `spytial.diagram(root)` calls use its updated rules as feedback changes it.
+`spec = session.apply()` combines the supported surviving programs and connects
+the living spec to the class. Every included rule applies together. Application
+requires positive evidence for the combination and agreement with all current
+classifications. Later `spytial.diagram(root)` calls use its updated rules as
+feedback changes it; they raise `SpecUnavailableError` if the result becomes
+unavailable. **I'm done** saves and pauses the session without applying it.
 Use `spytial.diagram(root, spec=session.spec)` to use it without a class binding.
 Use `suggest_draft(MyClass)` for a one-shot editable draft. See
 [Suggesting Specs](https://sidprasad.github.io/spytial/suggest/) for setup and the notebook demo.

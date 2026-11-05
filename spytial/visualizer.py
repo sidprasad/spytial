@@ -247,7 +247,7 @@ def diagram(
         as_type: Optional annotated type to treat the object as. Annotations from this type
                  will be applied in addition to any introspected from the object itself.
                  Use AnnotatedType() or typing.Annotated to define types with spytial annotations.
-        spec: An explicit specification (LivingSpec, SpecDraft, or registry dict).
+        spec (Any): An explicit specification (LivingSpec, SpecDraft, or registry dict).
               Replaces collected annotations for this call. A living spec reads
               its latest supported rules each time; existing diagrams stay fixed.
 

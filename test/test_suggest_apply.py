@@ -6,12 +6,14 @@ from pathlib import Path
 
 import pytest
 import yaml
+from hypothesis import strategies as st
 
 import spytial
 from spytial.annotations import LIVE_SPEC_ATTR, collect_decorators
 from spytial.provider_system import CnDDataInstanceBuilder
 from spytial.suggest import (
     FixedExamples,
+    HypothesisSearch,
     LivingSpec,
     SpecUnavailableError,
     SuggestSession,
@@ -20,19 +22,22 @@ from test_suggest_living import session, state
 from test_suggest_session import Tree, tree, proposal
 
 
+@pytest.fixture(autouse=True)
+def restore_class_binding():
+    previous = Tree.__dict__.get(LIVE_SPEC_ATTR)
+    yield
+    if previous is None:
+        if LIVE_SPEC_ATTR in Tree.__dict__:
+            delattr(Tree, LIVE_SPEC_ATTR)
+    else:
+        setattr(Tree, LIVE_SPEC_ATTR, previous)
+
+
 @pytest.fixture
 def live_session():
-    previous = Tree.__dict__.get(LIVE_SPEC_ATTR)
     with session(elimination_threshold=1) as s:
         s.judge("right", layout_states=[state(-120, 150), state(120, -150)])
-        try:
-            yield s
-        finally:
-            if previous is None:
-                if LIVE_SPEC_ATTR in Tree.__dict__:
-                    delattr(Tree, LIVE_SPEC_ATTR)
-            else:
-                setattr(Tree, LIVE_SPEC_ATTR, previous)
+        yield s
 
 
 @pytest.fixture
@@ -55,6 +60,14 @@ def add_above(s):
         "programs": [proposal(["right", "above"])],
     }
     s.revise("Also keep that child above")
+
+
+def orientation_directions(program):
+    return [
+        row["orientation"]["directions"]
+        for row in program["constraints"]
+        if "orientation" in row
+    ]
 
 
 def test_apply_returns_stable_object_and_future_diagrams_follow_revision(
@@ -104,11 +117,111 @@ def test_losing_all_candidates_blocks_drawing_and_correction_restores_it(
     assert emitted_spec(tree()) == spec.to_registry()
 
 
-def test_apply_without_support_leaves_class_unchanged():
+def test_done_with_multiple_unreviewed_candidates_does_not_allow_application(
+    emitted_spec,
+):
     with session() as s:
+        spec = s.spec
+        assert len(s.survivors) == 2
+        inspection = s.draft
+        assert orientation_directions(inspection.to_registry()) == [
+            ["below"],
+            ["right"],
+        ]
+        # A caller can explicitly use an editable copy. That is separate from
+        # live application and supplies no evidence to the session.
+        assert emitted_spec(tree(), spec=inspection) == inspection.to_registry()
+        assert not s.history
+        checkpoint = s.done()
+        assert checkpoint["status"] == "draft"
+        assert len(checkpoint["candidate_ids"]) == 2
+        assert s.paused and not spec.applied
         with pytest.raises(SpecUnavailableError, match="positive evidence"):
             s.apply()
-        assert not s.spec.applied
+        assert not spec.applied
+        s.resume()
+        assert s.spec is spec
+        assert not s.paused
+        assert spec.status == "draft"
+
+
+@pytest.mark.parametrize("minimum", [1, 2])
+def test_apply_combines_multiple_survivors_after_shared_positive_evidence(
+    minimum, emitted_spec
+):
+    with session(min_positive_votes=minimum) as s:
+        # Leave the two contrasts unclassified; the next pair asks for
+        # confirmation of below AND right on the same datum.
+        s.judge("unsure")
+        assert s.next()["kind"] == "confirmation"
+        s.vote(0, "upvote", layout_state=state(120, 150))
+        if minimum == 2:
+            with pytest.raises(SpecUnavailableError, match="positive evidence"):
+                s.apply()
+            # Moving nodes without changing their qualitative order cannot
+            # supply the second distinct example required by this threshold.
+            s.vote(0, "upvote", layout_state=state(140, 170))
+            assert s.spec.result["positive_votes"] == 1
+            with pytest.raises(SpecUnavailableError, match="positive evidence"):
+                s.apply()
+            moved = state(120, 150)
+            moved["positions"][2]["y"] = -200
+            s.vote(0, "upvote", layout_state=moved)
+
+        assert len(s.survivors) == 2
+        assert all(c.positive_votes == minimum for c in s.survivors)
+        checkpoint = s.done()
+        assert checkpoint["status"] == "supported"
+        assert checkpoint["positive_votes"] == minimum
+        assert not s.spec.applied  # I'm done does not apply even a ready spec.
+        spec = s.apply()
+        program = emitted_spec(tree())
+        assert spec.result["candidate_ids"] == [c.id for c in s.survivors]
+        assert orientation_directions(program) == [["below"], ["right"]]
+        assert emitted_spec(tree(), spec=spec) == program
+        assert s.finish().to_registry() == program
+
+
+def test_live_spec_excludes_unsupported_survivor_then_blocks_conflicting_combination(
+    emitted_spec,
+):
+    with session() as s:
+        question = s.next()["id"]
+        s.vote(0, "upvote", layout_state=state(-120, 150))
+        spec = s.apply()
+        assert len(s.survivors) == 2
+        assert [(c.positive_votes, c.negative_votes) for c in s.survivors] == [
+            (1, 0),
+            (0, 1),
+        ]
+        assert spec.result["candidate_ids"] == [s.candidates[0].id]
+        before = emitted_spec(tree())
+        assert before == s.candidates[0].program
+
+        # Both programs now have support, but their conjunction excludes
+        # both approved layouts. Neither candidate has been eliminated.
+        s.vote(1, "upvote", layout_state=state(120, -150))
+        assert len(s.survivors) == 2
+        assert all(c.positive_votes == 1 for c in s.survivors)
+        assert spec.status == "conflict"
+        assert len(spec.result["conflicts"]) == 2
+        assert orientation_directions(s.draft.to_registry()) == [
+            ["below"],
+            ["right"],
+        ]  # Inspection only.
+        with pytest.raises(SpecUnavailableError, match="judgments"):
+            s.apply()
+        with pytest.raises(SpecUnavailableError, match="judgments"):
+            spec.snapshot()
+        with pytest.raises(SpecUnavailableError, match="judgments"):
+            emitted_spec(tree())
+        with pytest.raises(SpecUnavailableError, match="judgments"):
+            emitted_spec(tree(), spec=spec)
+
+        s.reclassify(question, 1, "unsure")
+        assert s.spec is spec and spec.applied
+        assert spec.status == "supported"
+        assert emitted_spec(tree()) == before
 
 
 def test_explicit_spec_updates_without_class_binding(live_session, emitted_spec):
@@ -216,15 +329,14 @@ def test_generated_conflicts_prevent_application(live_session):
     cyclic = tree()
     cyclic.left = cyclic
 
-    class Search:
-        def find(self, cls, predicate, *, max_examples):
-            assert predicate(cyclic)
-            return cyclic
-
-    s.search = Search()
+    # Exercise the real Hypothesis backend: the approved tree is satisfiable,
+    # but a self-loop cannot be oriented to the right of itself.
+    s.search = HypothesisSearch(st.just(cyclic))
     with pytest.raises(SpecUnavailableError, match="Generated data"):
         s.apply()
     assert not s.spec.applied
+    assert s.spec.status == "conflict"
+    assert any(example is cyclic for example in s.examples)
 
 
 def test_load_is_explicit_and_new_binding_is_not_removed_by_old_handle(

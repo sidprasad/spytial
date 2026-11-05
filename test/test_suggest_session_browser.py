@@ -17,8 +17,8 @@ pytestmark = pytest.mark.skipif(
 @pytest.fixture(autouse=True)
 def local_renderer(monkeypatch):
     bundle = (
-        Path(__file__).resolve().parents[2]
-        / "spytial-py/spytial/_vendor/browser/spytial-core-complete.global.js"
+        Path(__file__).resolve().parents[1]
+        / "spytial/_vendor/browser/spytial-core-complete.global.js"
     )
     monkeypatch.setenv("SPYTIAL_BROWSER_BUNDLE", str(bundle))
 

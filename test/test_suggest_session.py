@@ -19,6 +19,7 @@ from spytial.suggest import (
     FixedExamples,
     FixedProposals,
     HypothesisSearch,
+    SpecUnavailableError,
 )
 from spytial.suggest._session import ProgramCandidate
 
@@ -481,9 +482,24 @@ def test_missing_hypothesis_does_not_disable_search(monkeypatch):
     assert suggest(tree(), proposer=Provider(), search=FixedExamples()).next()
 
 
-@pytest.mark.parametrize("first", ["upvote", "downvote", "unsure"])
-@pytest.mark.parametrize("second", ["upvote", "downvote", "unsure"])
-def test_all_independent_vote_combinations(first, second):
+@pytest.mark.parametrize(
+    "first, second, scores, status",
+    [
+        ("upvote", "upvote", [(2, 0), (1, 1)], "conflict"),
+        ("upvote", "downvote", [(1, 1), (0, 2)], "conflict"),
+        ("upvote", "unsure", [(1, 0), (0, 1)], "supported"),
+        ("downvote", "upvote", [(1, 1), (1, 0)], "supported"),
+        ("downvote", "downvote", [(0, 2), (0, 1)], "conflict"),
+        ("downvote", "unsure", [(0, 1), (0, 0)], "draft"),
+        ("unsure", "upvote", [(1, 0), (1, 0)], "supported"),
+        ("unsure", "downvote", [(0, 1), (0, 1)], "conflict"),
+        ("unsure", "unsure", [(0, 0), (0, 0)], "draft"),
+    ],
+)
+def test_all_independent_vote_combinations(first, second, scores, status):
+    # A requires below; B requires below AND left. The first arrangement
+    # satisfies only A; the second satisfies both. Expected results are fixed
+    # independently of the session's membership and scoring implementation.
     with suggest(tree(), proposer=Provider(), search=FixedExamples()) as session:
         question = session.next()
         candidates = [c.id for c in session.candidates]
@@ -497,6 +513,20 @@ def test_all_independent_vote_combinations(first, second):
         assert result["complete"]
         assert len(session.history) == 1
         assert [c.id for c in session.candidates] == candidates
+        assert [
+            (c.positive_votes, c.negative_votes) for c in session.candidates
+        ] == scores
+        assert [c.eliminated for c in session.candidates] == [
+            negative >= 2 for _, negative in scores
+        ]
+        assert session.spec.status == status
+        if status == "supported":
+            assert (
+                session.spec.snapshot().to_registry() == session.spec.result["program"]
+            )
+        else:
+            with pytest.raises(SpecUnavailableError):
+                session.spec.snapshot()
         with pytest.raises(ValueError, match="no longer current"):
             session.vote(0, first, question_id=question["id"])
 

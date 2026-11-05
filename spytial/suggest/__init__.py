@@ -96,12 +96,24 @@ def suggest(
     session in a local notebook. Startup runs in the background so the view
     opens immediately. ``wait()`` waits explicitly before inspecting attributes;
     ``next()``, ``vote()``, ``revise()``, and ``finish()`` wait automatically.
-    Each image has independent upvote/downvote/unsure judgments. PICK uses
+    Each image has independent upvote/downvote/unsure judgments. Every judgment
+    scores all candidates. Upvotes support programs that permit the arrangement
+    and count against programs that exclude it. Downvotes count against programs
+    that permit it. Unsure supplies no evidence. Defaults are
     ``elimination_threshold=2`` negative votes and ``min_positive_votes=1``
     positive vote. ``max_candidates=4`` caps each proposal batch, including repair.
     Definite programmatic votes require the displayed ``layout_state``.
+
+    With supported survivors, the living program includes all their rules;
+    survivors below the positive threshold contribute no rules. Without supported
+    survivors, their conjunction is available only as an inspection draft when
+    feasible. No survivors means no program. Application does not require a
+    single survivor. It requires a feasible combination that permits all current
+    upvotes, excludes all current downvotes, and has ``min_positive_votes`` shared
+    positive examples. Duplicate datum/arrangement classifications count once.
+
     ``revise()`` replays history; ``finish()`` exports the supported, consistent
-    conjunction without applying it. ``done()`` checkpoints any result;
+    conjunction without applying it. ``done()`` checkpoints and pauses any result;
     ``resume()`` continues. ``save()`` / ``SuggestSession.load()`` persist the loop.
     ``session.spec`` is a stable living spec. ``session.apply()`` connects it
     to the target class so later diagrams use the current supported rules.

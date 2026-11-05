@@ -376,6 +376,12 @@ class SuggestSession:
 
     @property
     def draft(self):
+        """Return an editable inspection copy, without requiring positive support.
+
+        The combination must be checkable and feasible on retained data. It can
+        still conflict with classifications. Applying the returned SpecDraft
+        bypasses living-spec checks and does not track subsequent feedback.
+        """
         self.wait()
         with self._operation_lock:
             result, draft = self._living()
