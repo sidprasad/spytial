@@ -198,7 +198,7 @@ def test_new_proposals_replay_existing_layout_evidence():
         s.revise("Consider putting children above")
         assert s.candidates[-1].eliminated
         assert s.candidates[-1].negative_votes == 1
-        assert s.candidates[-1].id not in s._living()[0]["candidate_ids"]
+        assert s.candidates[-1].id not in s.spec.result["candidate_ids"]
 
 
 def test_checkpoint_export_keeps_evidence_and_thresholds(tmp_path):

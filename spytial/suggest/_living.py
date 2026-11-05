@@ -24,7 +24,7 @@ class LivingSpec:
         """Current status, contributing candidates, support, and conflicts."""
         self._session.wait()
         with self._session._operation_lock:
-            return self._session._checked_living()[0]
+            return self._session._resolve(generated=True)[0]
 
     @property
     def status(self):
@@ -34,7 +34,7 @@ class LivingSpec:
         """Return a supported, checked draft without pausing the session."""
         self._session.wait()
         with self._session._operation_lock:
-            result, draft = self._session._checked_living()
+            result, draft = self._session._resolve(generated=True)
             if result["status"] != "supported":
                 raise SpecUnavailableError(result["message"])
             return draft

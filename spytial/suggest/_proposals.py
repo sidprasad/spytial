@@ -1,13 +1,55 @@
 """Proposal format, prompt, and authoring checks shared by all proposers."""
 
 from copy import deepcopy
+from dataclasses import dataclass
 import json
 import re
 
 from ._ask import _authoring_gate
 from ._eval import evaluate_selectors
-from ._model import Suggestion
+from ._model import SpecDraft, Suggestion
 from .introspect import build_class_info
+
+
+@dataclass
+class ProgramCandidate:
+    id: str
+    summary: str
+    draft: SpecDraft
+    positive_votes: int = 0
+    negative_votes: int = 0
+    eliminated: bool = False
+
+    @property
+    def program(self):
+        return self.draft.to_registry()
+
+    def to_record(self):
+        return {
+            "id": self.id,
+            "summary": self.summary,
+            "program": self.program,
+            "positive_votes": self.positive_votes,
+            "negative_votes": self.negative_votes,
+            "eliminated": self.eliminated,
+        }
+
+    @classmethod
+    def from_record(cls, target, record):
+        # Saved scores are informational; the session replays layout evidence.
+        rows = []
+        for entry in record["program"]["constraints"] + record["program"]["directives"]:
+            kind, kwargs = next(iter(entry.items()))
+            rows.append(
+                Suggestion(
+                    kind,
+                    {"name": kwargs} if kind == "flag" else deepcopy(kwargs),
+                    "high",
+                    enabled_by_default=True,
+                    source="proposal",
+                )
+            )
+        return cls(record["id"], record["summary"], SpecDraft(target, rows))
 
 
 def _operation_schema(kind, parameter, values):

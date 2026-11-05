@@ -211,7 +211,7 @@ def test_cyclic_rendered_arrangements_can_be_classified(direction):
         ready(page)
         # Core cannot check the conjunction of the two cyclic directions.
         # This must not break exploration or count as rejection evidence.
-        assert session._living()[0]["status"] == "unsupported"
+        assert session.spec.result["status"] == "unsupported"
         assert all(c.negative_votes == 0 for c in session.candidates)
         assert session.current["kind"] == "confirmation"
         for side in (0, 1):

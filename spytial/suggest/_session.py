@@ -2,12 +2,16 @@
 
 Judgments belong to displayed scenarios. PICK scores all candidates against
 those scenarios; bounded search never establishes equivalence.
+
+The session coordinates proposals, example search, and the notebook lifecycle.
+JudgmentHistory owns saved evidence; _policy scores candidates and resolves their
+combination; ProgramChecks caches the calls into core. These components do not
+hold references back to the session.
 """
 
 from __future__ import annotations
 
 from copy import deepcopy
-from dataclasses import dataclass
 import itertools
 import json
 import uuid
@@ -16,13 +20,20 @@ from functools import wraps
 
 from ..provider_system import CnDDataInstanceBuilder
 from ..core_assets import SPYTIAL_CORE_VERSION
-from ._compare import compare
-from ._evidence import observe, membership
+from ._checks import ProgramChecks
+from ._evidence import observe
+from ._history import JudgmentHistory, validate_vote
+from ._policy import replay_candidates, resolve_spec
 from ._enrich_from_examples import _vocabulary
 from ._model import SpecDraft
 from ._living import LivingSpec
 from ._search import HypothesisSearch
-from ._proposals import PROPOSAL_SCHEMA, proposal_prompt, validate_operations
+from ._proposals import (
+    ProgramCandidate,
+    PROPOSAL_SCHEMA,
+    proposal_prompt,
+    validate_operations,
+)
 from .providers import Codex, as_provider
 
 
@@ -38,20 +49,6 @@ def _ready_method(method):
             return method(self, *args, **kwargs)
 
     return call
-
-
-@dataclass
-class ProgramCandidate:
-    id: str
-    summary: str
-    draft: SpecDraft
-    positive_votes: int = 0
-    negative_votes: int = 0
-    eliminated: bool = False
-
-    @property
-    def program(self):
-        return self.draft.to_registry()
 
 
 _POSITIONAL = {"orientation", "align", "cyclic", "group"}
@@ -85,18 +82,13 @@ class SuggestSession:
     ):
         from ._draft import _coerce_examples
 
-        if (
-            not isinstance(max_examples, int)
-            or isinstance(max_examples, bool)
-            or not 1 <= max_examples <= 200
-        ):
-            raise ValueError("max_examples must be between 1 and 200")
         if rules is not None and (
             not isinstance(rules, (list, tuple))
             or any(not isinstance(r, str) or not r.strip() for r in rules)
         ):
             raise ValueError("rules must be a list of non-empty sentences")
         for name, value, maximum in (
+            ("max_examples", max_examples, 200),
             ("elimination_threshold", elimination_threshold, 100),
             ("min_positive_votes", min_positive_votes, 100),
             ("max_candidates", max_candidates, 4),
@@ -137,18 +129,16 @@ class SuggestSession:
         if sample is not None:
             self.examples.insert(0, sample)
         self.notes = []
-        self.history = []
+        self._history = JudgmentHistory()
         self.checkpoints = []
         self.paused = False
-        self._revision = 0
-        self._membership_cache = {}
+        self._checks = ProgramChecks()
         self._living_cache = None
-        self._checked_living_cache = None
+        self._living_checked = False
         self._spec = LivingSpec(self)
         self.candidates = []
         self.current = None
         self._asked = set()
-        self._cache = {}
         self._server = None
         self.active_id = None
         self._registry = registry
@@ -272,13 +262,29 @@ class SuggestSession:
             infer_variable_names=False, collect_annotations=False
         ).build_instance(obj)
 
-    def _compare(self, datum, a, b):
-        key = json.dumps([datum, a, b], sort_keys=True)
-        if key not in self._cache:
-            if len(self._cache) >= 512:
-                self._cache.pop(next(iter(self._cache)))
-            self._cache[key] = compare(datum, a, b)
-        return self._cache[key]
+    def _find_generated(self, predicate):
+        """Search over Python values; retain a witness and invalidate its result."""
+        obj = self.search.find(
+            self.cls,
+            lambda obj: predicate(self._datum(obj)),
+            max_examples=self.max_examples,
+        )
+        if obj is None:
+            return None
+        datum = self._datum(obj)
+        if datum not in self._datums:
+            self.examples.append(obj)
+            self._datums.append(datum)
+            self._invalidate_result()
+        return datum
+
+    def _find_datum(self, candidate_ids, predicate):
+        def unasked(datum):
+            key = self._question_key(candidate_ids, datum)
+            return key not in self._asked and predicate(datum)
+
+        datum = next((d for d in self._datums if unasked(d)), None)
+        return datum if datum is not None else self._find_generated(unasked)
 
     def _add(self, summary, geometry):
         self._phase = "Checking examples…"
@@ -286,21 +292,12 @@ class SuggestSession:
         program = draft.to_registry()
         if any(c.program == program for c in self.candidates):
             return
-
-        def broken(obj):
-            datum = self._datum(obj)
-            return self._compare(datum, program, program)["status"] != "no-difference"
-
         for datum in self._datums:
-            check = self._compare(datum, program, program)
+            check = self._checks.compare(datum, program, program)
             if check["status"] != "no-difference":
                 raise ValueError(check.get("message", "Candidate cannot be checked."))
-        witness = self.search.find(self.cls, broken, max_examples=self.max_examples)
-        if witness is not None:
-            datum = self._datum(witness)
-            if datum not in self._datums:
-                self.examples.append(witness)
-                self._datums.append(datum)
+        conflict = self._find_generated(lambda d: not self._checks.feasible(d, program))
+        if conflict is not None:
             raise ValueError(
                 "Generated data exposed conflicting or unsupported constraints."
             )
@@ -384,141 +381,62 @@ class SuggestSession:
         """
         self.wait()
         with self._operation_lock:
-            result, draft = self._living()
+            result, draft = self._resolve()
             if draft is None:
                 raise ValueError(result["message"])
-            return deepcopy(draft)
+            return draft
+
+    @property
+    def history(self):
+        """Saved examples, arrangements, and classifications."""
+        return self._history.records
 
     @property
     def survivors(self):
         return [c for c in self.candidates if not c.eliminated]
 
-    def _memberships(self, datum, programs, observation):
-        answers, missing = {}, {}
-        for program in programs:
-            key = json.dumps([datum, program, observation["signature"]], sort_keys=True)
-            if key in self._membership_cache:
-                answers[key] = self._membership_cache[key]
-            else:
-                missing[key] = program
-        if missing:
-            values = membership(datum, list(missing.values()), observation)
-            for key, answer in zip(missing, values):
-                answers[key] = answer
-                if len(self._membership_cache) >= 1024:
-                    self._membership_cache.pop(next(iter(self._membership_cache)))
-                self._membership_cache[key] = answer
-        return [
-            answers[json.dumps([datum, p, observation["signature"]], sort_keys=True)]
-            for p in programs
-        ]
-
-    def _judgments(self):
-        # Repeating a picture, clicking again, or moving it without changing its
-        # qualitative arrangement must not manufacture independent evidence.
-        latest = {}
-        for record in self.history:
-            for side, value in enumerate(record["votes"]):
-                observation = record.get("observations", [None, None])[side]
-                if observation is None or value is None:
-                    continue
-                key = json.dumps(
-                    [record["datum"], observation["signature"]], sort_keys=True
-                )
-                entry = (record.get("vote_revisions", [0, 0])[side], record, side)
-                if key not in latest or entry[0] > latest[key][0]:
-                    latest[key] = entry
-        return [
-            (record, side)
-            for _, record, side in latest.values()
-            if record["votes"][side] != "unsure"
-        ]
-
     def _replay(self):
-        scores = {c.id: [0, 0] for c in self.candidates}
-        for record, side in self._judgments():
-            answers = self._memberships(
-                record["datum"],
-                [c.program for c in self.candidates],
-                record["observations"][side],
-            )
-            record.setdefault("memberships", [{}, {}])[side] = dict(
-                zip((c.id for c in self.candidates), answers)
-            )
-            for candidate, accepts in zip(self.candidates, answers):
-                if record["votes"][side] == "upvote":
-                    scores[candidate.id][0 if accepts else 1] += 1
-                elif accepts:
-                    scores[candidate.id][1] += 1
-        for candidate in self.candidates:
-            candidate.positive_votes, candidate.negative_votes = scores[candidate.id]
-            candidate.eliminated = (
-                candidate.negative_votes >= self.elimination_threshold
-            )
+        replay_candidates(
+            self.candidates,
+            self._history.effective(),
+            self._checks,
+            self.elimination_threshold,
+        )
         if not any(c.id == self.active_id for c in self.survivors):
             self.active_id = self.survivors[0].id if self.survivors else None
-        self._living_cache = None
+        self._invalidate_result()
 
-    def _living(self):
-        if self._living_cache is not None:
-            return deepcopy(self._living_cache)
-        supported = [
-            c for c in self.survivors if c.positive_votes >= self.min_positive_votes
-        ]
-        pool = supported or self.survivors
-        result = {
-            "status": "draft",
-            "candidate_ids": [c.id for c in pool],
-            "positive_votes": 0,
-            "conflicts": [],
-            "program": None,
-            "message": "The spec needs positive evidence before use.",
-        }
-        if not pool:
-            result.update(status="empty", message="No candidates remain.")
-            self._living_cache = (result, None)
-            return deepcopy(self._living_cache)
-        unique = {}
-        for candidate in pool:
-            for suggestion in candidate.draft.enabled():
-                unique[suggestion.dedup_key()] = deepcopy(suggestion)
-        draft = SpecDraft(self.cls, list(unique.values()))
-        program = draft.to_registry()
-        result["program"] = program
-        for datum in self._datums:
-            try:
-                verdict = self._compare(datum, program, program)
-            except ValueError:
-                result.update(
-                    status="unsupported",
-                    message="Core cannot check this combination of rules.",
-                )
-                self._living_cache = (result, None)
-                return deepcopy(self._living_cache)
-            if verdict["status"] != "no-difference":
-                result.update(
-                    status="conflict",
-                    message="The remaining rules conflict on an example.",
-                )
-                self._living_cache = (result, None)
-                return deepcopy(self._living_cache)
-        for record, side in self._judgments():
-            accepts = self._memberships(
-                record["datum"], [program], record["observations"][side]
-            )[0]
-            positive = record["votes"][side] == "upvote"
-            if positive and accepts:
-                result["positive_votes"] += 1
-            if accepts != positive:
-                result["conflicts"].append({"question_id": record["id"], "side": side})
-        if result["conflicts"]:
-            result.update(
-                status="conflict",
-                message="Some earlier judgments still conflict with the combined spec.",
+    def _invalidate_result(self):
+        self._living_cache = None
+        self._living_checked = False
+
+    def _resolve(self, *, generated=False):
+        """One cached result, invalidated whenever evidence or retained data changes."""
+        if self._living_cache is None:
+            self._living_cache = resolve_spec(
+                self.cls,
+                self.survivors,
+                self._history.effective(),
+                self._datums,
+                self._checks,
+                self.min_positive_votes,
             )
-        elif supported and result["positive_votes"] >= self.min_positive_votes:
-            result.update(status="supported", message="Your spec is ready to use.")
-        self._living_cache = (result, draft)
+            self._living_checked = False
+        if generated and not self._living_checked:
+            result, draft = self._living_cache
+            if draft is not None and result["status"] in {"supported", "draft"}:
+                program = draft.to_registry()
+                conflict = self._find_generated(
+                    lambda d: not self._checks.feasible(d, program)
+                )
+                if conflict is not None:
+                    result.update(
+                        status="conflict",
+                        message="Generated data exposed conflicting rules.",
+                    )
+                    draft = None
+            self._living_cache = (result, draft)
+            self._living_checked = True
         return deepcopy(self._living_cache)
 
     @staticmethod
@@ -535,54 +453,43 @@ class SuggestSession:
         self._prepared = True
         if self.paused:
             return None
-        if self.current is not None:
-            return deepcopy(self.current)
-        ordered = sorted(self.survivors, key=lambda c: c.id != self.active_id)
-        pairs = list(itertools.combinations(ordered, 2))
-        # Give other program choices a turn before asking about more data for
-        # an already-discussed pair. Judgments never settle that pair globally.
-        pairs.sort(
+        if self.current is None:
+            ordered = sorted(self.survivors, key=lambda c: c.id != self.active_id)
+            self.current = self._contrast_question(ordered)
+            if self.current is None:
+                self.current = self._confirmation_question(ordered)
+        return deepcopy(self.current)
+
+    def _contrast_question(self, candidates):
+        # Prefer less-discussed pairs; one datum never settles a pair globally.
+        pairs = sorted(
+            itertools.combinations(candidates, 2),
             key=lambda pair: sum(
                 set(record["candidate_ids"]) == {pair[0].id, pair[1].id}
                 for record in self.history
-            )
+            ),
         )
         for a, b in pairs:
-
-            def probe_datum(datum):
-                if self._question_key((a.id, b.id), datum) in self._asked:
-                    return False
-                result = self._compare(datum, a.program, b.program)
-                return result["status"] == "different"
-
-            datum = next((d for d in self._datums if probe_datum(d)), None)
-            if datum is None:
-                obj = self.search.find(
-                    self.cls,
-                    lambda obj: probe_datum(self._datum(obj)),
-                    max_examples=self.max_examples,
+            ids = [a.id, b.id]
+            datum = self._find_datum(
+                ids,
+                lambda d: self._checks.compare(d, a.program, b.program)["status"]
+                == "different",
+            )
+            if datum is not None:
+                return self._question(
+                    ids,
+                    datum,
+                    [a.program, b.program],
+                    self._checks.compare(datum, a.program, b.program)["sides"],
+                    [a.summary, b.summary],
                 )
-                if obj is not None:
-                    datum = self._datum(obj)
-                    self.examples.append(obj)
-                    self._datums.append(datum)
-                    self._living_cache = None
-            if datum is None:
-                continue
-            result = self._compare(datum, a.program, b.program)
-            self.current = {
-                "id": uuid.uuid4().hex,
-                "candidate_ids": [a.id, b.id],
-                "datum": datum,
-                "programs": [a.program, b.program],
-                "sides": result["sides"],
-                "summaries": [a.summary, b.summary],
-                "votes": [None, None],
-            }
-            return deepcopy(self.current)
-        # PICK's confirmation fallback: one survivor is not a resolution without
-        # positive evidence. Also seek support for a newly combined program.
-        living, draft = self._living()
+        return None
+
+    def _confirmation_question(self, candidates):
+        # One survivor is insufficient without support. A new conjunction
+        # likewise needs a shared approved arrangement.
+        living, draft = self._resolve()
         confirmations = []
         if draft is not None and living["status"] != "supported":
             confirmations.append(
@@ -590,48 +497,40 @@ class SuggestSession:
             )
         confirmations.extend(
             (c.id, c.program)
-            for c in ordered
+            for c in candidates
             if c.positive_votes < self.min_positive_votes
         )
+        base = SpecDraft(self.cls, deepcopy(self._presentation)).to_registry()
         for identifier, program in confirmations:
-            base = SpecDraft(self.cls, deepcopy(self._presentation)).to_registry()
             ids = [identifier, "confirmation"]
-
-            def confirmation(datum):
-                if self._question_key(ids, datum) in self._asked:
-                    return False
-                return (
-                    self._compare(datum, program, program)["status"] == "no-difference"
+            datum = self._find_datum(ids, lambda d: self._checks.feasible(d, program))
+            if datum is not None:
+                contrast = self._checks.compare(datum, program, base)
+                sides = contrast.get(
+                    "sides", [{"program": program}, {"program": program}]
                 )
-
-            datum = next((d for d in self._datums if confirmation(d)), None)
-            if datum is None:
-                obj = self.search.find(
-                    self.cls,
-                    lambda obj: confirmation(self._datum(obj)),
-                    max_examples=self.max_examples,
+                return self._question(
+                    ids,
+                    datum,
+                    [program, base],
+                    sides,
+                    ["Current proposal", "Alternative arrangement"],
+                    kind="confirmation",
                 )
-                if obj is not None:
-                    datum = self._datum(obj)
-                    self.examples.append(obj)
-                    self._datums.append(datum)
-                    self._living_cache = None
-            if datum is None:
-                continue
-            contrast = self._compare(datum, program, base)
-            sides = contrast.get("sides", [{"program": program}, {"program": program}])
-            self.current = {
-                "id": uuid.uuid4().hex,
-                "candidate_ids": ids,
-                "datum": datum,
-                "programs": [program, base],
-                "sides": sides,
-                "summaries": ["Current proposal", "Alternative arrangement"],
-                "votes": [None, None],
-                "kind": "confirmation",
-            }
-            return deepcopy(self.current)
         return None
+
+    @staticmethod
+    def _question(ids, datum, programs, sides, summaries, **extra):
+        return {
+            "id": uuid.uuid4().hex,
+            "candidate_ids": ids,
+            "datum": datum,
+            "programs": programs,
+            "sides": sides,
+            "summaries": summaries,
+            "votes": [None, None],
+            **extra,
+        }
 
     @_ready_method
     def vote(self, side, value, *, question_id=None, layout_state=None):
@@ -640,10 +539,7 @@ class SuggestSession:
         A partial pair survives reloads and programmatic revision. Only after
         both images are rated does the session advance to another comparison.
         """
-        if not isinstance(side, int) or isinstance(side, bool) or side not in (0, 1):
-            raise ValueError("side must be 0 or 1")
-        if not isinstance(value, str) or value not in {"upvote", "downvote", "unsure"}:
-            raise ValueError("Choose upvote, downvote, or unsure.")
+        validate_vote(side, value)
         if self.current is None or (
             question_id is not None and question_id != self.current["id"]
         ):
@@ -652,17 +548,14 @@ class SuggestSession:
             )
         if self.paused:
             raise ValueError("Resume the session before rating a new example.")
-        existing = next(
-            (r for r in self.history if r["id"] == self.current["id"]), None
-        )
+        existing = self._history.get(self.current["id"])
         if layout_state is None and value == "unsure" and existing is not None:
             layout_state = existing.get("layout_states", [None, None])[side]
         observation = None
         if layout_state is not None or value != "unsure":
             observation = observe(self.current["datum"], layout_state)
-            # A vote must describe a valid displayed arrangement, not a failed
-            # render, incomplete position list, or a different datum.
-            if not self._memberships(
+            # Check the actual displayed arrangement before recording any vote.
+            if not self._checks.memberships(
                 self.current["datum"],
                 [self.current["sides"][side]["program"]],
                 observation,
@@ -670,50 +563,18 @@ class SuggestSession:
                 raise ValueError(
                     "The displayed arrangement violates its rendering program."
                 )
-            self._memberships(
+            self._checks.memberships(
                 self.current["datum"], [c.program for c in self.candidates], observation
             )
-        record = next((r for r in self.history if r["id"] == self.current["id"]), None)
-        if record is None:
-            record = deepcopy(self.current)
-            self.history.append(record)
-        previous = record.get("observations", [None, None])[side]
-        if (
-            previous is not None
-            and observation is not None
-            and previous["signature"] != observation["signature"]
-        ):
-            # A newly explored arrangement is new evidence. Preserve the old
-            # image and vote as a separate, editable history entry.
-            archived = deepcopy(record)
-            archived["id"] = uuid.uuid4().hex
-            archived["votes"][1 - side] = None
-            archived["complete"] = False
-            archived["explored_from"] = record["id"]
-            self.history.insert(self.history.index(record), archived)
-        elif record["votes"][side] is not None and record["votes"][side] != value:
-            record.setdefault("changes", []).append(
-                {
-                    "side": side,
-                    "from": record["votes"][side],
-                    "to": value,
-                    "revision": self._revision + 1,
-                }
-            )
-        record["votes"][side] = value
+        record = self._history.record(
+            self.current, side, value, observation, layout_state
+        )
         self.current["votes"][side] = value
-        self._revision += 1
-        record.setdefault("vote_revisions", [0, 0])[side] = self._revision
-        record.setdefault("observations", [None, None])[side] = observation
         if layout_state is not None:
-            record.setdefault("layout_states", [None, None])[side] = deepcopy(
-                layout_state
-            )
             self.current.setdefault("layout_states", [None, None])[side] = deepcopy(
                 layout_state
             )
         self._replay()
-        record["complete"] = all(v is not None for v in record["votes"])
         if record["complete"]:
             self._asked.add(
                 self._question_key(record["candidate_ids"], record["datum"])
@@ -725,29 +586,7 @@ class SuggestSession:
     @_ready_method
     def reclassify(self, question_id, side, value):
         """Correct a saved judgment, replaying evidence and reviving candidates."""
-        if type(side) is not int or side not in (0, 1):
-            raise ValueError("side must be 0 or 1")
-        if not isinstance(value, str) or value not in {"upvote", "downvote", "unsure"}:
-            raise ValueError("Choose upvote, downvote, or unsure.")
-        record = next((r for r in self.history if r["id"] == question_id), None)
-        if record is None:
-            raise ValueError("Unknown history entry.")
-        if value != "unsure" and record.get("observations", [None, None])[side] is None:
-            raise ValueError(
-                "This example has no saved layout; judge it in the diagram view first."
-            )
-        record.setdefault("changes", []).append(
-            {
-                "side": side,
-                "from": record["votes"][side],
-                "to": value,
-                "revision": self._revision + 1,
-            }
-        )
-        record["votes"][side] = value
-        self._revision += 1
-        record.setdefault("vote_revisions", [0, 0])[side] = self._revision
-        record["complete"] = all(v is not None for v in record["votes"])
+        record = self._history.reclassify(question_id, side, value)
         self._replay()
         self.current = None
         self._prepared = False
@@ -848,56 +687,16 @@ class SuggestSession:
         """End this round, retaining a resumable checkpoint even if unresolved."""
         if self.paused:
             return deepcopy(self.checkpoints[-1])
-        result, _ = self._checked_living()
+        result, _ = self._resolve(generated=True)
         result["message"] = "Saved. " + result["message"]
         result.update(
-            revision=self._revision,
+            revision=self._history.revision,
             history=deepcopy(self.history),
-            candidates=[
-                {
-                    "id": c.id,
-                    "summary": c.summary,
-                    "program": c.program,
-                    "positive_votes": c.positive_votes,
-                    "negative_votes": c.negative_votes,
-                    "eliminated": c.eliminated,
-                }
-                for c in self.candidates
-            ],
+            candidates=[c.to_record() for c in self.candidates],
         )
         self.checkpoints.append(deepcopy(result))
         self.paused = True
         return deepcopy(result)
-
-    def _checked_living(self):
-        """Check generated data once per living result, without ending the round."""
-        result, draft = self._living()
-        if (
-            self._checked_living_cache is not None
-            and self._checked_living_cache[0] is self._living_cache
-        ):
-            return deepcopy(self._checked_living_cache[1:])
-        if draft is not None and result["status"] in {"supported", "draft"}:
-            program = draft.to_registry()
-            witness = self.search.find(
-                self.cls,
-                lambda obj: self._compare(self._datum(obj), program, program)["status"]
-                != "no-difference",
-                max_examples=self.max_examples,
-            )
-            if witness is not None:
-                datum = self._datum(witness)
-                if datum not in self._datums:
-                    self.examples.append(witness)
-                    self._datums.append(datum)
-                result.update(
-                    status="conflict",
-                    message="Generated data exposed conflicting rules.",
-                )
-                draft = None
-                self._living_cache = (result, draft)
-        self._checked_living_cache = (self._living_cache, result, draft)
-        return deepcopy((result, draft))
 
     @_ready_method
     def resume(self):
@@ -911,7 +710,7 @@ class SuggestSession:
         """Export the spec, candidates, datums, classifications and revisions as JSON."""
         from pathlib import Path
 
-        result, _ = self._living()
+        result, _ = self._resolve()
         document = {
             "format_version": 1,
             "observation_version": 1,
@@ -923,20 +722,10 @@ class SuggestSession:
             "datums": self._datums,
             "question": self.current,
             "paused": self.paused,
-            "revision": self._revision,
+            "revision": self._history.revision,
             "requests": self.requests,
             "rules": self.rules,
-            "candidates": [
-                {
-                    "id": c.id,
-                    "summary": c.summary,
-                    "program": c.program,
-                    "positive_votes": c.positive_votes,
-                    "negative_votes": c.negative_votes,
-                    "eliminated": c.eliminated,
-                }
-                for c in self.candidates
-            ],
+            "candidates": [c.to_record() for c in self.candidates],
             "settings": {
                 "elimination_threshold": self.elimination_threshold,
                 "min_positive_votes": self.min_positive_votes,
@@ -971,28 +760,12 @@ class SuggestSession:
         )
 
     def _restore(self, saved):
-        from ._model import Suggestion
-
         self._datums = deepcopy(saved["datums"])
         if not self._datums:
             raise ValueError("A saved session needs data instances.")
-        self.candidates = []
-        for item in saved["candidates"]:
-            rows = []
-            for entry in item["program"]["constraints"] + item["program"]["directives"]:
-                kind, kwargs = next(iter(entry.items()))
-                rows.append(
-                    Suggestion(
-                        kind,
-                        {"name": kwargs} if kind == "flag" else kwargs,
-                        "high",
-                        enabled_by_default=True,
-                        source="proposal",
-                    )
-                )
-            self.candidates.append(
-                ProgramCandidate(item["id"], item["summary"], SpecDraft(self.cls, rows))
-            )
+        self.candidates = [
+            ProgramCandidate.from_record(self.cls, item) for item in saved["candidates"]
+        ]
         if not self.candidates:
             raise ValueError("A saved session needs candidate programs.")
         self._presentation = deepcopy(
@@ -1003,21 +776,12 @@ class SuggestSession:
             ]
         )
         self.base = SpecDraft(self.cls, deepcopy(self._presentation))
-        self.history = deepcopy(saved["history"])
-        # Rebuild observations from saved coordinates; never trust cached scores
-        # or membership vectors as evidence after loading.
-        for record in self.history:
-            for side, state in enumerate(record.get("layout_states", [None, None])):
-                record.setdefault("observations", [None, None])[side] = None
-                if state is not None:
-                    record["observations"][side] = observe(record["datum"], state)
-                elif record["votes"][side] in {"upvote", "downvote"}:
-                    raise ValueError("A saved definite judgment is missing its layout.")
-            if record.get("complete"):
-                self._asked.add(
-                    self._question_key(record["candidate_ids"], record["datum"])
-                )
-        self._revision = saved["revision"]
+        self._history = JudgmentHistory.restore(saved["history"], saved["revision"])
+        self._asked = {
+            self._question_key(record["candidate_ids"], record["datum"])
+            for record in self.history
+            if record.get("complete")
+        }
         self.requests = list(saved["requests"])
         self.rules = deepcopy(saved["rules"])
         self.checkpoints = deepcopy(saved["checkpoints"])
