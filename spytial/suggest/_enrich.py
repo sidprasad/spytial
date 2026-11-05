@@ -1,7 +1,7 @@
 """Optional LLM *shape* enrichment for ``spytial.suggest`` (the ``[suggest-llm]``
 extra).
 
-Dormant unless you call ``suggest(..., enrich=...)``. This tier is **schema-level**:
+Dormant unless you call ``suggest_draft(..., enrich=...)``. This tier is **schema-level**:
 it reasons over the class's structural fields, not a data instance, so it needs no
 datum — only the model call.
 
@@ -31,7 +31,7 @@ shape steps down too: the model owns the field even when it deliberately chooses
 nothing. The deterministic rules only come back as the active default when the whole
 provider call fails — every failure path (an unresolvable provider, a malformed model
 response) degrades to the static draft with a note, and enrichment can never crash
-``suggest()``. Enriched rows stay tagged ``source="llm"``. The provider (how to reach a
+``suggest_draft()``. Enriched rows stay tagged ``source="llm"``. The provider (how to reach a
 model) is chosen by the caller via ``enrich=`` and resolved in
 :mod:`spytial.suggest.providers`; this module just calls ``provider(prompt, schema=)``.
 """
@@ -134,7 +134,7 @@ def enrich_draft(
     """
     try:
         _enrich_shape(draft, class_info, provider)
-    except Exception as exc:  # noqa: BLE001 — never crash suggest() on enrichment
+    except Exception as exc:  # noqa: BLE001 — never crash suggest_draft() on enrichment
         draft.notes.append(f"enrich: shape enrichment skipped ({exc}).")
 
     # Tier-2: model-authored selectors, validated by evaluation over example
@@ -147,12 +147,12 @@ def enrich_draft(
             _enrich_from_examples.enrich_from_examples(
                 draft, class_info, provider, examples
             )
-        except Exception as exc:  # noqa: BLE001 — never crash suggest() on enrichment
+        except Exception as exc:  # noqa: BLE001 — never crash suggest_draft() on enrichment
             draft.notes.append(f"enrich: selector tier skipped ({exc}).")
     elif _structural_fields(class_info):
         draft.notes.append(
-            "enrich: pass examples — suggest(obj, enrich=...) or "
-            "suggest(Cls, examples=[obj], enrich=...) — to also get model-authored "
+            "enrich: pass examples — suggest_draft(obj, enrich=...) or "
+            "suggest_draft(Cls, examples=[obj], enrich=...) — to also get model-authored "
             "selectors validated against your data."
         )
     return draft

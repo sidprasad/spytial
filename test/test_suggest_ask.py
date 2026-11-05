@@ -13,7 +13,7 @@ from __future__ import annotations
 import pytest
 
 import spytial
-from spytial.suggest import AskError, SpecDraft, Suggestion, build_class_info, suggest
+from spytial.suggest import AskError, SpecDraft, Suggestion, build_class_info, suggest_draft as suggest
 from spytial.suggest import _ask
 from spytial.suggest import _eval
 
@@ -424,15 +424,11 @@ def test_suggest_threads_ask_through(monkeypatch):
     )
 
 
-def test_spytial_suggest_is_callable():
-    # The natural spelling: spytial.suggest(obj, ...) — module-as-function.
-    draft = spytial.suggest(_instance())
+def test_explicit_draft_entry_point():
+    draft = spytial.suggest.suggest_draft(_instance())
     assert isinstance(draft, SpecDraft)
-    # The module facets still behave.
     assert spytial.suggest.SpecDraft is SpecDraft
-    from spytial.suggest import suggest as fn
-
-    assert fn is suggest
+    assert spytial.suggest.suggest_draft is suggest
 
 
 # --------------------------------------------------------------------------- #

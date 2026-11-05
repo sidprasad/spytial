@@ -50,7 +50,11 @@ spytial.diagram(data)
 spytial.diagram(data, method="file")
 ```
 
-Not sure where to start with a class of your own? `from spytial.suggest import suggest` then `suggest(MyClass)` reads the class and scaffolds a starting set of layout directives you can edit — see [Suggesting Specs](https://sidprasad.github.io/spytial/suggest/).
+Build a living spec with [interactive suggest](https://sidprasad.github.io/spytial/suggest/):
+describe a requirement, drag and rate diagrams, then apply the accepted rules.
+Add or revise requirements in the same notebook view; future diagram calls use
+the updated spec. `print(spec)` shows which prompts produced each rule.
+For a one-shot editable draft, use [`suggest_draft`](https://sidprasad.github.io/spytial/reference/suggest-draft/).
 
 For stepping through sequences of states, custom relationalizers, and annotation-driven layouts, see the [docs](https://sidprasad.github.io/spytial/).
 

@@ -201,12 +201,20 @@ class RelationalizerRegistry:
 
 
 class CnDDataInstanceBuilder:
-    """Main builder that composes providers to build data instances."""
+    """Main builder that composes providers to build data instances.
+
+    Disable infer_variable_names for generated examples: their labels should
+    depend on the data, not the search function's local variable names.
+    Disable collect_annotations when checking an explicit program independently
+    of class bindings, such as suggest's generated-data validation.
+    """
 
     def __init__(
         self,
         preserve_object_ids: bool = False,
         identity_resolver: Optional[Callable[[Any], Optional[str]]] = None,
+        infer_variable_names: bool = True,
+        collect_annotations: bool = True,
     ):
         self._seen = {}
         self._atoms = []
@@ -218,6 +226,9 @@ class CnDDataInstanceBuilder:
         self._id_counter = 0
         self._preserve_object_ids = preserve_object_ids
         self._identity_resolver = identity_resolver
+        self._infer_variable_names = infer_variable_names
+        self._collect_annotations = collect_annotations
+        self._live_spec_cache = {}
         self._identity_prefix = "identity:"
         self._build_identity_objects = {}
         self._persistent_object_ids = {}
@@ -256,6 +267,7 @@ class CnDDataInstanceBuilder:
         self._build_identity_objects = {}
         self._collected_decorators = {"constraints": [], "directives": []}
         self._current_depth = 0  # Reset depth
+        self._live_spec_cache = {}
         self._max_depth = default_max_depth()
         # Persist placeholder counters across builds when atom IDs are also
         # being persisted — otherwise every frame's "first new atom of type X"
@@ -265,7 +277,7 @@ class CnDDataInstanceBuilder:
         self._as_type = as_type  # Store for use during walk
 
         # Extract annotations from as_type if provided
-        if as_type is not None:
+        if as_type is not None and self._collect_annotations:
             try:
                 from .annotations import extract_spytial_annotations
 
@@ -294,7 +306,7 @@ class CnDDataInstanceBuilder:
                 else:
                     break
 
-            if user_frame:
+            if user_frame and self._infer_variable_names:
                 # Merge locals and globals from the user's frame
                 self._caller_namespace = {**user_frame.f_globals, **user_frame.f_locals}
             else:
@@ -619,22 +631,26 @@ class CnDDataInstanceBuilder:
             self._current_depth -= 1
             return self._seen[oid]
 
-        # Collect decorators from this object
-        try:
-            from .annotations import collect_decorators
+        if self._collect_annotations:
+            from .annotations import collect_decorators, SpecUnavailableError
 
-            obj_decorators = collect_decorators(obj)
-            # Merge decorators into our collected set
-            self._collected_decorators["constraints"].extend(
-                obj_decorators["constraints"]
-            )
-            self._collected_decorators["directives"].extend(
-                obj_decorators["directives"]
-            )
-        except Exception as e:
-            # If decorator collection fails, continue without them
-            # This prevents the entire visualization from failing due to annotation issues
-            pass
+            try:
+                obj_decorators = collect_decorators(
+                    obj, _spec_cache=self._live_spec_cache
+                )
+                self._collected_decorators["constraints"].extend(
+                    obj_decorators["constraints"]
+                )
+                self._collected_decorators["directives"].extend(
+                    obj_decorators["directives"]
+                )
+            except SpecUnavailableError:
+                # Never silently draw with no rules after the user's applied
+                # specification loses its support or all its candidates.
+                raise
+            except Exception:
+                # Preserve the existing tolerance for ordinary annotation issues.
+                pass
 
         # Find appropriate relationalizer
         relationalizer = RelationalizerRegistry.find_relationalizer(obj)

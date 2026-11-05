@@ -33,8 +33,8 @@ ARTIFACTS = {
         "tier-2 evaluator bundle",
     ),
     "dist/cli/spytial-check.js": (
-        "test/_vendor/spytial-check.js",
-        "conformance harness bin (test/conformance.py)",
+        "spytial/_vendor/spytial-check.js",
+        "conformance harness bin (suggest and integration tests)",
     ),
     "dist/browser/spytial-core-complete.global.js": (
         "spytial/_vendor/browser/spytial-core-complete.global.js",

@@ -9,7 +9,7 @@ from typing import Optional
 import pytest
 from hypothesis import strategies as st
 
-from spytial.suggest import AskError, build_class_info, suggest
+from spytial.suggest import AskError, build_class_info, suggest_draft as suggest
 from spytial.suggest import _eval, _strategy
 from spytial.suggest._strategy import StrategyError, find_witness
 
@@ -129,7 +129,9 @@ def test_builder_failure_reads_as_a_builder_error_not_an_empty_search(monkeypatc
         def build_instance(self, _obj):
             raise RuntimeError("builder exploded")
 
-    monkeypatch.setattr(_strategy, "CnDDataInstanceBuilder", BrokenBuilder)
+    monkeypatch.setattr(
+        _strategy, "CnDDataInstanceBuilder", lambda **kw: BrokenBuilder()
+    )
 
     with pytest.raises(StrategyError) as excinfo:
         find_witness(AutoTree, build_class_info(AutoTree), "auto")

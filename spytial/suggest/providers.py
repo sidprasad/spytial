@@ -6,7 +6,7 @@ return the structured reply. So a **provider is a callable** ::
     (prompt: str, *, schema: dict) -> dict
 
 Anything with that shape works — a bare function, a ``lambda``, or a class with
-``__call__`` that carries config. ``suggest(obj, enrich=...)`` accepts:
+``__call__`` that carries config. ``suggest_draft(obj, enrich=...)`` accepts:
 
 * ``None`` — off (no enrichment).
 * a model-id **string** — sugar for a named model in the ``llm`` library
@@ -14,10 +14,9 @@ Anything with that shape works — a bare function, a ``lambda``, or a class wit
 * any **callable** provider — for a subscription CLI, a raw API client, or a test
   stub. Built-ins: :class:`LlmModel`, :class:`ClaudeCode`, :class:`Codex`.
 
-There is no ambient default: you always say *what* to enrich with. A provider is
-free to raise on failure — the caller (``suggest`` / ``enrich_draft``) catches it
-and degrades to the static draft with a note, so enrichment never crashes
-``suggest()``.
+`suggest(..., proposer=...)` uses these same providers, defaulting to Codex.
+Session failures propagate. `suggest_draft(..., enrich=...)` has no default model;
+its optional enrichment can fall back to a static draft with a note.
 
 Writing one is short. A backend with **native** JSON-schema output returns the
 object directly; a text-only backend leans on the two helpers here::
@@ -34,6 +33,7 @@ import os
 import shutil
 import subprocess
 import tempfile
+from pathlib import Path
 from typing import Any, Mapping, runtime_checkable
 
 try:  # Protocol is stdlib on 3.8+.
@@ -45,7 +45,7 @@ except ImportError:  # pragma: no cover
 class EnrichError(RuntimeError):
     """A provider couldn't be built or a provider call failed.
 
-    ``suggest`` catches this (and, at call time, any exception a provider raises)
+    ``suggest_draft`` catches this (and, at call time, any exception a provider raises)
     and records a note instead of propagating — enrichment is best-effort.
     """
 
@@ -58,8 +58,9 @@ class EnrichProvider(Protocol):
     a JSON object (mapping) conforming to ``schema`` — the model's structured reply.
     """
 
-    def __call__(self, prompt: str, *, schema: Mapping[str, Any]) -> Mapping[str, Any]:
-        ...
+    def __call__(
+        self, prompt: str, *, schema: Mapping[str, Any]
+    ) -> Mapping[str, Any]: ...
 
 
 # --------------------------------------------------------------------------- #
@@ -158,7 +159,9 @@ class ClaudeCode:
     multi-user or hosted services — use an API key (an :class:`LlmModel`) for those.
     """
 
-    def __init__(self, model: str = "sonnet", *, bin: str = "claude", timeout: int = 120):
+    def __init__(
+        self, model: str = "sonnet", *, bin: str = "claude", timeout: int = 120
+    ):
         self.model = model
         self.bin = bin
         self.timeout = timeout
@@ -168,6 +171,7 @@ class ClaudeCode:
         proc = subprocess.run(
             [exe, "-p", "--model", self.model, instruct_json(prompt, schema)],
             capture_output=True,
+            stdin=subprocess.DEVNULL,
             text=True,
             timeout=self.timeout,
         )
@@ -178,6 +182,34 @@ class ClaudeCode:
         return extract_json(proc.stdout)
 
 
+def _codex_executable(binary):
+    """Resolve the CLI even when a GUI notebook has a minimal PATH."""
+    configured = os.environ.get("SPYTIAL_CODEX") if binary == "codex" else None
+    requested = configured or binary
+    found = shutil.which(requested)
+    if found:
+        return found
+    # An explicit override must never silently resolve to a different install.
+    if requested == "codex" and not configured:
+        candidates = [
+            Path("/opt/homebrew/bin/codex"),
+            Path("/usr/local/bin/codex"),
+            Path.home() / ".local/bin/codex",
+            Path(
+                "/Applications/ChatGPT.app/Contents/Resources/codex-cli/CodexCLI.app/Contents/MacOS/codex"
+            ),
+            Path("/Applications/Codex.app/Contents/Resources/codex"),
+        ]
+        for candidate in candidates:
+            if candidate.is_file() and os.access(candidate, os.X_OK):
+                return str(candidate)
+    raise EnrichError(
+        f"Cannot find the Codex command {requested!r} in this Python environment. "
+        "Pass proposer=Codex(bin='/absolute/path/to/codex') or set SPYTIAL_CODEX "
+        "to your installed executable, then rerun the session cell."
+    )
+
+
 class Codex:
     """Provider backed by the OpenAI Codex CLI (``codex exec``) — your ChatGPT plan.
 
@@ -185,6 +217,8 @@ class Codex:
     conforms to ``schema`` by construction. Runs on your ChatGPT (Plus/Pro/…) sign-in.
 
     Individual, local use only — as with :class:`ClaudeCode`.
+    GUI notebooks also check common local installation paths. ``bin=`` or
+    ``SPYTIAL_CODEX`` explicitly selects an executable.
     """
 
     def __init__(self, model: str = "", *, bin: str = "codex", timeout: int = 120):
@@ -193,7 +227,7 @@ class Codex:
         self.timeout = timeout
 
     def __call__(self, prompt: str, *, schema: Mapping[str, Any]) -> Mapping[str, Any]:
-        exe = shutil.which(self.bin) or self.bin
+        exe = _codex_executable(self.bin)
         fd, path = tempfile.mkstemp(suffix=".json")
         try:
             with os.fdopen(fd, "w") as f:
@@ -203,8 +237,17 @@ class Codex:
                 cmd += ["--model", self.model]
             cmd.append(prompt)
             proc = subprocess.run(
-                cmd, capture_output=True, text=True, timeout=self.timeout
+                cmd,
+                capture_output=True,
+                stdin=subprocess.DEVNULL,
+                text=True,
+                timeout=self.timeout,
             )
+        except subprocess.TimeoutExpired as exc:
+            raise EnrichError(
+                f"Codex did not finish within {self.timeout} seconds. "
+                "Check the model connection or pass Codex(timeout=...) with a longer limit."
+            ) from exc
         finally:
             os.unlink(path)
         if proc.returncode != 0:
@@ -231,6 +274,6 @@ def as_provider(spec: Any) -> EnrichProvider:
     if callable(spec):
         return spec
     raise EnrichError(
-        "enrich must be a model-id string or a callable provider "
+        "provider must be a model-id string or a callable provider "
         f"(prompt, *, schema) -> dict; got {type(spec).__name__}."
     )

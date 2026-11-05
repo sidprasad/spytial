@@ -8,7 +8,7 @@ relational cases the shape tier can't reach (an edge through a join or closure, 
 edge over an index/key relation, a relation the field names don't reveal).
 
 This is selector suggestion **by example**. You supply one or more example instances
-(``suggest(obj, enrich=...)`` or ``suggest(Cls, examples=[a, b, ...], enrich=...)``);
+(``suggest_draft(obj, enrich=...)`` or ``suggest_draft(Cls, examples=[a, b, ...], enrich=...)``);
 the model proposes selectors grounded in those instances' vocabulary, and only the
 ones that parse, are non-empty, and have the directive's arity **on every example**
 survive. Validating across a *set* of examples is what narrows the gap toward "correct
@@ -21,7 +21,7 @@ the selector and the examples only validate it.
 
 Gated on the headless evaluator (:mod:`._eval`). Any missing prerequisite (no
 buildable datum, no evaluator) records a note and falls back to the shape-only tier;
-this never raises into ``suggest()``.
+this never raises into ``suggest_draft()``.
 """
 
 from __future__ import annotations
@@ -114,7 +114,7 @@ def enrich_from_examples(
     ``examples`` is a non-empty list of instances of ``ci.cls``. A selector is
     admitted only if it resolves at the directive's arity on *every* example — the
     instance-set form. Mutates ``draft`` in place; every failure path records a note
-    and returns, so this never raises into ``suggest()``.
+    and returns, so this never raises into ``suggest_draft()``.
     """
     datums = []
     for obj in examples:

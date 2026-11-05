@@ -61,7 +61,7 @@ class Suggestion:
     rationale: str = ""  # human-readable "why" — teaches the directive language
     source_field: Optional[str] = None
     enabled_by_default: Optional[bool] = None
-    source: str = "rule"  # 'rule' (deterministic) | 'llm' (model-enriched value)
+    source: str = "rule"  # 'rule', 'llm' (draft enrichment), or 'proposal' (session)
 
     def __post_init__(self) -> None:
         if self.enabled_by_default is None:
@@ -79,7 +79,7 @@ class Suggestion:
 
 
 class SpecDraft:
-    """The result of :func:`spytial.suggest.suggest`.
+    """An editable draft returned by ``suggest_draft`` or ``SuggestSession.finish``.
 
     Holds the proposed directives plus the conflict "losers" (alternatives) and
     any informational notes, and knows how to render itself four ways.

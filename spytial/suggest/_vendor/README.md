@@ -1,5 +1,11 @@
 # Vendored spytial-core evaluator
 
+The comparison strategy lives in Python ([`../_compare.py`](../_compare.py)).
+It uses the released `spytial-check` CLI shared with integration tests, vendored
+at [`../../_vendor/spytial-check.js`](../../_vendor/spytial-check.js).
+There is no custom core build or comparison API. Both artifacts are pinned by
+[`../../_vendor/VENDORED.json`](../../_vendor/VENDORED.json).
+
 `spytial-core-evaluator.js` is the **self-contained** `./evaluator` build of
 [`spytial-core`](https://github.com/sidprasad/spytial-core), copied verbatim from
 the published npm tarball. It bundles its runtime deps (`graphlib`,

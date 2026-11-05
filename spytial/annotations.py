@@ -614,6 +614,15 @@ def _desugar_legacy_style(annotation_type, kwargs, *, stacklevel=3):
 # Object-level annotation storage attribute name
 OBJECT_ANNOTATIONS_ATTR = "__spytial_object_annotations__"
 
+# Kept separate from the ordinary annotation registry so updates replace the
+# generated rules without deleting user annotations or leaving old rules behind.
+LIVE_SPEC_ATTR = "__spytial_live_spec__"
+
+
+class SpecUnavailableError(ValueError):
+    """An explicitly selected living spec currently has no usable program."""
+
+
 # Object ID storage attribute name (for self-reference)
 OBJECT_ID_ATTR = "__spytial_object_id__"
 
@@ -2483,7 +2492,7 @@ def _deduplicate_entries(entries):
     return unique
 
 
-def collect_decorators(obj, type_hint=None):
+def collect_decorators(obj, type_hint=None, *, _spec_cache=None):
     """
     Collect all decorators applied to the class of the given object,
     as well as any annotations applied directly to the object instance,
@@ -2521,6 +2530,28 @@ def collect_decorators(obj, type_hint=None):
 
                 if should_inherit_directives:
                     combined_registry["directives"].extend(cls_registry["directives"])
+
+        live = cls.__dict__.get(LIVE_SPEC_ATTR)
+        if live is not None and (
+            is_current_class or should_inherit_constraints or should_inherit_directives
+        ):
+            # One build uses one version even if the session changes while
+            # traversing several instances. Direct callers read the latest.
+            try:
+                if _spec_cache is not None and live in _spec_cache:
+                    live_registry = _spec_cache[live]
+                else:
+                    live_registry = live.to_registry()
+                    if _spec_cache is not None:
+                        _spec_cache[live] = live_registry
+            except Exception as exc:
+                raise SpecUnavailableError(
+                    f"The living spec for {cls.__name__} is unavailable: {exc}"
+                ) from exc
+            if is_current_class or should_inherit_constraints:
+                combined_registry["constraints"].extend(live_registry["constraints"])
+            if is_current_class or should_inherit_directives:
+                combined_registry["directives"].extend(live_registry["directives"])
 
     # Add object-level annotations if they exist
     # First check if stored on object directly
