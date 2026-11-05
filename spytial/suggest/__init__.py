@@ -1,6 +1,6 @@
 """Develop diagramming rules through proposals, examples, and human critique.
 
-``suggest(Cls)`` prepares data; ``session.add_requirement(text)`` starts a round.
+``suggest(Cls)`` prepares data. Type a requirement in the session to start a round.
 ``suggest_draft(Cls)`` explicitly selects the old one-shot draft builder.
 Optional model and search dependencies are loaded only when used.
 """
@@ -82,10 +82,10 @@ def suggest(
 
     The first diagram has no inferred rules. Pass ``registry=DEFAULT_REGISTRY``
     to include fixed presentation rules such as attributes and hidden atoms.
-    No model is called until a requirement is requested. Display the session, then
-    use ``add_requirement("Parents above children")`` or the embedded prompt. Each
-    requirement has multiple candidate interpretations. Both comparison diagrams
-    retain every other accepted requirement; votes judge only the current requirement.
+    Display the session and enter a requirement such as "Parents above children"
+    in the prompt. Select Explore to ask the model for candidate interpretations.
+    Both diagrams retain every other accepted requirement; votes judge only the
+    current requirement.
 
     Upvotes support candidates permitting the arrangement and count against
     those excluding it. Downvotes count against candidates permitting it. Unsure
@@ -99,10 +99,10 @@ def suggest(
     agreement with this requirement's judgments, and feasibility with accepted rules.
     It saves an unfinished round when these checks fail.
     Unreviewed and eliminated candidates contribute no rules.
-    ``requirement.revise(text)`` replaces
-    its candidates, withdraws its old definition, and replays its history. Other
-    accepted requirements remain active. ``requirement.resume()`` revisits its existing
-    candidates. Historical corrections can withdraw an accepted definition.
+    Revising a prompt replaces its candidates, withdraws its old definition, and
+    replays its history. Other accepted requirements remain active. Select Continue
+    to revisit the existing candidates. Historical corrections can withdraw an
+    accepted definition.
 
     ``session.spec`` is a stable handle to accepted requirements. ``apply()`` binds
     it to the class; later ``diagram`` calls read its current rules. Existing

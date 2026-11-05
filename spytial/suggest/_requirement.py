@@ -24,13 +24,26 @@ class RequirementState:
     def accepted(self):
         return [c for c in self.candidates if c.id in self.accepted_ids]
 
-    def to_record(self):
+    def _revision_record(self):
         return {
-            "id": self.id,
             "prompt": self.prompt,
             "revision": self.revision,
             "candidates": [c.to_record() for c in self.candidates],
             "accepted_ids": list(self.accepted_ids),
+        }
+
+    def next_revision(self, prompt):
+        return RequirementState(
+            self.id,
+            prompt,
+            self.revision + 1,
+            revisions=[*self.revisions, self._revision_record()],
+        )
+
+    def to_record(self):
+        return {
+            "id": self.id,
+            **self._revision_record(),
             "revisions": deepcopy(self.revisions),
             "diagnostic": self.diagnostic,
         }
@@ -52,9 +65,8 @@ class RequirementState:
 class Requirement:
     """A requirement's identity survives revisions and classification corrections.
 
-    ``revise(text)`` replaces its candidates and replays its judgments. ``resume()``
-    returns to its existing candidates. ``accept()`` and ``done()`` combine all
-    supported survivors, subject to shared positive evidence and consistency.
+    Edit the wording in the session prompt to replace its candidates and replay
+    its judgments. Continue judging to keep the existing candidates.
     """
 
     def __init__(self, session, requirement_id):
@@ -90,10 +102,6 @@ class Requirement:
         return deepcopy(
             [r for r in self._session.history if r["requirement_id"] == self.id]
         )
-
-    def revise(self, prompt):
-        self._session.edit_requirement(self.id, prompt)
-        return self
 
     def resume(self):
         self._session.resume(self.id)

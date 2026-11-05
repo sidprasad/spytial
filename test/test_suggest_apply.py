@@ -60,7 +60,7 @@ def test_same_bound_handle_uses_new_accepted_requirement_on_next_diagram(
     before = emitted_spec(tree())
     snapshot = spec.snapshot()
     assert isinstance(spec, LivingSpec) and spec is s.spec
-    prop = s.add_requirement("Align siblings")
+    prop = s._submit_prompt("Align siblings")
     assert prop.status == "draft"
     assert (
         emitted_spec(tree()) == before
@@ -112,7 +112,7 @@ def test_provenance_tracks_accepted_prompts_and_survives_save_load(
         source["prompt"] == first.prompt and source["revision"] == 1
         for source in rule["sources"]
     )
-    pending = s.add_requirement("Align siblings")
+    pending = s._submit_prompt("Align siblings")
     assert spec.provenance == initial  # Unaccepted interpretations have no provenance.
     s.judge(
         "left",
@@ -146,7 +146,7 @@ def test_explicit_registry_keeps_presentation_separate_from_accepted_rules(tmp_p
         assert {"attribute": {"field": "value"}} in base["directives"]
         assert s.spec.status == "empty"
 
-        s.add_requirement("Parents above children")
+        s._submit_prompt("Parents above children")
         s.vote(0, "upvote", layout_state=state(-120, 150, other_atoms=()))
         assert s.done()["status"] == "accepted"
         spec = s.apply()
@@ -164,7 +164,7 @@ def test_explicit_registry_keeps_presentation_separate_from_accepted_rules(tmp_p
 def test_shared_rule_keeps_both_prompt_sources(live_session):
     s = live_session
     s.proposer = Provider([proposal(["below"])])
-    second = s.add_requirement("Keep each parent higher")
+    second = s._submit_prompt("Keep each parent higher")
     s.judge("both", layout_states=[state(-120, 150), state(120, 150)])
     second.done()
     assert second.status == "accepted"
@@ -195,7 +195,7 @@ def test_each_operation_quotes_its_prompt_fragment_and_revision(tmp_path):
         [{"summary": "Each child below its parent", "operations": operations}]
     )
     with session(proposer=provider) as s:
-        requirement = s.add_requirement(prompt)
+        requirement = s._submit_prompt(prompt)
         s.vote(0, "upvote", layout_state=state(-120, 150, other_x=120, other_y=150))
         requirement.done()
         sources = [row["sources"][0] for row in s.spec.provenance if row["sources"]]
@@ -205,7 +205,7 @@ def test_each_operation_quotes_its_prompt_fragment_and_revision(tmp_path):
         }
         assert "prompt_fragment" not in str(s.spec.to_registry())
         before = str(s.spec)
-        requirement.revise(prompt + "; keep these orders")
+        s._submit_prompt(prompt + "; keep these orders", requirement_id=requirement.id)
         requirement.done()
         assert all(
             source["revision"] == 2
@@ -224,7 +224,7 @@ def test_invented_prompt_fragment_is_rejected():
     item["operations"][0]["prompt_fragment"] = "words the person did not write"
     with session(proposer=Provider([item])) as s:
         with pytest.raises(ValueError, match="quote the requested requirement"):
-            s.add_requirement("Parents above children")
+            s._submit_prompt("Parents above children")
         assert not s.requirements
 
 
@@ -315,14 +315,14 @@ def test_replacement_generates_data_while_old_binding_is_unavailable(
     ).wait() as replacement:
         assert replacement.examples[-1] is witness
         assert not replacement.requirements
-        replacement.add_requirement("Parents above children")
+        replacement._submit_prompt("Parents above children")
         assert replacement.next() is not None
         assert old.applied and not replacement.spec.applied
 
 
 def test_generated_conflict_prevents_acceptance_and_retains_counterexample():
     with session(proposer=Provider()) as s:
-        prop = s.add_requirement("Parents above children")
+        prop = s._submit_prompt("Parents above children")
         cyclic = tree()
         cyclic.left = cyclic
         s.search = HypothesisSearch(st.just(cyclic))

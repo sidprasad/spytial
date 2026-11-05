@@ -133,7 +133,6 @@ async function refresh() {
       render(side, index, current.datum, current.layout_states?.[index])));
     displayedId = current.id;
   } else {
-    // Reloading restores partial votes; programmatic revisions may supply a new pair.
     current = state.question;
   }
   rendered = !document.querySelector('webcola-cnd-graph[data-failed]');
@@ -267,7 +266,7 @@ el('requirement-form').addEventListener('submit', event => {
       } catch (_) { /* The submitted request reports connection failures. */ }
     }, 500);
     try {
-      await api(editing ? 'edit-requirement' : 'add-requirement', {
+      await api('prompt', {
         prompt: el('requirement-prompt').value, requirement_id: editing
       });
     } finally {

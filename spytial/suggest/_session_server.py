@@ -100,8 +100,7 @@ class SessionServer:
                     "reclassify",
                     "done",
                     "resume",
-                    "add-requirement",
-                    "edit-requirement",
+                    "prompt",
                 }:
                     self.send_error(404)
                     return
@@ -116,12 +115,10 @@ class SessionServer:
                     if not isinstance(data, dict):
                         raise ValueError("Expected an object")
                     with server.lock:
-                        if route == "add-requirement":
-                            prop = server.session.add_requirement(data.get("prompt"))
-                            self.reply({"requirement_id": prop.id})
-                        elif route == "edit-requirement":
-                            prop = server.session.edit_requirement(
-                                data.get("requirement_id"), data.get("prompt")
+                        if route == "prompt":
+                            prop = server.session._submit_prompt(
+                                data.get("prompt"),
+                                requirement_id=data.get("requirement_id"),
                             )
                             self.reply({"requirement_id": prop.id})
                         elif route == "done":

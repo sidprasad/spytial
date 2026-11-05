@@ -43,7 +43,7 @@ def refined_session(**kwargs):
 
 
 def accept_alignment(s):
-    prop = s.add_requirement("Align siblings")
+    prop = s._submit_prompt("Align siblings")
     s.judge(
         "left",
         layout_states=[
@@ -60,7 +60,7 @@ def test_additive_refinement_retains_background_and_local_positive_evidence():
         first = accept_below(s)
         first_history = deepcopy(first.history)
         old = s.spec.to_registry()
-        second = s.add_requirement("Align siblings")
+        second = s._submit_prompt("Align siblings")
         q = s.next()
         assert q["requirement_id"] == second.id
         assert q["context"] == old
@@ -96,7 +96,9 @@ def test_revision_replaces_one_requirement_and_replays_its_enduring_history():
         second = accept_alignment(s)
         handle = s.apply()
         history = deepcopy(s.history)
-        first.revise("Left children below and left of their parent")
+        s._submit_prompt(
+            "Left children below and left of their parent", requirement_id=first.id
+        )
         assert s.spec is handle and second.status == "accepted"
         assert first.status == "ready"
         # The old definition is withdrawn while this requirement is edited.
@@ -145,7 +147,7 @@ def test_history_correction_withdraws_only_affected_requirement():
 def test_same_arrangement_counts_separately_for_different_requirements():
     with session(proposer=Provider()) as s:
         first = accept_below(s)
-        second = s.add_requirement("Keep the left branch below")
+        second = s._submit_prompt("Keep the left branch below")
         s.vote(0, "upvote", layout_state=state(-120, 150))
         assert second.candidates[0]["positive_votes"] == 1
         assert first.candidates[0]["positive_votes"] == 1
@@ -154,7 +156,7 @@ def test_same_arrangement_counts_separately_for_different_requirements():
 
 def test_accept_excludes_unreviewed_survivors():
     with session(proposer=Provider()) as s:
-        prop = s.add_requirement("Parents above children")
+        prop = s._submit_prompt("Parents above children")
         s.vote(0, "upvote", layout_state=state(-120, 150))
         assert len(s.survivors) == 2
         prop.accept()
@@ -169,7 +171,7 @@ def test_classification_cannot_be_erased_by_reprompting():
     )
     with session(proposer=provider) as s:
         prop = accept_below(s)
-        prop.revise("Actually above")
+        s._submit_prompt("Actually above", requirement_id=prop.id)
         assert prop.candidates[0]["negative_votes"] == 2
         assert prop.status == "empty"
         assert len(prop.history) == 1
@@ -181,7 +183,7 @@ def test_saved_session_retains_requirement_versions_context_and_votes(tmp_path):
     with refined_session() as s:
         first = accept_below(s)
         second = accept_alignment(s)
-        first.revise("Left children below and left")
+        s._submit_prompt("Left children below and left", requirement_id=first.id)
         first.done()
         path = tmp_path / "spec.json"
         s.save(path)
@@ -213,7 +215,7 @@ def test_partial_votes_and_data_only_sessions_roundtrip(tmp_path):
         s.save(path)
         with SuggestSession.load(Tree, path, search=FixedExamples()).wait() as loaded:
             assert loaded._poll()["status"] == "idle" and not loaded.requirements
-        p = s.add_requirement("Parents above children")
+        p = s._submit_prompt("Parents above children")
         s.vote(1, "upvote", layout_state=state(120, -150))
         s.save(path)
         with SuggestSession.load(Tree, path, search=FixedExamples()).wait() as loaded:
@@ -234,7 +236,7 @@ def test_legacy_save_is_rejected_explicitly(tmp_path, version):
 @pytest.mark.parametrize("minimum", [1, 2])
 def test_done_combines_all_supported_survivors_with_shared_positive_evidence(minimum):
     with session(proposer=Provider(), min_positive_votes=minimum) as s:
-        prop = s.add_requirement("Parents above children")
+        prop = s._submit_prompt("Parents above children")
         s.judge("unsure")
         assert s.next()["kind"] == "confirmation"
         # This arrangement supports both interpretations of the requested requirement.
@@ -260,7 +262,7 @@ def test_done_combines_all_supported_survivors_with_shared_positive_evidence(min
 
 def test_done_does_not_accept_a_combination_that_rejects_its_own_upvotes():
     with session(proposer=Provider()) as s:
-        prop = s.add_requirement("Parents above children")
+        prop = s._submit_prompt("Parents above children")
         s.judge("both", layout_states=[state(-120, 150), state(120, -150)])
         assert all(c.positive_votes == 1 for c in s.candidates)
         checkpoint = s.done()
@@ -271,7 +273,7 @@ def test_done_does_not_accept_a_combination_that_rejects_its_own_upvotes():
 
 def test_eliminated_member_leaves_an_accepted_combination():
     with session(proposer=Provider()) as s:
-        prop = s.add_requirement("Parents above children")
+        prop = s._submit_prompt("Parents above children")
         s.judge("unsure")
         s.next()
         s.vote(0, "upvote", layout_state=state(120, 150))

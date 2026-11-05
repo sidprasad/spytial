@@ -52,7 +52,7 @@ def test_one_process_serves_generation_votes_and_printing(monkeypatch):
     monkeypatch.setattr(subprocess, "Popen", counted)
     with session(proposer=Provider()) as s:
         assert not processes
-        s.add_requirement("Parents above children")
+        s._submit_prompt("Parents above children")
         s.judge("left", layout_states=[state(-120, 150), state(120, -150)])
         assert "Parents above children" in str(s.spec)
         assert len(processes) == 1
@@ -145,7 +145,7 @@ def test_close_does_not_wait_for_model_or_start_checks_after_response():
 
         def request():
             try:
-                s.add_requirement("Parents above children")
+                s._submit_prompt("Parents above children")
             except RuntimeError as exc:
                 errors.append(str(exc))
 

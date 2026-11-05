@@ -111,15 +111,6 @@ Judgments remain attached to their requirement and are checked against its new
 candidates. Use **History** to correct a previous vote when your intent changes.
 A correction can restore an eliminated candidate or remove an accepted rule.
 
-The same controls are available in Python:
-
-| Call | Action |
-| --- | --- |
-| `session.add_requirement("Align siblings horizontally")` | Start another requirement. |
-| `session.requirements[0].revise("Keep left children below and left of their parent")` | Replace the first requirement's candidates. |
-| `session.requirements[0].resume()` | Continue judging existing candidates without another LLM request. |
-| `session.done()` | End the active round. |
-
 After accepting changes, `print(spec)` and the next `spytial.diagram(root)` call
 use the updated rules without another `apply()`.
 
@@ -139,7 +130,6 @@ To continue a closed session, load the saved file:
 from spytial.suggest import SuggestSession
 
 session = SuggestSession.load(TreeNode, "tree-session.json")
-session.resume()
 display(session)
 spec = session.apply()  # Reconnect the restored spec after it has accepted rules.
 ```

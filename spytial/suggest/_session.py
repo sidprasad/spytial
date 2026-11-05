@@ -397,6 +397,10 @@ class SuggestSession:
             self.proposer = as_provider(
                 Codex() if self._proposer_spec is None else self._proposer_spec
             )
+        if prop.revision > 1 and not getattr(self.proposer, "can_revise", True):
+            raise ValueError(
+                "This proposer does not support natural-language revisions."
+            )
         vocab = _vocabulary(self._datums)
         background = self._background(prop.id)
         prompt = proposal_prompt(
@@ -498,49 +502,21 @@ class SuggestSession:
         return self
 
     @_ready_method
-    def add_requirement(self, prompt):
-        """Propose interpretations of one new requirement; keep accepted rules active."""
-        prop = RequirementState(uuid.uuid4().hex, _text(prompt))
-        self._requirements.append(prop)
-        try:
-            self._propose(prop)
-        except Exception:
-            self._requirements.remove(prop)
-            self._invalidate_result()
-            raise
-        self.active_requirement_id, self.paused = prop.id, False
-        self._reset_question()
-        self._find_next()
-        return Requirement(self, prop.id)
-
-    @_ready_method
-    def edit_requirement(self, requirement_id, prompt):
-        """Replace this requirement's candidates and replay its enduring evidence.
-
-        Its old definition is withdrawn while edited. Other accepted requirements
-        remain in the live spec and in the comparison background.
-        """
-        prop = self._requirement(requirement_id)
+    def _submit_prompt(self, prompt, *, requirement_id=None):
+        """Explore new wording or revise the requirement selected in the view."""
         prompt = _text(prompt)
-        if self.proposer is not None and not getattr(self.proposer, "can_revise", True):
-            raise ValueError(
-                "This proposer does not support natural-language revisions."
-            )
-        old = deepcopy(prop)
-        prop.revisions.append(
-            {
-                "prompt": prop.prompt,
-                "revision": prop.revision,
-                "accepted_ids": list(prop.accepted_ids),
-                "candidates": [c.to_record() for c in prop.candidates],
-            }
-        )
-        prop.prompt, prop.revision = prompt, prop.revision + 1
-        prop.candidates, prop.accepted_ids, prop.diagnostic = [], [], ""
+        previous = self._requirements
+        if requirement_id is None:
+            prop = RequirementState(uuid.uuid4().hex, prompt)
+            self._requirements = [*previous, prop]
+        else:
+            original = self._requirement(requirement_id)
+            prop = original.next_revision(prompt)
+            self._requirements = [prop if r is original else r for r in previous]
         try:
             self._propose(prop)
         except Exception:
-            self._requirements[self._requirements.index(prop)] = old
+            self._requirements = previous
             self._invalidate_result()
             raise
         self.active_requirement_id, self.paused = prop.id, False
@@ -628,8 +604,7 @@ class SuggestSession:
     def vote(self, side, value, *, question_id=None, layout_state=None):
         """Save one image's judgment immediately, including an unsure vote.
 
-        A partial pair survives reloads and programmatic revision. Only after
-        both images are rated does the session advance to another comparison.
+        A partial pair survives reloads. The session advances once both images are rated.
         """
         return deepcopy(self._record_votes([(side, value, layout_state)], question_id))
 
