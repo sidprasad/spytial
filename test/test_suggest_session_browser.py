@@ -66,6 +66,10 @@ def test_prompt_drag_partial_vote_reload_and_history():
         )
         assert not provider.prompts
         assert page.locator("webcola-cnd-graph").count() == 1
+        ids = page.locator("webcola-cnd-graph").evaluate(
+            "graph => graph.getNodePositions().map(node => node.id)"
+        )
+        assert {"8", "3", "10", "None"} <= set(ids)
         request_requirement(page, "Parents above children")
         assert page.locator("webcola-cnd-graph").count() == 2
         assert not page.locator("#requirement-form").is_visible()

@@ -75,12 +75,17 @@ def session(**kwargs):
     return suggest(tree(), search=FixedExamples(), **kwargs).wait()
 
 
-def state(x, y, *, other_x=300, other_y=250):
+def state(x, y, *, other_x=300, other_y=250, other_atoms=("8", "3", "10", "None")):
+    """A layout of tree(): move its branches, keep the other visible atoms fixed."""
     return {
         "positions": [
             {"id": "n0", "x": 0, "y": 0},
             {"id": "n1", "x": x, "y": y},
             {"id": "n2", "x": other_x, "y": other_y},
+        ]
+        + [
+            {"id": atom, "x": 500 + 100 * i, "y": 500 + 100 * i}
+            for i, atom in enumerate(other_atoms)
         ]
     }
 
@@ -97,9 +102,12 @@ def test_startup_prepares_data_without_model_or_class_binding():
     with session(proposer=provider) as s:
         assert not provider.prompts
         assert not s.requirements and not s.history
-        assert s._poll()["status"] == "idle"
-        assert s._poll()["question"]["kind"] == "preview"
-        assert len(s._poll()["question"]["sides"]) == 1
+        view = s._poll()
+        assert view["status"] == "idle"
+        assert view["question"]["kind"] == "preview"
+        assert view["question"]["sides"] == [
+            {"program": {"constraints": [], "directives": []}}
+        ]
         with pytest.raises(SpecUnavailableError, match="Accept a requirement"):
             s.apply()
         prop = s.add_requirement("Parents above children")
@@ -150,7 +158,7 @@ def test_vote_matrix_and_acceptance(first, second, expected, status):
         assert s.paused == (status == "accepted")
         assert s.history[0]["requirement_id"] == prop.id
         assert s.history[0]["prompt"] == prop.prompt
-        assert s.history[0]["context"]["directives"]
+        assert s.history[0]["context"] == {"constraints": [], "directives": []}
 
 
 def test_done_keeps_multiple_or_zero_survivors_unfinished():

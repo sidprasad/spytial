@@ -80,6 +80,8 @@ def suggest(
 ) -> "SuggestSession":
     """Prepare an interactive specification from examples and/or a generator.
 
+    The first diagram has no inferred rules. Pass ``registry=DEFAULT_REGISTRY``
+    to include fixed presentation rules such as attributes and hidden atoms.
     No model is called until a requirement is requested. Display the session, then
     use ``add_requirement("Parents above children")`` or the embedded prompt. Each
     requirement has multiple candidate interpretations. Both comparison diagrams

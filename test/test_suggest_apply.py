@@ -12,6 +12,7 @@ from spytial.annotations import collect_decorators
 from spytial.suggest import (
     suggest,
     SuggestSession,
+    DEFAULT_REGISTRY,
     FixedExamples,
     FixedProposals,
     HypothesisSearch,
@@ -85,7 +86,7 @@ def test_print_reads_current_rules_from_the_same_living_object(live_session, cap
     before = capsys.readouterr().out
     assert before == spec.to_source() + "\n"
     assert "spytial.orientation" in before and "LivingSpec" not in before
-    assert "Parents above children" in before and "Presentation inferred" in before
+    assert "Parents above children" in before and "Presentation inferred" not in before
     assert "Requirement" not in spec.to_source(with_comments=False)
     accept_alignment(s)
     print(spec)
@@ -103,13 +104,13 @@ def test_provenance_tracks_accepted_prompts_and_survives_save_load(
     first = s.active_requirement
     spec = s.spec
     initial = spec.provenance
-    rules = [row for row in initial if row["origin"] == "requirement"]
-    assert len(rules) == 1
-    assert rules[0]["rule"] in spec.to_registry()["constraints"]
-    assert {source["requirement_id"] for source in rules[0]["sources"]} == {first.id}
+    (rule,) = initial
+    assert rule["origin"] == "requirement"
+    assert rule["rule"] in spec.to_registry()["constraints"]
+    assert {source["requirement_id"] for source in rule["sources"]} == {first.id}
     assert all(
         source["prompt"] == first.prompt and source["revision"] == 1
-        for source in rules[0]["sources"]
+        for source in rule["sources"]
     )
     pending = s.add_requirement("Align siblings")
     assert spec.provenance == initial  # Unaccepted interpretations have no provenance.
@@ -136,6 +137,28 @@ def test_provenance_tracks_accepted_prompts_and_survives_save_load(
     s.reclassify(first.history[0]["id"], 0, "unsure")
     assert first.prompt not in str(spec)
     assert first.prompt in snapshot
+
+
+def test_explicit_registry_keeps_presentation_separate_from_accepted_rules(tmp_path):
+    with session(registry=DEFAULT_REGISTRY, proposer=Provider()) as s:
+        base = s._poll()["question"]["sides"][0]["program"]
+        assert base["constraints"] == [{"hideAtom": {"selector": "NoneType"}}]
+        assert {"attribute": {"field": "value"}} in base["directives"]
+        assert s.spec.status == "empty"
+
+        s.add_requirement("Parents above children")
+        s.vote(0, "upvote", layout_state=state(-120, 150, other_atoms=()))
+        assert s.done()["status"] == "accepted"
+        spec = s.apply()
+        presentation = [
+            r["rule"] for r in spec.provenance if r["origin"] == "presentation"
+        ]
+        assert presentation == base["constraints"] + base["directives"]
+        path = tmp_path / "with-presentation.json"
+        s.save(path)
+        with SuggestSession.load(Tree, path, search=FixedExamples()).wait() as restored:
+            assert restored.history == s.history
+            assert restored.spec.provenance == spec.provenance
 
 
 def test_shared_rule_keeps_both_prompt_sources(live_session):

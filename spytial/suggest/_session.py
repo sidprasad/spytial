@@ -29,7 +29,9 @@ from ._proposals import (
 from ._search import HypothesisSearch
 from ._questions import find_question, make_question, question_key
 from ._enrich_from_examples import _vocabulary
+from .introspect import build_class_info
 from .providers import Codex, as_provider
+from .registry import build_draft
 
 
 def _ready_method(method):
@@ -55,7 +57,7 @@ def _text(prompt):
 class SuggestSession:
     """Start with data; add and revisit one visualization requirement at a time.
 
-    Display the session before requesting a requirement. Startup prepares data only.
+    Display the session before requesting a requirement. By default the preview has no rules.
     Each requirement's candidates contain its own rules; comparisons render them
     together with all other accepted requirements. A completed round combines all supported survivors.
     """
@@ -154,25 +156,21 @@ class SuggestSession:
             self._restore(self._saved)
             self._saved = None
             return
-        from ._draft import suggest_draft
-
         witness = self.search.initial(self.cls, max_examples=self.max_examples)
         if witness is not None:
             self.examples.append(witness)
         if not self.examples:
             raise ValueError("Supply examples or a strategy that can build this class.")
         self._datums = [self._datum(obj) for obj in self.examples]
-        draft = suggest_draft(
-            self.cls, instance=self.examples[0], registry=self._registry
-        )
-        self._presentation = SpecDraft(
-            self.cls,
-            [
+        presentation = []
+        if self._registry is not None:
+            info = build_class_info(self.cls, instance=self.examples[0])
+            presentation = [
                 deepcopy(s)
-                for s in draft.enabled()
+                for s in build_draft(info, self._registry).enabled()
                 if s.directive not in {"orientation", "align", "cyclic", "group"}
-            ],
-        )
+            ]
+        self._presentation = SpecDraft(self.cls, presentation)
 
     def wait(self, timeout=None):
         if not self._ready.wait(timeout):

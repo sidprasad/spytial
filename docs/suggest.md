@@ -27,8 +27,9 @@ session = suggest(TreeNode, examples=[root])
 display(session)
 ```
 
-The controls open inside the notebook. Use `session.show()` for a browser tab.
-Startup prepares data without calling the LLM.
+The controls open inside the notebook. The first diagram has no inferred rules:
+the numbers and `None` appear as nodes. The LLM runs when you request a requirement.
+Use `session.show()` for a browser tab.
 
 Hypothesis derives a generator from the class by default. Pass `strategy=trees`
 to supply your own. The [demo notebook](https://github.com/sidprasad/spytial/blob/main/demos/06-suggest-session.ipynb)
@@ -143,7 +144,7 @@ display(session)
 spec = session.apply()  # Reconnect the restored spec after it has accepted rules.
 ```
 
-Loading preserves requirements, revisions, examples, arrangements, and votes.
+Loading preserves the original presentation, requirements, revisions, examples, arrangements, and votes.
 It makes no LLM request and does not bind the restored spec automatically. Supply
 any custom `strategy=`, `search=`, or `proposer=` again when loading.
 
@@ -155,6 +156,7 @@ Pass these to `suggest(...)`:
 | --- | --- | --- |
 | `proposer` | `Codex()` | Use `ClaudeCode()`, a model-id string, or a callable provider. |
 | `strategy` | Derived from the class | Supply a Hypothesis generator for your data. |
+| `registry` | `None` | Pass `DEFAULT_REGISTRY` from `spytial.suggest` to infer fixed rules such as hiding `None` and displaying values inside nodes. |
 | `max_candidates` | `4` | Cap candidate interpretations per round. |
 | `elimination_threshold` | `2` | Negative votes needed to eliminate a candidate. |
 | `min_positive_votes` | `1` | Positive votes needed to support a candidate or combination. |
