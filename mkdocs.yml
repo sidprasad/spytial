@@ -17,8 +17,9 @@ nav:
       - Sequences: usage/sequences.md
       - Structured Input: usage/structured-input.md
       - Custom Relationalizers: relationalizers.md
-      - Suggesting Annotations: suggest.md
+      - Interactive Suggest: suggest.md
   - Reference:
+      - Drafting Annotations: reference/suggest-draft.md
       - Relationalization: reference/relationalization.md
       - Reification: reference/reification.md
       - Python Type Coverage: reference/python-types.md

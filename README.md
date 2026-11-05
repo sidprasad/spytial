@@ -50,18 +50,11 @@ spytial.diagram(data)
 spytial.diagram(data, method="file")
 ```
 
-Build diagram rules one requirement at a time with `from spytial.suggest import suggest`:
-`s = suggest(MyClass, examples=[root]); display(s)` prepares the data, then
-enter **Parents above children** in the view and click **Explore**.
-Drag and rate the diagrams. **I'm done** combines every surviving interpretation
-with positive support when the combination agrees with that requirement's judgments
-and works with accepted rules. Enter the next requirement in the same view, or click
-an earlier requirement to revise it; earlier classifications remain evidence
-about that requirement. `spec = s.apply()` connects the accepted spec to the class.
-`print(spec)` identifies the prompts and interpretations behind each rule.
-Later `spytial.diagram(root)` calls use its updated rules. `s.close()` stops the
-controls; a supported spec remains usable. See the [notebook and guide](https://sidprasad.github.io/spytial/suggest/).
-Use `suggest_draft(MyClass)` for a one-shot editable draft.
+Build a living spec with [interactive suggest](https://sidprasad.github.io/spytial/suggest/):
+describe a requirement, drag and rate diagrams, then apply the accepted rules.
+Add or revise requirements in the same notebook view; future diagram calls use
+the updated spec. `print(spec)` shows which prompts produced each rule.
+For a one-shot editable draft, use [`suggest_draft`](https://sidprasad.github.io/spytial/reference/suggest-draft/).
 
 For stepping through sequences of states, custom relationalizers, and annotation-driven layouts, see the [docs](https://sidprasad.github.io/spytial/).
 
