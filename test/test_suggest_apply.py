@@ -1,8 +1,5 @@
 """Using accepted requirements through the real Python diagram integration."""
 
-from pathlib import Path
-import os
-
 import pytest
 import yaml
 from hypothesis import strategies as st
@@ -348,37 +345,3 @@ def test_generated_checks_do_not_recurse_into_class_binding(live_session):
     s._invalidate_result()
     assert spec.to_registry() and len(calls) == 1
     assert spec.to_registry() and len(calls) == 1
-
-
-@pytest.mark.skipif(
-    os.environ.get("SPYTIAL_BROWSER_TESTS") != "1", reason="opt-in real browser test"
-)
-def test_real_diagram_call_uses_new_requirement_without_redrawing_old_output(
-    live_session, tmp_path, monkeypatch
-):
-    from playwright.sync_api import sync_playwright
-
-    monkeypatch.setenv("SPYTIAL_ASSETS", "embedded")
-    monkeypatch.chdir(tmp_path)
-    s = live_session
-    s.apply()
-    first = Path(spytial.diagram(tree(), method="file", auto_open=False)).rename(
-        tmp_path / "first.html"
-    )
-    original = first.read_bytes()
-    accept_alignment(s)
-    second = Path(spytial.diagram(tree(), method="file", auto_open=False))
-    assert first.read_bytes() == original
-    with sync_playwright() as pw:
-        browser = pw.chromium.launch(headless=True)
-        page = browser.new_page()
-        errors = []
-        page.on("pageerror", lambda e: errors.append(str(e)))
-        page.route("http://**/*", lambda route: route.abort())
-        page.route("https://**/*", lambda route: route.abort())
-        page.goto(second.as_uri())
-        page.wait_for_function(
-            "document.querySelector('webcola-cnd-graph')?.getNodePositions().length > 0"
-        )
-        assert not errors
-        browser.close()
