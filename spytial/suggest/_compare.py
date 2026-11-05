@@ -106,7 +106,7 @@ def compare(datum, a, b):
         choices = []
         for entry in rival["constraints"]:
             kind = _kind(entry)
-            if kind not in _POSITIONAL:
+            if kind not in _POSITIONAL or entry in origin["constraints"]:
                 continue
             body = entry[kind]
             witness = {

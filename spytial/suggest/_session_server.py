@@ -95,7 +95,14 @@ class SessionServer:
 
             def do_POST(self):
                 route = self.route()
-                if route not in {"vote", "reclassify", "done", "resume"}:
+                if route not in {
+                    "vote",
+                    "reclassify",
+                    "done",
+                    "resume",
+                    "add-property",
+                    "edit-property",
+                }:
                     self.send_error(404)
                     return
                 if self.headers.get("Origin") != f"http://127.0.0.1:{server.port}":
@@ -109,7 +116,15 @@ class SessionServer:
                     if not isinstance(data, dict):
                         raise ValueError("Expected an object")
                     with server.lock:
-                        if route == "done":
+                        if route == "add-property":
+                            prop = server.session.add_property(data.get("prompt"))
+                            self.reply({"property_id": prop.id})
+                        elif route == "edit-property":
+                            prop = server.session.edit_property(
+                                data.get("property_id"), data.get("prompt")
+                            )
+                            self.reply({"property_id": prop.id})
+                        elif route == "done":
                             checkpoint = server.session.done()
                             self.reply(
                                 {
@@ -118,7 +133,7 @@ class SessionServer:
                                 }
                             )
                         elif route == "resume":
-                            server.session.resume()
+                            server.session.resume(data.get("property_id"))
                             self.reply({"resumed": True})
                         else:
                             if not data.get("question_id"):

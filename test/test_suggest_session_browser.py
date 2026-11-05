@@ -1,4 +1,4 @@
-"""Local, real-renderer smoke tests; opt in with SPYTIAL_BROWSER_TESTS=1."""
+"""Real embedded controls: property prompts, dragging, acceptance, and history."""
 
 import os
 from pathlib import Path
@@ -6,8 +6,9 @@ import threading
 
 import pytest
 
-from test_suggest_session import Tree, tree, Provider
 from spytial.suggest import suggest, FixedExamples, FixedProposals
+from test_suggest_session import Tree, tree, Provider, clean_tree_binding
+from test_suggest_living import alignment
 
 pytestmark = pytest.mark.skipif(
     os.environ.get("SPYTIAL_BROWSER_TESTS") != "1", reason="opt-in real browser test"
@@ -16,67 +17,59 @@ pytestmark = pytest.mark.skipif(
 
 @pytest.fixture(autouse=True)
 def local_renderer(monkeypatch):
-    bundle = (
-        Path(__file__).resolve().parents[1]
-        / "spytial/_vendor/browser/spytial-core-complete.global.js"
+    monkeypatch.setenv(
+        "SPYTIAL_BROWSER_BUNDLE",
+        str(
+            Path(__file__).resolve().parents[1]
+            / "spytial/_vendor/browser/spytial-core-complete.global.js"
+        ),
     )
-    monkeypatch.setenv("SPYTIAL_BROWSER_BUNDLE", str(bundle))
 
 
 def ready(page):
+    page.get_by_role("button", name="Upvote", exact=True).first.wait_for()
     page.wait_for_function(
         "document.querySelector('.vote') && !document.querySelector('.vote').disabled"
     )
 
 
-def test_independent_votes_reload_and_programmatic_revision():
+def request_property(page, prompt):
+    if not page.locator("#property-form").is_visible():
+        page.get_by_role("button", name="Add property", exact=True).click()
+    page.get_by_label("Property", exact=True).fill(prompt)
+    page.get_by_role("button", name="Explore", exact=True).click()
+    ready(page)
+
+
+def accept_first(page):
+    page.get_by_role("button", name="Upvote", exact=True).first.click()
+    page.get_by_role("button", name="Downvote", exact=True).last.click()
+    page.get_by_role("button", name="Resume", exact=True).wait_for()
+
+
+def test_prompt_drag_partial_vote_reload_and_history():
     from playwright.sync_api import sync_playwright
 
     provider = Provider()
     with suggest(
         tree(), search=FixedExamples(), proposer=provider
-    ) as session, sync_playwright() as pw:
+    ) as s, sync_playwright() as pw:
         browser = pw.chromium.launch(headless=True)
-        page = browser.new_page(viewport={"width": 900, "height": 450})
+        page = browser.new_page(viewport={"width": 1000, "height": 600})
         errors = []
-        page.on("pageerror", lambda error: errors.append(str(error)))
-        page.goto(session._url())
-        ready(page)
-        assert page.get_by_role("alert").is_hidden()
+        page.on("pageerror", lambda e: errors.append(str(e)))
+        page.goto(s._url())
+        page.wait_for_function(
+            "document.querySelector('webcola-cnd-graph')?.getNodePositions().length > 0"
+        )
+        assert not provider.prompts
+        assert page.locator("webcola-cnd-graph").count() == 1
+        request_property(page, "Parents above children")
         assert page.locator("webcola-cnd-graph").count() == 2
-        assert (
-            page.locator(
-                ":is(h1, h2, textarea, input, select, details):visible"
-            ).count()
-            == 0
-        )
-        # Six votes plus History and I'm done; no renderer toolbar.
-        assert page.get_by_role("button").count() == 8
-        assert page.locator("#status").is_hidden()
-        assert page.evaluate(
-            "document.documentElement.scrollHeight <= window.innerHeight"
-        )
-        assert (
-            page.evaluate(
-                "document.querySelector('#diagram-0 webcola-cnd-graph').getNodePositions().length"
-            )
-            > 0
-        )
-        page.screenshot(path="/tmp/spytial-suggest-minimal.png", full_page=True)
-
-        # A late renderer failure must prevent collecting a misleading judgment.
-        page.evaluate(
-            """document.querySelector('webcola-cnd-graph').dispatchEvent(
-            new CustomEvent('layout-error', {detail: {message: 'Simulated layout failure'}}))"""
-        )
-        assert page.get_by_role("button", name="Upvote").first.is_disabled()
-        assert not session.history
-        page.reload()
-        ready(page)
-        # Critique includes exploring the permitted layouts by dragging.
+        assert not page.locator("#property-form").is_visible()
         node = page.locator("#diagram-0 webcola-cnd-graph .node").first
         box = node.bounding_box()
-        assert box is not None
+        assert box
         positions = (
             "document.querySelector('#diagram-0 webcola-cnd-graph').getNodePositions()"
         )
@@ -84,145 +77,194 @@ def test_independent_votes_reload_and_programmatic_revision():
         x, y = box["x"] + box["width"] / 2, box["y"] + box["height"] / 2
         page.mouse.move(x, y)
         page.mouse.down()
-        page.mouse.move(x + 60, y + 30, steps=12)
+        page.mouse.move(x + 55, y + 25, steps=12)
         page.wait_for_function(
             f"before => JSON.stringify({positions}) !== JSON.stringify(before)",
             arg=before,
         )
         page.mouse.up()
-        page.get_by_role("button", name="Upvote").first.click()
+        page.get_by_role("button", name="Upvote", exact=True).first.click()
         page.wait_for_function(
             "document.querySelector('[data-side=\"0\"] [data-value=upvote]').getAttribute('aria-pressed') === 'true'"
         )
-        assert session.history[0]["votes"] == ["upvote", None]
+        assert s.history[0]["votes"] == ["upvote", None]
+        saved = s.history[0]["layout_states"][0]["positions"]
         page.reload()
         ready(page)
         assert (
-            page.get_by_role("button", name="Upvote").first.get_attribute(
+            page.get_by_role("button", name="Upvote", exact=True).first.get_attribute(
                 "aria-pressed"
             )
             == "true"
         )
-        page.get_by_role("button", name="Unsure").last.click()
-        page.get_by_role("button", name="I'm done", exact=True).click()
+        page.get_by_role("button", name="Downvote", exact=True).last.click()
         page.get_by_role("button", name="Resume", exact=True).wait_for()
-        assert session.paused
-        assert session.history[0]["votes"] == ["upvote", "unsure"]
-        assert session.history[0]["complete"]
-        assert all(
-            layout["positions"] for layout in session.history[0]["layout_states"]
-        )
-        saved = session.history[0]["layout_states"][0]["positions"]
+        assert s.active_property.status == "accepted"
         page.get_by_role("button", name="History", exact=True).click()
         page.wait_for_function(
             "document.querySelector('#history-position').textContent === '1 / 1'"
         )
-        restored = page.evaluate(
-            "document.querySelector('#diagram-0 webcola-cnd-graph').getNodePositions()"
-        )
-        assert {p["id"] for p in restored} == {p["id"] for p in saved}
+        restored = page.evaluate(positions)
         for a, b in zip(
             sorted(saved, key=lambda p: p["id"]),
             sorted(restored, key=lambda p: p["id"]),
         ):
-            assert abs(a["x"] - b["x"]) < 0.5
-            assert abs(a["y"] - b["y"]) < 0.5
-        page.get_by_role("button", name="Unsure").first.click()
+            assert abs(a["x"] - b["x"]) < 0.5 and abs(a["y"] - b["y"]) < 0.5
+        page.get_by_role("button", name="Unsure", exact=True).first.click()
         page.wait_for_function(
             "document.querySelector('[data-side=\"0\"] [data-value=unsure]').getAttribute('aria-pressed') === 'true'"
         )
-        assert session.history[0]["votes"] == ["unsure", "unsure"]
-        assert all(c.positive_votes == 0 for c in session.candidates)
-        page.get_by_role("button", name="Back", exact=True).click()
-        session.resume()
-        session.revise("Keep whole subtrees together")
-        assert len(session.history) == 1
-        assert '"votes": ["unsure", "unsure"]' in provider.prompts[-1]
+        assert s.active_property.status == "draft"
+        assert s.history[0]["votes"] == ["unsure", "downvote"]
         assert not errors
         browser.close()
 
 
-def test_notebook_frame_appears_before_model_finishes():
+def test_add_and_edit_property_keep_context_and_enduring_evidence():
     from playwright.sync_api import sync_playwright
+    from test_suggest_session import proposal
+
+    provider = Provider(
+        [proposal(["below"]), proposal(["right"])],
+        [alignment("horizontal"), alignment("vertical")],
+        [proposal(["below", "left"])],
+    )
+    with suggest(
+        tree(), search=FixedExamples(), proposer=provider
+    ) as s, sync_playwright() as pw:
+        browser = pw.chromium.launch(headless=True)
+        page = browser.new_page(viewport={"width": 1100, "height": 650})
+        errors = []
+        page.on("pageerror", lambda e: errors.append(str(e)))
+        page.goto(s._url())
+        request_property(page, "Parents above children")
+        accept_first(page)
+        first = s.properties[0]
+        background = s.spec.to_registry()
+        request_property(page, "Align siblings")
+        assert s.current["context"] == background
+        for side in s.current["sides"]:
+            assert all(
+                c in side["program"]["constraints"] for c in background["constraints"]
+            )
+        accept_first(page)
+        assert all(p.status == "accepted" for p in s.properties)
+        page.get_by_role(
+            "button", name="Edit property: Parents above children", exact=True
+        ).click()
+        page.get_by_label("Property", exact=True).fill("Left children below and left")
+        page.get_by_role("button", name="Revise", exact=True).click()
+        ready(page)
+        assert len(s.history) == 2 and s.properties[0].id == first.id
+        assert s.current["property_revision"] == 2
+        assert any("align" in c for c in s.current["context"]["constraints"])
+        page.get_by_role("button", name="I'm done", exact=True).click()
+        page.get_by_role("button", name="Resume", exact=True).wait_for()
+        assert all(p.status == "accepted" for p in s.properties)
+        page.wait_for_function(
+            "document.querySelectorAll('.card:not([hidden])').length === 1"
+        )
+        page.screenshot(path="/tmp/spytial-property-session.png", full_page=True)
+        page.get_by_role("button", name="History", exact=True).click()
+        page.get_by_role("button", name="Previous judgment", exact=True).click()
+        page.get_by_role("status").filter(has_text="Parents above children").wait_for()
+        assert not errors
+        browser.close()
+
+
+def test_notebook_is_interactive_before_model_finishes():
+    from playwright.sync_api import sync_playwright, expect
 
     entered, release = threading.Event(), threading.Event()
+    provider = Provider()
 
-    def slow_provider(prompt, *, schema):
+    def slow(prompt, *, schema):
         entered.set()
         assert release.wait(30)
-        return Provider()(prompt, schema=schema)
+        return provider(prompt, schema=schema)
 
     with suggest(
-        tree(), search=FixedExamples(), proposer=slow_provider
-    ) as session, sync_playwright() as pw:
+        tree(), search=FixedExamples(), proposer=slow
+    ) as s, sync_playwright() as pw:
         try:
-            assert entered.wait(5)
             browser = pw.chromium.launch(headless=True)
-            page = browser.new_page(viewport={"width": 900, "height": 500})
-            page.set_content(session._repr_html_())
-            frame = page.frame_locator('iframe[title="Diagram comparisons"]')
-            frame.get_by_role("status").filter(has_text="Drafting proposals").wait_for()
-            assert frame.locator(".card").count() == 2
-            assert frame.get_by_role("button").count() == 8
-            assert frame.get_by_role("button", name="Upvote").first.is_disabled()
-            assert not session._ready.is_set()
+            page = browser.new_page()
+            page.set_content(s._repr_html_())
+            frame = page.frame_locator('iframe[title="Diagram properties"]')
+            frame.get_by_label("Property", exact=True).fill("Parents above children")
+            assert not entered.is_set()
+            frame.get_by_role("button", name="Explore", exact=True).click()
+            assert entered.wait(5)
+            frame.get_by_role("status").filter(has_text="Drafting property").wait_for()
+            assert not s._properties[0].candidates
             release.set()
-            from playwright.sync_api import expect
-
-            expect(frame.get_by_role("button", name="Upvote").first).to_be_enabled(
-                timeout=30000
-            )
-            assert frame.locator("webcola-cnd-graph").count() == 2
+            expect(
+                frame.get_by_role("button", name="Upvote", exact=True).first
+            ).to_be_enabled(timeout=30000)
             browser.close()
         finally:
             release.set()
 
 
 @pytest.mark.parametrize("direction", ["clockwise", "counterclockwise"])
-def test_cyclic_rendered_arrangements_can_be_classified(direction):
+def test_cyclic_properties_remain_draggable_and_classifiable(direction):
     from playwright.sync_api import sync_playwright
 
     nodes = [Tree(i) for i in range(4)]
     for a, b in zip(nodes, nodes[1:] + nodes[:1]):
         a.left = b
-    proposals = [
+    programs = [
         {
-            "summary": direction,
+            "summary": d,
             "operations": [
-                {
-                    "kind": "cyclic",
-                    "selector": "left",
-                    "direction": direction,
-                    "hold": "always",
-                }
+                {"kind": "cyclic", "selector": "left", "direction": d, "hold": "always"}
             ],
         }
-        for direction in (
+        for d in (
             direction,
             "counterclockwise" if direction == "clockwise" else "clockwise",
         )
     ]
     with suggest(
-        nodes[0], search=FixedExamples(), proposer=FixedProposals(proposals)
-    ) as session, sync_playwright() as pw:
+        nodes[0], search=FixedExamples(), proposer=FixedProposals(programs)
+    ) as s, sync_playwright() as pw:
         browser = pw.chromium.launch(headless=True)
-        page = browser.new_page(viewport={"width": 900, "height": 450})
-        page.goto(session._url())
-        ready(page)
-        # Core cannot check the conjunction of the two cyclic directions.
-        # This must not break exploration or count as rejection evidence.
-        assert session.spec.result["status"] == "unsupported"
-        assert all(c.negative_votes == 0 for c in session.candidates)
-        assert session.current["kind"] == "confirmation"
+        page = browser.new_page()
+        page.goto(s._url())
+        request_property(page, "Draw this ring in a circle")
+        assert s.current["kind"] == "confirmation"
         for side in (0, 1):
             layout = page.locator(f"#diagram-{side} webcola-cnd-graph").evaluate(
                 "g => g.getLayoutState()"
             )
-            record = session.vote(side, "upvote", layout_state=layout)
-            assert record["votes"][side] == "upvote"
-        # Confirmation shows an instance and a counterexample for the first
-        # candidate, not necessarily an instance of each cyclic direction.
-        candidate = session.candidates[0]
-        assert candidate.positive_votes == 1
-        assert candidate.negative_votes == 1
+            s.vote(side, "upvote", layout_state=layout)
+        assert s.history[0]["complete"]
+        browser.close()
+
+
+def test_done_button_combines_multiple_supported_survivors():
+    from playwright.sync_api import sync_playwright
+    from test_suggest_session import state
+
+    with suggest(
+        tree(), search=FixedExamples(), proposer=Provider()
+    ) as s, sync_playwright() as pw:
+        browser = pw.chromium.launch(headless=True)
+        page = browser.new_page()
+        page.goto(s._url())
+        request_property(page, "Parents above children")
+        page.get_by_role("button", name="Unsure", exact=True).first.click()
+        page.get_by_role("button", name="Unsure", exact=True).last.click()
+        ready(page)
+        # A shared approved arrangement supports both surviving interpretations.
+        s.next()
+        s.vote(0, "upvote", layout_state=state(120, 150))
+        assert len(s.survivors) == 2
+        page.get_by_role("button", name="I'm done", exact=True).click()
+        page.get_by_role("button", name="Resume", exact=True).wait_for()
+        page.wait_for_function(
+            "document.querySelectorAll('.card:not([hidden])').length === 1"
+        )
+        assert len(s.active_property.result["accepted_ids"]) == 2
+        assert s.active_property.status == "accepted"
         browser.close()

@@ -50,20 +50,17 @@ spytial.diagram(data)
 spytial.diagram(data, method="file")
 ```
 
-Not sure which diagramming rules you want? `from spytial.suggest import suggest`
-then `suggest(MyClass).show()` starts a critique session: an LLM proposes programs,
-Hypothesis searches for useful examples, and you rate each of two contrasting
-diagrams with upvote, downvote, or unsure. The notebook view opens immediately;
-`session.revise("...")` lets you add a rule later while keeping earlier votes.
-`spec = session.apply()` combines the supported surviving programs and connects
-the living spec to the class. Every included rule applies together. Application
-requires positive evidence for the combination and agreement with all current
-classifications. Later `spytial.diagram(root)` calls use its updated rules as
-feedback changes it; they raise `SpecUnavailableError` if the result becomes
-unavailable. **I'm done** saves and pauses the session without applying it.
-Use `spytial.diagram(root, spec=session.spec)` to use it without a class binding.
-Use `suggest_draft(MyClass)` for a one-shot editable draft. See
-[Suggesting Specs](https://sidprasad.github.io/spytial/suggest/) for setup and the notebook demo.
+Build diagram rules one property at a time with `from spytial.suggest import suggest`:
+`s = suggest(MyClass, examples=[root]); display(s)` prepares the data, then
+`s.add_property("Parents above children")` asks an LLM for interpretations.
+Drag and rate the diagrams. **I'm done** combines every surviving interpretation
+with positive support when the combination agrees with that property's judgments
+and works with accepted rules. Add another property to refine the spec, or revisit
+an earlier one with `property.revise("...")`; earlier classifications remain evidence
+about that property. `spec = s.apply()` connects the accepted spec to the class.
+Later `spytial.diagram(root)` calls use its updated rules. `s.close()` stops the
+controls; a supported spec remains usable. See the [notebook and guide](https://sidprasad.github.io/spytial/suggest/).
+Use `suggest_draft(MyClass)` for a one-shot editable draft.
 
 For stepping through sequences of states, custom relationalizers, and annotation-driven layouts, see the [docs](https://sidprasad.github.io/spytial/).
 

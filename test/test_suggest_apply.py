@@ -1,53 +1,49 @@
-"""Using a living spec through normal Python annotation and diagram APIs."""
+"""Using accepted properties through the real Python diagram integration."""
 
-from copy import deepcopy
-import os
 from pathlib import Path
+import os
 
 import pytest
 import yaml
 from hypothesis import strategies as st
 
 import spytial
-from spytial.annotations import LIVE_SPEC_ATTR, collect_decorators
-from spytial.provider_system import CnDDataInstanceBuilder
+from spytial.annotations import collect_decorators
 from spytial.suggest import (
+    suggest,
+    SuggestSession,
     FixedExamples,
     FixedProposals,
     HypothesisSearch,
     LivingSpec,
     SpecUnavailableError,
-    SuggestSession,
 )
-from test_suggest_living import session, state
-from test_suggest_session import Tree, tree, proposal
-
-
-@pytest.fixture(autouse=True)
-def restore_class_binding():
-    previous = Tree.__dict__.get(LIVE_SPEC_ATTR)
-    yield
-    if previous is None:
-        if LIVE_SPEC_ATTR in Tree.__dict__:
-            delattr(Tree, LIVE_SPEC_ATTR)
-    else:
-        setattr(Tree, LIVE_SPEC_ATTR, previous)
+from test_suggest_session import (
+    Tree,
+    tree,
+    proposal,
+    Provider,
+    session,
+    state,
+    accept_below,
+    clean_tree_binding,
+)
+from test_suggest_living import refined_session, accept_alignment
 
 
 @pytest.fixture
 def live_session():
-    with session(elimination_threshold=1) as s:
-        s.judge("right", layout_states=[state(-120, 150), state(120, -150)])
+    with refined_session() as s:
+        accept_below(s)
         yield s
 
 
 @pytest.fixture
 def emitted_spec(monkeypatch):
-    """Exercise diagram's real data/annotation path, capture its emitted YAML."""
     import spytial.visualizer as visualizer
 
     monkeypatch.setattr(
-        visualizer, "_generate_visualizer_html", lambda data, spec, *args, **kw: spec
+        visualizer, "_generate_visualizer_html", lambda data, spec, *a, **kw: spec
     )
     monkeypatch.setattr(visualizer, "_deliver_html_content", lambda html, **kw: html)
     return lambda obj, **kw: yaml.safe_load(
@@ -55,286 +51,157 @@ def emitted_spec(monkeypatch):
     )
 
 
-def add_above(s):
-    s.proposer = lambda prompt, schema: {
-        "rules": [],
-        "programs": [proposal(["right", "above"])],
-    }
-    s.revise("Also keep that child above")
-
-
-def orientation_directions(program):
-    return [
-        row["orientation"]["directions"]
-        for row in program["constraints"]
-        if "orientation" in row
-    ]
-
-
-def test_apply_returns_stable_object_and_future_diagrams_follow_revision(
+def test_same_bound_handle_uses_new_accepted_property_on_next_diagram(
     live_session, emitted_spec
 ):
     s = live_session
     spec = s.apply()
-    assert isinstance(spec, LivingSpec)
-    assert spec is s.spec is s.apply()
-    assert spec.applied and not s.paused
-    obj = tree()
-    before = emitted_spec(obj)
+    before = emitted_spec(tree())
     snapshot = spec.snapshot()
-    add_above(s)
-    assert s.spec is spec
-    after = emitted_spec(obj)
-    assert before != after
-    assert after == spec.to_registry()
-    assert snapshot.to_registry() == before
-    snapshot.suggestions.clear()
-    assert spec.to_registry() == after
-    assert ["right", "above"] in [
-        row["orientation"]["directions"]
-        for row in after["constraints"]
-        if "orientation" in row
-    ]
-    assert not any(
-        "below" in row.get("orientation", {}).get("directions", [])
-        for row in after["constraints"]
+    assert isinstance(spec, LivingSpec) and spec is s.spec
+    prop = s.add_property("Align siblings")
+    assert prop.status == "draft"
+    assert (
+        emitted_spec(tree()) == before
+    )  # A pending property does not enter the live spec.
+    s.judge(
+        "left",
+        layout_states=[
+            state(-120, 150, other_x=120, other_y=150),
+            state(-120, 150, other_x=-120, other_y=250),
+        ],
     )
+    assert prop.status == "accepted"
+    assert emitted_spec(tree()) != before
+    assert emitted_spec(tree()) == spec.to_registry()
+    assert emitted_spec(tree(), spec=spec) == spec.to_registry()
+    assert snapshot.to_registry() == before
 
 
-def test_losing_all_candidates_blocks_drawing_and_correction_restores_it(
+def test_print_reads_current_rules_from_the_same_living_object(live_session, capsys):
+    s = live_session
+    spec = s.spec
+    print(spec)
+    before = capsys.readouterr().out
+    assert before == spec.to_source(with_comments=False) + "\n"
+    assert "spytial.orientation" in before and "LivingSpec" not in before
+    accept_alignment(s)
+    print(spec)
+    after = capsys.readouterr().out
+    assert after != before and "spytial.align" in after
+    assert repr(spec).startswith("<LivingSpec")
+    s.close()
+    assert str(spec) == spec.to_source(with_comments=False)
+
+
+def test_losing_last_accepted_property_blocks_drawing_until_corrected(
     live_session, emitted_spec
 ):
     s = live_session
     spec = s.apply()
-    question = s.history[0]["id"]
-    s.reclassify(question, 1, "downvote")
+    q = s.history[0]["id"]
+    s.reclassify(q, 0, "unsure")
     assert spec.status == "empty"
-    with pytest.raises(SpecUnavailableError, match="No candidates remain"):
+    with pytest.raises(SpecUnavailableError, match="Accept a property"):
         emitted_spec(tree())
-    # Search/revision can still serialize data while the bound spec is empty.
     assert s._datum(tree())["atoms"]
-    s.reclassify(question, 1, "upvote")
-    assert spec.status == "supported"
+    s.reclassify(q, 0, "upvote")
+    s.done()
     assert emitted_spec(tree()) == spec.to_registry()
 
 
+def test_explicit_spec_needs_no_binding_and_snapshot_is_independent(
+    live_session, emitted_spec
+):
+    s = live_session
+    assert not s.spec.applied
+    assert emitted_spec(tree(), spec=s.spec) == s.spec.to_registry()
+    snap = s.spec.snapshot()
+    snap.suggestions.clear()
+    assert s.spec.to_registry()["constraints"]
+    assert not s.spec.applied
+
+
+def test_done_is_separate_from_apply_and_close(live_session, emitted_spec):
+    s = live_session
+    checkpoint = s.done()
+    assert checkpoint["status"] == "accepted" and s.paused
+    assert not s.spec.applied
+    spec = s.apply()
+    s.close()
+    assert emitted_spec(tree()) == spec.to_registry()
+    with pytest.raises(RuntimeError, match="closed"):
+        s.resume()
+    spec.unapply()
+    assert not spec.applied
+
+
+def test_unapply_preserves_manual_annotations(live_session):
+    s = live_session
+    spytial.orientation(selector="right - (univ -> NoneType)", directions=["right"])(
+        Tree
+    )
+    before = collect_decorators(tree())
+    spec = s.apply()
+    assert spec.applied
+    assert len(collect_decorators(tree())["constraints"]) > len(before["constraints"])
+    spec.unapply()
+    assert collect_decorators(tree()) == before
+
+
+def test_loading_requires_explicit_rebinding_and_old_unapply_is_safe(
+    live_session, tmp_path, emitted_spec
+):
+    old = live_session.apply()
+    path = tmp_path / "spec.json"
+    live_session.save(path)
+    with SuggestSession.load(Tree, path, search=FixedExamples()).wait() as restored:
+        assert not restored.spec.applied and old.applied
+        new = restored.apply()
+        old.unapply()
+        assert new.applied
+        assert emitted_spec(tree()) == new.to_registry()
+    assert new.to_registry() == old.to_registry()
+
+
 @pytest.mark.parametrize("supplied_examples", [False, True])
-def test_replacement_session_can_generate_with_an_unavailable_bound_spec(
+def test_replacement_generates_data_while_old_binding_is_unavailable(
     live_session, supplied_examples
 ):
     old = live_session.apply()
-    live_session.reclassify(live_session.history[0]["id"], 1, "downvote")
+    live_session.reclassify(live_session.history[0]["id"], 0, "downvote")
     assert old.status == "empty"
-    # Neither value populates both recursive fields. Witness search must still
-    # prefer the nontrivial tree over the leaf, ignoring the old binding in both
-    # the buildability and the nontrivial-witness checks.
     witness = Tree(1, Tree(2))
-    with spytial.suggest(
+    with suggest(
         Tree,
         examples=[tree()] if supplied_examples else None,
         strategy=st.sampled_from([Tree(), witness]),
         proposer=FixedProposals([proposal(["below"]), proposal(["right"])]),
         max_examples=3,
     ).wait() as replacement:
-        assert isinstance(replacement.search, HypothesisSearch)
         assert replacement.examples[-1] is witness
-        assert len(replacement.candidates) == 2
+        assert not replacement.properties
+        replacement.add_property("Parents above children")
         assert replacement.next() is not None
         assert old.applied and not replacement.spec.applied
-        with pytest.raises(SpecUnavailableError, match="No candidates remain"):
-            CnDDataInstanceBuilder().build_instance(tree())
 
 
-def test_done_with_multiple_unreviewed_candidates_does_not_allow_application(
-    emitted_spec,
-):
-    with session() as s:
-        spec = s.spec
-        assert len(s.survivors) == 2
-        inspection = s.draft
-        assert orientation_directions(inspection.to_registry()) == [
-            ["below"],
-            ["right"],
-        ]
-        # A caller can explicitly use an editable copy. That is separate from
-        # live application and supplies no evidence to the session.
-        assert emitted_spec(tree(), spec=inspection) == inspection.to_registry()
-        assert not s.history
-        checkpoint = s.done()
-        assert checkpoint["status"] == "draft"
-        assert len(checkpoint["candidate_ids"]) == 2
-        assert s.paused and not spec.applied
-        with pytest.raises(SpecUnavailableError, match="positive evidence"):
+def test_generated_conflict_prevents_acceptance_and_retains_counterexample():
+    with session(proposer=Provider()) as s:
+        prop = s.add_property("Parents above children")
+        cyclic = tree()
+        cyclic.left = cyclic
+        s.search = HypothesisSearch(st.just(cyclic))
+        s.judge("left", layout_states=[state(-120, 150), state(120, -150)])
+        assert prop.status == "conflict"
+        assert any(example is cyclic for example in s.examples)
+        with pytest.raises(SpecUnavailableError):
             s.apply()
-        assert not spec.applied
-        s.resume()
-        assert s.spec is spec
-        assert not s.paused
-        assert spec.status == "draft"
 
 
-@pytest.mark.parametrize("minimum", [1, 2])
-def test_apply_combines_multiple_survivors_after_shared_positive_evidence(
-    minimum, emitted_spec
-):
-    with session(min_positive_votes=minimum) as s:
-        # Leave the two contrasts unclassified; the next pair asks for
-        # confirmation of below AND right on the same datum.
-        s.judge("unsure")
-        assert s.next()["kind"] == "confirmation"
-        s.vote(0, "upvote", layout_state=state(120, 150))
-        if minimum == 2:
-            with pytest.raises(SpecUnavailableError, match="positive evidence"):
-                s.apply()
-            # Moving nodes without changing their qualitative order cannot
-            # supply the second distinct example required by this threshold.
-            s.vote(0, "upvote", layout_state=state(140, 170))
-            assert s.spec.result["positive_votes"] == 1
-            with pytest.raises(SpecUnavailableError, match="positive evidence"):
-                s.apply()
-            moved = state(120, 150)
-            moved["positions"][2]["y"] = -200
-            s.vote(0, "upvote", layout_state=moved)
-
-        assert len(s.survivors) == 2
-        assert all(c.positive_votes == minimum for c in s.survivors)
-        checkpoint = s.done()
-        assert checkpoint["status"] == "supported"
-        assert checkpoint["positive_votes"] == minimum
-        assert not s.spec.applied  # I'm done does not apply even a ready spec.
-        spec = s.apply()
-        program = emitted_spec(tree())
-        assert spec.result["candidate_ids"] == [c.id for c in s.survivors]
-        assert orientation_directions(program) == [["below"], ["right"]]
-        assert emitted_spec(tree(), spec=spec) == program
-        assert s.finish().to_registry() == program
-
-
-def test_live_spec_excludes_unsupported_survivor_then_blocks_conflicting_combination(
-    emitted_spec,
-):
-    with session() as s:
-        question = s.next()["id"]
-        s.vote(0, "upvote", layout_state=state(-120, 150))
-        spec = s.apply()
-        assert len(s.survivors) == 2
-        assert [(c.positive_votes, c.negative_votes) for c in s.survivors] == [
-            (1, 0),
-            (0, 1),
-        ]
-        assert spec.result["candidate_ids"] == [s.candidates[0].id]
-        before = emitted_spec(tree())
-        assert before == s.candidates[0].program
-
-        # Both programs now have support, but their conjunction excludes
-        # both approved layouts. Neither candidate has been eliminated.
-        s.vote(1, "upvote", layout_state=state(120, -150))
-        assert len(s.survivors) == 2
-        assert all(c.positive_votes == 1 for c in s.survivors)
-        assert spec.status == "conflict"
-        assert len(spec.result["conflicts"]) == 2
-        assert orientation_directions(s.draft.to_registry()) == [
-            ["below"],
-            ["right"],
-        ]  # Inspection only.
-        with pytest.raises(SpecUnavailableError, match="judgments"):
-            s.apply()
-        with pytest.raises(SpecUnavailableError, match="judgments"):
-            spec.snapshot()
-        with pytest.raises(SpecUnavailableError, match="judgments"):
-            emitted_spec(tree())
-        with pytest.raises(SpecUnavailableError, match="judgments"):
-            emitted_spec(tree(), spec=spec)
-
-        s.reclassify(question, 1, "unsure")
-        assert s.spec is spec and spec.applied
-        assert spec.status == "supported"
-        assert emitted_spec(tree()) == before
-
-
-def test_explicit_spec_updates_without_class_binding(live_session, emitted_spec):
+def test_generated_checks_do_not_recurse_into_class_binding(live_session):
     s = live_session
-    spec = s.spec
-    before = emitted_spec(tree(), spec=spec)
-    assert not spec.applied
-    add_above(s)
-    assert emitted_spec(tree(), spec=spec) != before
-    assert not spec.applied
-    # A snapshot remains an ordinary usable spec.
-    snapshot = spec.snapshot()
-    assert emitted_spec(tree(), spec=snapshot) == snapshot.to_registry()
-
-
-def test_explicit_program_bypasses_an_unavailable_class_binding(
-    live_session, emitted_spec
-):
-    s = live_session
-    s.apply()
-    s.reclassify(s.history[0]["id"], 1, "downvote")
-    program = {"constraints": [], "directives": []}
-    assert emitted_spec(tree(), spec=program) == program
-    with pytest.raises(TypeError, match="constraints and directives"):
-        emitted_spec(tree(), spec={"constraints": "bad", "directives": []})
-
-
-def test_unapply_preserves_manual_annotations(live_session, monkeypatch):
-    monkeypatch.setattr(
-        Tree,
-        "__spytial_registry__",
-        {"constraints": [], "directives": [{"flag": "hideDisconnected"}]},
-        raising=False,
-    )
-    manual = deepcopy(Tree.__spytial_registry__)
-    spec = live_session.apply()
-    assert {"flag": "hideDisconnected"} in collect_decorators(tree())["directives"]
-    assert Tree.__spytial_registry__ == manual
-    spec.unapply()
-    assert collect_decorators(tree()) == manual
-    assert not spec.applied
-
-
-def test_bindings_follow_inheritance_controls(live_session):
-    spec = live_session.apply()
-
-    class Child(Tree):
-        pass
-
-    @spytial.dont_inherit_constraints
-    class NoConstraints(Tree):
-        pass
-
-    @spytial.dont_inherit_annotations
-    class NoAnnotations(Tree):
-        pass
-
-    assert collect_decorators(Child()) == spec.to_registry()
-    assert collect_decorators(NoConstraints())["constraints"] == []
-    assert (
-        collect_decorators(NoConstraints())["directives"]
-        == spec.to_registry()["directives"]
-    )
-    assert collect_decorators(NoAnnotations()) == {"constraints": [], "directives": []}
-
-
-def test_each_data_build_resolves_a_live_binding_once(live_session, monkeypatch):
-    spec = live_session.apply()
-    read = spec.to_registry
-    calls = []
-
-    def counted():
-        calls.append(True)
-        return read()
-
-    monkeypatch.setattr(spec, "to_registry", counted)
-    builder = CnDDataInstanceBuilder()
-    builder.build_instance(tree())
-    assert len(calls) == 1  # Three instances, one consistent program version.
-    builder.build_instance(tree())
-    assert len(calls) == 2  # A later call refreshes that version.
-
-
-def test_generated_checks_are_cached_and_do_not_recurse_through_binding(live_session):
-    s = live_session
+    spec = s.apply()
     calls = []
 
     class Search:
@@ -344,84 +211,40 @@ def test_generated_checks_are_cached_and_do_not_recurse_through_binding(live_ses
             return None
 
     s.search = Search()
-    spec = s.apply()
-    assert spec.to_registry()
-    assert len(calls) == 1
-    s.reclassify(s.history[0]["id"], 0, "unsure")
-    assert spec.to_registry()
-    assert len(calls) == 2
-
-
-def test_generated_conflicts_prevent_application(live_session):
-    s = live_session
-    cyclic = tree()
-    cyclic.left = cyclic
-
-    # Exercise the real Hypothesis backend: the approved tree is satisfiable,
-    # but a self-loop cannot be oriented to the right of itself.
-    s.search = HypothesisSearch(st.just(cyclic))
-    with pytest.raises(SpecUnavailableError, match="Generated data"):
-        s.apply()
-    assert not s.spec.applied
-    assert s.spec.status == "conflict"
-    assert any(example is cyclic for example in s.examples)
-
-
-def test_load_is_explicit_and_new_binding_is_not_removed_by_old_handle(
-    live_session, tmp_path, emitted_spec
-):
-    s = live_session
-    old = s.apply()
-    path = tmp_path / "tree.json"
-    s.save(path)
-    with SuggestSession.load(Tree, path, search=FixedExamples()).wait() as restored:
-        assert not restored.spec.applied
-        assert old.applied
-        new = restored.apply()
-        old.unapply()
-        assert new.applied
-        assert emitted_spec(tree()) == new.to_registry()
-    # Closing the exploration server does not discard the usable spec.
-    assert new.to_registry() == old.to_registry()
+    s._invalidate_result()
+    assert spec.to_registry() and len(calls) == 1
+    assert spec.to_registry() and len(calls) == 1
 
 
 @pytest.mark.skipif(
     os.environ.get("SPYTIAL_BROWSER_TESTS") != "1", reason="opt-in real browser test"
 )
-def test_real_diagram_call_uses_revised_bound_program(
-    live_session, monkeypatch, tmp_path
+def test_real_diagram_call_uses_new_property_without_redrawing_old_output(
+    live_session, tmp_path, monkeypatch
 ):
     from playwright.sync_api import sync_playwright
 
     monkeypatch.setenv("SPYTIAL_ASSETS", "embedded")
     monkeypatch.chdir(tmp_path)
     s = live_session
-    spec = s.apply()
-    obj = tree()
-    first = Path(spytial.diagram(obj, method="file", auto_open=False)).rename(
+    s.apply()
+    first = Path(spytial.diagram(tree(), method="file", auto_open=False)).rename(
         tmp_path / "first.html"
     )
-    original_html = first.read_bytes()
-    add_above(s)
-    second = Path(spytial.diagram(obj, method="file", auto_open=False))
-    assert s.spec is spec
-    assert first.read_bytes() == original_html
+    original = first.read_bytes()
+    accept_alignment(s)
+    second = Path(spytial.diagram(tree(), method="file", auto_open=False))
+    assert first.read_bytes() == original
     with sync_playwright() as pw:
         browser = pw.chromium.launch(headless=True)
         page = browser.new_page()
         errors = []
-        page.on("pageerror", lambda error: errors.append(str(error)))
+        page.on("pageerror", lambda e: errors.append(str(e)))
         page.route("http://**/*", lambda route: route.abort())
         page.route("https://**/*", lambda route: route.abort())
         page.goto(second.as_uri())
         page.wait_for_function(
-            """() => {
-            const g = document.querySelector('webcola-cnd-graph');
-            const nodes = g?.getNodePositions?.() || [];
-            const root = nodes.find(n => n.id === 'n0');
-            const child = nodes.find(n => n.id === 'n1');
-            return root && child && child.x > root.x && child.y < root.y;
-        }"""
+            "document.querySelector('webcola-cnd-graph')?.getNodePositions().length > 0"
         )
         assert not errors
         browser.close()

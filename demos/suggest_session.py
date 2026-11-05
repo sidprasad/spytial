@@ -28,9 +28,8 @@ if __name__ == "__main__":
     with suggest(
         Tree,
         examples=[example],
-        rules=["Put children below their parents", "Align children"],
         strategy=trees(2),
         max_examples=10,
     ) as session:
         session.show()
-        input("Explore the diagrams in your browser. Press Enter here to close. ")
+        input("Add a property in the browser, then drag and judge. Press Enter here to close controls. ")

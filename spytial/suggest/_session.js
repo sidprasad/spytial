@@ -11,14 +11,20 @@ let paused = false;
 let history = null;
 let historyIndex = 0;
 let available = false;
+let editing = null;
+let properties = [];
+let activePropertyId = null;
+let canVote = false;
 
 function lock() {
   document.querySelectorAll('.vote').forEach(button => {
     const side = Number(button.closest('.card').dataset.side);
-    button.disabled = busy || !rendered || (!history && paused) ||
+    button.disabled = busy || !rendered || (!history && (!canVote || paused)) ||
       (history && !current.observations?.[side]);
   });
-  el('done').disabled = busy || !available;
+  el('done').disabled = busy || !available || !activePropertyId;
+  for (const id of ['add-property', 'explore', 'continue-property', 'cancel-property']) el(id).disabled = busy || !available;
+  document.querySelectorAll('#properties button').forEach(b => b.disabled = busy || !available);
   el('history').disabled = busy || !available;
   el('previous').disabled = busy || historyIndex === 0;
   el('next-history').disabled = busy || !history || historyIndex >= history.length - 1;
@@ -94,13 +100,15 @@ async function render(side, index, datum, savedState) {
 
 async function refresh() {
   const state = await api('state');
-  available = ['ready', 'empty', 'paused'].includes(state.status);
+  available = ['ready', 'empty', 'paused', 'idle'].includes(state.status);
+  canVote = state.status === 'ready';
+  if (state.properties) syncProperties(state);
   paused = state.status === 'paused';
   el('done').textContent = paused ? 'Resume' : "I'm done";
   if (history) return;
   if (state.status === 'error') throw Error(state.message);
   status(state.message);
-  if (state.status !== 'ready' && !(paused && state.question)) {
+  if (!state.question || state.status === 'loading') {
     rendered = false;
     lock();
     return;
@@ -109,6 +117,11 @@ async function refresh() {
     rendered = false;
     lock();
     current = state.question;
+    document.querySelector('.pair').classList.toggle('preview', current.kind === 'preview');
+    document.querySelectorAll('.card').forEach((card, side) => {
+      card.hidden = side >= current.sides.length;
+      card.querySelector('.votes').hidden = current.kind === 'preview';
+    });
     selections(current.votes);
     await Promise.all(current.sides.map((side, index) =>
       render(side, index, current.datum, current.layout_states?.[index])));
@@ -118,7 +131,6 @@ async function refresh() {
     current = state.question;
   }
   rendered = !document.querySelector('webcola-cnd-graph[data-failed]');
-  if (rendered) error('');
   selections(current.votes);
   lock();
 }
@@ -160,10 +172,12 @@ async function showHistory() {
   if (!current) { status('No judgments yet.'); return; }
   rendered = false;
   lock();
+  document.querySelector('.pair').classList.remove('preview');
+  document.querySelectorAll('.card').forEach(card => { card.hidden = false; card.querySelector('.votes').hidden = false; });
   await Promise.all(current.sides.map((side, i) => render(side, i, current.datum, current.layout_states?.[i])));
   rendered = !document.querySelector('webcola-cnd-graph[data-failed]');
   selections(current.votes);
-  status('');
+  status(current.prompt);
   el('history-position').textContent = `${historyIndex + 1} / ${history.length}`;
   el('previous').disabled = historyIndex === 0;
   el('next-history').disabled = historyIndex === history.length - 1;
@@ -198,5 +212,55 @@ el('history').addEventListener('click', () => action(async () => {
 }));
 el('previous').addEventListener('click', () => action(async () => { historyIndex--; await showHistory(); }));
 el('next-history').addEventListener('click', () => action(async () => { historyIndex++; await showHistory(); }));
-window.addEventListener('pagehide', () => clearTimeout(timer));
+function syncProperties(state) {
+  const previousActive = activePropertyId;
+  properties = state.properties;
+  activePropertyId = state.active_property_id;
+  if (activePropertyId !== previousActive && properties.length && !busy) el("property-form").hidden = true;
+  const signature = JSON.stringify([properties.map(p => [p.id, p.prompt, p.status]), activePropertyId]);
+  if (el('properties').dataset.signature === signature) return;
+  el('properties').dataset.signature = signature;
+  el('properties').replaceChildren(...properties.map(property => {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.textContent = `${property.status === 'accepted' ? '✓ ' : ''}${property.prompt}`;
+    button.setAttribute('aria-current', String(property.id === activePropertyId));
+    button.setAttribute('aria-label', `Edit property: ${property.prompt}`);
+    button.addEventListener('click', () => openProperty(property));
+    return button;
+  }));
+  if (!properties.length && el('property-form').hidden) openProperty();
+}
+function openProperty(property = null) {
+  editing = property?.id || null;
+  el('property-form').hidden = false;
+  el('property-prompt').value = property?.prompt || '';
+  el('explore').textContent = editing ? 'Revise' : 'Explore';
+  el('continue-property').hidden = !editing;
+  el('cancel-property').hidden = !properties.length;
+  el('property-prompt').focus();
+}
+el('add-property').addEventListener('click', () => openProperty());
+el('cancel-property').addEventListener('click', () => { el('property-form').hidden = true; });
+el('continue-property').addEventListener('click', () => action(async () => {
+  await api('resume', {property_id: editing});
+  el('property-form').hidden = true;
+  if (history) closeHistory();
+  displayedId = null;
+  await refresh();
+}));
+el('property-form').addEventListener('submit', event => {
+  event.preventDefault();
+  action(async () => {
+    status('Drafting property interpretations…');
+    await api(editing ? 'edit-property' : 'add-property', {
+      prompt: el('property-prompt').value, property_id: editing
+    });
+    el('property-form').hidden = true;
+    if (history) closeHistory();
+    displayedId = null;
+    await refresh();
+  });
+});
+window.addEventListener('pagehide' , () => clearTimeout(timer));
 poll();

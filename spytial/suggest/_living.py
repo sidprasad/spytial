@@ -65,5 +65,9 @@ class LivingSpec:
             delattr(self.cls, LIVE_SPEC_ATTR)
         return self
 
+    def __str__(self):
+        """Print the current accepted Python Spytial source."""
+        return self.to_source(with_comments=False)
+
     def __repr__(self):
         return f"<LivingSpec {self.cls.__name__}; applied={self.applied}>"

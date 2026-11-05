@@ -72,18 +72,6 @@ def _operation_schema(kind, parameter, values):
 PROPOSAL_SCHEMA = {
     "type": "object",
     "properties": {
-        "rules": {
-            "type": "array",
-            "items": {
-                "type": "object",
-                "properties": {
-                    "text": {"type": "string"},
-                    "origin": {"type": "string", "enum": ["user", "suggested"]},
-                },
-                "required": ["text", "origin"],
-                "additionalProperties": False,
-            },
-        },
         "programs": {
             "type": "array",
             "minItems": 2,
@@ -128,7 +116,7 @@ PROPOSAL_SCHEMA = {
             },
         },
     },
-    "required": ["rules", "programs"],
+    "required": ["programs"],
     "additionalProperties": False,
 }
 
@@ -142,41 +130,39 @@ class FixedProposals:
 
     can_revise = False
 
-    def __init__(self, programs, *, rules=None):
-        self._response = deepcopy({"programs": programs, "rules": rules or []})
+    def __init__(self, programs):
+        self._response = deepcopy({"programs": programs})
 
     def __call__(self, prompt, *, schema):
         return deepcopy(self._response)
 
 
-def proposal_prompt(cls, vocab, requests, candidates, history, critique):
-    return f"""Help a person develop diagramming rules without reading Spytial.
-Return 2-4 COMPLETE alternative positional programs, not isolated rule fragments.
-Keep requirements that are not disputed. Alternatives may change one or several rules.
-Eliminated complete programs are history, not active choices. Reuse useful rules
-in a different combination when appropriate, but respect the retained judgments.
-Distinguish requested rules from optional rules suggested by domain knowledge.
-Use short ordinary-language summaries. Do not claim a proposal is verified.
-Available operations: orientation(selector, directions), align(selector, direction),
-cyclic(selector, direction). Orientation directions: above, below, left, right,
-directlyAbove, directlyBelow, directlyLeft, directlyRight. Align: horizontal or
-vertical. Cyclic: clockwise or counterclockwise. Each selector returns node PAIRS.
-Selectors use only names from the vocabulary, join '.', union '+', intersection '&',
-difference '-', product '->', transpose '~', transitive closure '^', reflexive closure '*',
-parentheses and index projections '[...]'; built-ins univ, iden, none.
-hold is always (default) or never (logical negation, not an opposite direction).
+def proposal_prompt(cls, vocab, prop, background, history):
+    return f"""Help a person refine ONE visualization property through concrete critique.
+Return 2-4 alternative interpretations of ONLY the requested property. Each may
+contain several positional operations. The accepted background applies to every
+alternative automatically: do not repeat, weaken, or replace its rules. Do not
+add unrelated requirements. Use short ordinary-language summaries.
+Operations: orientation(selector, directions), align(selector, direction),
+cyclic(selector, direction). Orientation: above, below, left, right,
+directlyAbove, directlyBelow, directlyLeft, directlyRight. Alignment: horizontal
+or vertical. Cyclic: clockwise or counterclockwise. Selectors return node PAIRS.
+Use vocabulary names and join '.', union '+', intersection '&', difference '-',
+product '->', transpose '~', closure '^' or '*', parentheses, projections '[...]';
+built-ins univ, iden, none. hold is always or never (logical negation).
 Presentation is fixed separately; do not emit hiding, styles or inferred edges.
 Class: {cls.__name__}
 Fields: {[(f.name, f.type_repr) for f in build_class_info(cls).fields]}
 Vocabulary: {json.dumps(vocab)}
-User requests: {json.dumps(requests)}
-Candidate history: {json.dumps([dict(summary=c.summary, program=c.program, positive_votes=c.positive_votes, negative_votes=c.negative_votes, eliminated=c.eliminated) for c in candidates])}
-Each history entry has votes in the same order as its two programs and sides.
-Upvote means acceptable, downvote means unacceptable, unsure means undecided,
-and null means not yet rated. Preserve these independent judgments.
-Judgment history: {json.dumps(history)}
-Latest critique: {critique}
-Judgments apply only to the examples shown, not all data. Never invent an answer.
+Property: {prop.prompt}
+Earlier wordings: {json.dumps([r["prompt"] for r in prop.revisions])}
+Accepted background (already applied): {json.dumps(background)}
+Judgments concern THIS property only, on the saved datum and arrangement. The
+context records what else was applied when they were made; it is not part of the
+property being learned. Upvote: satisfies the intended property. Downvote: does
+not. Unsure: undecided. Null: not rated. Never invent classifications. Preserve
+these judgments when interpreting a revision; the person can correct history.
+Property judgment history: {json.dumps(history)}
 """
 
 

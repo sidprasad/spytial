@@ -1,6 +1,6 @@
 """Develop diagramming rules through proposals, examples, and human critique.
 
-``suggest(Cls, rules=[...])`` starts the combined LLM/Hypothesis session.
+``suggest(Cls)`` prepares data; ``session.add_property(text)`` starts a round.
 ``suggest_draft(Cls)`` explicitly selects the old one-shot draft builder.
 Optional model and search dependencies are loaded only when used.
 """
@@ -54,18 +54,19 @@ __all__ = [
     "ClaudeCode",
     "Codex",
     "SuggestSession",
+    "SpecProperty",
 ]
 
 
 from ._draft import suggest_draft
 from ._search import ExampleSearch, FixedExamples, HypothesisSearch
 from ._proposals import FixedProposals
+from ._property import SpecProperty
 
 
 def suggest(
     target,
     *,
-    rules=None,
     examples=None,
     instance=None,
     proposer=None,
@@ -77,54 +78,48 @@ def suggest(
     min_positive_votes=1,
     max_candidates=4,
 ) -> "SuggestSession":
-    """Start a critique session over complete candidate Spytial programs.
+    """Prepare an interactive specification from examples and/or a generator.
 
-    ``target`` is a class or example object; ``rules`` is an optional list of
-    ordinary-language requests. Fixed ``examples`` supplement generated data.
+    No model is called until a property is requested. Display the session, then
+    use ``add_property("Parents above children")`` or the embedded prompt. Each
+    property has multiple candidate interpretations. Both comparison diagrams
+    retain every other accepted property; votes judge only the current property.
 
-    The default proposer is ``Codex()``. Replace it with a provider callable
-    ``(prompt, *, schema) -> dict``, a model-id string, or ``FixedProposals``.
-    The default search is ``HypothesisSearch(strategy or 'auto')``; ``strategy``
-    is a convenience for supplying a domain-specific Hypothesis strategy.
-    Alternatively supply an ``ExampleSearch`` implementation, including
-    ``FixedExamples()`` to search only the supplied examples. Missing dependencies
-    and provider failures appear in the view and raise from ``wait()``; they
-    never silently select another workflow.
+    Upvotes support candidates permitting the arrangement and count against
+    those excluding it. Downvotes count against candidates permitting it. Unsure
+    supplies no evidence. Thresholds default to two negative votes for elimination
+    and one positive vote for support. Duplicate evidence counts once per property.
+    A sole survivor is automatically accepted after a completed pair only when
+    supported, consistent with its property's evidence, and feasible together
+    with accepted properties. Search exhaustion never establishes equivalence.
 
-    ``max_examples`` bounds each generated search, not the whole session. Checks
-    are evidence on sampled data, never proofs. Use ``show()`` or display the
-    session in a local notebook. Startup runs in the background so the view
-    opens immediately. ``wait()`` waits explicitly before inspecting attributes;
-    ``next()``, ``vote()``, ``revise()``, and ``finish()`` wait automatically.
-    Each image has independent upvote/downvote/unsure judgments. Every judgment
-    scores all candidates. Upvotes support programs that permit the arrangement
-    and count against programs that exclude it. Downvotes count against programs
-    that permit it. Unsure supplies no evidence. Defaults are
-    ``elimination_threshold=2`` negative votes and ``min_positive_votes=1``
-    positive vote. ``max_candidates=4`` caps each proposal batch, including repair.
-    Definite programmatic votes require the displayed ``layout_state``.
+    ``done()`` combines all supported survivors, requiring shared positive support,
+    agreement with this property's judgments, and feasibility with accepted rules.
+    It saves an unfinished round when these checks fail.
+    Unreviewed and eliminated candidates contribute no rules.
+    ``property.revise(text)`` replaces
+    its candidates, withdraws its old definition, and replays its history. Other
+    accepted properties remain active. ``property.resume()`` revisits its existing
+    candidates. Historical corrections can withdraw an accepted definition.
 
-    With supported survivors, the living program includes all their rules;
-    survivors below the positive threshold contribute no rules. Without supported
-    survivors, their conjunction is available only as an inspection draft when
-    feasible. No survivors means no program. Application does not require a
-    single survivor. It requires a feasible combination that permits all current
-    upvotes, excludes all current downvotes, and has ``min_positive_votes`` shared
-    positive examples. Duplicate datum/arrangement classifications count once.
+    ``session.spec`` is a stable handle to accepted properties. ``apply()`` binds
+    it to the class; later ``diagram`` calls read its current rules. Existing
+    diagrams stay fixed. No accepted property, or conflicting accepted properties,
+    makes live use raise ``SpecUnavailableError``. An unresolved new property does
+    not prevent using already accepted properties. ``close()`` stops controls;
+    the supported spec remains usable. ``save()`` / ``load()`` preserve properties,
+    revisions, datums, arrangements, and scoped votes in format version 2.
 
-    ``revise()`` replays history; ``finish()`` exports the supported, consistent
-    conjunction without applying it. ``done()`` checkpoints and pauses any result;
-    ``resume()`` continues. ``save()`` / ``SuggestSession.load()`` persist the loop.
-    ``session.spec`` is a stable living spec. ``session.apply()`` connects it
-    to the target class so later diagrams use the current supported rules.
-    Alternatively pass ``spec=session.spec`` to ``spytial.diagram``. A living
-    spec without a supported result raises ``SpecUnavailableError`` on use.
+    The default proposer is ``Codex()``; use a provider callable, model-id string,
+    or ``FixedProposals`` to replace it. Search defaults to ``HypothesisSearch``;
+    ``strategy=`` supplies its source and ``max_examples`` bounds each invocation.
+    ``FixedExamples`` disables generated search. Core checks sampled data; they
+    are not proofs. Startup is asynchronous; ``wait()`` waits explicitly.
     """
     from ._session import SuggestSession
 
     return SuggestSession(
         target,
-        rules=rules,
         examples=examples,
         instance=instance,
         proposer=proposer,
