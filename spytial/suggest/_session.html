@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Diagram properties</title>
+<title>Diagram requirements</title>
 <style>
 :root { color-scheme: light dark; font: 13px system-ui, sans-serif;
   --paper: #fff; --ink: #30343b; --line: #e0e3e7; --hover: #f3f4f6;
@@ -17,12 +17,12 @@ body { margin: 0; padding: 8px; background: var(--paper); color: var(--ink); }
 [hidden] { display: none !important; }
 .pair { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: 12px; }
 .pair.preview { grid-template-columns: 1fr; }
-.property-controls { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; margin-bottom: 8px; }
-.property-controls button, #property-form button { font: inherit; border: 1px solid var(--line); border-radius: 5px; background: var(--paper); color: var(--ink); padding: 5px 9px; }
-#properties { display: contents; }
-#properties button[aria-current="true"] { border-color: var(--ink); }
-#property-form { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; }
-#property-prompt { min-width: 0; flex: 1; font: inherit; border: 1px solid var(--line); border-radius: 5px; padding: 7px; background: var(--paper); color: var(--ink); }
+.requirement-controls { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; margin-bottom: 8px; }
+.requirement-controls button, #requirement-form button { font: inherit; border: 1px solid var(--line); border-radius: 5px; background: var(--paper); color: var(--ink); padding: 5px 9px; }
+#requirements { display: contents; }
+#requirements button[aria-current="true"] { border-color: var(--ink); }
+#requirement-form { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; }
+#requirement-prompt { min-width: 0; flex: 1; font: inherit; border: 1px solid var(--line); border-radius: 5px; padding: 7px; background: var(--paper); color: var(--ink); }
 .card { min-width: 0; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
 .card[data-vote="upvote"] { border-color: var(--up); }
 .card[data-vote="downvote"] { border-color: var(--down); }
@@ -56,16 +56,16 @@ button { font: inherit; cursor: pointer; }
 <script src="session.js" defer></script>
 </head>
 <body>
-<nav class="property-controls" aria-label="Properties">
-  <div id="properties"></div>
-  <button id="add-property" disabled>Add property</button>
+<nav class="requirement-controls" aria-label="Requirements">
+  <div id="requirements"></div>
+  <button id="add-requirement" disabled>Add requirement</button>
 </nav>
-<form id="property-form" hidden>
-  <label for="property-prompt">Property</label>
-  <input id="property-prompt" placeholder="Parents above children" maxlength="10000" required>
+<form id="requirement-form" hidden>
+  <label for="requirement-prompt">Requirement</label>
+  <input id="requirement-prompt" placeholder="Parents above children" maxlength="10000" required>
   <button id="explore" type="submit">Explore</button>
-  <button id="continue-property" type="button" hidden>Continue</button>
-  <button id="cancel-property" type="button" hidden>Cancel</button>
+  <button id="continue-requirement" type="button" hidden>Continue</button>
+  <button id="cancel-requirement" type="button" hidden>Cancel</button>
 </form>
 <main class="pair" aria-label="Diagram comparisons">
   <section class="card" data-side="0" aria-label="First diagram">

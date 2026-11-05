@@ -1,4 +1,4 @@
-# Build a visualization one property at a time
+# Build a visualization one requirement at a time
 
 Start with the [interactive notebook](https://github.com/sidprasad/spytial/blob/main/demos/06-suggest-session.ipynb).
 
@@ -10,18 +10,18 @@ display(session)  # In a local Jupyter notebook; session.show() opens a browser.
 ```
 
 Startup prepares data and shows an initial diagram. It makes no model request.
-Enter a property such as **Parents above children** in the embedded prompt, or:
+Enter a requirement such as **Parents above children** in the embedded prompt, or:
 
 ```python
-vertical = session.add_property("Parents above children")
+vertical = session.add_requirement("Parents above children")
 ```
 
-The LLM proposes interpretations of that property. Hypothesis searches for data
+The LLM proposes interpretations of that requirement. Hypothesis searches for data
 that distinguishes them. Spytial constructs two draggable diagrams of the same
 datum. Rate each with **upvote**, **downvote**, or **unsure**, judging the requested
-property. Every previously accepted property applies to both diagrams.
+requirement. Every previously accepted requirement applies to both diagrams.
 
-## Finish a property round
+## Finish a requirement round
 
 **I'm done** ends the active round. Programmatically:
 
@@ -38,54 +38,54 @@ Unreviewed and eliminated candidates contribute no rules.
 
 The combination is accepted only when:
 
-- It permits every current upvote for this property and excludes every current
-  downvote for this property.
+- It permits every current upvote for this requirement and excludes every current
+  downvote for this requirement.
 - At least `min_positive_votes` distinct upvoted arrangements support the whole
   combination. Separate support for its parts is insufficient.
-- It is feasible with the other accepted properties on retained data, and bounded
+- It is feasible with the other accepted requirements on retained data, and bounded
   generated-data search finds no further conflict.
 
 For example, supported interpretations requiring **below** and **right** contribute
 **below and right**. An earlier upvote for a below-left arrangement prevents this
-combination from being accepted. The session keeps the property unfinished so the
+combination from being accepted. The session keeps the requirement unfinished so the
 person can correct history or revise its interpretations.
 
 A completed vote pair automatically accepts a sole surviving interpretation when
 these checks pass. One survivor without positive evidence remains unfinished.
 Several survivors can be accepted together through **I'm done**. Exhausting a
-search never establishes equivalence and never automatically accepts a property.
+search never establishes equivalence and never automatically accepts a requirement.
 
 `done()` checkpoints and pauses even when no candidates remain or the combination
 is unresolved. It does not bind a spec to the class, close the controls, or write a
-file. `property.accept()` performs the same combination checks explicitly.
+file. `requirement.accept()` performs the same combination checks explicitly.
 
-## Add another property
+## Add another requirement
 
 ```python
-horizontal = session.add_property("Align siblings horizontally")
+horizontal = session.add_requirement("Align siblings horizontally")
 # Drag and judge in the existing view, then click I'm done.
 ```
 
-The accepted parent-child property remains applied throughout this round.
+The accepted parent-child requirement remains applied throughout this round.
 Conceptually, comparisons use `accepted background + interpretation A` and
 `accepted background + interpretation B`. The proposals describe only the new
-property. One prompted property may compile into several Spytial operations.
+requirement. One prompted requirement may compile into several Spytial operations.
 
-An unfinished new property contributes no rules. The living spec continues to use
-previously accepted properties. The property buttons above the diagrams let you
-return to an earlier property, continue judging it, or revise its wording.
+An unfinished new requirement contributes no rules. The living spec continues to use
+previously accepted requirements. The requirement buttons above the diagrams let you
+return to an earlier requirement, continue judging it, or revise its wording.
 
-## Keep judgments as evidence about a property
+## Keep judgments as evidence about a requirement
 
-Each saved judgment includes the property's identity and wording revision, the
+Each saved judgment includes the requirement's identity and wording revision, the
 datum, the actual dragged positions, the programs shown, and the accepted
 background at that time.
 
 An upvote while judging **Parents above children** does not approve every incidental
 feature of the picture. Later adding **Align siblings** may exclude that old
 arrangement without contradicting the parent-child judgment. Candidate scoring
-checks each property's own rules, with the fixed presentation; it does not include
-other properties' positional constraints.
+checks each requirement's own rules, with the fixed presentation; it does not include
+other requirements' positional constraints.
 
 | Classification | Interpretation permits the arrangement | Interpretation excludes it |
 | --- | --- | --- |
@@ -95,9 +95,9 @@ other properties' positional constraints.
 
 Votes update scores immediately. After both diagrams are rated, the next pair is
 prepared, or a sole supported survivor is accepted. Repeated classifications of
-the same property, datum, and qualitative arrangement count once; the latest
+the same requirement, datum, and qualitative arrangement count once; the latest
 classification wins. The same arrangement can supply independent evidence for
-another property. Corrections can restore eliminated candidates. Use
+another requirement. Corrections can restore eliminated candidates. Use
 `session.add_examples([another_root])` to retain more data without dropping evidence.
 
 **History** reopens saved arrangements and permits corrections. Their positions
@@ -109,27 +109,27 @@ session.reclassify(entry["id"], 0, "unsure")
 ```
 
 A correction recomputes only the relevant evidence. Accepted candidates that lose
-support or are eliminated are removed from that property's definition. If the
-remaining combination disagrees with its judgments, the property's acceptance is
-withdrawn. Other accepted properties remain active.
+support or are eliminated are removed from that requirement's definition. If the
+remaining combination disagrees with its judgments, the requirement's acceptance is
+withdrawn. Other accepted requirements remain active.
 
-## Revise an earlier property
+## Revise an earlier requirement
 
 ```python
 vertical.revise("Keep left children below and left of their parent")
 # Judge in the same embedded view; vertical.done() ends this round.
 ```
 
-Revision replaces that property's candidate set, archives its old wording and
+Revision replaces that requirement's candidate set, archives its old wording and
 candidates, and replays its entire classification history against the new
 interpretations. Its old definition is withdrawn while it is edited. The other
-accepted properties stay applied to the living spec and the comparison diagrams.
+accepted requirements stay applied to the living spec and the comparison diagrams.
 A new wording does not erase a conflicting judgment; correct it in History when
 your intent changes.
 
 `vertical.resume()` returns to its existing candidates without making a model
-request. `session.resume()` continues the active property. `session.properties`
-contains handles for every property, including unfinished ones.
+request. `session.resume()` continues the active requirement. `session.requirements`
+contains handles for every requirement, including unfinished ones.
 
 ## Apply the living spec
 
@@ -138,17 +138,17 @@ import spytial
 
 spec = session.apply()       # Same stable object as session.spec.
 print(spec)                 # Current accepted Python Spytial source.
-spytial.diagram(root)        # Uses accepted properties for TreeNode.
+spytial.diagram(root)        # Uses accepted requirements for TreeNode.
 
-# After accepting another property or revising one:
+# After accepting another requirement or revising one:
 spytial.diagram(root)        # Reads the updated rules on this call.
 ```
 
 `print(spec)` resolves the current rules each time. `spec.to_source()` returns
 the source string; `spec.to_registry()` returns the registry dictionary.
 
-Each accepted property's definition is conjoined with every other accepted
-property. Existing diagrams retain their earlier layout. Ordinary handwritten
+Each accepted requirement's definition is conjoined with every other accepted
+requirement. Existing diagrams retain their earlier layout. Ordinary handwritten
 annotations and inheritance controls remain intact.
 
 To avoid a class binding:
@@ -158,10 +158,10 @@ spytial.diagram(root, spec=session.spec)
 ```
 
 An explicit `spec=` replaces collected annotations for that call. No accepted
-properties, or an infeasible accepted combination, makes live use raise
+requirements, or an infeasible accepted combination, makes live use raise
 `SpecUnavailableError`. It does not draw an unconstrained fallback. An unresolved
-new property leaves earlier accepted definitions usable. Editing the only accepted
-property temporarily makes the living spec unavailable until a definition is
+new requirement leaves earlier accepted definitions usable. Editing the only accepted
+requirement temporarily makes the living spec unavailable until a definition is
 accepted again.
 
 `spec.snapshot()` returns a fixed, supported `SpecDraft`; later feedback does not
@@ -183,11 +183,11 @@ spec = session.apply()           # Explicitly connect the restored session.
 ```
 
 `close()` stops the local controls. A closed session cannot resume; load a saved
-session to continue. Loading preserves properties, wording revisions, accepted
+session to continue. Loading preserves requirements, wording revisions, accepted
 candidate sets, datums, positions, partial votes, corrections, and checkpoints. It
 makes no model request and changes no class binding. Applying the restored handle
-replaces the earlier living binding. Save format **2** requires property-scoped
-judgments; earlier whole-program save files are rejected explicitly.
+replaces the earlier living binding. Save format **3** requires requirement-scoped
+judgments; earlier save formats are rejected explicitly.
 
 ## Configuration and formal checks
 
@@ -197,7 +197,7 @@ another with `proposer=ClaudeCode()`, a model-id string, or a callable
 `summary` and an `operations` list. The schema permits orientation, alignment,
 and cyclic operations with `hold: always` or `hold: never`. The LLM is asked for
 2–4 interpretations; `max_candidates=4` caps each round, including one repair call.
-Provider failures leave earlier properties and judgments available for retry.
+Provider failures leave earlier requirements and judgments available for retry.
 
 The default search is `HypothesisSearch(strategy or "auto")`. Supplied examples
 supplement generated data. Each invocation is bounded by `max_examples=20`.
@@ -220,7 +220,7 @@ spacing, and font metrics are outside this classification mechanism.
 
 Contrast search retains the accepted background and uses checked rule negations
 to find an arrangement accepted by one interpretation and excluded by another.
-It is incomplete, even for one datum. A multi-operation property is not negated
+It is incomplete, even for one datum. A multi-operation requirement is not negated
 merely by negating every rule. Bounded search is evidence, not an equivalence or
 universal feasibility proof. Modal comparison remains separate (#174).
 
@@ -236,7 +236,7 @@ SPYTIAL_BROWSER_TESTS=1 python -m pytest \
 
 Tests use deterministic proposals, known arrangements, real Hypothesis strategies,
 and the released core checker. They cover all nine vote pairs, shared support for
-multiple survivors, property-scoped evidence, additive contexts, replacement and
+multiple survivors, requirement-scoped evidence, additive contexts, replacement and
 replay, atomic batch judgments, persistence, live application, and dragging in the
 embedded controls. Browser tests require Playwright and Chromium. CI runs both.
 

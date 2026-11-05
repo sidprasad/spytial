@@ -1,4 +1,4 @@
-"""Property-local evidence and conjunction of explicitly accepted definitions."""
+"""Requirement-local evidence and conjunction of explicitly accepted definitions."""
 
 from copy import deepcopy
 
@@ -33,7 +33,7 @@ def supported(prop, minimum):
 
 
 def consistent(program, judgments, checks, minimum):
-    """A property definition must fit its judgments and share positive support."""
+    """A requirement definition must fit its judgments and share positive support."""
     positive = 0
     for record, side in judgments:
         permits = checks.memberships(

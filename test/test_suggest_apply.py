@@ -1,4 +1,4 @@
-"""Using accepted properties through the real Python diagram integration."""
+"""Using accepted requirements through the real Python diagram integration."""
 
 from pathlib import Path
 import os
@@ -51,7 +51,7 @@ def emitted_spec(monkeypatch):
     )
 
 
-def test_same_bound_handle_uses_new_accepted_property_on_next_diagram(
+def test_same_bound_handle_uses_new_accepted_requirement_on_next_diagram(
     live_session, emitted_spec
 ):
     s = live_session
@@ -59,11 +59,11 @@ def test_same_bound_handle_uses_new_accepted_property_on_next_diagram(
     before = emitted_spec(tree())
     snapshot = spec.snapshot()
     assert isinstance(spec, LivingSpec) and spec is s.spec
-    prop = s.add_property("Align siblings")
+    prop = s.add_requirement("Align siblings")
     assert prop.status == "draft"
     assert (
         emitted_spec(tree()) == before
-    )  # A pending property does not enter the live spec.
+    )  # A pending requirement does not enter the live spec.
     s.judge(
         "left",
         layout_states=[
@@ -94,7 +94,7 @@ def test_print_reads_current_rules_from_the_same_living_object(live_session, cap
     assert str(spec) == spec.to_source(with_comments=False)
 
 
-def test_losing_last_accepted_property_blocks_drawing_until_corrected(
+def test_losing_last_accepted_requirement_blocks_drawing_until_corrected(
     live_session, emitted_spec
 ):
     s = live_session
@@ -102,7 +102,7 @@ def test_losing_last_accepted_property_blocks_drawing_until_corrected(
     q = s.history[0]["id"]
     s.reclassify(q, 0, "unsure")
     assert spec.status == "empty"
-    with pytest.raises(SpecUnavailableError, match="Accept a property"):
+    with pytest.raises(SpecUnavailableError, match="Accept a requirement"):
         emitted_spec(tree())
     assert s._datum(tree())["atoms"]
     s.reclassify(q, 0, "upvote")
@@ -180,15 +180,15 @@ def test_replacement_generates_data_while_old_binding_is_unavailable(
         max_examples=3,
     ).wait() as replacement:
         assert replacement.examples[-1] is witness
-        assert not replacement.properties
-        replacement.add_property("Parents above children")
+        assert not replacement.requirements
+        replacement.add_requirement("Parents above children")
         assert replacement.next() is not None
         assert old.applied and not replacement.spec.applied
 
 
 def test_generated_conflict_prevents_acceptance_and_retains_counterexample():
     with session(proposer=Provider()) as s:
-        prop = s.add_property("Parents above children")
+        prop = s.add_requirement("Parents above children")
         cyclic = tree()
         cyclic.left = cyclic
         s.search = HypothesisSearch(st.just(cyclic))
@@ -219,7 +219,7 @@ def test_generated_checks_do_not_recurse_into_class_binding(live_session):
 @pytest.mark.skipif(
     os.environ.get("SPYTIAL_BROWSER_TESTS") != "1", reason="opt-in real browser test"
 )
-def test_real_diagram_call_uses_new_property_without_redrawing_old_output(
+def test_real_diagram_call_uses_new_requirement_without_redrawing_old_output(
     live_session, tmp_path, monkeypatch
 ):
     from playwright.sync_api import sync_playwright

@@ -1,4 +1,4 @@
-"""Property sessions use real core checks and deterministic proposal responses."""
+"""Requirement sessions use real core checks and deterministic proposal responses."""
 
 from copy import deepcopy
 from dataclasses import dataclass
@@ -44,7 +44,7 @@ def tree():
     return Tree(8, Tree(3), Tree(10))
 
 
-def proposal(directions, summary="Property interpretation"):
+def proposal(directions, summary="Requirement interpretation"):
     return {
         "summary": summary,
         "operations": [
@@ -86,7 +86,7 @@ def state(x, y, *, other_x=300, other_y=250):
 
 
 def accept_below(s):
-    prop = s.add_property("Parents above children")
+    prop = s.add_requirement("Parents above children")
     s.judge("left", layout_states=[state(-120, 150), state(120, -150)])
     assert prop.status == "accepted"
     return prop
@@ -96,16 +96,16 @@ def test_startup_prepares_data_without_model_or_class_binding():
     provider = Provider()
     with session(proposer=provider) as s:
         assert not provider.prompts
-        assert not s.properties and not s.history
+        assert not s.requirements and not s.history
         assert s._poll()["status"] == "idle"
         assert s._poll()["question"]["kind"] == "preview"
         assert len(s._poll()["question"]["sides"]) == 1
-        with pytest.raises(SpecUnavailableError, match="Accept a property"):
+        with pytest.raises(SpecUnavailableError, match="Accept a requirement"):
             s.apply()
-        prop = s.add_property("Parents above children")
+        prop = s.add_requirement("Parents above children")
         assert len(provider.prompts) == 1
-        assert prop.id == s.active_property.id
-        assert s.next()["property_id"] == prop.id
+        assert prop.id == s.active_requirement.id
+        assert s.next()["requirement_id"] == prop.id
         assert not s.spec.applied
 
 
@@ -121,7 +121,7 @@ def test_default_combines_real_hypothesis_with_lazy_model(monkeypatch):
     with suggest(Tree, proposer=provider, max_examples=3).wait() as s:
         assert derived and not provider.prompts
         assert isinstance(s.search, HypothesisSearch)
-        s.add_property("Parents above children")
+        s.add_requirement("Parents above children")
         assert len(derived) >= 3 and provider.prompts
         assert s.next() is not None
 
@@ -142,20 +142,20 @@ def test_default_combines_real_hypothesis_with_lazy_model(monkeypatch):
 )
 def test_vote_matrix_and_acceptance(first, second, expected, status):
     with session(proposer=Provider()) as s:
-        prop = s.add_property("Parents above children")
+        prop = s.add_requirement("Parents above children")
         s.vote(0, first, layout_state=state(-120, 150))
         s.vote(1, second, layout_state=state(120, -150))
         assert [(c.positive_votes, c.negative_votes) for c in s.candidates] == expected
         assert prop.status == status
         assert s.paused == (status == "accepted")
-        assert s.history[0]["property_id"] == prop.id
+        assert s.history[0]["requirement_id"] == prop.id
         assert s.history[0]["prompt"] == prop.prompt
         assert s.history[0]["context"]["directives"]
 
 
 def test_done_keeps_multiple_or_zero_survivors_unfinished():
     with session(proposer=Provider(), elimination_threshold=1) as s:
-        prop = s.add_property("Parents above children")
+        prop = s.add_requirement("Parents above children")
         result = s.done()
         assert result["status"] == "draft" and s.paused
         assert len(s.survivors) == 2 and s.spec.status == "empty"
@@ -171,7 +171,7 @@ def test_done_keeps_multiple_or_zero_survivors_unfinished():
 
 def test_a_single_survivor_still_needs_positive_evidence():
     with session(proposer=Provider(), elimination_threshold=1) as s:
-        prop = s.add_property("Parents above children")
+        prop = s.add_requirement("Parents above children")
         s.judge("unsure")
         s.resume()
         # Rate a fresh confirmation, rejecting its displayed instance.
@@ -189,7 +189,7 @@ def test_a_single_survivor_still_needs_positive_evidence():
 @pytest.mark.parametrize("previous_side", [None, 0, 1])
 def test_batch_updates_both_votes_before_advancing(previous_side):
     with session(proposer=Provider()) as s:
-        prop = s.add_property("Parents above children")
+        prop = s.add_requirement("Parents above children")
         q = s.next()
         states = [state(-120, 150), state(120, -150)]
         if previous_side is not None:
@@ -212,7 +212,7 @@ def test_batch_updates_both_votes_before_advancing(previous_side):
 @pytest.mark.parametrize("invalid", ["coordinates", "program", "nodes"])
 def test_invalid_second_layout_does_not_change_evidence(partial, invalid, tmp_path):
     with session(proposer=Provider()) as s:
-        s.add_property("Parents above children")
+        s.add_requirement("Parents above children")
         states = [state(-120, 150), state(120, -150)]
         if partial:
             s.vote(0, "downvote", layout_state=states[0])
@@ -233,7 +233,7 @@ def test_invalid_second_layout_does_not_change_evidence(partial, invalid, tmp_pa
 
 def test_positive_threshold_and_distinct_dragged_arrangements():
     with session(proposer=Provider(), min_positive_votes=2) as s:
-        prop = s.add_property("Parents above children")
+        prop = s.add_requirement("Parents above children")
         s.vote(0, "upvote", layout_state=state(-120, 150))
         s.vote(0, "upvote", layout_state=state(-140, 170))
         assert s.candidates[0].positive_votes == 1
@@ -244,7 +244,7 @@ def test_positive_threshold_and_distinct_dragged_arrangements():
         assert len(s.history) == 2
 
 
-def test_property_proposal_failure_leaves_previous_round_usable(tmp_path):
+def test_requirement_proposal_failure_leaves_previous_round_usable(tmp_path):
     provider = Provider()
     with session(proposer=provider) as s:
         prop = accept_below(s)
@@ -257,7 +257,7 @@ def test_property_proposal_failure_leaves_previous_round_usable(tmp_path):
 
         s.proposer = broken
         with pytest.raises(RuntimeError, match="unavailable"):
-            s.add_property("Align siblings")
+            s.add_requirement("Align siblings")
         s.save(path)
         assert path.read_text() == before
         with pytest.raises(RuntimeError, match="unavailable"):
@@ -271,7 +271,7 @@ def test_bad_whole_interpretation_is_repaired():
     bad["operations"].append(proposal(["above"])["operations"][0])
     provider = Provider([bad], [proposal(["below"]), proposal(["right"])])
     with session(proposer=provider) as s:
-        s.add_property("Parents above children")
+        s.add_requirement("Parents above children")
         assert len(provider.prompts) == 2
         assert "conflict" in provider.prompts[1]
         assert len(s.candidates) == 2
@@ -279,13 +279,13 @@ def test_bad_whole_interpretation_is_repaired():
 
 def test_additional_data_and_stale_question_do_not_lose_evidence():
     with session(proposer=Provider()) as s:
-        prop = s.add_property("Parents above children")
+        prop = s.add_requirement("Parents above children")
         q = s.next()
         s.vote(0, "upvote", layout_state=state(-120, 150))
         history = deepcopy(s.history)
         extra = Tree(9, Tree(2), Tree(7))
         s.add_examples([extra])
-        assert s.history == history and prop.id == s.active_property.id
+        assert s.history == history and prop.id == s.active_requirement.id
         assert extra in s.examples
         with pytest.raises(ValueError, match="no longer current"):
             s.vote(1, "downvote", question_id=q["id"], layout_state=state(120, -150))

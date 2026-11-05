@@ -1,6 +1,6 @@
 """Develop diagramming rules through proposals, examples, and human critique.
 
-``suggest(Cls)`` prepares data; ``session.add_property(text)`` starts a round.
+``suggest(Cls)`` prepares data; ``session.add_requirement(text)`` starts a round.
 ``suggest_draft(Cls)`` explicitly selects the old one-shot draft builder.
 Optional model and search dependencies are loaded only when used.
 """
@@ -54,14 +54,14 @@ __all__ = [
     "ClaudeCode",
     "Codex",
     "SuggestSession",
-    "SpecProperty",
+    "Requirement",
 ]
 
 
 from ._draft import suggest_draft
 from ._search import ExampleSearch, FixedExamples, HypothesisSearch
 from ._proposals import FixedProposals
-from ._property import SpecProperty
+from ._requirement import Requirement
 
 
 def suggest(
@@ -80,35 +80,35 @@ def suggest(
 ) -> "SuggestSession":
     """Prepare an interactive specification from examples and/or a generator.
 
-    No model is called until a property is requested. Display the session, then
-    use ``add_property("Parents above children")`` or the embedded prompt. Each
-    property has multiple candidate interpretations. Both comparison diagrams
-    retain every other accepted property; votes judge only the current property.
+    No model is called until a requirement is requested. Display the session, then
+    use ``add_requirement("Parents above children")`` or the embedded prompt. Each
+    requirement has multiple candidate interpretations. Both comparison diagrams
+    retain every other accepted requirement; votes judge only the current requirement.
 
     Upvotes support candidates permitting the arrangement and count against
     those excluding it. Downvotes count against candidates permitting it. Unsure
     supplies no evidence. Thresholds default to two negative votes for elimination
-    and one positive vote for support. Duplicate evidence counts once per property.
+    and one positive vote for support. Duplicate evidence counts once per requirement.
     A sole survivor is automatically accepted after a completed pair only when
-    supported, consistent with its property's evidence, and feasible together
-    with accepted properties. Search exhaustion never establishes equivalence.
+    supported, consistent with its requirement's evidence, and feasible together
+    with accepted requirements. Search exhaustion never establishes equivalence.
 
     ``done()`` combines all supported survivors, requiring shared positive support,
-    agreement with this property's judgments, and feasibility with accepted rules.
+    agreement with this requirement's judgments, and feasibility with accepted rules.
     It saves an unfinished round when these checks fail.
     Unreviewed and eliminated candidates contribute no rules.
-    ``property.revise(text)`` replaces
+    ``requirement.revise(text)`` replaces
     its candidates, withdraws its old definition, and replays its history. Other
-    accepted properties remain active. ``property.resume()`` revisits its existing
+    accepted requirements remain active. ``requirement.resume()`` revisits its existing
     candidates. Historical corrections can withdraw an accepted definition.
 
-    ``session.spec`` is a stable handle to accepted properties. ``apply()`` binds
+    ``session.spec`` is a stable handle to accepted requirements. ``apply()`` binds
     it to the class; later ``diagram`` calls read its current rules. Existing
-    diagrams stay fixed. No accepted property, or conflicting accepted properties,
-    makes live use raise ``SpecUnavailableError``. An unresolved new property does
-    not prevent using already accepted properties. ``close()`` stops controls;
-    the supported spec remains usable. ``save()`` / ``load()`` preserve properties,
-    revisions, datums, arrangements, and scoped votes in format version 2.
+    diagrams stay fixed. No accepted requirement, or conflicting accepted requirements,
+    makes live use raise ``SpecUnavailableError``. An unresolved new requirement does
+    not prevent using already accepted requirements. ``close()`` stops controls;
+    the supported spec remains usable. ``save()`` / ``load()`` preserve requirements,
+    revisions, datums, arrangements, and scoped votes in format version 3.
 
     The default proposer is ``Codex()``; use a provider callable, model-id string,
     or ``FixedProposals`` to replace it. Search defaults to ``HypothesisSearch``;

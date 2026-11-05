@@ -32,4 +32,4 @@ if __name__ == "__main__":
         max_examples=10,
     ) as session:
         session.show()
-        input("Add a property in the browser, then drag and judge. Press Enter here to close controls. ")
+        input("Add a requirement in the browser, then drag and judge. Press Enter here to close controls. ")

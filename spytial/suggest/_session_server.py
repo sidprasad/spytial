@@ -100,8 +100,8 @@ class SessionServer:
                     "reclassify",
                     "done",
                     "resume",
-                    "add-property",
-                    "edit-property",
+                    "add-requirement",
+                    "edit-requirement",
                 }:
                     self.send_error(404)
                     return
@@ -116,14 +116,14 @@ class SessionServer:
                     if not isinstance(data, dict):
                         raise ValueError("Expected an object")
                     with server.lock:
-                        if route == "add-property":
-                            prop = server.session.add_property(data.get("prompt"))
-                            self.reply({"property_id": prop.id})
-                        elif route == "edit-property":
-                            prop = server.session.edit_property(
-                                data.get("property_id"), data.get("prompt")
+                        if route == "add-requirement":
+                            prop = server.session.add_requirement(data.get("prompt"))
+                            self.reply({"requirement_id": prop.id})
+                        elif route == "edit-requirement":
+                            prop = server.session.edit_requirement(
+                                data.get("requirement_id"), data.get("prompt")
                             )
-                            self.reply({"property_id": prop.id})
+                            self.reply({"requirement_id": prop.id})
                         elif route == "done":
                             checkpoint = server.session.done()
                             self.reply(
@@ -133,7 +133,7 @@ class SessionServer:
                                 }
                             )
                         elif route == "resume":
-                            server.session.resume(data.get("property_id"))
+                            server.session.resume(data.get("requirement_id"))
                             self.reply({"resumed": True})
                         else:
                             if not data.get("question_id"):

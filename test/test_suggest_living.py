@@ -1,4 +1,4 @@
-"""Accepted properties compose; judgments remain local when the spec is refined."""
+"""Accepted requirements compose; judgments remain local when the spec is refined."""
 
 from copy import deepcopy
 import json
@@ -43,7 +43,7 @@ def refined_session(**kwargs):
 
 
 def accept_alignment(s):
-    prop = s.add_property("Align siblings")
+    prop = s.add_requirement("Align siblings")
     s.judge(
         "left",
         layout_states=[
@@ -60,13 +60,13 @@ def test_additive_refinement_retains_background_and_local_positive_evidence():
         first = accept_below(s)
         first_history = deepcopy(first.history)
         old = s.spec.to_registry()
-        second = s.add_property("Align siblings")
+        second = s.add_requirement("Align siblings")
         q = s.next()
-        assert q["property_id"] == second.id
+        assert q["requirement_id"] == second.id
         assert q["context"] == old
         for side in q["sides"]:
             assert all(c in side["program"]["constraints"] for c in old["constraints"])
-        # An unresolved new property contributes no rules to the live spec.
+        # An unresolved new requirement contributes no rules to the live spec.
         assert s.spec.to_registry() == old
         s.judge(
             "left",
@@ -83,14 +83,14 @@ def test_additive_refinement_retains_background_and_local_positive_evidence():
         combined = s.spec.to_registry()
         assert any("align" in c for c in combined["constraints"])
         # The first upvote had unaligned siblings. It remains valid evidence for
-        # the first property, although the new whole spec excludes that picture.
+        # the first requirement, although the new whole spec excludes that picture.
         observation = s._history.effective(first.id)[0][0]["observations"][0]
         assert not s._checks.memberships(q["datum"], [combined], observation)[0]
         assert s.spec.status == "supported"
         assert s.history[-1]["context"] == old
 
 
-def test_revision_replaces_one_property_and_replays_its_enduring_history():
+def test_revision_replaces_one_requirement_and_replays_its_enduring_history():
     with refined_session() as s:
         first = accept_below(s)
         second = accept_alignment(s)
@@ -99,10 +99,10 @@ def test_revision_replaces_one_property_and_replays_its_enduring_history():
         first.revise("Left children below and left of their parent")
         assert s.spec is handle and second.status == "accepted"
         assert first.status == "ready"
-        # The old definition is withdrawn while this property is edited.
+        # The old definition is withdrawn while this requirement is edited.
         assert not any("orientation" in c for c in handle.to_registry()["constraints"])
         q = s.next()
-        assert q["property_revision"] == 2 and q["property_id"] == first.id
+        assert q["requirement_revision"] == 2 and q["requirement_id"] == first.id
         assert any("align" in c for c in q["context"]["constraints"])
         assert len(first.candidates) == 1 and first.candidates[0]["positive_votes"] == 1
         assert first.history == history[:1]
@@ -120,13 +120,13 @@ def test_revision_replaces_one_property_and_replays_its_enduring_history():
         assert any("align" in c for c in program["constraints"])
         assert s.history == history
         assert "Parents above children" in s.proposer.prompts[-1]
-        assert "Property judgment history" in s.proposer.prompts[-1]
+        assert "Requirement judgment history" in s.proposer.prompts[-1]
         assert (
             "Align siblings" not in s.proposer.prompts[-1]
         )  # Its program is fixed context.
 
 
-def test_history_correction_withdraws_only_affected_property():
+def test_history_correction_withdraws_only_affected_requirement():
     with refined_session() as s:
         first = accept_below(s)
         second = accept_alignment(s)
@@ -134,18 +134,18 @@ def test_history_correction_withdraws_only_affected_property():
         s.reclassify(first.history[0]["id"], 0, "unsure")
         assert first.status == "draft"
         assert second.status == "accepted"
-        assert s.active_property.id == first.id
-        assert spec.result["property_ids"] == [second.id]
+        assert s.active_requirement.id == first.id
+        assert spec.result["requirement_ids"] == [second.id]
         s.reclassify(first.history[0]["id"], 0, "upvote")
         first.done()
         assert first.status == "accepted"
-        assert len(spec.result["property_ids"]) == 2
+        assert len(spec.result["requirement_ids"]) == 2
 
 
-def test_same_arrangement_counts_separately_for_different_properties():
+def test_same_arrangement_counts_separately_for_different_requirements():
     with session(proposer=Provider()) as s:
         first = accept_below(s)
-        second = s.add_property("Keep the left branch below")
+        second = s.add_requirement("Keep the left branch below")
         s.vote(0, "upvote", layout_state=state(-120, 150))
         assert second.candidates[0]["positive_votes"] == 1
         assert first.candidates[0]["positive_votes"] == 1
@@ -154,7 +154,7 @@ def test_same_arrangement_counts_separately_for_different_properties():
 
 def test_accept_excludes_unreviewed_survivors():
     with session(proposer=Provider()) as s:
-        prop = s.add_property("Parents above children")
+        prop = s.add_requirement("Parents above children")
         s.vote(0, "upvote", layout_state=state(-120, 150))
         assert len(s.survivors) == 2
         prop.accept()
@@ -177,7 +177,7 @@ def test_classification_cannot_be_erased_by_reprompting():
             prop.accept()
 
 
-def test_saved_session_retains_property_versions_context_and_votes(tmp_path):
+def test_saved_session_retains_requirement_versions_context_and_votes(tmp_path):
     with refined_session() as s:
         first = accept_below(s)
         second = accept_alignment(s)
@@ -186,9 +186,9 @@ def test_saved_session_retains_property_versions_context_and_votes(tmp_path):
         path = tmp_path / "spec.json"
         s.save(path)
         before = json.loads(path.read_text())
-        assert before["format_version"] == 2
+        assert before["format_version"] == 3
         assert (
-            before["properties"][0]["revisions"][0]["prompt"]
+            before["requirements"][0]["revisions"][0]["prompt"]
             == "Parents above children"
         )
 
@@ -202,9 +202,9 @@ def test_saved_session_retains_property_versions_context_and_votes(tmp_path):
             assert loaded.spec.to_registry() == s.spec.to_registry()
             loaded.save(path)
             assert json.loads(path.read_text()) == before
-            restored = loaded.properties[1]
+            restored = loaded.requirements[1]
             restored.resume()
-            assert loaded.active_property.id == second.id
+            assert loaded.active_requirement.id == second.id
 
 
 def test_partial_votes_and_data_only_sessions_roundtrip(tmp_path):
@@ -212,31 +212,32 @@ def test_partial_votes_and_data_only_sessions_roundtrip(tmp_path):
         path = tmp_path / "spec.json"
         s.save(path)
         with SuggestSession.load(Tree, path, search=FixedExamples()).wait() as loaded:
-            assert loaded._poll()["status"] == "idle" and not loaded.properties
-        p = s.add_property("Parents above children")
+            assert loaded._poll()["status"] == "idle" and not loaded.requirements
+        p = s.add_requirement("Parents above children")
         s.vote(1, "upvote", layout_state=state(120, -150))
         s.save(path)
         with SuggestSession.load(Tree, path, search=FixedExamples()).wait() as loaded:
             assert loaded.current["votes"] == [None, "upvote"]
-            assert loaded.current["property_id"] == p.id
+            assert loaded.current["requirement_id"] == p.id
             loaded.judge("left", layout_states=[state(-120, 150), state(120, -150)])
-            assert loaded.active_property.status == "accepted"
+            assert loaded.active_requirement.status == "accepted"
 
 
-def test_legacy_save_is_rejected_explicitly(tmp_path):
+@pytest.mark.parametrize("version", [1, 2])
+def test_legacy_save_is_rejected_explicitly(tmp_path, version):
     path = tmp_path / "old.json"
-    path.write_text('{"format_version":1}')
-    with pytest.raises(ValueError, match="version 2"):
+    path.write_text(json.dumps({"format_version": version}))
+    with pytest.raises(ValueError, match="version 3"):
         SuggestSession.load(Tree, path)
 
 
 @pytest.mark.parametrize("minimum", [1, 2])
 def test_done_combines_all_supported_survivors_with_shared_positive_evidence(minimum):
     with session(proposer=Provider(), min_positive_votes=minimum) as s:
-        prop = s.add_property("Parents above children")
+        prop = s.add_requirement("Parents above children")
         s.judge("unsure")
         assert s.next()["kind"] == "confirmation"
-        # This arrangement supports both interpretations of the requested property.
+        # This arrangement supports both interpretations of the requested requirement.
         s.vote(0, "upvote", layout_state=state(120, 150))
         if minimum == 2:
             assert s.done()["status"] == "draft"
@@ -259,7 +260,7 @@ def test_done_combines_all_supported_survivors_with_shared_positive_evidence(min
 
 def test_done_does_not_accept_a_combination_that_rejects_its_own_upvotes():
     with session(proposer=Provider()) as s:
-        prop = s.add_property("Parents above children")
+        prop = s.add_requirement("Parents above children")
         s.judge("both", layout_states=[state(-120, 150), state(120, -150)])
         assert all(c.positive_votes == 1 for c in s.candidates)
         checkpoint = s.done()
@@ -270,7 +271,7 @@ def test_done_does_not_accept_a_combination_that_rejects_its_own_upvotes():
 
 def test_eliminated_member_leaves_an_accepted_combination():
     with session(proposer=Provider()) as s:
-        prop = s.add_property("Parents above children")
+        prop = s.add_requirement("Parents above children")
         s.judge("unsure")
         s.next()
         s.vote(0, "upvote", layout_state=state(120, 150))

@@ -81,18 +81,25 @@ class JudgmentHistory:
         record.setdefault("vote_revisions", [0, 0])[side] = self.revision
         record["complete"] = all(v is not None for v in record["votes"])
 
-    def effective(self, property_id=None):
+    def effective(self, requirement_id=None):
         """Latest definite classification per datum and qualitative arrangement."""
         latest = {}
         for record in self.records:
-            if property_id is not None and record["property_id"] != property_id:
+            if (
+                requirement_id is not None
+                and record["requirement_id"] != requirement_id
+            ):
                 continue
             for side, value in enumerate(record["votes"]):
                 observation = record.get("observations", [None, None])[side]
                 if observation is None or value is None:
                     continue
                 key = json.dumps(
-                    [record["property_id"], record["datum"], observation["signature"]],
+                    [
+                        record["requirement_id"],
+                        record["datum"],
+                        observation["signature"],
+                    ],
                     sort_keys=True,
                 )
                 revision = record.get("vote_revisions", [0, 0])[side]

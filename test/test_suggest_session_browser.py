@@ -1,4 +1,4 @@
-"""Real embedded controls: property prompts, dragging, acceptance, and history."""
+"""Real embedded controls: requirement prompts, dragging, acceptance, and history."""
 
 import os
 from pathlib import Path
@@ -33,10 +33,10 @@ def ready(page):
     )
 
 
-def request_property(page, prompt):
-    if not page.locator("#property-form").is_visible():
-        page.get_by_role("button", name="Add property", exact=True).click()
-    page.get_by_label("Property", exact=True).fill(prompt)
+def request_requirement(page, prompt):
+    if not page.locator("#requirement-form").is_visible():
+        page.get_by_role("button", name="Add requirement", exact=True).click()
+    page.get_by_label("Requirement", exact=True).fill(prompt)
     page.get_by_role("button", name="Explore", exact=True).click()
     ready(page)
 
@@ -64,9 +64,9 @@ def test_prompt_drag_partial_vote_reload_and_history():
         )
         assert not provider.prompts
         assert page.locator("webcola-cnd-graph").count() == 1
-        request_property(page, "Parents above children")
+        request_requirement(page, "Parents above children")
         assert page.locator("webcola-cnd-graph").count() == 2
-        assert not page.locator("#property-form").is_visible()
+        assert not page.locator("#requirement-form").is_visible()
         node = page.locator("#diagram-0 webcola-cnd-graph .node").first
         box = node.bounding_box()
         assert box
@@ -99,7 +99,7 @@ def test_prompt_drag_partial_vote_reload_and_history():
         )
         page.get_by_role("button", name="Downvote", exact=True).last.click()
         page.get_by_role("button", name="Resume", exact=True).wait_for()
-        assert s.active_property.status == "accepted"
+        assert s.active_requirement.status == "accepted"
         page.get_by_role("button", name="History", exact=True).click()
         page.wait_for_function(
             "document.querySelector('#history-position').textContent === '1 / 1'"
@@ -114,13 +114,13 @@ def test_prompt_drag_partial_vote_reload_and_history():
         page.wait_for_function(
             "document.querySelector('[data-side=\"0\"] [data-value=unsure]').getAttribute('aria-pressed') === 'true'"
         )
-        assert s.active_property.status == "draft"
+        assert s.active_requirement.status == "draft"
         assert s.history[0]["votes"] == ["unsure", "downvote"]
         assert not errors
         browser.close()
 
 
-def test_add_and_edit_property_keep_context_and_enduring_evidence():
+def test_add_and_edit_requirement_keep_context_and_enduring_evidence():
     from playwright.sync_api import sync_playwright
     from test_suggest_session import proposal
 
@@ -137,34 +137,36 @@ def test_add_and_edit_property_keep_context_and_enduring_evidence():
         errors = []
         page.on("pageerror", lambda e: errors.append(str(e)))
         page.goto(s._url())
-        request_property(page, "Parents above children")
+        request_requirement(page, "Parents above children")
         accept_first(page)
-        first = s.properties[0]
+        first = s.requirements[0]
         background = s.spec.to_registry()
-        request_property(page, "Align siblings")
+        request_requirement(page, "Align siblings")
         assert s.current["context"] == background
         for side in s.current["sides"]:
             assert all(
                 c in side["program"]["constraints"] for c in background["constraints"]
             )
         accept_first(page)
-        assert all(p.status == "accepted" for p in s.properties)
+        assert all(p.status == "accepted" for p in s.requirements)
         page.get_by_role(
-            "button", name="Edit property: Parents above children", exact=True
+            "button", name="Edit requirement: Parents above children", exact=True
         ).click()
-        page.get_by_label("Property", exact=True).fill("Left children below and left")
+        page.get_by_label("Requirement", exact=True).fill(
+            "Left children below and left"
+        )
         page.get_by_role("button", name="Revise", exact=True).click()
         ready(page)
-        assert len(s.history) == 2 and s.properties[0].id == first.id
-        assert s.current["property_revision"] == 2
+        assert len(s.history) == 2 and s.requirements[0].id == first.id
+        assert s.current["requirement_revision"] == 2
         assert any("align" in c for c in s.current["context"]["constraints"])
         page.get_by_role("button", name="I'm done", exact=True).click()
         page.get_by_role("button", name="Resume", exact=True).wait_for()
-        assert all(p.status == "accepted" for p in s.properties)
+        assert all(p.status == "accepted" for p in s.requirements)
         page.wait_for_function(
             "document.querySelectorAll('.card:not([hidden])').length === 1"
         )
-        page.screenshot(path="/tmp/spytial-property-session.png", full_page=True)
+        page.screenshot(path="/tmp/spytial-requirement-session.png", full_page=True)
         page.get_by_role("button", name="History", exact=True).click()
         page.get_by_role("button", name="Previous judgment", exact=True).click()
         page.get_by_role("status").filter(has_text="Parents above children").wait_for()
@@ -190,13 +192,15 @@ def test_notebook_is_interactive_before_model_finishes():
             browser = pw.chromium.launch(headless=True)
             page = browser.new_page()
             page.set_content(s._repr_html_())
-            frame = page.frame_locator('iframe[title="Diagram properties"]')
-            frame.get_by_label("Property", exact=True).fill("Parents above children")
+            frame = page.frame_locator('iframe[title="Diagram requirements"]')
+            frame.get_by_label("Requirement", exact=True).fill("Parents above children")
             assert not entered.is_set()
             frame.get_by_role("button", name="Explore", exact=True).click()
             assert entered.wait(5)
-            frame.get_by_role("status").filter(has_text="Drafting property").wait_for()
-            assert not s._properties[0].candidates
+            frame.get_by_role("status").filter(
+                has_text="Drafting requirement"
+            ).wait_for()
+            assert not s._requirements[0].candidates
             release.set()
             expect(
                 frame.get_by_role("button", name="Upvote", exact=True).first
@@ -207,7 +211,7 @@ def test_notebook_is_interactive_before_model_finishes():
 
 
 @pytest.mark.parametrize("direction", ["clockwise", "counterclockwise"])
-def test_cyclic_properties_remain_draggable_and_classifiable(direction):
+def test_cyclic_requirements_remain_draggable_and_classifiable(direction):
     from playwright.sync_api import sync_playwright
 
     nodes = [Tree(i) for i in range(4)]
@@ -231,7 +235,7 @@ def test_cyclic_properties_remain_draggable_and_classifiable(direction):
         browser = pw.chromium.launch(headless=True)
         page = browser.new_page()
         page.goto(s._url())
-        request_property(page, "Draw this ring in a circle")
+        request_requirement(page, "Draw this ring in a circle")
         assert s.current["kind"] == "confirmation"
         for side in (0, 1):
             layout = page.locator(f"#diagram-{side} webcola-cnd-graph").evaluate(
@@ -252,7 +256,7 @@ def test_done_button_combines_multiple_supported_survivors():
         browser = pw.chromium.launch(headless=True)
         page = browser.new_page()
         page.goto(s._url())
-        request_property(page, "Parents above children")
+        request_requirement(page, "Parents above children")
         page.get_by_role("button", name="Unsure", exact=True).first.click()
         page.get_by_role("button", name="Unsure", exact=True).last.click()
         ready(page)
@@ -265,6 +269,6 @@ def test_done_button_combines_multiple_supported_survivors():
         page.wait_for_function(
             "document.querySelectorAll('.card:not([hidden])').length === 1"
         )
-        assert len(s.active_property.result["accepted_ids"]) == 2
-        assert s.active_property.status == "accepted"
+        assert len(s.active_requirement.result["accepted_ids"]) == 2
+        assert s.active_requirement.status == "accepted"
         browser.close()

@@ -11,8 +11,8 @@ from ._policy import combine
 def question_key(question):
     return json.dumps(
         [
-            question["property_id"],
-            question["property_revision"],
+            question["requirement_id"],
+            question["requirement_revision"],
             question["context"],
             sorted(question["candidate_ids"]),
             question["datum"],
@@ -26,8 +26,8 @@ def make_question(
 ):
     return {
         "id": uuid.uuid4().hex,
-        "property_id": prop.id,
-        "property_revision": prop.revision,
+        "requirement_id": prop.id,
+        "requirement_revision": prop.revision,
         "prompt": prop.prompt,
         "context": background.to_registry(),
         "candidate_ids": ids,
@@ -44,7 +44,7 @@ def find_question(prop, background, checks, find_datum):
     """Return a contextual contrast, then try confirmation without assuming equivalence.
 
     ``find_datum(ids, predicate)`` supplies retained or generated data and avoids
-    repeats in this property revision and context. All returned sides retain the
+    repeats in this requirement revision and context. All returned sides retain the
     background, including confirmation's alternative arrangement.
     """
     programs = {
@@ -69,7 +69,7 @@ def find_question(prop, background, checks, find_datum):
                 [a.summary, b.summary],
             )
     # Even a single candidate needs positive evidence. The accepted background
-    # applies on both sides; only the pending property is varied.
+    # applies on both sides; only the pending requirement is varied.
     base = background.to_registry()
     for candidate in prop.survivors:
         ids, program = [candidate.id, "confirmation"], programs[candidate.id]

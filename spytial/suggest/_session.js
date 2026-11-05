@@ -12,8 +12,8 @@ let history = null;
 let historyIndex = 0;
 let available = false;
 let editing = null;
-let properties = [];
-let activePropertyId = null;
+let requirements = [];
+let activeRequirementId = null;
 let canVote = false;
 
 function lock() {
@@ -22,9 +22,9 @@ function lock() {
     button.disabled = busy || !rendered || (!history && (!canVote || paused)) ||
       (history && !current.observations?.[side]);
   });
-  el('done').disabled = busy || !available || !activePropertyId;
-  for (const id of ['add-property', 'explore', 'continue-property', 'cancel-property']) el(id).disabled = busy || !available;
-  document.querySelectorAll('#properties button').forEach(b => b.disabled = busy || !available);
+  el('done').disabled = busy || !available || !activeRequirementId;
+  for (const id of ['add-requirement', 'explore', 'continue-requirement', 'cancel-requirement']) el(id).disabled = busy || !available;
+  document.querySelectorAll('#requirements button').forEach(b => b.disabled = busy || !available);
   el('history').disabled = busy || !available;
   el('previous').disabled = busy || historyIndex === 0;
   el('next-history').disabled = busy || !history || historyIndex >= history.length - 1;
@@ -102,7 +102,7 @@ async function refresh() {
   const state = await api('state');
   available = ['ready', 'empty', 'paused', 'idle'].includes(state.status);
   canVote = state.status === 'ready';
-  if (state.properties) syncProperties(state);
+  if (state.requirements) syncRequirements(state);
   paused = state.status === 'paused';
   el('done').textContent = paused ? 'Resume' : "I'm done";
   if (history) return;
@@ -212,51 +212,51 @@ el('history').addEventListener('click', () => action(async () => {
 }));
 el('previous').addEventListener('click', () => action(async () => { historyIndex--; await showHistory(); }));
 el('next-history').addEventListener('click', () => action(async () => { historyIndex++; await showHistory(); }));
-function syncProperties(state) {
-  const previousActive = activePropertyId;
-  properties = state.properties;
-  activePropertyId = state.active_property_id;
-  if (activePropertyId !== previousActive && properties.length && !busy) el("property-form").hidden = true;
-  const signature = JSON.stringify([properties.map(p => [p.id, p.prompt, p.status]), activePropertyId]);
-  if (el('properties').dataset.signature === signature) return;
-  el('properties').dataset.signature = signature;
-  el('properties').replaceChildren(...properties.map(property => {
+function syncRequirements(state) {
+  const previousActive = activeRequirementId;
+  requirements = state.requirements;
+  activeRequirementId = state.active_requirement_id;
+  if (activeRequirementId !== previousActive && requirements.length && !busy) el("requirement-form").hidden = true;
+  const signature = JSON.stringify([requirements.map(p => [p.id, p.prompt, p.status]), activeRequirementId]);
+  if (el('requirements').dataset.signature === signature) return;
+  el('requirements').dataset.signature = signature;
+  el('requirements').replaceChildren(...requirements.map(requirement => {
     const button = document.createElement('button');
     button.type = 'button';
-    button.textContent = `${property.status === 'accepted' ? '✓ ' : ''}${property.prompt}`;
-    button.setAttribute('aria-current', String(property.id === activePropertyId));
-    button.setAttribute('aria-label', `Edit property: ${property.prompt}`);
-    button.addEventListener('click', () => openProperty(property));
+    button.textContent = `${requirement.status === 'accepted' ? '✓ ' : ''}${requirement.prompt}`;
+    button.setAttribute('aria-current', String(requirement.id === activeRequirementId));
+    button.setAttribute('aria-label', `Edit requirement: ${requirement.prompt}`);
+    button.addEventListener('click', () => openRequirement(requirement));
     return button;
   }));
-  if (!properties.length && el('property-form').hidden) openProperty();
+  if (!requirements.length && el('requirement-form').hidden) openRequirement();
 }
-function openProperty(property = null) {
-  editing = property?.id || null;
-  el('property-form').hidden = false;
-  el('property-prompt').value = property?.prompt || '';
+function openRequirement(requirement = null) {
+  editing = requirement?.id || null;
+  el('requirement-form').hidden = false;
+  el('requirement-prompt').value = requirement?.prompt || '';
   el('explore').textContent = editing ? 'Revise' : 'Explore';
-  el('continue-property').hidden = !editing;
-  el('cancel-property').hidden = !properties.length;
-  el('property-prompt').focus();
+  el('continue-requirement').hidden = !editing;
+  el('cancel-requirement').hidden = !requirements.length;
+  el('requirement-prompt').focus();
 }
-el('add-property').addEventListener('click', () => openProperty());
-el('cancel-property').addEventListener('click', () => { el('property-form').hidden = true; });
-el('continue-property').addEventListener('click', () => action(async () => {
-  await api('resume', {property_id: editing});
-  el('property-form').hidden = true;
+el('add-requirement').addEventListener('click', () => openRequirement());
+el('cancel-requirement').addEventListener('click', () => { el('requirement-form').hidden = true; });
+el('continue-requirement').addEventListener('click', () => action(async () => {
+  await api('resume', {requirement_id: editing});
+  el('requirement-form').hidden = true;
   if (history) closeHistory();
   displayedId = null;
   await refresh();
 }));
-el('property-form').addEventListener('submit', event => {
+el('requirement-form').addEventListener('submit', event => {
   event.preventDefault();
   action(async () => {
-    status('Drafting property interpretations…');
-    await api(editing ? 'edit-property' : 'add-property', {
-      prompt: el('property-prompt').value, property_id: editing
+    status('Drafting requirement interpretations…');
+    await api(editing ? 'edit-requirement' : 'add-requirement', {
+      prompt: el('requirement-prompt').value, requirement_id: editing
     });
-    el('property-form').hidden = true;
+    el('requirement-form').hidden = true;
     if (history) closeHistory();
     displayedId = null;
     await refresh();

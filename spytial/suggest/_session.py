@@ -1,4 +1,4 @@
-"""Coordinate property proposals, contextual diagrams, and enduring judgments."""
+"""Coordinate requirement proposals, contextual diagrams, and enduring judgments."""
 
 from __future__ import annotations
 
@@ -17,7 +17,7 @@ from ._history import JudgmentHistory, validate_vote
 from ._living import LivingSpec
 from ._model import SpecDraft
 from ._policy import combine, consistent, replay_candidates, supported
-from ._property import PropertyState, SpecProperty
+from ._requirement import RequirementState, Requirement
 from ._proposals import (
     ProgramCandidate,
     PROPOSAL_SCHEMA,
@@ -46,16 +46,16 @@ def _ready_method(method):
 
 def _text(prompt):
     if not isinstance(prompt, str) or not prompt.strip() or len(prompt) > 10000:
-        raise ValueError("Describe one property in at most 10000 characters.")
+        raise ValueError("Describe one requirement in at most 10000 characters.")
     return prompt.strip()
 
 
 class SuggestSession:
-    """Start with data; add and revisit one visualization property at a time.
+    """Start with data; add and revisit one visualization requirement at a time.
 
-    Display the session before requesting a property. Startup prepares data only.
-    Each property's candidates contain its own rules; comparisons render them
-    together with all other accepted properties. A completed round combines all supported survivors.
+    Display the session before requesting a requirement. Startup prepares data only.
+    Each requirement's candidates contain its own rules; comparisons render them
+    together with all other accepted requirements. A completed round combines all supported survivors.
     """
 
     def __init__(
@@ -114,8 +114,8 @@ class SuggestSession:
             self.examples.insert(0, sample)
         self._proposer_spec, self.proposer = proposer, None
         self._registry, self._saved = registry, _saved
-        self._properties = []
-        self.active_property_id = None
+        self._requirements = []
+        self.active_requirement_id = None
         self._history = JudgmentHistory()
         self._checks = ProgramChecks()
         self._spec = LivingSpec(self)
@@ -179,31 +179,33 @@ class SuggestSession:
         return self
 
     @property
-    def properties(self):
-        return [SpecProperty(self, p.id) for p in self._properties]
+    def requirements(self):
+        return [Requirement(self, p.id) for p in self._requirements]
 
     @property
-    def active_property(self):
+    def active_requirement(self):
         return (
-            SpecProperty(self, self.active_property_id)
-            if self.active_property_id
+            Requirement(self, self.active_requirement_id)
+            if self.active_requirement_id
             else None
         )
 
-    def _property(self, property_id=None):
-        identifier = property_id if property_id is not None else self.active_property_id
-        prop = next((p for p in self._properties if p.id == identifier), None)
+    def _requirement(self, requirement_id=None):
+        identifier = (
+            requirement_id if requirement_id is not None else self.active_requirement_id
+        )
+        prop = next((p for p in self._requirements if p.id == identifier), None)
         if prop is None:
-            raise ValueError("Unknown property. Add a property first.")
+            raise ValueError("Unknown requirement. Add a requirement first.")
         return prop
 
     @property
     def candidates(self):
-        return self._property().candidates if self.active_property_id else []
+        return self._requirement().candidates if self.active_requirement_id else []
 
     @property
     def survivors(self):
-        return self._property().survivors if self.active_property_id else []
+        return self._requirement().survivors if self.active_requirement_id else []
 
     @property
     def history(self):
@@ -226,7 +228,7 @@ class SuggestSession:
             self._presentation,
             *(
                 c.draft
-                for p in self._properties
+                for p in self._requirements
                 if p.id != excluding
                 for c in p.accepted
             ),
@@ -240,15 +242,15 @@ class SuggestSession:
         draft = combine(self.cls, self._presentation, *(c.draft for c in pool))
         return pool, draft
 
-    def _property_result(self, prop):
+    def _requirement_result(self, prop):
         pool, draft = self._choice(prop)
-        status, message = "draft", "Keep judging, or save this property for later."
+        status, message = "draft", "Keep judging, or save this requirement for later."
         if prop.accepted:
-            status, message = "accepted", "Property accepted."
+            status, message = "accepted", "Requirement accepted."
         elif not prop.survivors:
             status, message = (
                 "empty",
-                "No candidates remain. Correct history or revise this property.",
+                "No candidates remain. Correct history or revise this requirement.",
             )
         elif pool:
             try:
@@ -269,7 +271,7 @@ class SuggestSession:
                 else:
                     status, message = (
                         "conflict",
-                        "The supported interpretations conflict with this property's judgments.",
+                        "The supported interpretations conflict with this requirement's judgments.",
                     )
         if prop.diagnostic:
             status, message = "conflict", prop.diagnostic
@@ -293,7 +295,7 @@ class SuggestSession:
         self._living_checked = False
 
     def _replay(self):
-        for prop in self._properties:
+        for prop in self._requirements:
             judgments = self._judgments(prop)
             replay_candidates(
                 prop.candidates, judgments, self._checks, self.elimination_threshold
@@ -320,27 +322,29 @@ class SuggestSession:
         for datum in self._datums:
             if not self._checks.feasible(datum, program):
                 raise SpecUnavailableError(
-                    "These properties conflict on a retained example."
+                    "These requirements conflict on a retained example."
                 )
         if (
             generated
             and self._find_generated(lambda d: not self._checks.feasible(d, program))
             is not None
         ):
-            raise SpecUnavailableError("Generated data exposed conflicting properties.")
+            raise SpecUnavailableError(
+                "Generated data exposed conflicting requirements."
+            )
 
     def _resolve(self, *, generated=False):
         if self._living_cache is None:
             draft = self._background()
-            accepted = [p.id for p in self._properties if p.accepted]
+            accepted = [p.id for p in self._requirements if p.accepted]
             result = {
                 "status": "supported" if accepted else "empty",
-                "property_ids": accepted,
+                "requirement_ids": accepted,
                 "program": draft.to_registry() if accepted else None,
                 "message": (
-                    "Accepted properties are ready to use."
+                    "Accepted requirements are ready to use."
                     if accepted
-                    else "Accept a property before using the living spec."
+                    else "Accept a requirement before using the living spec."
                 ),
             }
             self._living_cache = result, draft if accepted else None
@@ -389,11 +393,11 @@ class SuggestSession:
             vocab,
             prop,
             background.to_registry(),
-            [r for r in self.history if r["property_id"] == prop.id],
+            [r for r in self.history if r["requirement_id"] == prop.id],
         )
         failures = []
         for attempt in range(2):
-            self._phase = "Drafting property interpretations…"
+            self._phase = "Drafting requirement interpretations…"
             response = self.proposer(
                 prompt + "\nValidation feedback: " + "; ".join(failures),
                 schema=PROPOSAL_SCHEMA,
@@ -401,7 +405,9 @@ class SuggestSession:
             if not isinstance(response, dict) or not isinstance(
                 response.get("programs"), list
             ):
-                raise ValueError("The model did not return property interpretations.")
+                raise ValueError(
+                    "The model did not return requirement interpretations."
+                )
             for raw in response["programs"][:4]:
                 if len(prop.candidates) >= self.max_candidates:
                     break
@@ -419,7 +425,7 @@ class SuggestSession:
                     )
                     if any(c.program == draft.to_registry() for c in prop.candidates):
                         continue
-                    self._phase = "Checking property interpretations…"
+                    self._phase = "Checking requirement interpretations…"
                     self._check_program(
                         combine(self.cls, background, draft).to_registry(),
                         generated=True,
@@ -438,7 +444,7 @@ class SuggestSession:
 
     @_ready_method
     def add_examples(self, examples):
-        """Retain additional data without dropping properties or classifications."""
+        """Retain additional data without dropping requirements or classifications."""
         from ._draft import _coerce_examples
 
         values = _coerce_examples(examples, None)
@@ -452,29 +458,29 @@ class SuggestSession:
         return self
 
     @_ready_method
-    def add_property(self, prompt):
-        """Propose interpretations of one new property; keep accepted rules active."""
-        prop = PropertyState(uuid.uuid4().hex, _text(prompt))
-        self._properties.append(prop)
+    def add_requirement(self, prompt):
+        """Propose interpretations of one new requirement; keep accepted rules active."""
+        prop = RequirementState(uuid.uuid4().hex, _text(prompt))
+        self._requirements.append(prop)
         try:
             self._propose(prop)
         except Exception:
-            self._properties.remove(prop)
+            self._requirements.remove(prop)
             self._invalidate_result()
             raise
-        self.active_property_id, self.paused = prop.id, False
+        self.active_requirement_id, self.paused = prop.id, False
         self._reset_question()
         self._find_next()
-        return SpecProperty(self, prop.id)
+        return Requirement(self, prop.id)
 
     @_ready_method
-    def edit_property(self, property_id, prompt):
-        """Replace this property's candidates and replay its enduring evidence.
+    def edit_requirement(self, requirement_id, prompt):
+        """Replace this requirement's candidates and replay its enduring evidence.
 
-        Its old definition is withdrawn while edited. Other accepted properties
+        Its old definition is withdrawn while edited. Other accepted requirements
         remain in the live spec and in the comparison background.
         """
-        prop = self._property(property_id)
+        prop = self._requirement(requirement_id)
         prompt = _text(prompt)
         if self.proposer is not None and not getattr(self.proposer, "can_revise", True):
             raise ValueError(
@@ -494,22 +500,22 @@ class SuggestSession:
         try:
             self._propose(prop)
         except Exception:
-            self._properties[self._properties.index(prop)] = old
+            self._requirements[self._requirements.index(prop)] = old
             self._invalidate_result()
             raise
-        self.active_property_id, self.paused = prop.id, False
+        self.active_requirement_id, self.paused = prop.id, False
         self._reset_question()
         self._find_next()
-        return SpecProperty(self, prop.id)
+        return Requirement(self, prop.id)
 
     def _accept(self, prop):
-        # Completion replaces this property definition, including on failure.
+        # Completion replaces this requirement definition, including on failure.
         prop.accepted_ids = []
         self._invalidate_result()
         pool, draft = self._choice(prop)
         if not pool:
             raise SpecUnavailableError(
-                "This property needs positive evidence before use."
+                "This requirement needs positive evidence before use."
             )
         if not consistent(
             draft.to_registry(),
@@ -518,7 +524,7 @@ class SuggestSession:
             self.min_positive_votes,
         ):
             raise SpecUnavailableError(
-                "The supported interpretations conflict with this property's judgments."
+                "The supported interpretations conflict with this requirement's judgments."
             )
         program = combine(self.cls, self._background(prop.id), draft).to_registry()
         self._check_program(program, generated=True)
@@ -526,17 +532,17 @@ class SuggestSession:
         self._invalidate_result()
 
     @_ready_method
-    def accept(self, property_id=None):
+    def accept(self, requirement_id=None):
         """Combine all supported survivors, after history and feasibility checks."""
-        prop = self._property(property_id)
+        prop = self._requirement(requirement_id)
         self._accept(prop)
         self._reset_question()
-        if self.active_property_id == prop.id:
+        if self.active_requirement_id == prop.id:
             self.paused = True
-        return SpecProperty(self, prop.id)
+        return Requirement(self, prop.id)
 
     def _try_accept(self, *, converged=False):
-        prop = self._property()
+        prop = self._requirement()
         if converged and len(prop.survivors) != 1:
             return
         if not supported(prop, self.min_positive_votes):
@@ -564,11 +570,11 @@ class SuggestSession:
 
     def _find_next(self):
         self._prepared = True
-        if self.paused or not self.active_property_id:
+        if self.paused or not self.active_requirement_id:
             return None
         if self.current is not None:
             return deepcopy(self.current)
-        prop = self._property()
+        prop = self._requirement()
         self.current = find_question(
             prop,
             self._background(prop.id),
@@ -643,7 +649,7 @@ class SuggestSession:
         """Correct a saved judgment, replaying evidence and reviving candidates."""
         record = self._history.reclassify(question_id, side, value)
         self._replay()
-        self.active_property_id = record["property_id"]
+        self.active_requirement_id = record["requirement_id"]
         self._reset_question()
         self.paused = False
         return deepcopy(record)
@@ -683,11 +689,14 @@ class SuggestSession:
     @_ready_method
     def done(self):
         """End the round and combine all supported survivors when they agree with history."""
-        if self.active_property_id:
+        if self.active_requirement_id:
             self._try_accept()
-            result = self._property_result(self._property())
+            result = self._requirement_result(self._requirement())
         else:
-            result = {"status": "empty", "message": "No property has been requested."}
+            result = {
+                "status": "empty",
+                "message": "No requirement has been requested.",
+            }
         checkpoint = {
             **result,
             "history_revision": self._history.revision,
@@ -699,22 +708,22 @@ class SuggestSession:
         return deepcopy(checkpoint)
 
     @_ready_method
-    def resume(self, property_id=None):
+    def resume(self, requirement_id=None):
         identifier = (
-            self._property(property_id).id
-            if property_id is not None
-            else self.active_property_id
+            self._requirement(requirement_id).id
+            if requirement_id is not None
+            else self.active_requirement_id
         )
-        if identifier != self.active_property_id:
+        if identifier != self.active_requirement_id:
             self._reset_question()
-        self.active_property_id = identifier
+        self.active_requirement_id = identifier
         self.paused = False
         self._prepared = self.current is not None
         return self
 
     @_ready_method
     def finish(self):
-        """Checkpoint the round and return a fixed copy of accepted properties."""
+        """Checkpoint the round and return a fixed copy of accepted requirements."""
         self.done()
         return self.spec.snapshot()
 
@@ -751,10 +760,12 @@ class SuggestSession:
                     "question": None,
                 }
             state = {
-                "properties": [self._property_result(p) for p in self._properties],
-                "active_property_id": self.active_property_id,
+                "requirements": [
+                    self._requirement_result(p) for p in self._requirements
+                ],
+                "active_requirement_id": self.active_requirement_id,
             }
-            if not self.active_property_id:
+            if not self.active_requirement_id:
                 return {
                     **state,
                     "status": "idle",
@@ -762,14 +773,14 @@ class SuggestSession:
                     "question": self._preview(),
                 }
             if self.paused:
-                prop = self._property_result(self._property())
+                prop = self._requirement_result(self._requirement())
                 return {
                     **state,
                     "status": "paused",
                     "message": prop["message"],
                     "question": (
                         deepcopy(self.current)
-                        if self.current and not self._property().accepted
+                        if self.current and not self._requirement().accepted
                         else self._preview()
                     ),
                 }
@@ -790,7 +801,7 @@ class SuggestSession:
                 "message": (
                     ""
                     if self.current
-                    else "No further comparison found. Add data, revise this property, or save it for later."
+                    else "No further comparison found. Add data, revise this requirement, or save it for later."
                 ),
                 "question": deepcopy(self.current) if self.current else self._preview(),
             }
@@ -802,13 +813,13 @@ class SuggestSession:
         from pathlib import Path
 
         document = {
-            "format_version": 2,
+            "format_version": 3,
             "observation_version": 1,
             "spytial_core_version": SPYTIAL_CORE_VERSION,
             "target_name": self.cls.__name__,
             "presentation": self._presentation.to_registry(),
-            "properties": [p.to_record() for p in self._properties],
-            "active_property_id": self.active_property_id,
+            "requirements": [p.to_record() for p in self._requirements],
+            "active_requirement_id": self.active_requirement_id,
             "history": self.history,
             "history_revision": self._history.revision,
             "checkpoints": self.checkpoints,
@@ -830,9 +841,9 @@ class SuggestSession:
         from pathlib import Path
 
         saved = json.loads(Path(path).read_text())
-        if not isinstance(saved, dict) or saved.get("format_version") != 2:
+        if not isinstance(saved, dict) or saved.get("format_version") != 3:
             raise ValueError(
-                "This session requires the property-based save format (version 2)."
+                "This session requires the requirement-based save format (version 3)."
             )
         if saved.get("observation_version") != 1:
             raise ValueError("Unsupported layout observation format.")
@@ -857,32 +868,32 @@ class SuggestSession:
             self.cls,
             {"id": "presentation", "summary": "", "program": saved["presentation"]},
         ).draft
-        self._properties = [
-            PropertyState.from_record(self.cls, p) for p in saved["properties"]
+        self._requirements = [
+            RequirementState.from_record(self.cls, p) for p in saved["requirements"]
         ]
-        if len({p.id for p in self._properties}) != len(self._properties):
-            raise ValueError("Saved property IDs must be unique.")
-        self.active_property_id = saved["active_property_id"]
-        if self.active_property_id is not None:
-            self._property()
+        if len({p.id for p in self._requirements}) != len(self._requirements):
+            raise ValueError("Saved requirement IDs must be unique.")
+        self.active_requirement_id = saved["active_requirement_id"]
+        if self.active_requirement_id is not None:
+            self._requirement()
         self._history = JudgmentHistory.restore(
             saved["history"], saved["history_revision"]
         )
         if any(
-            r["property_id"] not in {p.id for p in self._properties}
+            r["requirement_id"] not in {p.id for p in self._requirements}
             for r in self.history
         ):
-            raise ValueError("A saved judgment refers to an unknown property.")
+            raise ValueError("A saved judgment refers to an unknown requirement.")
         self.checkpoints = deepcopy(saved["checkpoints"])
         self.paused = bool(saved["paused"])
         self._asked = {question_key(r) for r in self.history if r.get("complete")}
         self.current = deepcopy(saved["question"])
         self._replay()
         if self.current is not None:
-            prop = self._property(self.current["property_id"])
+            prop = self._requirement(self.current["requirement_id"])
             if (
-                prop.id != self.active_property_id
-                or prop.revision != self.current["property_revision"]
+                prop.id != self.active_requirement_id
+                or prop.revision != self.current["requirement_revision"]
                 or self.current["context"] != self._background(prop.id).to_registry()
             ):
                 self.current = None
@@ -908,7 +919,7 @@ class SuggestSession:
     def _repr_html_(self):
         import html
 
-        return f'<iframe title="Diagram properties" src="{html.escape(self._url(), quote=True)}" style="width:100%;height:560px;border:0"></iframe>'
+        return f'<iframe title="Diagram requirements" src="{html.escape(self._url(), quote=True)}" style="width:100%;height:560px;border:0"></iframe>'
 
     def close(self):
         with self._server_lock:

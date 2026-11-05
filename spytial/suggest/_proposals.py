@@ -138,8 +138,8 @@ class FixedProposals:
 
 
 def proposal_prompt(cls, vocab, prop, background, history):
-    return f"""Help a person refine ONE visualization property through concrete critique.
-Return 2-4 alternative interpretations of ONLY the requested property. Each may
+    return f"""Help a person refine ONE visualization requirement through concrete critique.
+Return 2-4 alternative interpretations of ONLY the requested requirement. Each may
 contain several positional operations. The accepted background applies to every
 alternative automatically: do not repeat, weaken, or replace its rules. Do not
 add unrelated requirements. Use short ordinary-language summaries.
@@ -154,15 +154,15 @@ Presentation is fixed separately; do not emit hiding, styles or inferred edges.
 Class: {cls.__name__}
 Fields: {[(f.name, f.type_repr) for f in build_class_info(cls).fields]}
 Vocabulary: {json.dumps(vocab)}
-Property: {prop.prompt}
+Requirement: {prop.prompt}
 Earlier wordings: {json.dumps([r["prompt"] for r in prop.revisions])}
 Accepted background (already applied): {json.dumps(background)}
-Judgments concern THIS property only, on the saved datum and arrangement. The
+Judgments concern THIS requirement only, on the saved datum and arrangement. The
 context records what else was applied when they were made; it is not part of the
-property being learned. Upvote: satisfies the intended property. Downvote: does
+requirement being learned. Upvote: satisfies the intended requirement. Downvote: does
 not. Unsure: undecided. Null: not rated. Never invent classifications. Preserve
 these judgments when interpreting a revision; the person can correct history.
-Property judgment history: {json.dumps(history)}
+Requirement judgment history: {json.dumps(history)}
 """
 
 
