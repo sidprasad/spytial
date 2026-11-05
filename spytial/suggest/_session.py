@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 from copy import deepcopy
+from contextlib import contextmanager
 from functools import wraps
 import json
 import threading
+import time
 import uuid
 
 from ..core_assets import SPYTIAL_CORE_VERSION
@@ -132,6 +134,7 @@ class SuggestSession:
         self._closed = self._prepared = self._search_pending = False
         self._error = None
         self._phase = "Preparing examples…"
+        self.timings = {"model": 0.0, "checking": 0.0, "comparison": 0.0}
         threading.Thread(target=self._initialize_job, daemon=True).start()
 
     def _initialize_job(self):
@@ -381,7 +384,17 @@ class SuggestSession:
             self._invalidate_result()
         return datum
 
+    @contextmanager
+    def _timed(self, stage, message):
+        self._phase = message
+        start = time.perf_counter()
+        try:
+            yield
+        finally:
+            self.timings[stage] += time.perf_counter() - start
+
     def _propose(self, prop):
+        self.timings = {"model": 0.0, "checking": 0.0, "comparison": 0.0}
         if self.proposer is None:
             self.proposer = as_provider(
                 Codex() if self._proposer_spec is None else self._proposer_spec
@@ -397,11 +410,13 @@ class SuggestSession:
         )
         failures = []
         for attempt in range(2):
-            self._phase = "Drafting requirement interpretations…"
-            response = self.proposer(
-                prompt + "\nValidation feedback: " + "; ".join(failures),
-                schema=PROPOSAL_SCHEMA,
-            )
+            with self._timed("model", "Drafting requirement interpretations…"):
+                response = self.proposer(
+                    prompt + "\nValidation feedback: " + "; ".join(failures),
+                    schema=PROPOSAL_SCHEMA,
+                )
+            if self._closed:
+                raise RuntimeError("This session was closed during generation.")
             if not isinstance(response, dict) or not isinstance(
                 response.get("programs"), list
             ):
@@ -412,9 +427,29 @@ class SuggestSession:
                 if len(prop.candidates) >= self.max_candidates:
                     break
                 try:
-                    geometry = validate_operations(
-                        raw["operations"], vocab, self._datums
-                    )
+                    with self._timed(
+                        "checking", "Checking requirement interpretations…"
+                    ):
+                        geometry = validate_operations(
+                            raw["operations"],
+                            vocab,
+                            self._datums,
+                            evaluator=self._checks.selectors,
+                        )
+                    fragments = {}
+                    for operation, row in zip(raw["operations"], geometry):
+                        fragment = operation.get("prompt_fragment", prop.prompt)
+                        if (
+                            not isinstance(fragment, str)
+                            or not fragment.strip()
+                            or fragment not in prop.prompt
+                        ):
+                            raise ValueError(
+                                "prompt_fragment must quote the requested requirement exactly."
+                            )
+                        fragments.setdefault(row.dedup_key(), [])
+                        if fragment not in fragments[row.dedup_key()]:
+                            fragments[row.dedup_key()].append(fragment)
                     if (
                         not isinstance(raw["summary"], str)
                         or not raw["summary"].strip()
@@ -425,13 +460,20 @@ class SuggestSession:
                     )
                     if any(c.program == draft.to_registry() for c in prop.candidates):
                         continue
-                    self._phase = "Checking requirement interpretations…"
-                    self._check_program(
-                        combine(self.cls, background, draft).to_registry(),
-                        generated=True,
-                    )
+                    with self._timed(
+                        "checking", "Checking requirement interpretations…"
+                    ):
+                        self._check_program(
+                            combine(self.cls, background, draft).to_registry(),
+                            generated=True,
+                        )
                     prop.candidates.append(
-                        ProgramCandidate(uuid.uuid4().hex, raw["summary"], draft)
+                        ProgramCandidate(
+                            uuid.uuid4().hex,
+                            raw["summary"],
+                            draft,
+                            prompt_fragments=fragments,
+                        )
                     )
                 except (ValueError, KeyError, TypeError, SpecUnavailableError) as exc:
                     failures.append(str(exc))
@@ -575,12 +617,13 @@ class SuggestSession:
         if self.current is not None:
             return deepcopy(self.current)
         prop = self._requirement()
-        self.current = find_question(
-            prop,
-            self._background(prop.id),
-            self._checks,
-            lambda ids, predicate: self._find_datum(prop, ids, predicate),
-        )
+        with self._timed("comparison", "Finding a comparison…"):
+            self.current = find_question(
+                prop,
+                self._background(prop.id),
+                self._checks,
+                lambda ids, predicate: self._find_datum(prop, ids, predicate),
+            )
         return deepcopy(self.current)
 
     @_ready_method
@@ -927,6 +970,18 @@ class SuggestSession:
             if self._server is not None:
                 self._server.close()
                 self._server = None
+        if self._operation_lock.acquire(blocking=False):
+            try:
+                self._checks.close()
+            finally:
+                self._operation_lock.release()
+        else:
+            # Closing the view must not wait for an in-flight model response.
+            threading.Thread(target=self._close_checks, daemon=True).start()
+
+    def _close_checks(self):
+        with self._operation_lock:
+            self._checks.close()
 
     def __enter__(self):
         return self

@@ -90,6 +90,11 @@ def run_cases(cases, *, timeout=_TIMEOUT_S):
             f"{proc.stdout.strip()[:500]}"
         ) from exc
 
+    return _validate_result(documents, result)
+
+
+def _validate_result(documents, result):
+    """Validate the same result contract for one-shot and persistent transports."""
     if not isinstance(result, dict):
         raise RuntimeError("spytial-check returned an invalid result.")
     _check_provenance(result)

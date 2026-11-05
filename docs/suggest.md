@@ -10,11 +10,9 @@ display(session)  # In a local Jupyter notebook; session.show() opens a browser.
 ```
 
 Startup prepares data and shows an initial diagram. It makes no model request.
-Enter a requirement such as **Parents above children** in the embedded prompt, or:
-
-```python
-vertical = session.add_requirement("Parents above children")
-```
+Enter **Parents above children** in the embedded prompt and click **Explore**.
+Adding, judging, finishing, and revising requirements all happen in this view.
+The Python methods below provide the same controls for scripts.
 
 The LLM proposes interpretations of that requirement. Hypothesis searches for data
 that distinguishes them. Spytial constructs two draggable diagrams of the same
@@ -27,7 +25,7 @@ requirement. Every previously accepted requirement applies to both diagrams.
 
 ```python
 checkpoint = session.done()
-vertical.status
+session.active_requirement.status
 ```
 
 A **survivor** has fewer than `elimination_threshold=2` negative votes. A
@@ -60,6 +58,12 @@ is unresolved. It does not bind a spec to the class, close the controls, or writ
 file. `requirement.accept()` performs the same combination checks explicitly.
 
 ## Add another requirement
+
+After acceptance, the view opens a prompt for the next requirement. Enter **Align
+siblings horizontally** and click **Explore**. You can also use **Add requirement**
+at any point. The accepted prompts remain visible with a ✓; click one to revisit it.
+
+The corresponding Python call is:
 
 ```python
 horizontal = session.add_requirement("Align siblings horizontally")
@@ -104,6 +108,7 @@ another requirement. Corrections can restore eliminated candidates. Use
 stay fixed so a correction concerns the same example. Programmatically:
 
 ```python
+vertical = session.requirements[0]
 entry = vertical.history[0]
 session.reclassify(entry["id"], 0, "unsure")
 ```
@@ -115,7 +120,11 @@ withdrawn. Other accepted requirements remain active.
 
 ## Revise an earlier requirement
 
+Click its prompt in the view, edit the wording, and choose **Revise**. Choose
+**Continue** to resume its existing candidates. In Python:
+
 ```python
+vertical = session.requirements[0]
 vertical.revise("Keep left children below and left of their parent")
 # Judge in the same embedded view; vertical.done() ends this round.
 ```
@@ -137,15 +146,29 @@ contains handles for every requirement, including unfinished ones.
 import spytial
 
 spec = session.apply()       # Same stable object as session.spec.
-print(spec)                 # Current accepted Python Spytial source.
+print(spec)                 # Rules annotated with their prompts and interpretations.
 spytial.diagram(root)        # Uses accepted requirements for TreeNode.
 
 # After accepting another requirement or revising one:
 spytial.diagram(root)        # Reads the updated rules on this call.
 ```
 
-`print(spec)` resolves the current rules each time. `spec.to_source()` returns
-the source string; `spec.to_registry()` returns the registry dictionary.
+`print(spec)` resolves the current rules each time. Each rule's comment names its
+requirement, wording revision, and accepted interpretation. If several accepted
+interpretations or prompts contribute the same rule, all sources are preserved.
+Presentation rules inferred from Python data are marked separately.
+
+`spec.provenance` returns a list of `{rule, origin, sources}` records. Each source
+contains `requirement_id`, `prompt`, `revision`, `candidate_id`, and `interpretation`.
+It also contains `prompt_fragments`: exact excerpts supplied for that rule. The
+model supplies these per operation, and the session checks that they occur in the
+prompt. A provider that omits excerpts attributes the operation to the whole prompt.
+Only currently accepted candidates contribute sources. Revision, corrected votes,
+and save/load update or preserve this mapping along with the living spec.
+
+`spec.to_source()` returns the annotated source; `spec.to_source(with_comments=False)`
+omits comments. `spec.to_registry()` returns the registry dictionary. A snapshot's
+source comments remain fixed with its rules.
 
 Each accepted requirement's definition is conjoined with every other accepted
 requirement. Existing diagrams retain their earlier layout. Ordinary handwritten
@@ -195,16 +218,43 @@ The default model provider is `Codex()`, using an authenticated local CLI. Selec
 another with `proposer=ClaudeCode()`, a model-id string, or a callable
 `(prompt, *, schema) -> dict`. A response contains `programs`, each with a readable
 `summary` and an `operations` list. The schema permits orientation, alignment,
-and cyclic operations with `hold: always` or `hold: never`. The LLM is asked for
+and cyclic operations with `hold: always` or `hold: never`, plus a `prompt_fragment`
+quoting the relevant wording. Attribution metadata is kept out of the core spec.
+The LLM is asked for
 2–4 interpretations; `max_candidates=4` caps each round, including one repair call.
 Provider failures leave earlier requirements and judgments available for retry.
 
 The default search is `HypothesisSearch(strategy or "auto")`. Supplied examples
-supplement generated data. Each invocation is bounded by `max_examples=20`.
+supplement generated data. Each candidate/contrast search is limited to
+`max_examples=20` predicate checks, including shrinking. It stops starting checks
+after five seconds; an in-progress core request has a separate hard 20-second
+timeout. A checked witness is retained if shrinking runs out of budget. These are
+per-search limits; a round can run several searches. To configure them:
+
+```python
+from spytial.suggest import HypothesisSearch
+
+session = suggest(TreeNode, examples=[root],
+                  search=HypothesisSearch(trees, max_seconds=5), max_examples=10)
+```
+
 Generation inspects data without resolving existing diagram annotations or an
 unavailable older living binding. Install `spytial_diagramming[suggest-search]`
 for Hypothesis and have Node available for core checks. Set `SPYTIAL_CODEX` or
 `Codex(bin="/absolute/path/to/codex")` if the notebook kernel cannot find the CLI.
+
+Each session starts one Node worker lazily and reuses the released checker and
+selector evaluator. Identical selectors and program checks use bounded caches.
+`close()` stops the worker as well as the controls. A timeout or worker failure
+raises an error and never counts as negative evidence. Later requests can start a
+fresh worker. The released checker, its version checks, and its semantics are
+unchanged.
+
+The view reports model drafting, checking, and comparison phases while a request
+is running. `session.timings` reports seconds for `model`, `checking`, and
+`comparison`, reset when a requirement is proposed or revised. Later comparison
+searches accumulate in the comparison total. `session.search.last_run` reports
+the last Hypothesis search's check count, duration, budget cutoff, and witness status.
 
 `FixedExamples()` disables generated search; supply examples explicitly.
 `FixedProposals(programs)` substitutes deterministic model responses. An

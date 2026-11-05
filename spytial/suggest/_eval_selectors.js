@@ -65,11 +65,11 @@ function analyzeOne(sel, di) {
   }
 }
 
-(async () => {
+function evaluate({ datum, selectors }) {
+  let ev;
   try {
-    const { datum, selectors } = JSON.parse(await readStdin());
     const di = new JSONDataInstance(datum);
-    const ev = new SGraphQueryEvaluator();
+    ev = new SGraphQueryEvaluator();
     ev.initialize({ sourceData: di });
 
     // The closed vocabulary a model may reference -- types and relation names,
@@ -99,9 +99,22 @@ function analyzeOne(sel, di) {
       if (st) out.static = st;
       return out;
     });
-    process.stdout.write(JSON.stringify({ ok: true, vocabulary, results }));
+    return { ok: true, vocabulary, results };
   } catch (e) {
-    process.stdout.write(JSON.stringify({ ok: false, error: String((e && e.message) || e) }));
-    process.exitCode = 1;
+    return { ok: false, error: String((e && e.message) || e) };
+  } finally {
+    if (ev) ev.dispose();
   }
-})();
+}
+
+module.exports = { evaluate };
+if (require.main === module) {
+  readStdin().then(source => {
+    const result = evaluate(JSON.parse(source));
+    process.stdout.write(JSON.stringify(result));
+    if (!result.ok) process.exitCode = 1;
+  }).catch(error => {
+    process.stdout.write(JSON.stringify({ok: false, error: String(error)}));
+    process.exitCode = 1;
+  });
+}

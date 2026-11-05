@@ -76,7 +76,7 @@ def _validate(program):
     return True
 
 
-def compare(datum, a, b):
+def compare(datum, a, b, *, runner=run_cases):
     """Find checked contrasts on this datum, never a global program verdict.
 
     Each witness retains its origin program and flips a positional constraint
@@ -135,7 +135,7 @@ def compare(datum, a, b):
     ab = witnesses(a, b) if a != b else []
     ba = witnesses(b, a) if a != b else []
     keys = list(programs)
-    results = run_cases(
+    results = runner(
         [
             {
                 "name": str(index),

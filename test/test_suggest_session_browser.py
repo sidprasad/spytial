@@ -45,6 +45,8 @@ def accept_first(page):
     page.get_by_role("button", name="Upvote", exact=True).first.click()
     page.get_by_role("button", name="Downvote", exact=True).last.click()
     page.get_by_role("button", name="Resume", exact=True).wait_for()
+    page.locator("#requirement-form").wait_for(state="visible")
+    assert page.get_by_label("Requirement", exact=True).input_value() == ""
 
 
 def test_prompt_drag_partial_vote_reload_and_history():
@@ -174,11 +176,22 @@ def test_add_and_edit_requirement_keep_context_and_enduring_evidence():
         browser.close()
 
 
-def test_notebook_is_interactive_before_model_finishes():
+def test_notebook_is_interactive_before_model_finishes(monkeypatch):
     from playwright.sync_api import sync_playwright, expect
 
     entered, release = threading.Event(), threading.Event()
+    checking, checked = threading.Event(), threading.Event()
     provider = Provider()
+    from spytial.suggest._checks import ProgramChecks
+
+    selectors = ProgramChecks.selectors
+
+    def slow_check(*args, **kwargs):
+        checking.set()
+        assert checked.wait(30)
+        return selectors(*args, **kwargs)
+
+    monkeypatch.setattr(ProgramChecks, "selectors", slow_check)
 
     def slow(prompt, *, schema):
         entered.set()
@@ -202,12 +215,18 @@ def test_notebook_is_interactive_before_model_finishes():
             ).wait_for()
             assert not s._requirements[0].candidates
             release.set()
+            assert checking.wait(5)
+            frame.get_by_role("status").filter(
+                has_text="Checking requirement"
+            ).wait_for()
+            checked.set()
             expect(
                 frame.get_by_role("button", name="Upvote", exact=True).first
             ).to_be_enabled(timeout=30000)
             browser.close()
         finally:
             release.set()
+            checked.set()
 
 
 @pytest.mark.parametrize("direction", ["clockwise", "counterclockwise"])

@@ -83,15 +83,126 @@ def test_print_reads_current_rules_from_the_same_living_object(live_session, cap
     spec = s.spec
     print(spec)
     before = capsys.readouterr().out
-    assert before == spec.to_source(with_comments=False) + "\n"
+    assert before == spec.to_source() + "\n"
     assert "spytial.orientation" in before and "LivingSpec" not in before
+    assert "Parents above children" in before and "Presentation inferred" in before
+    assert "Requirement" not in spec.to_source(with_comments=False)
     accept_alignment(s)
     print(spec)
     after = capsys.readouterr().out
     assert after != before and "spytial.align" in after
     assert repr(spec).startswith("<LivingSpec")
     s.close()
-    assert str(spec) == spec.to_source(with_comments=False)
+    assert str(spec) == spec.to_source()
+
+
+def test_provenance_tracks_accepted_prompts_and_survives_save_load(
+    live_session, tmp_path
+):
+    s = live_session
+    first = s.active_requirement
+    spec = s.spec
+    initial = spec.provenance
+    rules = [row for row in initial if row["origin"] == "requirement"]
+    assert len(rules) == 1
+    assert rules[0]["rule"] in spec.to_registry()["constraints"]
+    assert {source["requirement_id"] for source in rules[0]["sources"]} == {first.id}
+    assert all(
+        source["prompt"] == first.prompt and source["revision"] == 1
+        for source in rules[0]["sources"]
+    )
+    pending = s.add_requirement("Align siblings")
+    assert spec.provenance == initial  # Unaccepted interpretations have no provenance.
+    s.judge(
+        "left",
+        layout_states=[
+            state(-120, 150, other_x=120, other_y=150),
+            state(-120, 150, other_x=-120, other_y=250),
+        ],
+    )
+    assert pending.status == "accepted"
+    assert {
+        source["prompt"] for row in spec.provenance for source in row["sources"]
+    } == {
+        first.prompt,
+        pending.prompt,
+    }
+    snapshot = spec.snapshot().to_source()
+    path = tmp_path / "explained.json"
+    s.save(path)
+    with SuggestSession.load(Tree, path, search=FixedExamples()).wait() as restored:
+        assert restored.spec.provenance == spec.provenance
+        assert str(restored.spec) == snapshot
+    s.reclassify(first.history[0]["id"], 0, "unsure")
+    assert first.prompt not in str(spec)
+    assert first.prompt in snapshot
+
+
+def test_shared_rule_keeps_both_prompt_sources(live_session):
+    s = live_session
+    s.proposer = Provider([proposal(["below"])])
+    second = s.add_requirement("Keep each parent higher")
+    s.judge("both", layout_states=[state(-120, 150), state(120, 150)])
+    second.done()
+    assert second.status == "accepted"
+    rules = [row for row in s.spec.provenance if row["origin"] == "requirement"]
+    assert len(rules) == 1
+    assert {source["prompt"] for source in rules[0]["sources"]} == {
+        "Parents above children",
+        "Keep each parent higher",
+    }
+
+
+def test_each_operation_quotes_its_prompt_fragment_and_revision(tmp_path):
+    prompt = "Left children below; right children below"
+    operations = []
+    for field, fragment in (
+        ("left", "Left children below"),
+        ("right", "right children below"),
+    ):
+        operations.append(
+            {
+                "kind": "orientation",
+                "selector": f"{field} - (univ -> NoneType)",
+                "directions": ["below"],
+                "prompt_fragment": fragment,
+            }
+        )
+    provider = Provider(
+        [{"summary": "Each child below its parent", "operations": operations}]
+    )
+    with session(proposer=provider) as s:
+        requirement = s.add_requirement(prompt)
+        s.vote(0, "upvote", layout_state=state(-120, 150, other_x=120, other_y=150))
+        requirement.done()
+        sources = [row["sources"][0] for row in s.spec.provenance if row["sources"]]
+        assert {tuple(source["prompt_fragments"]) for source in sources} == {
+            ("Left children below",),
+            ("right children below",),
+        }
+        assert "prompt_fragment" not in str(s.spec.to_registry())
+        before = str(s.spec)
+        requirement.revise(prompt + "; keep these orders")
+        requirement.done()
+        assert all(
+            source["revision"] == 2
+            for row in s.spec.provenance
+            for source in row["sources"]
+        )
+        assert str(s.spec) != before
+        path = tmp_path / "fragments.json"
+        s.save(path)
+        with SuggestSession.load(Tree, path, search=FixedExamples()).wait() as restored:
+            assert restored.spec.provenance == s.spec.provenance
+
+
+def test_invented_prompt_fragment_is_rejected():
+    item = proposal(["below"])
+    item["operations"][0]["prompt_fragment"] = "words the person did not write"
+    with session(proposer=Provider([item])) as s:
+        with pytest.raises(ValueError, match="quote the requested requirement"):
+            s.add_requirement("Parents above children")
+        assert not s.requirements
 
 
 def test_losing_last_accepted_requirement_blocks_drawing_until_corrected(

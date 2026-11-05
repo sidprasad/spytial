@@ -1,7 +1,7 @@
 """Proposal format, prompt, and authoring checks shared by all proposers."""
 
 from copy import deepcopy
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 import json
 import re
 
@@ -19,6 +19,7 @@ class ProgramCandidate:
     positive_votes: int = 0
     negative_votes: int = 0
     eliminated: bool = False
+    prompt_fragments: dict = field(default_factory=dict)
 
     @property
     def program(self):
@@ -32,6 +33,7 @@ class ProgramCandidate:
             "positive_votes": self.positive_votes,
             "negative_votes": self.negative_votes,
             "eliminated": self.eliminated,
+            "prompt_fragments": deepcopy(self.prompt_fragments),
         }
 
     @classmethod
@@ -49,7 +51,12 @@ class ProgramCandidate:
                     source="proposal",
                 )
             )
-        return cls(record["id"], record["summary"], SpecDraft(target, rows))
+        return cls(
+            record["id"],
+            record["summary"],
+            SpecDraft(target, rows),
+            prompt_fragments=deepcopy(record.get("prompt_fragments", {})),
+        )
 
 
 def _operation_schema(kind, parameter, values):
@@ -63,8 +70,9 @@ def _operation_schema(kind, parameter, values):
             "selector": {"type": "string"},
             parameter: value,
             "hold": {"type": "string", "enum": ["always", "never"]},
+            "prompt_fragment": {"type": "string"},
         },
-        "required": ["kind", "selector", parameter, "hold"],
+        "required": ["kind", "selector", parameter, "hold", "prompt_fragment"],
         "additionalProperties": False,
     }
 
@@ -143,6 +151,8 @@ Return 2-4 alternative interpretations of ONLY the requested requirement. Each m
 contain several positional operations. The accepted background applies to every
 alternative automatically: do not repeat, weaken, or replace its rules. Do not
 add unrelated requirements. Use short ordinary-language summaries.
+For each operation, include prompt_fragment: copy the exact words from the
+requirement that this operation interprets. Use the whole requirement if needed.
 Operations: orientation(selector, directions), align(selector, direction),
 cyclic(selector, direction). Orientation: above, below, left, right,
 directlyAbove, directlyBelow, directlyLeft, directlyRight. Alignment: horizontal
@@ -166,7 +176,7 @@ Requirement judgment history: {json.dumps(history)}
 """
 
 
-def validate_operations(operations, vocab, datums):
+def validate_operations(operations, vocab, datums, *, evaluator=evaluate_selectors):
     if not isinstance(operations, list) or len(operations) > 16:
         raise ValueError("A program must have at most 16 operations.")
     names = (
@@ -181,7 +191,9 @@ def validate_operations(operations, vocab, datums):
         kind = operation.get("kind")
         if kind not in {"orientation", "align", "cyclic"}:
             raise ValueError("Unsupported positional operation.")
-        kwargs = {k: v for k, v in operation.items() if k != "kind"}
+        kwargs = {
+            k: v for k, v in operation.items() if k not in {"kind", "prompt_fragment"}
+        }
         selector = kwargs.get("selector")
         if not isinstance(selector, str) or not selector.strip():
             raise ValueError("An operation needs a selector.")
@@ -191,7 +203,7 @@ def validate_operations(operations, vocab, datums):
         kind, kwargs = _authoring_gate(kind, kwargs)
         nonempty = False
         for datum in datums:
-            verdict = evaluate_selectors(datum, [selector])[0]
+            verdict = evaluator(datum, [selector])[0]
             if not verdict.ok or (not verdict.empty and verdict.arity != 2):
                 raise ValueError(
                     verdict.diagnostic or "The selector must return node pairs."

@@ -15,6 +15,7 @@ let editing = null;
 let requirements = [];
 let activeRequirementId = null;
 let canVote = false;
+let completedRequirement = null;
 
 function lock() {
   document.querySelectorAll('.vote').forEach(button => {
@@ -104,6 +105,11 @@ async function refresh() {
   canVote = state.status === 'ready';
   if (state.requirements) syncRequirements(state);
   paused = state.status === 'paused';
+  const accepted = paused && requirements.find(p => p.id === activeRequirementId && p.status === 'accepted');
+  if (accepted && completedRequirement !== `${accepted.id}:${accepted.revision}` && !history) {
+    completedRequirement = `${accepted.id}:${accepted.revision}`;
+    openRequirement();
+  }
   el('done').textContent = paused ? 'Resume' : "I'm done";
   if (history) return;
   if (state.status === 'error') throw Error(state.message);
@@ -253,9 +259,21 @@ el('requirement-form').addEventListener('submit', event => {
   event.preventDefault();
   action(async () => {
     status('Drafting requirement interpretations…');
-    await api(editing ? 'edit-requirement' : 'add-requirement', {
-      prompt: el('requirement-prompt').value, requirement_id: editing
-    });
+    let waiting = true;
+    const progress = setInterval(async () => {
+      try {
+        const state = await api('state');
+        if (waiting && state.status === 'loading') status(state.message);
+      } catch (_) { /* The submitted request reports connection failures. */ }
+    }, 500);
+    try {
+      await api(editing ? 'edit-requirement' : 'add-requirement', {
+        prompt: el('requirement-prompt').value, requirement_id: editing
+      });
+    } finally {
+      waiting = false;
+      clearInterval(progress);
+    }
     el('requirement-form').hidden = true;
     if (history) closeHistory();
     displayedId = null;

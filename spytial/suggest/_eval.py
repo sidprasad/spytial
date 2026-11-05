@@ -212,6 +212,10 @@ def evaluate_selectors(datum, selectors: List[str]) -> List[SelectorVerdict]:
             f"node bridge emitted non-JSON output (exit {proc.returncode}): "
             f"{proc.stdout.strip()[:500]}"
         ) from exc
+    return _decode_result(out)
+
+
+def _decode_result(out):
     if not out.get("ok"):
         # The datum itself was rejected (e.g. failed to initialize) -- a bridge
         # failure, not a per-selector verdict.

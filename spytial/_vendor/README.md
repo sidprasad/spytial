@@ -9,6 +9,11 @@ Suggest's Python comparison strategy and the integration tests share this
 checker through `spytial._conformance`. No comparison or example-selection
 strategy is added to core.
 
+Interactive sessions keep the released CLI's exported `main` function loaded in
+one Node worker. The adapter supplies a case file and captures its JSON result;
+Python supervises request timeouts. This avoids reloading the bundle for each
+generated datum. The copied CLI remains unchanged.
+
 `VENDORED.json` records the release and SHA-256 of each asset. The harness also
 reports its version with `node spytial/_vendor/spytial-check.js --version`.
 `./update-spytial-core.sh` updates the checker, evaluator, language manifest,

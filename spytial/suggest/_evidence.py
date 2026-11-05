@@ -69,7 +69,7 @@ def observe(datum, state):
     return {"constraints": constraints, "nodes": sorted(seen), "signature": signature}
 
 
-def membership(datum, programs, observation):
+def membership(datum, programs, observation, *, runner=run_cases):
     """Return membership for every program; errors never become negative evidence."""
     cases = []
     for index, program in enumerate(programs):
@@ -91,7 +91,7 @@ def membership(datum, programs, observation):
             )
     if not cases:
         return []
-    results = run_cases(cases, timeout=20)["cases"]
+    results = runner(cases, timeout=20)["cases"]
     answers = []
     for base, observed in zip(results[::2], results[1::2]):
         for result in (base, observed):

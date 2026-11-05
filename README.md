@@ -52,12 +52,13 @@ spytial.diagram(data, method="file")
 
 Build diagram rules one requirement at a time with `from spytial.suggest import suggest`:
 `s = suggest(MyClass, examples=[root]); display(s)` prepares the data, then
-`s.add_requirement("Parents above children")` asks an LLM for interpretations.
+enter **Parents above children** in the view and click **Explore**.
 Drag and rate the diagrams. **I'm done** combines every surviving interpretation
 with positive support when the combination agrees with that requirement's judgments
-and works with accepted rules. Add another requirement to refine the spec, or revisit
-an earlier one with `requirement.revise("...")`; earlier classifications remain evidence
+and works with accepted rules. Enter the next requirement in the same view, or click
+an earlier requirement to revise it; earlier classifications remain evidence
 about that requirement. `spec = s.apply()` connects the accepted spec to the class.
+`print(spec)` identifies the prompts and interpretations behind each rule.
 Later `spytial.diagram(root)` calls use its updated rules. `s.close()` stops the
 controls; a supported spec remains usable. See the [notebook and guide](https://sidprasad.github.io/spytial/suggest/).
 Use `suggest_draft(MyClass)` for a one-shot editable draft.

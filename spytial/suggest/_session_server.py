@@ -83,8 +83,8 @@ class SessionServer:
                             "text/javascript; charset=utf-8",
                         )
                     elif route == "state":
-                        with server.lock:
-                            self.reply(server.state())
+                        # _poll is non-blocking, including during a model request.
+                        self.reply(server.state())
                     elif route == "history":
                         with server.session._operation_lock:
                             self.reply({"records": server.session.history})
