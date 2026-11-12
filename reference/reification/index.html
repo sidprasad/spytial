@@ -23,7 +23,7 @@
       
       
       <link rel="icon" href="../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.0">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.1">
     
     
       
@@ -985,6 +985,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#generated-class-inspection-tests" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Generated class inspection tests
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#known-failures" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1294,6 +1305,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#generated-class-inspection-tests" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Generated class inspection tests
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#known-failures" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1530,6 +1552,37 @@ does not inherit the original class or restore its methods and protocols.</p>
 <p>Instance class metadata does not receive the identity verification used for
 reference atoms. If the recorded class name has been rebound, generic
 reconstruction can allocate an instance of a different class.</p>
+<h2 id="generated-class-inspection-tests">Generated class inspection tests</h2>
+<p><code>test/test_reify_class_pbt.py</code> extends the fixed class examples by generating
+class declarations as well as their instances. It runs under the existing
+pytest CI job, with 200 Hypothesis examples for each of four families:
+ordinary classes with dictionary storage, slotted classes, mutable
+dataclasses, and frozen dataclasses.</p>
+<p>Each example defines one to three instance classes, each with zero to four
+fields including inherited fields. It can also define one base class per
+instance class. The generator varies class and field names, single
+inheritance, and the order in which ordinary classes print their fields.
+For dataclasses it varies required fields, scalar defaults, whether an
+instance uses or overrides each default, and per-field <code>repr</code> settings.
+Fields can contain primitives, earlier generated instances, and acyclic
+lists, tuples, and dictionaries. Field-value containers have at most three
+entries and the recursive field-value strategy has an eight-leaf budget.
+Dictionary keys use the existing hashable strategy, with its separate
+eight-leaf budget for nested tuples and exclusion of NaN.</p>
+<p>The capture helper returns only a JSON string and the expected <code>repr</code>.
+Recovery recreates the class definitions, calls the public <code>reify</code> function
+on the JSON-decoded datum, and checks both the reconstructed classes and
+exact <code>repr</code> equality. The original instances and capture builder are not
+passed to recovery. Class definitions are supplied as an explicit environment
+dependency, with scalar defaults but no captured per-instance state.</p>
+<p>These tests provide empirical evidence for this generated family. They do
+not cover arbitrary class definitions or arbitrary printers. Ordinary
+printers read the generated fields in a generated order; dataclasses use
+their generated printer. Names avoid built-in type-name collisions and
+language-hidden fields. Custom allocation, descriptors, dataclass default
+factories, slotted dataclasses, multiple inheritance, and cyclic class
+instances remain outside this generator. Existing fixed cases and boundary
+tests provide separate evidence for additional forms and known failures.</p>
 <h2 id="known-failures">Known failures</h2>
 <h3 id="cycles-through-immutable-containers">Cycles through immutable containers</h3>
 <p>A tuple can participate in a cycle through a mutable object. If reconstruction
@@ -1747,7 +1800,7 @@ serialization or validation mechanism.</p>
       <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.tabs", "navigation.top", "toc.follow", "content.code.copy"], "search": "../../assets/javascripts/workers/search.a7633da7.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
     
     
-      <script src="../../assets/javascripts/bundle.c21346df.min.js"></script>
+      <script src="../../assets/javascripts/bundle.a5f9d56c.min.js"></script>
       
         <script src="../../javascripts/playground-newtab.js"></script>
       
