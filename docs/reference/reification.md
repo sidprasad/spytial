@@ -135,6 +135,42 @@ Instance class metadata does not receive the identity verification used for
 reference atoms. If the recorded class name has been rebound, generic
 reconstruction can allocate an instance of a different class.
 
+## Generated class inspection tests
+
+`test/test_reify_class_pbt.py` extends the fixed class examples by generating
+class declarations as well as their instances. It runs under the existing
+pytest CI job, with 200 Hypothesis examples for each of four families:
+ordinary classes with dictionary storage, slotted classes, mutable
+dataclasses, and frozen dataclasses.
+
+Each example defines one to three instance classes, each with zero to four
+fields including inherited fields. It can also define one base class per
+instance class. The generator varies class and field names, single
+inheritance, and the order in which ordinary classes print their fields.
+For dataclasses it varies required fields, scalar defaults, whether an
+instance uses or overrides each default, and per-field `repr` settings.
+Fields can contain primitives, earlier generated instances, and acyclic
+lists, tuples, and dictionaries. Field-value containers have at most three
+entries and the recursive field-value strategy has an eight-leaf budget.
+Dictionary keys use the existing hashable strategy, with its separate
+eight-leaf budget for nested tuples and exclusion of NaN.
+
+The capture helper returns only a JSON string and the expected `repr`.
+Recovery recreates the class definitions, calls the public `reify` function
+on the JSON-decoded datum, and checks both the reconstructed classes and
+exact `repr` equality. The original instances and capture builder are not
+passed to recovery. Class definitions are supplied as an explicit environment
+dependency, with scalar defaults but no captured per-instance state.
+
+These tests provide empirical evidence for this generated family. They do
+not cover arbitrary class definitions or arbitrary printers. Ordinary
+printers read the generated fields in a generated order; dataclasses use
+their generated printer. Names avoid built-in type-name collisions and
+language-hidden fields. Custom allocation, descriptors, dataclass default
+factories, slotted dataclasses, multiple inheritance, and cyclic class
+instances remain outside this generator. Existing fixed cases and boundary
+tests provide separate evidence for additional forms and known failures.
+
 ## Known failures
 
 ### Cycles through immutable containers
