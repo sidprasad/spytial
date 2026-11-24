@@ -94,7 +94,7 @@ locally available fonts instead of requesting the default Google Font. Explicit
 remote resources in your own spec (such as image URLs) still need a connection.
 
 Maintainers: run `./update-spytial-core.sh` to update **all** vendored core assets,
-or `./update-spytial-core.sh --version 6.6.0` to select or repair an exact release.
+or `./update-spytial-core.sh --version 6.8.1` to select or repair an exact release.
 `./update-spytial-core.sh --check` verifies hashes and the complete file inventory
 offline. See [the vendoring instructions](spytial/_vendor/browser/README.md) for
 offline tarballs and wheel verification.

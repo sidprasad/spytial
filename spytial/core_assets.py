@@ -10,7 +10,7 @@ import os
 from pathlib import Path
 import sys
 
-SPYTIAL_CORE_VERSION = "6.6.0"
+SPYTIAL_CORE_VERSION = "6.8.1"
 
 _CDN_BASE = f"https://cdn.jsdelivr.net/npm/spytial-core@{SPYTIAL_CORE_VERSION}"
 _BROWSER = "spytial-core-complete.global.js"
