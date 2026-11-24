@@ -1,10 +1,10 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "urn:spytial:layout-spec-schema:2026-09-18",
+  "$id": "urn:spytial:layout-spec-schema:2026-11-18",
   "title": "Spytial layout specification",
-  "description": "A Spytial spec: constraints (structural layout) and directives (presentation). Spec language 2026-09-18, from spytial-core 6.6.0. This schema is stricter than the engine parser, which silently ignores anything it does not recognize — validating here is how a misspelled key or an out-of-range value gets caught at all. Fetch it from https://cdn.jsdelivr.net/gh/sidprasad/spytial-core@<tag>/docs/spytial-spec.schema.json; pin a tag, since the @main path is overwritten each release.",
-  "x-spytial-language-version": "2026-09-18",
-  "x-spytial-core-version": "6.6.0",
+  "description": "A Spytial spec: constraints (structural layout) and directives (presentation). Spec language 2026-11-18, from spytial-core 6.8.1. This schema is stricter than the engine parser, which silently ignores anything it does not recognize — validating here is how a misspelled key or an out-of-range value gets caught at all. Fetch it from https://cdn.jsdelivr.net/gh/sidprasad/spytial-core@<tag>/docs/spytial-spec.schema.json; pin a tag, since the @main path is overwritten each release.",
+  "x-spytial-language-version": "2026-11-18",
+  "x-spytial-core-version": "6.8.1",
   "type": "object",
   "properties": {
     "constraints": {
@@ -413,7 +413,7 @@
     },
     "align": {
       "title": "Align",
-      "description": "Put the selected atoms on a shared horizontal or vertical line.",
+      "description": "Align the top or left edges of the selected boxes.",
       "type": "object",
       "properties": {
         "align": {
@@ -425,7 +425,7 @@
               "minLength": 1
             },
             "direction": {
-              "description": "`horizontal` gives the atoms a shared Y coordinate; `vertical` a shared X coordinate. An unrecognized value is a parse error.",
+              "description": "`horizontal` gives the top edges a shared Y coordinate. `vertical` gives the left edges a shared X coordinate. An unrecognized value is a parse error.",
               "type": "string",
               "enum": [
                 "horizontal",
@@ -815,12 +815,12 @@
               "minLength": 1
             },
             "name": {
-              "description": "The literal label shown before the value; this field is not a selector.",
+              "description": "The literal label shown before the value. Add punctuation to this label if desired.",
               "type": "string",
               "minLength": 1
             },
             "value": {
-              "description": "Evaluated once; each tuple is attached to the tagged atom in its first column. A binary result shows as `name: value`; a longer tuple shows one line per tuple, as `name[k1,k2]: value`. A unary result tags each selected atom with its own label. Selector arity: n-ary — 2+ columns (also accepted: 1 column).",
+              "description": "Evaluated once; each tuple is attached to the tagged atom in its first column. A binary result shows as `name value`; a longer tuple shows as `name[k1,k2] value`. A unary result tags each selected atom with its own label. Selector arity: n-ary — 2+ columns (also accepted: 1 column).",
               "type": "string",
               "minLength": 1
             },

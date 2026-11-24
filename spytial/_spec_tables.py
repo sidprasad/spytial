@@ -3,7 +3,7 @@
 GENERATED FILE -- DO NOT EDIT BY HAND.
 
     Source:   spytial/_vendor/spytial-language.json
-    Language: 2026-09-18 (spytial-core 6.6.0)
+    Language: 2026-11-18 (spytial-core 6.8.1)
     Regenerate with: python3 scripts/generate_spec_tables.py
 
 Everything here is derived from the manifest spytial-core publishes, so a
@@ -16,8 +16,8 @@ tables, each with its reason.
 # The manifest this was generated from. `LANGUAGE_VERSION` only moves when
 # the spec language itself changes, so an unchanged value across a
 # spytial-core bump means nothing here needed revisiting.
-LANGUAGE_VERSION = '2026-09-18'
-CORE_VERSION = '6.6.0'
+LANGUAGE_VERSION = '2026-11-18'
+CORE_VERSION = '6.8.1'
 
 
 # --------------------------------------------------------------------------- #
